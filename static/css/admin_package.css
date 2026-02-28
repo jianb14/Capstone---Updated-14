@@ -1,0 +1,609 @@
+* {
+    font-family: inherit;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header,
+.page-header * {
+    text-align: left !important;
+}
+
+.page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #666666;
+}
+
+.breadcrumb a {
+    color: #666666;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb a:hover {
+    color: #ffffff;
+}
+
+.breadcrumb span:not(.separator) {
+    color: #999999;
+}
+
+.title-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0.5rem;
+}
+
+.title-header h1{
+    font-size:1.5rem;
+    margin-bottom: 18px;
+}
+
+.action-create {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: rgba(255,255,255,0.05);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.15);
+    text-decoration: none;
+}
+
+.action-create:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.3);
+    transition: all 0.2s ease;
+}
+
+
+.table-container {
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead {
+    background: #141414;
+}
+
+th {
+    padding: 0.75rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #888;
+    text-transform: uppercase;
+    text-align: left !important;
+}
+
+th:last-child {
+    text-align: center !important;
+}
+
+/* -------------------------
+   ROWS
+------------------------- */
+tbody tr {
+    border-bottom: 1px solid #171717;
+}
+
+td {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #ccc;
+}
+
+/* -------------------------
+   ACTION BUTTONS (DESKTOP)
+------------------------- */
+.action-buttons {
+    display: flex;
+    gap: 0.375rem;
+    justify-content: center;
+}
+
+.action-buttons a {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.action-buttons a:nth-child(1) {
+    background: rgba(255,255,255,0.05);
+    color: #ffffff;
+    border-color: rgba(255,255,255,0.12);
+}
+
+.action-buttons a:nth-child(1):hover {
+    background: rgba(255,255,255,0.12);
+}
+
+.action-buttons a:nth-child(2) {
+    background: transparent;
+    color: #9ca3af;
+    border-color: rgba(255,255,255,0.08);
+}
+
+.action-buttons a:nth-child(2):hover {
+    color: #ffffff;
+}
+
+.action-buttons a:nth-child(3) {
+    background: transparent;
+    color: #ef4444;
+    border-color: rgba(239,68,68,0.35);
+}
+
+.action-buttons a:nth-child(3):hover {
+    background: rgba(239,68,68,0.15);
+}
+
+@media (max-width: 768px) {
+
+    table, tr, td {
+        display: block;
+        width: 100%;
+    }
+
+
+    tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    thead {
+        display: none;
+    }
+
+    tbody tr {
+        background: #0f0f0f;
+        border: 1px solid #1f1f1f;
+        border-radius: 8px;
+        margin-bottom: 1.25rem;
+        padding: 1rem 1rem 0 1rem;
+        margin: 0;
+    }
+
+    td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #1a1a1a;
+        padding: 12px 0;
+    }
+
+    td::before {
+        content: attr(data-label);
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+    }
+
+    td:last-child {
+        border-bottom: none;
+    }
+
+    /* 🔥 ACTIONS — EXACT admin_user BEHAVIOR */
+    td[data-label="Actions"] {
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    td[data-label="Actions"]::before {
+        text-align: center;
+        width: 100%;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .action-buttons a {
+        width: 100%;
+        padding: 0.625rem;
+        font-size: 0.8rem;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .table-container {
+        background: transparent;
+        border: none;  
+        overflow-x: hidden;
+    }
+}
+
+
+
+/* Custom Scrollbar */
+.table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #141414;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+}
+
+/* Smooth Scroll */
+.table-container {
+    scroll-behavior: smooth;
+}
+
+/* ===============================
+   MODERN DETAIL VIEW (Package, Addon, Additional)
+================================ */
+
+.detail-wrapper {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.detail-card {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+/* ---------------- IMAGE ---------------- */
+
+.detail-image-container {
+    width: 100%;
+    height: 220px;
+    background: #0f0f0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid #2a2a2a;
+    margin-bottom: 0;
+}
+
+.detail-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Content Padding Wrapper */
+.detail-card > div:not(.detail-image-container) {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.detail-image-container + div {
+    padding-top: 1.5rem;
+}
+
+.detail-title-price{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #2a2a2a;
+    padding-top: 24px;
+}
+
+/* ---------------- TITLE ---------------- */
+
+.detail-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+/* ---------------- PRICE ---------------- */
+
+.detail-price {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    border-radius: 6px;
+    white-space: nowrap;
+    margin-left: 1rem;
+}
+
+/* ---------------- SECTIONS ---------------- */
+
+.detail-section {
+    margin-bottom: 1.25rem;
+}
+
+.detail-section h4 {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+/* ---------------- LIST ---------------- */
+
+.detail-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(45%, 1fr));
+    gap: 0.5rem;
+}
+
+.detail-list li {
+    padding: 0.5rem 0.75rem;
+    background: #1a1a1a;
+    border: 1px solid #252525;
+    border-radius: 6px;
+    color: #d4d4d4;
+    font-size: 0.85rem;
+}
+
+/* ---------------- NOTES ---------------- */
+
+.detail-notes {
+    font-size: 0.9rem;
+    color: #a3a3a3;
+    line-height: 1.6;
+    background: #1a1a1a;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #252525;
+    margin-bottom: 1.25rem;
+}
+
+/* ---------------- SERVICE PRICE ---------------- */
+
+.detail-service-charge {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-top: 1px dashed #2a2a2a;
+    font-size: 0.9rem;
+    color: #ccc;
+    margin-bottom: 0;
+}
+
+.detail-solo-price {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-top: 1px dashed #2a2a2a;
+    font-size: 0.9rem;
+    color: #ccc;
+    margin-bottom: 0;
+}
+
+.detail-service-charge span:last-child,
+.detail-solo-price span:last-child {
+    font-weight: 600;
+    color: #fff;
+}
+
+/* ---------------- ACTION BUTTONS ---------------- */
+
+.detail-buttons{
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #2a2a2a;
+}
+
+/* Button styles */
+.detail-buttons a {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* ===============================
+   MODERN FORM STYLES
+================================ */
+
+.form-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.form-card {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem; /* Compact gap */
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0.2rem;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="file"],
+.form-group textarea,
+.form-group select {
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    color: #fff;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+    width: 100%;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.5); 
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: white;
+    cursor: pointer;
+}
+
+.checkbox-group label {
+    margin: 0;
+    cursor: pointer;
+    color: #fff;
+    text-transform: none;
+    font-size: 0.9rem;
+}
+
+.section-divider {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: #2a2a2a;
+    margin: 1rem 0;
+}
+
+.section-title {
+    grid-column: 1 / -1;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #2a2a2a;
+    align-items: center;
+}
+
+.btn-save {
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 0.65rem 1.2rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-save:hover {
+    background: #e5e5e5;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: #888;
+    border: 1px solid #666;
+    padding: 0.65rem 1.2rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-cancel:hover {
+    color: #fff;
+}

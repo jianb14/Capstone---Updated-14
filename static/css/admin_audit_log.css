@@ -1,0 +1,297 @@
+
+/* Page Header */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #666666;
+}
+
+.breadcrumb span.active {
+    color: #999999;
+}
+
+/* Search Bar */
+.search-bar {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: right;
+}
+
+.search-bar form {
+    display: flex;
+}
+
+.search-bar input {
+    width: 350px;
+    padding: 0.6rem 1rem;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    color: #fff;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.search-bar input:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+
+/* Table Container */
+.table-container {
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    overflow-x: auto;
+    width: 100%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 100%;
+}
+
+thead {
+    background: #141414;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #888888;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+tbody tr {
+    border-bottom: 1px solid #171717;
+    transition: background 0.15s ease;
+}
+
+tbody tr:hover {
+    background: #141414;
+}
+
+tbody tr:last-child {
+    border-bottom: none;
+}
+
+td {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #cccccc;
+    vertical-align: middle;
+}
+
+/* --- Audit Log Specific Styles --- */
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-info .username {
+    font-weight: 500;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.user-info .email {
+    color: #888888;
+    font-size: 0.8rem;
+}
+
+.system-user {
+    color: #888888;
+    font-style: italic;
+}
+
+/* Role Badges (from admin_user.css) */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.role-badge.customer {
+    background: rgba(100, 100, 100, 0.15);
+    color: #b0b0b0;
+    border: 1px solid rgba(100, 100, 100, 0.25);
+}
+
+.role-badge.staff {
+    background: rgba(255, 193, 7, 0.12);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.25);
+}
+
+.role-badge.admin {
+    background: rgba(33, 150, 243, 0.12);
+    color: #42a5f5;
+    border: 1px solid rgba(33, 150, 243, 0.25);
+}
+
+.role-badge.unknown {
+    background: rgba(42, 42, 42, 0.5);
+    color: #777;
+    border: 1px solid rgba(60, 60, 60, 0.5);
+}
+
+td[data-label="Date"] small {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.no-logs {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #666;
+    font-style: italic;
+}
+
+/* Pagination (from admin_user.css) */
+.pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.page-link:hover:not(.disabled) {
+    background: #2a2a2a;
+    border-color: #fff;
+}
+
+.page-link.disabled {
+    opacity: 0.5;
+    cursor: default;
+    border-color: #2a2a2a;
+}
+
+.current-page {
+    font-size: 0.9rem;
+    color: #888;
+    padding: 0 0.5rem;
+}
+
+/* Responsive Design (from admin_user.css) */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.5rem;
+        margin: 60px 0 2rem 0;
+    }
+
+    .page-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .search-bar {
+        width: 100%;
+    }
+
+    .search-bar input, .search-bar input:focus {
+        width: 100%;
+    }
+
+    .table-container {
+        border: none;
+        background: transparent;
+        overflow: visible;
+    }
+
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead {
+        display: none;
+    }
+
+    tbody tr {
+        background: #0f0f0f;
+        border: 1px solid #1f1f1f;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+
+    tbody tr:hover {
+        background: #141414;
+    }
+
+    td {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #1f1f1f;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+    }
+
+    td:last-child {
+        border-bottom: none;
+    }
+
+    td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #888888;
+        letter-spacing: 0.05em;
+        text-align: left;
+        padding-right: 1rem;
+    }
+
+    .pagination {
+        justify-content: center;
+    }
+}

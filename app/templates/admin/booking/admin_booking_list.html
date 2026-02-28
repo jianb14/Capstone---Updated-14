@@ -1,0 +1,84 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/admin_booking.css' %}">
+
+<div class="page-header">
+    <h1>Booking Management</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <span>Bookings</span>
+    </div>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Event</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in bookings %}
+            <tr>
+                <td data-label="ID">#{{ b.id }}</td>
+                <td data-label="Customer">
+                    <div style="font-weight: 500; color: #fff;">{{ b.user.username }}</div>
+                    {% if b.user.email %}
+                    <div style="font-size: 0.8rem; color: #888;">{{ b.user.email }}</div>
+                    {% endif %}
+                </td>
+                <td data-label="Event">{{ b.event_type }}</td>
+                <td data-label="Date">
+                    <div>{{ b.event_date }}</div>
+                    <div style="font-size: 0.8rem; color: #888;">{{ b.time_range_display|default:"-" }}</div>
+                </td>
+                <td data-label="Status">
+                    {% if b.status == 'confirmed' or b.status == 'completed' %}
+                        <span class="status-badge active">{{ b.get_status_display }}</span>
+                    {% elif b.status == 'cancelled' or b.status == 'denied' %}
+                        <span class="status-badge inactive">{{ b.get_status_display }}</span>
+                    {% elif b.status == 'pending' %}
+                        <span class="status-badge pending">{{ b.get_status_display }}</span>
+                    {% else %}
+                        <span class="status-badge">{{ b.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_booking_detail' b.id %}">View</a>
+
+                        {% if b.status == 'pending' %}
+                        <a href="{% url 'admin_booking_action' b.id 'confirm' %}">Confirm</a>
+                        <a href="{% url 'admin_booking_action' b.id 'deny' %}">Deny</a>
+
+                        {% elif b.status == 'cancel_requested' %}
+                        <a href="{% url 'admin_cancel_action' b.id 'approve' %}">Approve</a>
+                        <a href="{% url 'admin_cancel_action' b.id 'deny' %}">Reject</a>
+
+                        {% elif b.edit_requested %}
+                        <a href="{% url 'admin_edit_action' b.id 'approve' %}">Approve Edit</a>
+                        <a href="{% url 'admin_edit_action' b.id 'deny' %}">Deny Edit</a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem;">No bookings yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

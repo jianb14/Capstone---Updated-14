@@ -1,0 +1,933 @@
+{% extends 'client/base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}">
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+
+<style>
+    /* Modern Dark Theme for FullCalendar */
+    .fc {
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    /* Toolbar Title */
+    .fc .fc-toolbar-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    /* Buttons (Prev, Next, Month, Week, Today) */
+    .fc .fc-button-primary {
+        background-color: transparent;
+        border: 1px solid #2a2a2a;
+        color: #ffffff;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        padding: 0.4rem 0.8rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        outline: none;
+        box-shadow: none !important;
+    }
+
+    .fc .fc-button-primary:hover {
+        background-color: #ffffff;
+        color: #000000;
+        border-color: #ffffff;
+    }
+
+    .fc .fc-button-primary:not(:disabled).fc-button-active, 
+    .fc .fc-button-primary:not(:disabled):active {
+        background-color: #ffffff;
+        color: #000000;
+        border-color: #ffffff;
+    }
+
+    /* Grid & Cells */
+    .fc-theme-standard td, 
+    .fc-theme-standard th {
+        border-color: #2a2a2a;
+    }
+
+    .fc .fc-col-header-cell-cushion {
+        color: #888888;
+        text-decoration: none;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        padding: 10px 0;
+    }
+
+    .fc .fc-daygrid-day-number {
+        color: #ffffff;
+        text-decoration: none;
+        font-size: 0.8rem;
+    }
+
+    .fc .fc-day-today {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    /* Reduce Calendar Box Size */
+    .fc .fc-daygrid-day-frame {
+        min-height: 70px !important;
+    }
+
+    /* Event Bars (With Time Text) */
+    .fc-event-main {
+        color: #ffffff !important;
+        padding: 4px 6px !important; /* Padding for bigger box */
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    /* Popover Styling (When clicking +more) */
+    .fc-theme-standard .fc-popover {
+        background-color: #1a1a1a !important;
+        border: 1px solid #ffffff !important;
+    }
+
+    .fc-theme-standard .fc-popover-header {
+        background-color: #000000 !important; /* Black header */
+        color: #ffffff !important;
+    }
+
+    .fc-popover-title {
+        color: #ffffff !important;
+        font-weight: 700;
+    }
+
+    /* "+ More" Link Styling */
+    .fc-more-link {
+        color: white !important; /* Orange/Gold to stand out */
+        font-size: 0.75rem;
+        text-decoration: none;
+    }
+
+    /* --- UPDATED PROFILE CARD LAYOUT --- */
+
+    /* Top Section: Avatar & Stats */
+    .profile-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10rem;
+    }
+
+    .profile-identity {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+
+    .profile-identity h2 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+
+    .profile-identity p {
+        color: #888;
+        font-size: 0.85rem;
+        margin-top: 2px;
+    }
+
+    .stats-row {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #ffffff;
+        display: block;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #666;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+        display: block;
+    }
+
+    /* Bottom Section: Info & Buttons */
+    .profile-bottom {
+        padding: 1.5rem 2rem;
+        background: rgba(255, 255, 255, 0.02);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4rem;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, auto);
+        gap: 0 4rem;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-label {
+        font-size: 0.7rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+    }
+
+    .info-value {
+        font-size: 0.95rem;
+        color: #fff;
+        font-weight: 500;
+    }
+
+    .profile-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-sm {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s linear;
+        cursor: pointer;
+        /* Additions for alignment and hover effects */
+        position: relative;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border: 1px solid #444;
+        color: #ccc;
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    .btn-outline:hover {
+        border-color: #fff;
+        color: #fff;
+    }
+
+    .profile-actions .btn-primary {
+        background: #fff;
+        color: #000;
+        border: 1px solid #fff;
+    }
+
+    .profile-actions .btn-primary:hover {
+        color: #fff;
+    }
+
+    .profile-actions .btn-primary span {
+        position: relative;
+        z-index: 1;
+    }
+
+    .profile-actions .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: #111;
+        transform: translate(-50%, -50%);
+        transition: width 0.4s ease, padding-bottom 0.4s ease;
+        z-index: 0;
+    }
+
+    .profile-actions .btn-primary:hover::before {
+        width: 220%;
+        padding-bottom: 220%;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+        .profile-top, .profile-bottom {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1.5rem;
+        }
+        .stats-row {
+            width: 100%;
+            justify-content: space-between;
+        }
+        .info-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            width: 100%;
+        }
+        .profile-actions {
+            width: 100%;
+        }
+        .profile-actions .btn-sm {
+            flex: 1;
+            text-align: center;
+        }
+    }
+
+
+    
+    .status-text {
+        font-size: 0.8rem;
+        color: #888;
+        font-style: italic;
+        align-self: center;
+        padding: 0.4rem 0.8rem;
+    }
+
+    /* --- MODAL STYLES (Floating Card Overlay) --- */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7); /* Less dark background */
+        backdrop-filter: blur(3px);       /* Less blur effect */
+        z-index: 2000;
+        display: none; /* Hidden by default */
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.show {
+        display: flex;
+        opacity: 1;
+    }
+
+    .modal-card {
+        background: #111111;
+        border: 1px solid #333333;
+        border-radius: 16px;
+        padding: 2rem;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        position: relative;
+        transform: translateY(20px);
+        transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.show .modal-card {
+        transform: translateY(0);
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        background: transparent;
+        border: none;
+        color: #666;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: color 0.2s;
+        line-height: 1;
+    }
+
+    .modal-close:hover {
+        color: #fff;
+    }
+
+    .modal-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid #2a2a2a;
+        padding-bottom: 1rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.2rem;
+    }
+
+    .modal-id {
+        font-size: 0.85rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .modal-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.8rem;
+        font-size: 0.95rem;
+    }
+
+    .modal-label { color: #888; font-weight: 500; }
+    .modal-value { color: #fff; font-weight: 600; text-align: right; }
+
+    .status-badge-lg {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    /* Status Colors for Modal */
+    .status-pending { background: rgba(217, 119, 6, 0.15); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.3); }
+    .status-confirmed { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .status-completed { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-cancelled, .status-cancel_requested { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    .btn-edit { background: #ffffff; color: #000000; border: 1px solid #ffffff; }
+    .btn-edit:hover { background: #e5e5e5;}
+
+    .btn-delete { background: transparent; color: #ef4444; border: 1px solid #ef4444; }
+    .btn-delete:hover { background: rgba(239, 68, 68, 0.1);}
+    
+    .waiting-text { text-align: center; color: #d97706; font-style: italic; font-size: 0.9rem; }
+    .waiting-text-red { text-align: center; color: #ef4444; font-style: italic; font-size: 0.9rem; }
+
+
+
+
+
+    /* --- PASSWORD MODAL REFINEMENTS --- */
+    #passwordModal .modal-card {
+        max-width: 420px;
+        padding: 2.5rem 2rem;
+        background: #111;
+        border: 1px solid #333;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+
+    #passwordModal .modal-header {
+        text-align: left;
+        border-bottom: none;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0;
+    }
+
+    #passwordModal .modal-header h2 {
+        font-size: 1.5rem;
+        letter-spacing: -0.5px;
+    }
+
+    #passwordModal .modal-close {
+        top: 1.5rem;
+        right: 1.5rem;
+    }
+
+    #changePasswordForm .form-group {
+        margin-bottom: 1.2rem;
+    }
+
+    #changePasswordForm label {
+        font-size: 0.6em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #888;
+        margin-bottom: 0.4rem;
+        font-weight: 600;
+    }
+
+    #changePasswordForm input {
+        background: #0a0a0a;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        color: #fff;
+        transition: all 0.2s ease;
+    }
+
+    #changePasswordForm input:focus {
+        border-color: #fff;
+        background: #000;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+        transform: none;
+    }
+
+    #btnSavePassword {
+        margin-top: 0.5rem;
+        padding: 0.9rem;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        background: #fff;
+        color: #000;
+        font-weight: 700;
+        width: 100%;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    #btnSavePassword:hover {
+        background: #e5e5e5;
+        transform: translateY(-2px);
+    }
+
+    .field-error {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 0.4rem;
+        display: none;
+    }
+
+    .form-message {
+        padding: 0.75rem;
+        margin-bottom: 1.5rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        text-align: center;
+        display: none;
+    }
+    
+    .form-message.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .form-message.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    /* ------------------------------------- */
+</style>
+
+<div class="profile-page">
+    <div class="profile-bg"></div>
+
+    <div class="profile-container">
+        <!-- Profile Card -->
+        <div class="profile-card">
+            
+            <!-- Top: Identity & Stats -->
+            <div class="profile-top">
+                <div class="profile-identity">
+                    <div class="profile-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
+                    <div>
+                        <h2>{{ user.username }}</h2>
+                        <p>Member since {{ user.date_joined|date:"Y" }}</p>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ total_bookings }}</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" style="color: #3b82f6;">{{ confirmed_count }}</span>
+                        <span class="stat-label">Confirmed</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" style="color: #d97706;">{{ pending_count }}</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" style="color: #10b981;">{{ completed_count }}</span>
+                        <span class="stat-label">Complete</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom: Info & Actions -->
+            <div class="profile-bottom">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">First Name</span>
+                        <span class="info-value">{{ user.first_name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Name</span>
+                        <span class="info-value">{{ user.last_name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email Address</span>
+                        <span class="info-value">{{ user.email }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone Number</span>
+                        <span class="info-value">{{ user.phone_number|default:"--" }}</span>
+                    </div>
+                </div>
+
+                <div class="profile-actions">
+                    <a onclick="openPasswordModal()" class="btn-sm btn-outline">Change Password</a>
+                    <a href="{% url 'create_booking' %}" class="btn-sm btn-primary" style="text-decoration: none;"><span>Create Booking</span></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Section -->
+        <div class="calendar-section">
+            <h3>Events Calendar</h3>
+            <p>An overview of all scheduled events. Confirmed events are in blue, pending are in yellow.</p>
+            <div class="calendar-wrapper">
+                <div class="calendar-legend">
+                    <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Confirmed)</div>
+                    <div class="legend-item"><span class="legend-color pending"></span>Pending (Reserved)</div>
+                </div>
+                <div id="calendar"></div>
+            </div>
+        </div>
+
+        <!-- Your Bookings Table -->
+        <div class="bookings-section">
+            <h3>Your Bookings</h3>
+            {% if user_bookings %}
+            <div class="table-container">
+                <table class="bookings-table">
+                    <thead>
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Event Type</th>
+                            <th>Event Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in user_bookings %}
+                        <tr>
+                            <td data-label="Booking ID">#{{ b.id }}</td>
+                            <td data-label="Event Type">{{ b.event_type }}</td>
+                            <td data-label="Event Date">{{ b.event_date|date:"F d, Y" }}</td>
+                            <td data-label="Status">
+                                <span class="status-badge {{ b.status }}">{{ b.get_status_display }}</span>
+                            </td>
+                            <td data-label="Actions">
+                                <div class="action-buttons">
+                                    <!-- Trigger Modal on Click -->
+                                    <a href="javascript:void(0)" onclick="openBookingModal('{{ b.id }}')" class="btn-view">View</a>
+                                    {% if b.status == 'pending' %}
+                                        <a href="{% url 'edit_booking' b.id %}" class="btn-edit">Edit</a>
+                                        <a href="{% url 'delete_booking' b.id %}" class="btn-delete">Delete</a>
+                                    {% elif b.status == 'confirmed' and not b.edit_requested and not b.edit_allowed %}
+                                        <a href="{% url 'request_edit_booking' b.id %}" class="btn-edit">Req. Edit</a>
+                                        <a href="{% url 'request_cancel_booking' b.id %}" class="btn-delete">Req. Cancel</a>
+                                    {% elif b.edit_requested %}
+                                        <span class="status-text">Edit Requested</span>
+                                    {% elif b.edit_allowed %}
+                                        <a href="{% url 'edit_booking' b.id %}" class="btn-edit">Edit Now</a>
+                                    {% elif b.status == 'cancel_requested' %}
+                                        <span class="status-text">Cancel Requested</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Hidden Data for Modal (Pre-rendered) -->
+                                <div id="booking-data-{{ b.id }}" style="display:none;">
+                                    <div class="data-type">{{ b.event_type }}</div>
+                                    <div class="data-date">{{ b.event_date|date:"M d, Y" }}</div>
+                                    <div class="data-time">{{ b.time_range_display }}</div>
+                                    <div class="data-location">{{ b.event_location }}</div>
+                                    <div class="data-guests">{{ b.number_of_guests }}</div>
+                                    <div class="data-package">{{ b.package_type|default:"-" }}</div>
+                                    <div class="data-price">₱{{ b.total_price }}</div>
+                                    <div class="data-status">{{ b.get_status_display }}</div>
+                                    <div class="data-status-class">status-{{ b.status }}</div>
+                                    <div class="data-requests">{{ b.special_requests|default:"" }}</div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align: center; color: var(--dark-gray); padding: 2rem 0;">You have no bookings yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- BOOKING DETAIL MODAL STRUCTURE -->
+<div id="bookingModal" class="modal-overlay">
+    <div class="modal-card">
+        <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+        
+        <div class="modal-header">
+            <h2>Booking Details</h2>
+            <span class="modal-id" id="modalId">ID: #</span>
+        </div>
+
+        <div class="modal-row">
+            <span class="modal-label">Event Type</span>
+            <span class="modal-value" id="modalType"></span>
+        </div>
+        <div class="modal-row">
+            <span class="modal-label">Date & Time</span>
+            <span class="modal-value"><span id="modalDate"></span> <br> <small style="color:#888" id="modalTime"></small></span>
+        </div>
+        <div class="modal-row">
+            <span class="modal-label">Location</span>
+            <span class="modal-value" id="modalLocation"></span>
+        </div>
+        <div class="modal-row">
+            <span class="modal-label">Guests</span>
+            <span class="modal-value" id="modalGuests"></span>
+        </div>
+        <div class="modal-row">
+            <span class="modal-label">Package</span>
+            <span class="modal-value" id="modalPackage"></span>
+        </div>
+        <div class="modal-row">
+            <span class="modal-label">Total Price</span>
+            <span class="modal-value" id="modalPrice" style="font-size: 1.1rem;"></span>
+        </div>
+        <div class="modal-row" style="align-items: center;">
+            <span class="modal-label">Status</span>
+            <span id="modalStatusBadge" class="status-badge-lg"></span>
+        </div>
+
+        <div id="modalRequestsContainer" style="margin-top: 1rem; padding: 1rem; background: #1a1a1a; border-radius: 8px; border: 1px dashed #333; display: none;">
+            <span class="modal-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">Special Requests</span>
+            <p id="modalRequests" style="color: #ccc; font-size: 0.9rem; margin: 0; line-height: 1.5;"></p>
+        </div>
+    </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-card">
+        
+        <div class="modal-header">
+            <h2>Change Password</h2>
+            <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+        </div>
+
+        <div id="passwordMsg" class="form-message"></div>
+
+        <form id="changePasswordForm" action="{% url 'change_password' %}" method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_old_password">Current Password</label>
+                <input type="password" name="old_password" id="id_old_password" required>
+                <div class="field-error" id="error_old_password"></div>
+            </div>
+            <div class="form-group">
+                <label for="id_new_password1">New Password</label>
+                <input type="password" name="new_password1" id="id_new_password1" required>
+                <div class="field-error" id="error_new_password1"></div>
+            </div>
+            <div class="form-group">
+                <label for="id_new_password2">Confirm New Password</label>
+                <input type="password" name="new_password2" id="id_new_password2" required>
+                <div class="field-error" id="error_new_password2"></div>
+            </div>
+            <button type="submit" id="btnSavePassword">Update Password</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,today'
+        },
+        eventDisplay: 'block', /* Ito ang maglalagay ng background color sa events */
+        displayEventTime: false, /* Hide default time to prevent duplication */
+        dayMaxEvents: 2,       /* Limit to 2 events, then show +more */
+
+        events: [
+            {% for event in calendar_events %}
+            {
+                title: '{{ event.title }}',
+                start: '{{ event.start }}',
+                {% if event.end %}end: '{{ event.end }}',{% endif %}
+                backgroundColor: '{{ event.color }}',
+                borderColor: '{{ event.color }}',
+                textColor: '#ffffff'
+            },
+            {% endfor %}
+        ],
+
+        eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            meridiem: false
+        }
+    });
+
+    calendar.render();
+});
+
+// --- MODAL FUNCTIONS ---
+function openBookingModal(id) {
+    const modal = document.getElementById('bookingModal');
+    const dataDiv = document.getElementById('booking-data-' + id);
+    
+    if (!dataDiv) return;
+
+    // Populate Data from hidden div
+    document.getElementById('modalId').textContent = 'ID: #' + id;
+    document.getElementById('modalType').textContent = dataDiv.querySelector('.data-type').textContent;
+    document.getElementById('modalDate').textContent = dataDiv.querySelector('.data-date').textContent;
+    
+    // Use pre-formatted time range from backend
+    document.getElementById('modalTime').textContent = dataDiv.querySelector('.data-time').textContent;
+
+    document.getElementById('modalLocation').textContent = dataDiv.querySelector('.data-location').textContent;
+    document.getElementById('modalGuests').textContent = dataDiv.querySelector('.data-guests').textContent;
+    document.getElementById('modalPackage').textContent = dataDiv.querySelector('.data-package').textContent;
+    document.getElementById('modalPrice').textContent = dataDiv.querySelector('.data-price').textContent;
+    
+    // Status Badge
+    const statusText = dataDiv.querySelector('.data-status').textContent;
+    const statusClass = dataDiv.querySelector('.data-status-class').textContent;
+    const badge = document.getElementById('modalStatusBadge');
+    badge.textContent = statusText;
+    badge.className = 'status-badge-lg ' + statusClass;
+
+    // Special Requests
+    const requests = dataDiv.querySelector('.data-requests').textContent;
+    const reqContainer = document.getElementById('modalRequestsContainer');
+    if (requests.trim()) {
+        document.getElementById('modalRequests').textContent = requests;
+        reqContainer.style.display = 'block';
+    } else {
+        reqContainer.style.display = 'none';
+    }
+
+    // Show Modal
+    modal.classList.add('show');
+}
+
+function closeBookingModal() {
+    document.getElementById('bookingModal').classList.remove('show');
+}
+
+// --- PASSWORD MODAL FUNCTIONS ---
+function openPasswordModal() {
+    document.getElementById('passwordModal').classList.add('show');
+}
+
+function closePasswordModal() {
+    document.getElementById('passwordModal').classList.remove('show');
+    // Reset form on close
+    document.getElementById('changePasswordForm').reset();
+    document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+    document.getElementById('passwordMsg').style.display = 'none';
+}
+
+// --- AJAX PASSWORD SUBMISSION ---
+document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const btn = document.getElementById('btnSavePassword');
+    const msgBox = document.getElementById('passwordMsg');
+    
+    // Clear previous errors
+    document.querySelectorAll('.field-error').forEach(el => {
+        el.textContent = '';
+        el.style.display = 'none';
+    });
+    msgBox.style.display = 'none';
+    msgBox.className = 'form-message';
+
+    // Loading state
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
+
+        if (data.success) {
+            msgBox.textContent = data.message;
+            msgBox.classList.add('success');
+            msgBox.style.display = 'block';
+            form.reset();
+            // Optional: Close modal after 2 seconds
+            setTimeout(closePasswordModal, 2000);
+        } else {
+            // Show field specific errors
+            if (data.errors) {
+                for (const [field, errors] of Object.entries(data.errors)) {
+                    const errorDiv = document.getElementById('error_' + field);
+                    if (errorDiv) {
+                        errorDiv.textContent = errors[0]; // Show first error
+                        errorDiv.style.display = 'block';
+                    } else {
+                        // Fallback for non-field errors
+                        msgBox.textContent = errors[0];
+                        msgBox.classList.add('error');
+                        msgBox.style.display = 'block';
+                    }
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
+        msgBox.textContent = 'An error occurred. Please try again.';
+        msgBox.classList.add('error');
+        msgBox.style.display = 'block';
+    });
+});
+
+// Close on outside click
+window.onclick = function(event) {
+    const bookingModal = document.getElementById('bookingModal');
+    const passwordModal = document.getElementById('passwordModal');
+    
+    if (event.target == bookingModal) {
+        closeBookingModal();
+    } else if (event.target == passwordModal) {
+        closePasswordModal();
+    }
+}
+</script>
+
+{% endblock %}

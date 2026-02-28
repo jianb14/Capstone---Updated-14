@@ -1,0 +1,14 @@
+{% extends 'client/base.html' %}
+
+{% block content %}
+<h2>Delete Booking?</h2>
+
+<p>Are you sure you want to delete booking #{{ booking.id }}?</p>
+
+<form method="POST">
+    {% csrf_token %}
+    <button type="submit">Yes, delete</button>
+    <a href="{% url 'customer_profile' %}">Cancel</a>
+</form>
+
+{% endblock %}

@@ -1,0 +1,303 @@
+{% extends 'client/base.html' %}
+
+
+{% block content %}
+
+    <!-- PACKAGES PAGE -->
+    <div id="packages" class="page">
+        <section class="packages-hero">
+            <h1>Affordable Luxury Packages</h1>
+            <p>Choose the perfect package for your event. All packages include professional consultation, setup, and breakdown.</p>
+        </section>
+
+        <section class="packages-detailed">
+
+            <h2 class="section-title package-title">Packages</h2>
+
+            <div class="packages-carousel-wrapper">
+                <button class="carousel-btn prev">&lt;</button>
+                <div class="packages-carousel">
+                    
+                    <div class="carousel-track">
+                        {% for package in packages %}
+                        <div class="package-card {% if package.is_featured %}featured{% endif %}">
+                            {% if package.is_featured %}
+                                <div class="package-badge">MOST POPULAR</div>
+                            {% endif %}
+
+                            <h3>{{ package.name }}</h3>
+                            
+                            <p class="package-price">₱{{ package.price }} <span>starting</span></p>
+
+                            {% if package.feature_list %}
+                                <ul class="package-features">
+                                    {% for feature in package.feature_list %}
+                                        <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                            {% if package.notes %}
+                                <p class="package-notes">{{ package.notes }}</p>
+                            {% endif %}
+
+                            <hr>
+
+                            <p class="package-service-price"><span>Plus Service charge starts at</span> ₱{{ package.service_charge }}</p>
+
+                            <p>
+                                {% for s_feature in package.service_feature_list %}
+                                    {{ s_feature }}<br>
+                                {% endfor %}
+                            </p>
+
+                            {% if package.service_notes %}
+                                <p class="package-notes">{{ package.service_notes }}</p>
+                            {% endif %}
+
+                            <div class="button-group">
+                                <a href="{% url 'create_booking' %}" class="btn btn-primary">
+                                    <span>Book Now</span>
+                                </a>
+
+                                {% if package.image %}
+                                    <a href="{{ package.image.url }}" target="_blank" class="btn btn-secondary">
+                                        <span>View Photo</span>
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                        </div>
+                        {% empty %}
+                            <h1 style="text-align: center;">No package items yet.</h1>
+                        {% endfor %}
+                    </div>
+                </div>   
+                <button class="carousel-btn next">&gt;</button>
+            </div>
+
+
+
+            <div class="addons-section">
+                <h2 class="section-title">Entrance Arch</h2>
+
+                <div class="addons-carousel-wrapper">
+                    <button class="carousel-btn prev-addons">&lt;</button>
+
+                    <div class="addons-carousel">
+                        <div class="addons-track">
+                            {% for addon in addons %}
+                            <div class="addon-card">
+                                <div class="addon-header">
+
+                                    <span class="addon-tag">FOR ADD-ONS</span>
+                                    <h3 class="addon-name">{{ addon.name }}</h3>
+                                    <p class="addon-price">
+                                        <span class="price-label">Starting at</span>
+                                        <span class="price-amount">₱{{ addon.price }}</span>
+                                    </p>
+                                </div>
+
+                                <ul class="addon-features">
+                                    {% for feature in addon.feature_list %}
+                                        <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+
+                                {% if addon.solo_price %}
+                                    <div class="solo-price">
+                                        Available for solo use:
+                                        <strong>₱{{ addon.solo_price }}</strong>
+                                    </div>
+                                {% endif %}
+
+                                <div class="button-group">
+                                    <a href="{% url 'create_booking' %}" class="btn btn-primary">
+                                        <span>Book Now</span>
+                                    </a>
+
+                                    {% if addon.image %}
+                                        <a href="{{ addon.image.url }}" target="_blank" class="btn btn-secondary">
+                                            <span>View Photo</span>
+                                        </a>
+                                    {% endif %}
+                                </div>
+
+                            </div>
+                            {% empty %}
+                            <h1 style="text-align: center;">No add-ons items yet.</h1>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button class="carousel-btn next-addons">&gt;</button>
+                </div>
+            </div>
+
+
+
+
+            <div class="additionals-section">
+                <h2 class="section-title">Welcome Stand</h2>
+                <p class="additional-subtitle">for additional only</p>
+
+                <div class="additionals-carousel-wrapper">
+                    <button class="carousel-btn prev-additionals">&lt;</button>
+
+                    <div class="additionals-carousel">
+                        <div class="additionals-track">
+                            {% for additional in additionals %}
+                            <div class="addon-card">
+                                <div class="addon-header">
+                                    <span class="addon-tag">ADDITIONAL ONLY</span>
+                                    <h3 class="addon-name">{{ additional.name }}</h3>
+                                    <p class="addon-price">
+                                        <strong>₱{{ additional.price }}</strong>
+                                    </p>
+                                </div>
+
+
+                                {% if additional.feature_list %}
+                                <ul class="addon-features">
+                                    {% for feature in additional.feature_list %}
+                                        <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+
+                                {% if additional.notes %}
+                                    <p class="additional-notes">{{ additional.notes }}</p>
+                                {% endif %}
+
+                                <div class="button-group">
+                                    <a href="{% url 'create_booking' %}" class="btn btn-primary">
+                                        <span>Book Now</span>
+                                    </a>
+
+                                    {% if additional.image %}
+                                        <a href="{{ additional.image.url }}" target="_blank" class="btn btn-secondary">
+                                            <span>View Photo</span>
+                                        </a>
+                                    {% endif %}
+                                </div>
+
+                            </div>
+                            
+                            {% empty %}
+                            <h1 style="text-align: center;">No additional items yet.</h1>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button class="carousel-btn next-additionals">&gt;</button>
+                </div>
+            </div>
+
+
+
+
+            <div style="max-width: 1000px; margin: 6rem auto 0; padding: 3rem; background: var(--gray); border: 2px solid var(--light-gray); text-align: center;">
+                <h2 style="font-size: 2rem; margin-bottom: 1.5rem; color: var(--white);">Need Something Custom?</h2>
+                <p style="font-size: 1.1rem; line-height: 1.8; color: var(--dark-gray); margin-bottom: 2rem;">
+                    Every event is unique, and we're happy to create a completely customized package tailored to your specific needs, budget, and vision. Our team will work with you to design the perfect solution.
+                </p>
+                <a href="{% url 'package' %}" class="btn btn-primary"><span>Discuss Custom Package</span></a>
+            </div>
+
+        </section>
+    </div>
+
+
+<script>
+    function setupCarousel(trackSelector, prevSelector, nextSelector) {
+        const track = document.querySelector(trackSelector);
+        const prevBtn = document.querySelector(prevSelector);
+        const nextBtn = document.querySelector(nextSelector);
+
+        if (!track || !prevBtn || !nextBtn) return;
+
+        let index = 0;
+
+        // Determine how many cards should be visible based on screen size
+        function getVisibleCards() {
+            if (window.innerWidth <= 768) return 1;
+            if (window.innerWidth <= 1024) return 2;
+            return 3;
+        }
+
+        // Card width including gap
+        function getItemWidth() {
+            const gap = 32; // 2rem gap
+            return track.children[0].offsetWidth + gap;
+        }
+
+        // Show or hide carousel buttons based on number of items
+        function updateButtons() {
+            const visibleCards = getVisibleCards();
+            const totalCards = track.children.length;
+
+            if (totalCards <= visibleCards) {
+                prevBtn.style.display = "none";
+                nextBtn.style.display = "none";
+            } else {
+                prevBtn.style.display = "block";
+                nextBtn.style.display = "block";
+            }
+        }
+
+        // Update carousel position and centering
+        function updateCarousel() {
+            const totalCards = track.children.length;
+            const visibleCards = getVisibleCards();
+
+            if (totalCards <= visibleCards) {
+                // Center the cards if fewer than visible
+                track.style.justifyContent = 'center';
+                track.style.transform = 'translateX(0)';
+            } else {
+                track.style.justifyContent = 'flex-start';
+                const itemWidth = getItemWidth();
+                track.style.transform = `translateX(-${index * itemWidth}px)`;
+            }
+        }
+
+        // Reset carousel (e.g., on resize)
+        function resetCarousel() {
+            index = 0;
+            updateButtons();
+            updateCarousel();
+        }
+
+        // Next button
+        nextBtn.addEventListener('click', () => {
+            const maxIndex = track.children.length - getVisibleCards();
+            index = index >= maxIndex ? 0 : index + 1;
+            updateCarousel();
+        });
+
+        // Previous button
+        prevBtn.addEventListener('click', () => {
+            const maxIndex = track.children.length - getVisibleCards();
+            index = index <= 0 ? maxIndex : index - 1;
+            updateCarousel();
+        });
+
+        // Reset carousel on window resize
+        window.addEventListener('resize', resetCarousel);
+
+        // Initialize
+        resetCarousel();
+    }
+
+    /* Initialize all carousels */
+    setupCarousel('.carousel-track', '.prev', '.next');                 // Packages
+    setupCarousel('.addons-track', '.prev-addons', '.next-addons');     // Add-Ons
+    setupCarousel('.additionals-track', '.prev-additionals', '.next-additionals'); // Additionals
+</script>
+
+
+
+
+
+
+{% endblock content %}

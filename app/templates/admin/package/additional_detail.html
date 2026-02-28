@@ -1,0 +1,76 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_package.css' %}">
+
+<div class="detail-wrapper">
+    <div class="detail-card">
+
+        {% if additional.image %}
+        <div class="detail-image-container">
+            <img src="{{ additional.image.url }}" class="detail-image">
+        </div>
+        {% endif %}
+
+        <div class="detail-title-price">
+        <h2 class="detail-title">{{ additional.name }}</h2>
+        <p class="detail-price">₱{{ additional.price }}</p>
+        </div>
+
+        <div class="detail-section">
+            <h4>Features</h4>
+            <ul class="detail-list">
+                {% for feature in additional.feature_list %}
+                    <li>{{ feature }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        {% if additional.notes %}
+        <div class="detail-section">
+            <h4>Notes</h4>
+            <p class="detail-notes">{{ additional.notes }}</p>
+        </div>
+        {% endif %}
+
+        <div class="action-buttons detail-buttons">
+            <a href="{% url 'admin_package_list' %}" class="btn-view detail">Back</a>
+            <a href="{% url 'admin_additional_edit' additional.id %}" class="btn-edit detail">Edit</a>
+            <a href="{% url 'admin_additional_delete' additional.id %}" class="btn-delete detail"
+                onclick="return confirm('Delete this additional?')">Delete</a>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+
+
+
+
+<!--
+
+<h2>Additional Detail</h2>
+
+{% if additional.image %}
+    <img src="{{ additional.image.url }}" width="200px">
+{% endif %}
+
+<h3>{{ additional.name }}</h3>
+<p><strong>Price:</strong> ₱{{ additional.price }}</p>
+
+<ul>
+    {% for feature in additional.feature_list %}
+        <li>{{ feature }}</li>
+    {% endfor %}
+</ul>
+
+<p><strong>Notes:</strong> {{ additional.notes }}</p>
+
+<a href="{% url 'admin_package_list' %}" class="btn btn-secondary">Back</a>
+<a href="{% url 'admin_package_edit' additional.id %}" class="btn btn-sm btn-warning">Edit</a>
+<a href="{% url 'admin_package_delete' additional.id %}" class="btn btn-sm btn-danger">Delete</a>
+
+-->

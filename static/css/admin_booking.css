@@ -1,0 +1,515 @@
+/* static/css/admin_booking.css */
+
+/* Copied from admin_user.css for consistency */
+
+/* Page Header */
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #666666;
+}
+
+.breadcrumb a {
+    color: #666666;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb a:hover {
+    color: #ffffff;
+}
+
+.breadcrumb span:not(.separator) {
+    color: #999999;
+}
+
+.table-container {
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 100%;
+}
+
+thead {
+    background: #141414;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #888888;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+th:last-child {
+    text-align: left;
+    padding-right: 1.25rem;
+}
+
+tbody tr {
+    border-bottom: 1px solid #171717;
+    transition: all 0.15s ease;
+}
+
+tbody tr:hover {
+    background: #141414;
+}
+
+tbody tr:last-child {
+    border-bottom: none;
+}
+
+td {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #cccccc;
+    vertical-align: middle;
+}
+
+td:last-child {
+    padding-right: 1.25rem;
+}
+
+/* Status Badges */
+.status-badge {
+    font-weight: 500;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+
+
+.status-badge.active {
+    color: #3b82f6; /* Darkened Blue */
+}
+
+.status-badge.active::before {
+    background: #3b82f6;
+}
+
+.status-badge.inactive {
+    color: #ef4444;
+}
+
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.375rem;
+    justify-content: start;
+    align-items: center;
+}
+
+.action-buttons a {
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-buttons a:first-child {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.action-buttons a:first-child:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Secondary/Tertiary buttons (Confirm/Deny) */
+.action-buttons a:nth-child(2) {
+    background: transparent;
+    color: #999999;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.action-buttons a:nth-child(2):hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+}
+
+.action-buttons a:not(:first-child):last-child {
+    background: transparent;
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.action-buttons a:not(:first-child):last-child:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    th, td {
+        padding: 0.75rem 0.875rem;
+    }
+    
+    .action-buttons {
+        gap: 0.25rem;
+    }
+    
+    table {
+        min-width: 800px;
+    }
+
+    .action-buttons a {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-header {
+        margin: 60px 0 1rem 0;
+    }
+
+    .table-container {
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+    }
+
+    /* Stack table for mobile */
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead {
+        display: none;
+    }
+
+    tbody tr {
+        background: #0f0f0f;
+        border: 1px solid #1f1f1f;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+
+    tbody tr:hover {
+        background: #141414;
+    }
+
+    tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    td {
+        padding: 0.625rem 0;
+        border-bottom: 1px solid #1a1a1a;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+    }
+
+    td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #888888;
+        letter-spacing: 0.05em;
+        text-align: left;
+    }
+
+    td[data-label="Actions"] {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    td[data-label="Actions"]::before {
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .action-buttons a {
+        width: 100%;
+        padding: 0.625rem;
+        font-size: 0.8rem;
+        text-align: center;
+        justify-content: center;
+    }
+
+    td {
+        position: relative;
+    }
+
+    td::before {
+        pointer-events: none;
+    }
+
+    .action-buttons a {
+        position: relative;
+        z-index: 5;
+    }
+}
+
+/* Custom Scrollbar */
+.table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #141414;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+}
+
+/* --- BOOKING SPECIFIC STYLES --- */
+
+/* Booking Status Colors */
+.status-badge.pending { color: #d97706; } /* Darkened Amber/Yellow */
+.status-badge.pending::before { background: #d97706; box-shadow: 0 0 8px rgba(217, 119, 6, 0.3); }
+
+.status-badge.cancel_requested { color: #dc2626; } /* Darkened Red */
+.status-badge.cancel_requested::before { background: #dc2626; }
+
+/* Booking Data Labels (Matching User List Style) */
+td[data-label="Customer"] {
+    font-weight: 500;
+    color: #ffffff;
+    font-size: 0.8rem;
+}
+
+td[data-label="Event"] {
+    color: #bbbbbb;
+    font-size: 0.85rem;
+}
+
+td[data-label="Date"] {
+    color: #888888;
+    font-size: 0.8rem;
+}
+
+/* --- BOOKING DETAIL VIEW (Modern & Compact) --- */
+
+.detail-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #141414;
+    border: 1px solid #1f1f1f;
+    padding: 0.75rem 1.25rem; /* Compact padding */
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.detail-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1rem; /* Compact gap */
+}
+
+.detail-card {
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.detail-card h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem; /* Compact spacing between rows */
+    font-size: 0.9rem;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-row .label {
+    color: #888;
+}
+
+.info-row .value {
+    color: #ddd;
+    font-weight: 500;
+    text-align: right;
+}
+
+.info-row.total-price {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #333;
+}
+
+.info-row.total-price .value {
+    color: #4ade80;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.special-request-box {
+    background: #141414;
+    padding: 0.75rem;
+    border-radius: 6px;
+    color: #ccc;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border: 1px solid #1f1f1f;
+}
+
+.detail-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #1f1f1f;
+}
+
+/* Reuse existing .action-buttons styles but customized for detail page */
+.btn-action {
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-action.primary {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-action.primary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-action.danger {
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444;
+}
+
+.btn-action.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.btn-back {
+    margin-right: auto; /* Pushes other buttons to right */
+    color: #666;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.btn-back:hover {
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .detail-actions {
+        flex-direction: column;
+    }
+    .btn-back {
+        margin-bottom: 1rem;
+    }
+    .btn-action {
+        width: 100%;
+    }
+}
+

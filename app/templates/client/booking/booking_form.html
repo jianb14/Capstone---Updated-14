@@ -1,0 +1,125 @@
+{% extends 'client/base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}">
+
+<div class="booking-page">
+    <div class="booking-container">
+        <div class="booking-header">
+            <h2>{% if booking %}Edit Booking{% else %}Book an Event{% endif %}</h2>
+            <p>Please fill in the details below to schedule your event.</p>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="form-grid">
+                <!-- Event Type -->
+                <div class="form-group full-width">
+                    <label>Event Type</label>
+                    <input type="text" name="event_type" value="{{ booking.event_type|default:'' }}" placeholder="e.g. Birthday, Wedding, Corporate" required>
+                </div>
+
+                <!-- Date & Time -->
+                <div class="form-group">
+                    <label>Event Date</label>
+                    <input type="date" id="event_date" name="event_date" value="{{ booking.event_date|date:'Y-m-d'|default:'' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Event Duration</label>
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <small style="color: #ccc; display: block; margin-bottom: 4px;">Start Time</small>
+                            <input type="time" id="start_time" name="start_time" value="{{ booking.event_time|time:'H:i'|default:'' }}" required>
+                        </div>
+                        <div style="flex: 1;">
+                            <small style="color: #ccc; display: block; margin-bottom: 4px;">End Time</small>
+                            <input type="time" id="end_time" name="end_time" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location & Guests -->
+                <div class="form-group full-width">
+                    <label>Location</label>
+                    <input type="text" name="event_location" value="{{ booking.event_location|default:'' }}" placeholder="Venue Address" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Number of Guests</label>
+                    <input type="number" name="number_of_guests" value="{{ booking.number_of_guests|default:'' }}" placeholder="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Package Type</label>
+                    <input type="text" name="package_type" value="{{ booking.package_type|default:'' }}" placeholder="e.g. Standard, Premium">
+                </div>
+
+                <!-- Special Requests -->
+                <div class="form-group full-width">
+                    <label>Special Requests</label>
+                    <textarea name="special_requests" placeholder="Any specific requirements or notes...">{{ booking.special_requests|default:'' }}</textarea>
+                </div>
+
+                <!-- Total Price -->
+                <div class="form-group full-width">
+                    <label>Total Price (PHP)</label>
+                    <input type="number" step="0.01" name="total_price" value="{{ booking.total_price|default:'' }}" placeholder="0.00" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                {% if booking %}Save Changes{% else %}Submit Booking{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('event_date');
+        const startTimeInput = document.getElementById('start_time');
+        const endTimeInput = document.getElementById('end_time');
+
+        // 1. Set MIN date to Today
+        const now = new Date();
+        // Use local time string format YYYY-MM-DD
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset*60*1000));
+        const todayStr = localDate.toISOString().split('T')[0];
+        
+        dateInput.setAttribute('min', todayStr);
+
+        function updateTimeConstraints() {
+            const selectedDate = dateInput.value;
+            
+            // 2. If selected date is TODAY, restrict Start Time to current time
+            if (selectedDate === currentTodayStr) {
+                const hours = String(currentNow.getHours()).padStart(2, '0');
+                const minutes = String(currentNow.getMinutes()).padStart(2, '0');
+                const currentTimeStr = `${hours}:${minutes}`;
+                startTimeInput.min = currentTimeStr;
+            } else {
+                startTimeInput.removeAttribute('min');
+            }
+        }
+
+        // 3. Ensure End Time is after Start Time
+        function validateEndTime() {
+            if (startTimeInput.value) {
+                endTimeInput.min = startTimeInput.value;
+            }
+        }
+
+        // Event Listeners
+        dateInput.addEventListener('change', updateTimeConstraints);
+        startTimeInput.addEventListener('change', validateEndTime);
+        
+        // Run on load (in case of edit or browser cache)
+        updateTimeConstraints();
+        validateEndTime();
+    });
+</script>
+{% endblock %}

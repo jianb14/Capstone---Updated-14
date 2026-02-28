@@ -1,0 +1,87 @@
+{% load static %}
+
+<nav class="navbar">
+    <div class="nav-container">
+        {% if user.is_authenticated and user.role == 'customer' %}
+        <a href="{% url 'home' %}"><img class="logo" src="{% static 'images/balloorina.jpg'%}" alt="Ballorina.ph"></a>
+        <div class="nav-links">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'about' %}">About</a>
+            <a href="{% url 'services' %}">Service</a>
+            <a href="{% url 'package' %}">Package</a>
+            <a href="{% url 'gallery' %}">Gallery</a>
+            <a href="{% url 'create_booking' %}">Booking</a>
+            <div class="profile-dropdown">
+                <button class="profile-avatar-btn" aria-label="Profile menu">
+                    <div class="nav-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
+                </button>
+                <div class="dropdown-menu">
+                    <div class="dropdown-header">
+                        <div class="nav-avatar large">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
+                        <div class="user-info">
+                            <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+                            <small>{{ user.email }}</small>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a href="{% url 'customer_profile' %}" class="dropdown-item">Profile Dashboard</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item">Settings</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="{% url 'logout' %}" class="dropdown-item logout-text">Log Out</a>
+                </div>
+            </div>
+        </div>
+        <div class="mobile-menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        {% elif not user.is_authenticated %}
+        <a href="{% url 'home' %}"><img class="logo" src="{% static 'images/balloorina.jpg'%}" alt="Ballorina.ph"></a>
+        <div class="nav-links">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'about' %}">About</a>
+            <a href="{% url 'services' %}">Service</a>
+            <a href="{% url 'package' %}">Package</a>
+            <a href="{% url 'gallery' %}">Gallery</a>
+            <a href="{% url 'login' %}">Login</a>
+        </div>
+        <div class="mobile-menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        {% endif %}
+    </div>
+</nav>
+
+
+
+
+
+
+<!--
+<nav>
+    <a href="{% url 'home' %}">Home</a>
+    <a href="{% url 'about' %}">About</a>
+
+    {% if user.is_authenticated %}
+
+        {% if user.role == 'customer' %}
+            <a href="{% url 'customer_profile' %}">Profile</a>
+            <a href="{% url 'create_booking' %}">Booking</a>
+        {% elif user.role in 'admin staff' %}
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'admin_profile' %}">Profile</a>
+            <a href="{% url 'admin_booking_list' %}">Bookings</a>
+            <a href="{% url 'admin_user_list' %}">Users</a>
+        {% endif %}
+
+        <a href="{% url 'logout' %}">Logout</a>
+
+    {% else %}
+        <a href="{% url 'login' %}">Login</a>
+    {% endif %}
+</nav>
+-->

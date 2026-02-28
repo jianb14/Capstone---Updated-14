@@ -1,0 +1,311 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_package.css' %}">
+
+
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Package Management</h1>
+    <div class="breadcrumb">
+        <span >Admin</span>
+        <span class="separator">/</span>
+        <span>Packages</span>
+    </div>
+</div>
+
+<div class="page-header title-header">
+    <h1>Packages</h1>
+    <a href="{% url 'admin_package_create' %}" class="action-create">+ Create Package</a>
+</div>
+
+
+<!-- ================= PACKAGES ================= -->
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>PACKAGE NAME</th>
+                <th>MOST POPULAR</th>
+                <th>PRICE</th>
+                <th>SERVICE CHARGE</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for package in packages %}
+            <tr>
+                <td data-label="Package Name">{{ package.name }}</td>
+
+                <td data-label="Most Popular">
+                    {% if package.is_featured %}
+                        <span class="status-badge active">Yes</span>
+                    {% else %}
+                        <span class="status-badge inactive">No</span>
+                    {% endif %}
+                </td>
+
+                <td data-label="Price">₱{{ package.price }}</td>
+                <td data-label="Service Charge">₱{{ package.service_charge }}</td>
+
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_package_detail' package.id %}">View</a>
+                        <a href="{% url 'admin_package_edit' package.id %}">Edit</a>
+                        <a href="{% url 'admin_package_delete' package.id %}"
+                            onclick="return confirm('Delete this package?')">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No packages found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+
+
+<!-- ================= ADD-ONS ================= -->
+<div class="page-header title-header">
+    <h1>Add-Ons</h1>
+    <a href="{% url 'admin_addon_create' %}" class="action-create">+ Create Add-On</a>
+</div>
+
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>NAME</th>
+                <th>PRICE</th>
+                <th>SOLO PRICE</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for addon in addons %}
+            <tr>
+                <td data-label="Name">{{ addon.name }}</td>
+                <td data-label="Price">₱{{ addon.price }}</td>
+                <td data-label="Solo Price">
+                    {% if addon.solo_price %}
+                        ₱{{ addon.solo_price }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_addon_detail' addon.id %}">View</a>
+                        <a href="{% url 'admin_addon_edit' addon.id %}">Edit</a>
+                        <a href="{% url 'admin_addon_delete' addon.id %}"
+                            onclick="return confirm('Delete this add-on?')">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No add-ons found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+
+
+<!-- ================= ADDITIONAL ================= -->
+<div class="page-header title-header">
+    <h1>Additional Only</h1>
+    <a href="{% url 'admin_additional_create' %}" class="action-create">+ Create Additional</a>
+</div>
+
+
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>NAME</th>
+                <th>PRICE</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for additional in additionals %}
+            <tr>
+                <td data-label="Name">{{ additional.name }}</td>
+                <td data-label="Price">₱{{ additional.price }}</td>
+
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_additional_detail' additional.id %}">View</a>
+                        <a href="{% url 'admin_additional_edit' additional.id %}">Edit</a>
+                        <a href="{% url 'admin_additional_delete' additional.id %}"
+                            onclick="return confirm('Delete this item?')">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No additional items found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--
+<h2>Package Management</h2>
+<a href="{% url 'admin_package_create' %}" class="btn btn-primary">+ Create Package</a>
+
+<br><br>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Most Popular</th>
+            <th>Price</th>
+            <th>Service Charge</th>
+            <th width="180">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for package in packages %}
+        <tr>
+            <td>{{ package.name }}</td>
+            <td>
+                {% if package.is_featured %}
+                    <span class="badge bg-success">Yes</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
+            </td>
+            <td>₱{{ package.price }}</td>
+            <td>₱{{ package.service_charge }}</td>
+            <td>
+                <a href="{% url 'admin_package_detail' package.id %}" class="btn btn-sm btn-info">View</a>
+                <a href="{% url 'admin_package_edit' package.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'admin_package_delete' package.id %}" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No packages found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+
+<h2>Add-Ons</h2>
+<a href="{% url 'admin_addon_create' %}" class="btn btn-primary">+ Create Add-On</a>
+
+<br><br>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Solo Price</th>
+            <th width="180">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for addon in addons %}
+        <tr>
+            <td>{{ addon.name }}</td>
+            <td>₱{{ addon.price }}</td>
+            <td>
+                {% if addon.solo_price %}
+                    ₱{{ addon.solo_price }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                <a href="{% url 'admin_addon_detail' addon.id %}" class="btn btn-sm btn-info">View</a>
+                <a href="{% url 'admin_addon_edit' addon.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'admin_addon_delete' addon.id %}" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4">No add-ons found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+
+<h2>Additional Only</h2>
+<a href="{% url 'admin_additional_create' %}" class="btn btn-primary">+ Create Additional</a>
+
+<br><br>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th width="180">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for additional in additionals %}
+        <tr>
+            <td>{{ additional.name }}</td>
+            <td>₱{{ additional.price }}</td>
+            <td>
+                <a href="{% url 'admin_additional_detail' additional.id %}" class="btn btn-sm btn-info">View</a>
+                <a href="{% url 'admin_additional_edit' additional.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'admin_additional_delete' additional.id %}" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No additional items found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+-->

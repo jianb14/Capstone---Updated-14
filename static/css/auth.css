@@ -1,0 +1,439 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+
+
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.body {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #000000;
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Container */
+.auth-container {
+    width: 100%;
+    max-width: 460px;
+    background: transparent;
+    padding: 40px 20px;
+}
+
+/* Logo */
+.logo-container {
+    text-align: center;
+}
+
+.logo-container img {
+    max-width: 260px;
+    height: auto;
+    margin-bottom: 30px;;
+}
+
+/* Heading */
+.info-text {
+    font-size: 15px;
+    font-weight: 400;
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 0;
+    margin-top: -20px;
+}
+
+/* Form */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Input Labels */
+.input-label {
+    color: #a0a0a0;
+    font-size: 14px;
+    font-weight: 400;
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"] {
+    width: 100%;
+    padding: 12px 16px;
+    background: #3a3a3a;
+    border: 1px solid #3a3a3a;
+    border-radius: 5px;
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+
+input::placeholder {
+    color: #707070;
+    font-weight: 400;
+}
+
+input:focus {
+    border-color: #999999;
+    background: #4a4a4a;
+}
+
+input:hover {
+    border-color: #4a4a4a;
+}
+
+/* Name Row */
+.name-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* Password Container */
+.password-container {
+    position: relative;
+}
+
+.password-container .pass-input{
+    padding-right: 45px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #707070;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    transition: color 0.2s ease;
+}
+
+.pass-icon{
+    width: 20px;
+    height: auto;
+}
+
+.password-toggle:hover {
+    color: #a0a0a0;
+}
+
+/* Remember Me */
+.remember-container {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+}
+
+.remember-container label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #a0a0a0;
+    font-size: 14px;
+    user-select: none;
+}
+
+input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: white;
+}
+
+/* Submit Button */
+button[type="submit"] {
+    width: 100%;
+    padding: 12px 16px;
+    background: white;
+    color: black;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 4px;
+}
+
+button[type="submit"]:hover {
+    background: #e0e0e0;
+}
+
+button[type="submit"]:active {
+    transform: scale(0.98);
+}
+
+
+/* Bottom Text */
+.bottom-text {
+    text-align: center;
+    margin-top: 24px;
+    color: #a0a0a0;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.bottom-text a {
+    color: white;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+/* Error Message */
+.error-message {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid #ff5252;
+    border-radius: 5px;
+    padding: 12px 14px;
+    color: #ff5252;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.error-list {
+    list-style: none;
+}
+
+.error-list li {
+    padding: 4px 0;
+}
+
+.error-list li::before {
+    content: '• ';
+}
+
+/* Success Message */
+.success-message {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid #4caf50;
+    border-radius: 5px;
+    padding: 12px 14px;
+    color: #4caf50;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 32px 20px;
+    }
+
+    h2 {
+        font-size: 20px;
+        margin-bottom: 32px;
+    }
+
+    .logo-container {
+        margin-bottom: 32px;
+    }
+
+    .logo-container img {
+        max-width: 160px;
+    }
+
+    .name-row {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 16px;
+    }
+
+    .auth-container {
+        padding: 24px 16px;
+    }
+
+    .logo-container img {
+        max-width: 140px;
+    }
+}
+
+/* Disabled State */
+button[type="submit"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button[type="submit"]:disabled:hover {
+    transform: none;
+    background: var(--accent);
+}
+
+/* Smooth Fade In Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-container {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* ============================= */
+/* LARGE DESKTOP (1400px up) */
+/* ============================= */
+@media (min-width: 1400px) {
+    .auth-container {
+        max-width: 520px;
+        padding: 60px 40px;
+    }
+
+    .logo-container img {
+        max-width: 300px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+        padding: 14px 18px;
+        font-size: 15px;
+    }
+
+    button[type="submit"] {
+        padding: 14px 18px;
+        font-size: 16px;
+    }
+}
+
+
+/* ============================= */
+/* DESKTOP & SMALL LAPTOP */
+/* ============================= */
+@media (max-width: 1200px) {
+    .auth-container {
+        max-width: 440px;
+    }
+}
+
+
+/* ============================= */
+/* TABLET */
+/* ============================= */
+@media (max-width: 992px) {
+
+    .body {
+        padding: 30px;
+    }
+
+    .auth-container {
+        max-width: 420px;
+        padding: 36px 24px;
+    }
+
+    .logo-container img {
+        max-width: 200px;
+    }
+
+    .name-row {
+        gap: 12px;
+    }
+
+    input {
+        font-size: 14px;
+    }
+
+    button[type="submit"] {
+        font-size: 15px;
+    }
+}
+
+
+/* ============================= */
+/* LARGE MOBILE */
+/* ============================= */
+@media (max-width: 768px) {
+
+    .body {
+        padding: 20px;
+    }
+
+    .auth-container {
+        max-width: 100%;
+        padding: 30px 20px;
+    }
+
+    .logo-container img {
+        max-width: 170px;
+    }
+
+    .name-row {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    form {
+        gap: 18px;
+    }
+}
+
+
+/* ============================= */
+/* SMALL MOBILE */
+/* ============================= */
+@media (max-width: 480px) {
+
+    .auth-container {
+        padding: 24px 16px;
+    }
+
+    .logo-container img {
+        max-width: 140px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+        padding: 11px 14px;
+        font-size: 13px;
+    }
+
+    button[type="submit"] {
+        padding: 12px;
+        font-size: 14px;
+    }
+
+    .bottom-text {
+        font-size: 13px;
+    }
+
+    .info-text {
+        font-size: 14px;
+    }
+}
+

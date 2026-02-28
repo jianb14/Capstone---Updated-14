@@ -1,0 +1,114 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_reports.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1>Reports & Analytics</h1>
+            <div class="breadcrumb">
+                <span>Admin</span> <span class="separator">/</span> <span class="active">Reports</span>
+            </div>
+        </div>
+        <!-- Export Action -->
+        <div class="report-actions">
+            <button class="btn-export">
+                Export Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon revenue">₱</div>
+            <div class="stat-details">
+                <h3>Total Revenue</h3>
+                <p class="stat-value">₱ {{ total_revenue|floatformat:2 }}</p>
+                <span class="stat-change positive">Based on completed bookings</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon bookings">B</div>
+            <div class="stat-details">
+                <h3>Total Bookings</h3>
+                <p class="stat-value">{{ total_bookings }}</p>
+                <span class="stat-change neutral">All time</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon users">U</div>
+            <div class="stat-details">
+                <h3>Active Users</h3>
+                <p class="stat-value">{{ active_users }}</p>
+                <span class="stat-change neutral">Customers</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon pending">!</div>
+            <div class="stat-details">
+                <h3>Pending Requests</h3>
+                <p class="stat-value">{{ pending_requests }}</p>
+                <span class="stat-change negative">Needs action</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions Table -->
+    <div class="reports-grid">
+        <div class="report-section full-width">
+            <div class="section-header">
+                <h2>Recent Transactions</h2>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>User</th>
+                            <th>Service</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in recent_bookings %}
+                        <tr>
+                            <td>#TRX-{{ booking.id }}</td>
+                            <td>
+                                <div class="user-info">
+                                    <span class="username">{{ booking.user.username }}</span>
+                                    <span class="email">{{ booking.user.email }}</span>
+                                </div>
+                            </td>
+                            <td>{{ booking.event_type }}</td>
+                            <td>{{ booking.created_at|date:"M d, Y" }}</td>
+                            <td>₱ {{ booking.total_price|floatformat:2 }}</td>
+                            <td>
+                                {% if booking.status == 'completed' %}
+                                    <span class="status-badge completed">Completed</span>
+                                {% elif booking.status == 'pending' %}
+                                    <span class="status-badge pending">Pending</span>
+                                {% else %}
+                                    <span class="status-badge">{{ booking.status|title }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding: 2rem;">No recent transactions found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+
+{% load static %}
+
+<div class="sidebar">
+    {% if user.is_authenticated %}
+        {% if user.role == 'admin' or user.role == 'staff' %}
+            <img src="{% static 'images/balloorina.jpg' %}" alt="Balloorina">
+            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
+            <a href="{% url 'admin_profile' %}" class="{% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}">Profile</a>
+            <a href="{% url 'admin_booking_list' %}" class="{% if request.resolver_match.url_name == 'admin_booking_list' %}active{% endif %}">Bookings</a>
+            <a href="{% url 'admin_package_list' %}" class="{% if request.resolver_match.url_name == 'admin_package_list' %}active{% endif %}">Packages</a>
+            <a href="{% url 'admin_user_list' %}" class="{% if request.resolver_match.url_name == 'admin_user_list' %}active{% endif %}">Users</a>
+
+            {% if user.role == 'admin' %}
+            <li>
+                <a href="{% url 'admin_reports' %}" class="{% if request.resolver_match.url_name == 'admin_reports' %}active{% endif %}">Reports</a>
+            </li>
+            {% endif %}
+
+            {% if user.role == 'admin' %}
+                <a href="{% url 'admin_audit_log' %}" class="{% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}">Audit Log</a>
+            {% endif %}
+            <hr class="admin-panel-hr">
+            <a class="sidebar-logout" href="{% url 'logout' %}">Logout</a>
+        {% endif %}
+    {% endif %}
+</div>
+<!--
+
+
+<div class="sidebar" id="sidebar">
+
+    <div class="sidebar-header">
+        <h3>Balloorina.ph</h3>
+        <p>Admin Dashboard</p>
+    </div>
+
+    {% if user.is_authenticated %}
+        {% if user.role == 'admin' or user.role == 'staff' %}
+            <a href="{% url 'dashboard' %}" class="active">Home</a>
+            <a href="{% url 'admin_profile' %}" class="active">My Profile</a>
+            <a href="{% url 'admin_booking_list' %}" class="active">Bookings</a>
+            <a href="{% url 'admin_user_list' %}" class="active">Users</a>
+        {% endif %}
+    {% endif %}
+
+
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <div class="user-details">
+                <div class="user-name">{{ user.username|upper }}</div>
+                <div class="user-role">{{ user.role|title }}</div>
+            </div>
+        </div>
+        <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
+    </div>
+</div>
+
+
+<div class="mobile-menu-btn" id="mobileMenuBtn">
+    <span></span>
+</div>
+
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<script>
+    // Mobile Menu Toggle
+    const sidebar = document.getElementById('sidebar');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', function() {
+            sidebar.classList.toggle('mobile-open');
+            sidebarOverlay.classList.toggle('active');
+            mobileMenuBtn.classList.toggle('active');
+        });
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+            sidebar.classList.remove('mobile-open');
+            sidebarOverlay.classList.remove('active');
+            mobileMenuBtn.classList.remove('active');
+        });
+    }
+</script>
+-->

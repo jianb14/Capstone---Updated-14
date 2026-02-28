@@ -1,0 +1,118 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_booking.css' %}">
+
+<div class="page-header">
+    <h1>Booking Details</h1>
+    <div class="breadcrumb">
+        <a href="{% url 'admin_booking_list' %}">Bookings</a>
+        <span class="separator">/</span>
+        <span>#{{ booking.id }}</span>
+    </div>
+</div>
+
+<div class="detail-container">
+    <!-- Header with Status -->
+    <div class="detail-header">
+        <div class="detail-status">
+            <span>Current Status:</span>
+            {% if booking.status == 'confirmed' or booking.status == 'completed' %}
+                <span class="status-badge active">{{ booking.get_status_display }}</span>
+            {% elif booking.status == 'cancelled' or booking.status == 'denied' %}
+                <span class="status-badge inactive">{{ booking.get_status_display }}</span>
+            {% elif booking.status == 'pending' %}
+                <span class="status-badge pending">{{ booking.get_status_display }}</span>
+            {% else %}
+                <span class="status-badge">{{ booking.get_status_display }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="detail-grid">
+        <!-- Customer Info -->
+        <div class="detail-card">
+            <h3>Customer Information</h3>
+            <div class="info-row">
+                <span class="label">Username</span>
+                <span class="value">{{ booking.user.username }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Full Name</span>
+                <span class="value">{{ booking.user.first_name }} {{ booking.user.last_name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Email</span>
+                <span class="value">{{ booking.user.email }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Phone</span>
+                <span class="value">{{ booking.user.phone_number|default:"-" }}</span>
+            </div>
+        </div>
+
+        <!-- Booking Info -->
+        <div class="detail-card">
+            <h3>Event Details</h3>
+            <div class="info-row">
+                <span class="label">Event Type</span>
+                <span class="value">{{ booking.event_type }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Date</span>
+                <span class="value">{{ booking.event_date }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Time</span>
+                <span class="value">{{ booking.time_range_display|default:"-" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Location</span>
+                <span class="value">{{ booking.event_location }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Guests</span>
+                <span class="value">{{ booking.number_of_guests }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Package</span>
+                <span class="value">{{ booking.package_type|default:"-" }}</span>
+            </div>
+            <div class="info-row total-price">
+                <span class="label">Total Price</span>
+                <span class="value">₱{{ booking.total_price }}</span>
+            </div>
+        </div>
+
+        <!-- Special Requests -->
+        {% if cleaned_requests %}
+        <div class="detail-card full-width">
+            <h3>Special Requests</h3>
+            <div class="special-request-box">
+                {{ cleaned_requests|linebreaksbr }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Actions -->
+    <div class="detail-actions">
+        <a href="{% url 'admin_booking_list' %}" class="btn-back">← Back to List</a>
+
+        {% if booking.status == 'pending' %}
+            <a href="{% url 'admin_booking_action' booking.id 'confirm' %}" class="btn-action primary">Confirm Booking</a>
+            <a href="{% url 'admin_booking_action' booking.id 'deny' %}" class="btn-action danger">Deny Booking</a>
+
+        {% elif booking.status == 'cancel_requested' %}
+            <a href="{% url 'admin_cancel_action' booking.id 'approve' %}" class="btn-action primary">Approve Cancellation</a>
+            <a href="{% url 'admin_cancel_action' booking.id 'deny' %}" class="btn-action danger">Reject Cancellation</a>
+
+        {% elif booking.edit_requested %}
+            <a href="{% url 'admin_edit_action' booking.id 'approve' %}" class="btn-action primary">Approve Edit</a>
+            <a href="{% url 'admin_edit_action' booking.id 'deny' %}" class="btn-action danger">Deny Edit</a>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
