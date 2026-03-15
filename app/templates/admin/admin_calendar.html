@@ -1,0 +1,136 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Events Calendar - Admin{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-calendar-page">
+
+    <div class="admin-calendar-panel">
+        <div class="panel-header">
+            <h2>Events Calendar</h2>
+            <p>An overview of all scheduled events.</p>
+        </div>
+        <div class="calendar-wrapper">
+            <div class="calendar-legend">
+                <div class="legend-item"><span class="legend-color confirmed"></span>Confirmed</div>
+                <div class="legend-item"><span class="legend-color pending"></span>Pending</div>
+                <div class="legend-item"><span class="legend-color completed"></span>Completed</div>
+                <div class="legend-item"><span class="legend-color expired"></span>Expired</div>
+                <div class="legend-item"><span class="legend-color cancelled"></span>Cancelled</div>
+            </div>
+            <div id="admin-calendar"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Simple Popover for Event Details -->
+<div class="cal-popover" id="calPopover">
+    <div class="cal-popover-header">
+        <span class="cal-popover-title" id="calPopDate"></span>
+        <button class="cal-popover-close" id="calPopClose">&times;</button>
+    </div>
+    <div class="cal-popover-body" id="calPopBody"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var calendarEl = document.getElementById('admin-calendar');
+        var popover = document.getElementById('calPopover');
+        var popClose = document.getElementById('calPopClose');
+        var popBody = document.getElementById('calPopBody');
+        var popDate = document.getElementById('calPopDate');
+
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,today'
+            },
+            eventDisplay: 'block',
+            displayEventTime: false,
+            dayMaxEvents: false,
+            height: 'auto',
+
+            events: [
+                {% for event in calendar_events %}
+                {
+                title: '{{ event.title|escapejs }}',
+                start: '{{ event.start }}',
+                    {% if event.end %}end: '{{ event.end }}', {% endif %}
+        backgroundColor: '{{ event.color }}',
+        borderColor: '{{ event.color }}',
+        textColor: '#ffffff',
+        extendedProps: {
+        client_name: '{{ event.client_name|escapejs }}',
+        event_type: '{{ event.event_type|escapejs }}',
+        time_range: '{{ event.time_range|escapejs }}',
+        status_raw: '{{ event.status_raw }}',
+        event_date: '{{ event.event_date|escapejs }}'
+    }
+                },
+        {% endfor %}
+            ],
+
+        eventTimeFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+        meridiem: false
+    },
+
+        eventClick: function (info) {
+            info.jsEvent.preventDefault();
+            info.jsEvent.stopPropagation();
+            var props = info.event.extendedProps;
+            var color = info.event.backgroundColor;
+
+            popDate.textContent = props.event_date;
+
+            var statusLabel = props.status_raw.charAt(0).toUpperCase() + props.status_raw.slice(1).replace('_', ' ');
+
+            popBody.innerHTML = '<div class="cal-pop-event" style="border-left:4px solid ' + color + ';">'
+                + '<div class="cal-pop-name">' + props.client_name + '</div>'
+                + '<div class="cal-pop-detail">' + props.event_type + '</div>'
+                + '<div class="cal-pop-detail">' + props.time_range + '</div>'
+                + '<div class="cal-pop-detail">' + statusLabel + '</div>'
+                + '</div>';
+
+            var rect = info.el.getBoundingClientRect();
+            var top = rect.bottom + 6;
+            var left = rect.left;
+
+            if (left + 260 > window.innerWidth) {
+                left = window.innerWidth - 270;
+            }
+            if (top + 180 > window.innerHeight) {
+                top = rect.top - 160;
+            }
+
+            popover.style.top = top + 'px';
+            popover.style.left = left + 'px';
+            popover.classList.add('show');
+        }
+        });
+
+    calendar.render();
+
+    popClose.addEventListener('click', function () {
+        popover.classList.remove('show');
+    });
+    document.addEventListener('click', function (e) {
+        if (!popover.contains(e.target) && !e.target.closest('.fc-event')) {
+            popover.classList.remove('show');
+        }
+    });
+    });
+</script>
+{% endblock %}

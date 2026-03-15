@@ -1,0 +1,312 @@
+{% load static %}
+
+<div class="admin-topbar">
+    <div class="topbar-left">
+        <!-- Optional search or title here -->
+    </div>
+
+    <div class="topbar-right">
+        <!-- Notification Dropdown -->
+        <div class="notification-dropdown-container" id="adminNotifDropdown">
+            <div class="notification-trigger">
+                <svg class="bell-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {% if notif_count > 0 %}
+                <span class="notification-badge">{{ notif_count }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Notif Dropdown Menu Content -->
+            <div class="notif-dropdown-menu">
+                <div class="notif-header">
+                    <h4>Notifications</h4>
+                    {% if notif_count > 0 %}
+                    <span class="notif-header-badge">{{ notif_count }} New</span>
+                    {% endif %}
+                </div>
+                <div class="notif-list">
+                    {% if notif_today or notif_earlier %}
+
+                    <!-- TODAY SECTION -->
+                    {% if notif_today %}
+                    <div class="notif-section-title">Today</div>
+                    {% for notif in notif_today %}
+                    <div class="notif-item-wrapper {% if not notif.is_read %}unread{% endif %}">
+                        <a href="{% if notif.booking %}{% url 'admin_booking_detail' notif.booking.id %}{% else %}#{% endif %}"
+                            class="notif-item">
+                            <div class="notif-avatar">
+                                {{ notif.user.first_name|default:notif.user.username|slice:":1"|upper }}
+                            </div>
+                            <div class="notif-content">
+                                <p class="notif-title">
+                                    <strong>
+                                        {% if notif.user.first_name %}
+                                        {{ notif.user.first_name }}
+                                        {% else %}
+                                        {{ notif.user.username }}
+                                        {% endif %}
+                                    </strong> {{ notif.message }}
+                                </p>
+                                {% if notif.booking %}
+                                <p class="notif-meta">{{ notif.booking.event_date|date:"M d, Y" }}</p>
+                                {% endif %}
+                                <p class="notif-time">{{ notif.created_at|timesince }} ago</p>
+                            </div>
+                        </a>
+                        <div class="notif-action-dropdown">
+                            <button class="notif-action-btn" title="Options">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                            </button>
+                            <div class="notif-action-menu">
+                                <button class="hide-notif-btn" data-id="{{ notif.id }}">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    <!-- EARLIER SECTION -->
+                    {% if notif_earlier %}
+                    <div class="notif-section-title">Earlier</div>
+                    {% for notif in notif_earlier %}
+                    <div class="notif-item-wrapper {% if not notif.is_read %}unread{% endif %}">
+                        <a href="{% if notif.booking %}{% url 'admin_booking_detail' notif.booking.id %}{% else %}#{% endif %}"
+                            class="notif-item">
+                            <div class="notif-avatar">
+                                {{ notif.user.first_name|default:notif.user.username|slice:":1"|upper }}
+                            </div>
+                            <div class="notif-content">
+                                <p class="notif-title">
+                                    <strong>
+                                        {% if notif.user.first_name %}
+                                        {{ notif.user.first_name }}
+                                        {% else %}
+                                        {{ notif.user.username }}
+                                        {% endif %}
+                                    </strong> {{ notif.message }}
+                                </p>
+                                {% if notif.booking %}
+                                <p class="notif-meta">{{ notif.booking.event_date|date:"M d, Y" }}</p>
+                                {% endif %}
+                                <p class="notif-time">{{ notif.created_at|date:"M d, g:i A" }}</p>
+                            </div>
+                        </a>
+                        <div class="notif-action-dropdown">
+                            <button class="notif-action-btn" title="Options">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                            </button>
+                            <div class="notif-action-menu">
+                                <button class="hide-notif-btn" data-id="{{ notif.id }}">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% else %}
+                    <div class="notif-empty">
+                        <p>No recent bookings to show.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- User Profile Dropdown -->
+        <div class="admin-profile-dropdown" id="adminProfileDropdown">
+            <div class="admin-profile-trigger">
+                <div class="admin-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
+                <div class="admin-info-text">
+                    <span class="admin-role">
+                        {% if user.role == 'admin' %}
+                        Administrator
+                        {% else %}
+                        Staff
+                        {% endif %}
+                    </span>
+                </div>
+                <!-- Little down arrow -->
+                <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+
+            <!-- Dropdown Menu Content -->
+            <div class="admin-dropdown-menu">
+                <div class="dropdown-header">
+                    <div class="admin-avatar large">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
+                    <div class="user-info">
+                        <strong>{{ user.first_name|default:user.username }}</strong>
+                        <span class="admin-role">
+                            {% if user.role == 'admin' %}
+                            Administrator
+                            {% else %}
+                            Staff
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="dropdown-divider"></div>
+                <!-- Re-adding Profile here so it's not totally lost, just out of the sidebar -->
+                <a href="{% url 'admin_profile' %}" class="dropdown-item">
+                    <svg class="dropdown-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    My Profile
+                </a>
+                <div class="dropdown-divider"></div>
+                <a href="{% url 'logout' %}" class="dropdown-item logout-text">
+                    <svg class="dropdown-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Log Out
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // --- Admin Profile Dropdown ---
+        const adminProfileDropdown = document.getElementById("adminProfileDropdown");
+        if (adminProfileDropdown) {
+            const trigger = adminProfileDropdown.querySelector(".admin-profile-trigger");
+            const menu = adminProfileDropdown.querySelector(".admin-dropdown-menu");
+
+            trigger.addEventListener("click", function (e) {
+                e.stopPropagation();
+                menu.classList.toggle("show");
+                // Close notif dropdown if open
+                if (adminNotifDropdown) {
+                    adminNotifDropdown.querySelector(".notif-dropdown-menu").classList.remove("show");
+                }
+            });
+
+            // Close dropdown if clicked outside
+            window.addEventListener("click", function (e) {
+                if (menu.classList.contains("show") && !adminProfileDropdown.contains(e.target)) {
+                    menu.classList.remove("show");
+                }
+            });
+        }
+
+        // --- Notification Dropdown ---
+        const adminNotifDropdown = document.getElementById("adminNotifDropdown");
+        if (adminNotifDropdown) {
+            const trigger = adminNotifDropdown.querySelector(".notification-trigger");
+            const menu = adminNotifDropdown.querySelector(".notif-dropdown-menu");
+            const badges = adminNotifDropdown.querySelectorAll(".notification-badge, .notif-header-badge");
+
+            trigger.addEventListener("click", function (e) {
+                e.stopPropagation();
+                const wasOpen = menu.classList.contains("show");
+                menu.classList.toggle("show");
+
+                // Close profile dropdown if open
+                if (adminProfileDropdown) {
+                    adminProfileDropdown.querySelector(".admin-dropdown-menu").classList.remove("show");
+                }
+
+                // If opening the dropdown and there are badges, mark as read
+                if (!wasOpen && badges.length > 0) {
+                    fetch("{% url 'mark_notifications_read' %}", {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}",
+                            "Content-Type": "application/json"
+                        }
+                    }).then(response => {
+                        if (response.ok) {
+                            // Hide badges instantly
+                            badges.forEach(b => b.style.display = 'none');
+                        }
+                    }).catch(err => console.error("Error marking notifs read:", err));
+                }
+            });
+
+            // Close dropdown if clicked outside
+            window.addEventListener("click", function (e) {
+                if (menu.classList.contains("show") && !adminNotifDropdown.contains(e.target)) {
+                    menu.classList.remove("show");
+                }
+
+                // Close all 3-dot action menus if clicked outside
+                if (!e.target.closest('.notif-action-dropdown')) {
+                    document.querySelectorAll('.notif-action-menu.show').forEach(m => {
+                        m.classList.remove('show');
+                    });
+                }
+            });
+
+            // --- 3-dot Menu Toggle ---
+            const actionBtns = adminNotifDropdown.querySelectorAll('.notif-action-btn');
+            actionBtns.forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const menu = this.nextElementSibling;
+                    const wasShow = menu.classList.contains('show');
+
+                    // Close all other menus first
+                    document.querySelectorAll('.notif-action-menu.show').forEach(m => {
+                        m.classList.remove('show');
+                    });
+
+                    // Toggle this one
+                    if (!wasShow) {
+                        menu.classList.add('show');
+                    }
+                });
+            });
+
+            // --- Hide Notification ---
+            const hideBtns = adminNotifDropdown.querySelectorAll('.hide-notif-btn');
+            hideBtns.forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const notifId = this.getAttribute('data-id');
+                    const wrapper = this.closest('.notif-item-wrapper');
+
+                    // Fire AJAX to hide
+                    fetch(`/staff/notifications/${notifId}/hide/`, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}",
+                            "Content-Type": "application/json"
+                        }
+                    }).then(response => {
+                        if (response.ok) {
+                            // Remove from DOM
+                            wrapper.remove();
+                            // Optional: Check if section is empty and remove title too (left for future enhancement if needed)
+                        }
+                    }).catch(err => console.error("Error hiding notif:", err));
+                });
+            });
+        }
+    });
+</script>

@@ -1,0 +1,772 @@
+{% extends 'client/base.html' %}
+{% load static humanize %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}">
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+
+
+<div class="booking-page">
+
+    <!-- Centered Calendar Section -->
+    <div class="booking-calendar-panel">
+        <div class="panel-header">
+            <h2>Events Calendar</h2>
+            <p>An overview of all scheduled events. Select a date to book.</p>
+        </div>
+        <div class="calendar-wrapper">
+            <div class="calendar-legend">
+                <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Confirmed)</div>
+                <div class="legend-item"><span class="legend-color pending"></span>Pending (Reserved)</div>
+            </div>
+            <div id="booking-calendar"></div>
+        </div>
+    </div>
+
+    <!-- Booking Modal Form -->
+    <div class="modal-overlay" id="bookingModalOverlay">
+        <div class="booking-modal-box">
+            <div class="modal-header stepper-header">
+                <div class="stepper-wrapper">
+                    <div class="stepper-progress-line" id="stepperLine"></div>
+                    <div class="stepper-step-icon active" id="step-1-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Step 1</div>
+                    </div>
+                    <div class="stepper-step-icon" id="step-2-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Step 2</div>
+                    </div>
+                </div>
+                <button type="button" class="close-btn" id="closeModalBtn">&times;</button>
+            </div>
+
+            <form method="POST" action="{% url 'create_booking' %}" id="bookingForm" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% if messages %}
+                {% for message in messages %}
+                {% if 'error' in message.tags %}
+                <div class="form-alerts">
+                    <div class="alert alert-error">{{ message }}</div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+
+                <!-- STEP 1: PACKAGE SELECTION -->
+                <div class="stepper-step active-step" id="step-1">
+                    <h3>Available Packages</h3>
+                    <p class="step-desc">Please choose a package for your booking.</p>
+
+                    <div class="package-cards-grid">
+                        {% for package in packages %}
+                        <div class="package-card" data-package="{{ package.name }}" data-price="{{ package.price }}"
+                            data-service-charge="{{ package.service_charge }}">
+                            <div class="package-info">
+                                <h4>{{ package.name }}</h4>
+                                <div class="price">₱{{ package.price|intcomma }}</div>
+                                <ul class="features">
+                                    {% for feature in package.feature_list %}
+                                    <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p>No packages available at the moment.</p>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Add-ons Section -->
+                    <h3>Add-ons (Optional)</h3>
+                    <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without
+                        a package.</p>
+                    <div class="package-cards-grid addons-selection-grid">
+                        {% for addon in active_addons %}
+                        <div class="package-card addon-selector" data-name="{{ addon.name }}"
+                            data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
+                            <div class="package-info">
+                                <h4>{{ addon.name }}</h4>
+                                <div class="price">₱{{ addon.price|intcomma }} <span class="w-package">w/ Package</span>
+                                </div>
+                                <ul class="features">
+                                    {% for feature in addon.feature_list %}
+                                    <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% if addon.solo_price %}
+                            <div class="addon-card-divider"></div>
+                            <button type="button" class="solo-price-btn" data-addon-name="{{ addon.name }}"
+                                data-solo-price="{{ addon.solo_price }}">
+                                Solo Price — ₱{{ addon.solo_price|intcomma }}
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="empty-message">No add-ons available at the moment.</p>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Additionals Section -->
+                    <h3>Additionals (Optional)</h3>
+                    <p class="step-desc">Individual items to customize your event.</p>
+                    <div class="package-cards-grid additionals-selection-grid">
+                        {% for additional in active_additionals %}
+                        <div class="package-card additional-selector" data-name="{{ additional.name }}"
+                            data-price="{{ additional.price }}">
+                            <div class="package-info">
+                                <h4>{{ additional.name }}</h4>
+                                <div class="price">₱{{ additional.price|intcomma }}</div>
+                                {% if additional.features %}
+                                <ul class="features">
+                                    {% for feature in additional.features.splitlines %}
+                                    <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if additional.notes %}
+                                <p class="additional-notes">
+                                    {{ additional.notes }}
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="empty-message">No additionals available at the moment.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-submit" id="btnNextStep" disabled>Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 2: BOOKING DETAILS -->
+                <div class="stepper-step" id="step-2" style="display: none;">
+                    <h3>Event Details</h3>
+                    <p class="step-desc">Great choice! Now fill in the details for your event.</p>
+
+                    <div class="form-grid">
+
+                        <div class="form-group full-width">
+                            <label>Event Type</label>
+                            <select id="event_type_select" name="event_type" required
+                                onchange="toggleOtherEventType(this)">
+                                <option value="" disabled selected>Select an Event</option>
+                                <option value="Birthday">Birthday</option>
+                                <option value="Wedding">Wedding</option>
+                                <option value="Anniversary">Anniversary</option>
+                                <option value="Corporate Event">Corporate Event</option>
+                                <option value="Christening">Christening</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <input type="text" id="event_type_other" placeholder="Please specify your event type"
+                                style="display: none; margin-top: 10px;">
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Event Date</label>
+                            <input type="date" id="event_date" name="event_date" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Event Duration</label>
+                            <div class="time-row">
+                                <div class="time-field">
+                                    <small>Start</small>
+                                    <input type="time" id="start_time" name="start_time" required>
+                                </div>
+                                <div class="time-field">
+                                    <small>End</small>
+                                    <input type="time" id="end_time" name="end_time" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Location</label>
+                            <input type="text" name="event_location" placeholder="Venue Address" required>
+                        </div>
+
+                        <!-- Removed No. of Guests -->
+
+                        <!-- Hidden inputs for data from Step 1 -->
+                        <input type="hidden" name="package_type" id="package_type_input">
+                        <input type="hidden" name="total_price" id="total_price_input">
+
+                        <div class="form-group full-width">
+                            <label>Choose Picture (Optional Reference)</label>
+                            <input type="file" name="reference_image" accept="image/*"
+                                style="padding: 0.6rem; border: 1px dashed #444; background: transparent; border-radius: 4px;">
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Special Requests</label>
+                            <textarea name="special_requests" placeholder="Any notes..."></textarea>
+                        </div>
+
+                        <!-- Order Summary Section -->
+                        <div class="booking-summary-container">
+                            <h4 class="summary-title">Order Summary</h4>
+                            <div id="booking-item-list" class="summary-items">
+                                <!-- Dynamic rows will be inserted here by JS -->
+                            </div>
+
+                            <div class="summary-divider"></div>
+
+                            <!-- Service Charge Row (Special handling for the note) -->
+                            <div class="summary-row service-charge-summary" id="serviceChargeRow"
+                                style="display: none;">
+                                <div class="row-info">
+                                    <span class="row-label">Service & Logistics Fee</span>
+                                    <p class="row-note">Includes toll fees, fuel, styling fee, crew meals, and
+                                        ingress/egress logistics.</p>
+                                </div>
+                                <span class="row-value" id="service_charge_display">₱0.00</span>
+                            </div>
+
+                            <div class="summary-row total-row">
+                                <div class="row-info">
+                                    <span class="row-label">Total Price</span>
+                                </div>
+                                <span class="row-value total-price" id="total_price_display">₱0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions split-actions">
+                        <button type="button" class="booking-back-btn" id="btnPrevStep">Back</button>
+                        <button type="submit" class="btn-submit">Submit Booking</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendarEl = document.getElementById('booking-calendar');
+        const modalOverlay = document.getElementById('bookingModalOverlay');
+        const closeBtn = document.getElementById('closeModalBtn');
+
+        // Form Inputs
+        const dateInput = document.getElementById('event_date');
+        const startTimeInput = document.getElementById('start_time');
+        const endTimeInput = document.getElementById('end_time');
+
+        // Date calculations for min restriction
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+        const todayStr = localDate.toISOString().split('T')[0];
+        dateInput.setAttribute('min', todayStr);
+
+        // --- Stepper Logic Variables ---
+        const step1Indicator = document.getElementById('step-1-indicator');
+        const step2Indicator = document.getElementById('step-2-indicator');
+        const stepperLine = document.getElementById('stepperLine');
+        const step1Content = document.getElementById('step-1');
+        const step2Content = document.getElementById('step-2');
+        const btnNextStep = document.getElementById('btnNextStep');
+        const btnPrevStep = document.getElementById('btnPrevStep');
+        const packageInput = document.getElementById('package_type_input');
+        const priceInput = document.getElementById('total_price_input');
+        const priceDisplay = document.getElementById('total_price_display');
+        const eventTypeSelect = document.getElementById('event_type_select');
+        const eventTypeOther = document.getElementById('event_type_other');
+
+        // --- Selection State ---
+        let selectedPackageName = null;
+        let selectedPackagePrice = 0;
+        let selectedServiceCharge = 0;   // Track service charge for the selected package
+        let selectedAddonName = null;    // single add-on name
+        let selectedAddonPrice = 0;
+        let selectedAdditionalName = null;  // single additional name
+        let selectedAdditionalPrice = 0;
+        let soloModeAddon = null;       // name of the add-on in solo price mode (or null)
+        let soloModePrice = 0;
+
+        // --- DOM References ---
+        const packageOnlyCards = document.querySelectorAll('.package-cards-grid:not(.addons-selection-grid):not(.additionals-selection-grid) .package-card');
+        const addonCards = document.querySelectorAll('.addon-selector');
+        const additionalCards = document.querySelectorAll('.additional-selector');
+        const soloPriceBtns = document.querySelectorAll('.solo-price-btn');
+
+        // =============================================
+        // UTILITY FUNCTIONS
+        // =============================================
+        function formatPrice(val) {
+            return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function calculateTotalPrice() {
+            let total = 0;
+            if (soloModeAddon) {
+                // Solo mode: solo price + additional only
+                total = soloModePrice;
+            } else {
+                // Package mode: package + service charge + addon (regular) + additional
+                total = selectedPackagePrice + selectedServiceCharge;
+                if (selectedAddonName) total += selectedAddonPrice;
+            }
+            if (selectedAdditionalName) total += selectedAdditionalPrice;
+            return total;
+        }
+
+        function updatePriceDisplay() {
+            const total = calculateTotalPrice();
+            priceDisplay.textContent = formatPrice(total);
+            priceInput.value = total.toFixed(2);
+        }
+
+        function buildPackageTypeString() {
+            let parts = [];
+            if (soloModeAddon) {
+                parts.push(soloModeAddon + ' (Solo)');
+            } else {
+                if (selectedPackageName) parts.push(selectedPackageName);
+                if (selectedAddonName) parts.push(selectedAddonName);
+            }
+            if (selectedAdditionalName) parts.push(selectedAdditionalName);
+            return parts.join(' + ');
+        }
+
+        function updateUIStates() {
+            // --- Package cards ---
+            packageOnlyCards.forEach(card => {
+                if (soloModeAddon) {
+                    // Solo mode active: disable all package cards
+                    card.classList.add('disabled');
+                    card.classList.remove('selected');
+                } else {
+                    card.classList.remove('disabled');
+                    // Highlight if selected
+                    if (card.dataset.package === selectedPackageName) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                }
+            });
+
+            // --- Add-on cards ---
+            addonCards.forEach(card => {
+                const name = card.dataset.name;
+                if (soloModeAddon) {
+                    // In solo mode: only the solo-selected addon is highlighted, others disabled
+                    if (name === soloModeAddon) {
+                        card.classList.add('selected');
+                        card.classList.remove('disabled');
+                    } else {
+                        card.classList.remove('selected');
+                        card.classList.add('disabled');
+                    }
+                } else if (!selectedPackageName) {
+                    // No package selected: add-on card body disabled (solo price still clickable)
+                    card.classList.remove('selected');
+                    card.classList.add('disabled');
+                } else {
+                    // Package selected: highlight if selected
+                    card.classList.remove('disabled');
+                    if (name === selectedAddonName) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                }
+            });
+
+            // --- Solo price buttons ---
+            soloPriceBtns.forEach(btn => {
+                const addonName = btn.dataset.addonName;
+                if (soloModeAddon === addonName) {
+                    btn.classList.add('active');
+                    btn.classList.remove('disabled');
+                } else if (selectedPackageName) {
+                    // Package selected: disable solo price buttons
+                    btn.classList.remove('active');
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('active', 'disabled');
+                }
+            });
+
+            // --- Additional cards (always available) ---
+            additionalCards.forEach(card => {
+                const name = card.dataset.name;
+                if (name === selectedAdditionalName) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+
+            // --- Next button: enabled if package selected OR solo mode active ---
+            const hasSelection = selectedPackageName !== null || soloModeAddon !== null;
+            btnNextStep.disabled = !hasSelection;
+
+            updatePriceDisplay();
+        }
+
+        // =============================================
+        // RESET
+        // =============================================
+        function resetModalSteps() {
+            document.getElementById('bookingForm').reset();
+
+            step1Content.style.display = 'block';
+            step2Content.style.display = 'none';
+
+            step1Indicator.classList.add('active');
+            step1Indicator.classList.remove('completed');
+            step2Indicator.classList.remove('active');
+            stepperLine.style.width = '0%';
+
+            selectedPackageName = null;
+            selectedPackagePrice = 0;
+            selectedServiceCharge = 0;
+            selectedAddonName = null;
+            selectedAddonPrice = 0;
+            selectedAdditionalName = null;
+            selectedAdditionalPrice = 0;
+            soloModeAddon = null;
+            soloModePrice = 0;
+
+            eventTypeOther.style.display = 'none';
+            eventTypeOther.removeAttribute('name');
+            eventTypeOther.required = false;
+            eventTypeSelect.name = 'event_type';
+
+            btnNextStep.disabled = true;
+            packageInput.value = '';
+            priceInput.value = '';
+            priceDisplay.textContent = '₱0.00';
+            document.getElementById('booking-item-list').innerHTML = ''; // Clear summary breakthrough
+
+            // Apply correct visual states (add-on cards will be disabled since no package selected)
+            updateUIStates();
+        }
+
+        // =============================================
+        // EVENT: PACKAGE CARD CLICK
+        // =============================================
+        packageOnlyCards.forEach(card => {
+            card.addEventListener('click', function () {
+                // If solo mode active, ignore click (package disabled)
+                if (soloModeAddon) return;
+
+                const pkgName = this.dataset.package;
+                const pkgPrice = parseFloat(this.dataset.price);
+                const svcCharge = parseFloat(this.dataset.serviceCharge) || 0;
+
+                if (selectedPackageName === pkgName) {
+                    // Deselect
+                    selectedPackageName = null;
+                    selectedPackagePrice = 0;
+                    selectedServiceCharge = 0;
+                } else {
+                    // Select new package (single select)
+                    selectedPackageName = pkgName;
+                    selectedPackagePrice = pkgPrice;
+                    selectedServiceCharge = svcCharge;
+                }
+
+                updateUIStates();
+            });
+        });
+
+        // =============================================
+        // EVENT: ADD-ON CARD BODY CLICK (Regular Price)
+        // =============================================
+        addonCards.forEach(card => {
+            card.addEventListener('click', function (e) {
+                // Ignore if click was on the solo price button
+                if (e.target.closest('.solo-price-btn')) return;
+
+                // If solo mode active or no package selected, ignore card body click
+                if (soloModeAddon) return;
+                if (!selectedPackageName) return;
+
+                const name = this.dataset.name;
+                const price = parseFloat(this.dataset.price);
+
+                if (selectedAddonName === name) {
+                    // Deselect
+                    selectedAddonName = null;
+                    selectedAddonPrice = 0;
+                } else {
+                    // Select this one (single select)
+                    selectedAddonName = name;
+                    selectedAddonPrice = price;
+                }
+
+                updateUIStates();
+            });
+        });
+
+        // =============================================
+        // EVENT: SOLO PRICE BUTTON CLICK
+        // =============================================
+        soloPriceBtns.forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation(); // Don't trigger card body click
+
+                // If a package is selected, solo price is disabled
+                if (selectedPackageName) return;
+
+                const addonName = this.dataset.addonName;
+                const soloPrice = parseFloat(this.dataset.soloPrice);
+
+                if (soloModeAddon === addonName) {
+                    // Deselect solo mode → go back to normal
+                    soloModeAddon = null;
+                    soloModePrice = 0;
+                } else {
+                    // Activate solo mode for this add-on
+                    soloModeAddon = addonName;
+                    soloModePrice = soloPrice;
+
+                    // Clear package and regular add-on selections
+                    selectedPackageName = null;
+                    selectedPackagePrice = 0;
+                    selectedServiceCharge = 0;
+                    selectedAddonName = null;
+                    selectedAddonPrice = 0;
+                }
+
+                updateUIStates();
+            });
+        });
+
+        // =============================================
+        // EVENT: ADDITIONAL CARD CLICK (Always available)
+        // =============================================
+        additionalCards.forEach(card => {
+            card.addEventListener('click', function () {
+                const name = this.dataset.name;
+                const price = parseFloat(this.dataset.price);
+
+                if (selectedAdditionalName === name) {
+                    // Deselect
+                    selectedAdditionalName = null;
+                    selectedAdditionalPrice = 0;
+                } else {
+                    // Select this one (single select)
+                    selectedAdditionalName = name;
+                    selectedAdditionalPrice = price;
+                }
+
+                updateUIStates();
+            });
+        });
+
+        // =============================================
+        // DJANGO MESSAGES → auto-open modal on error
+        // =============================================
+        {% if messages %}
+        {% for message in messages %}
+        {% if 'error' in message.tags %}
+        modalOverlay.classList.add('show');
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+
+        // Modal close logic
+        function closeModal() {
+            modalOverlay.classList.remove('show');
+            setTimeout(resetModalSteps, 300);
+        }
+
+        closeBtn.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', function (e) {
+            if (e.target === modalOverlay) closeModal();
+        });
+
+        // =============================================
+        // FULLCALENDAR
+        // =============================================
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,today'
+            },
+            eventDisplay: 'block',
+            displayEventTime: false,
+            dayMaxEvents: 2,
+
+            events: [
+                {% for event in calendar_events %}
+            {
+                title: '{{ event.title }}',
+                start: '{{ event.start }}',
+                {% if event.end %}end: '{{ event.end }}', {% endif %}
+        backgroundColor: '{{ event.color }}',
+        borderColor: '{{ event.color }}',
+        textColor: '#ffffff'
+            },
+        {% endfor %}
+        ],
+
+        eventTimeFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+        meridiem: false
+    },
+
+        dateClick: function (info) {
+            const clickedDate = info.dateStr;
+            if (clickedDate < todayStr) return;
+
+            resetModalSteps();
+            dateInput.value = clickedDate;
+            updateTimeConstraints();
+
+            modalOverlay.classList.add('show');
+            setTimeout(() => {
+                const typeSelect = document.getElementById('event_type_select');
+                if (typeSelect) typeSelect.focus();
+            }, 300);
+        }
+        });
+
+    calendar.render();
+
+    // =============================================
+    // TIME VALIDATION
+    // =============================================
+    function updateTimeConstraints() {
+        const selectedDate = dateInput.value;
+        if (selectedDate === todayStr) {
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            startTimeInput.min = `${hours}:${minutes}`;
+        } else {
+            startTimeInput.removeAttribute('min');
+        }
+    }
+
+    function validateEndTime() {
+        if (startTimeInput.value) {
+            endTimeInput.min = startTimeInput.value;
+        }
+    }
+
+    // =============================================
+    // STEPPER NAVIGATION
+    // =============================================
+    btnNextStep.addEventListener('click', function () {
+        if (!selectedPackageName && !soloModeAddon) return;
+
+        // Fill data for Step 2 Hidden Inputs
+        packageInput.value = buildPackageTypeString();
+        const total = calculateTotalPrice();
+        priceInput.value = total.toFixed(2);
+
+        // --- Build Order Summary Breakdown ---
+        const itemListContainer = document.getElementById('booking-item-list');
+        itemListContainer.innerHTML = ''; // Clear previous
+
+        // 1. Package or Solo Add-on
+        if (soloModeAddon) {
+            itemListContainer.innerHTML += `
+                <div class="summary-row">
+                    <div class="row-info">
+                        <span class="row-label">${soloModeAddon} (Solo)</span>
+                    </div>
+                    <span class="row-value">${formatPrice(soloModePrice)}</span>
+                </div>`;
+        } else if (selectedPackageName) {
+            itemListContainer.innerHTML += `
+                <div class="summary-row">
+                    <div class="row-info">
+                        <span class="row-label">${selectedPackageName}</span>
+                    </div>
+                    <span class="row-value">${formatPrice(selectedPackagePrice)}</span>
+                </div>`;
+        }
+
+        // 2. Add-on (Regular with Package)
+        if (!soloModeAddon && selectedAddonName) {
+            itemListContainer.innerHTML += `
+                <div class="summary-row">
+                    <div class="row-info">
+                        <span class="row-label">${selectedAddonName} (Add-on)</span>
+                    </div>
+                    <span class="row-value">${formatPrice(selectedAddonPrice)}</span>
+                </div>`;
+        }
+
+        // 3. Additional
+        if (selectedAdditionalName) {
+            itemListContainer.innerHTML += `
+                <div class="summary-row">
+                    <div class="row-info">
+                        <span class="row-label">${selectedAdditionalName} (Additional)</span>
+                    </div>
+                    <span class="row-value">${formatPrice(selectedAdditionalPrice)}</span>
+                </div>`;
+        }
+
+        // 4. Update Service Charge Visibility & Display
+        const svcRow = document.getElementById('serviceChargeRow');
+        const svcDisplay = document.getElementById('service_charge_display');
+        const finalPriceDisplay = document.getElementById('total_price_display');
+
+        if (selectedServiceCharge > 0 && !soloModeAddon) {
+            svcDisplay.textContent = formatPrice(selectedServiceCharge);
+            svcRow.style.display = 'flex';
+        } else {
+            svcRow.style.display = 'none';
+        }
+
+        // 5. Update Total Price Display
+        finalPriceDisplay.textContent = formatPrice(total);
+
+        // UI Transitions
+        step1Content.style.display = 'none';
+        step2Content.style.display = 'block';
+
+        step1Indicator.classList.remove('active');
+        step1Indicator.classList.add('completed');
+        step2Indicator.classList.add('active');
+        stepperLine.style.width = '100%';
+    });
+
+    btnPrevStep.addEventListener('click', function () {
+        step2Content.style.display = 'none';
+        step1Content.style.display = 'block';
+
+        step2Indicator.classList.remove('active');
+        step1Indicator.classList.add('active');
+        step1Indicator.classList.remove('completed');
+        stepperLine.style.width = '0%';
+    });
+
+    dateInput.addEventListener('change', updateTimeConstraints);
+    startTimeInput.addEventListener('change', validateEndTime);
+    updateTimeConstraints();
+    validateEndTime();
+
+    window.toggleOtherEventType = function (selectElement) {
+        const otherInput = document.getElementById('event_type_other');
+        if (selectElement.value === 'Other') {
+            otherInput.style.display = 'block';
+            otherInput.required = true;
+            otherInput.name = 'event_type';
+            selectElement.removeAttribute('name');
+        } else {
+            otherInput.style.display = 'none';
+            otherInput.required = false;
+            otherInput.removeAttribute('name');
+            selectElement.name = 'event_type';
+        }
+    };
+    });
+</script>
+{% endblock %}

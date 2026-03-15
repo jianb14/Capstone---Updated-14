@@ -41,15 +41,15 @@
     color: #999999;
 }
 
-.title-header{
+.title-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin: 0 0.5rem;
 }
 
-.title-header h1{
-    font-size:1.5rem;
+.title-header h1 {
+    font-size: 1.5rem;
     margin-bottom: 18px;
 }
 
@@ -62,15 +62,15 @@
     border-radius: 8px;
     font-size: 0.75rem;
     font-weight: 500;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
-    border: 1px solid rgba(255,255,255,0.15);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     text-decoration: none;
 }
 
 .action-create:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
     transition: all 0.2s ease;
 }
 
@@ -137,19 +137,19 @@ td {
 }
 
 .action-buttons a:nth-child(1) {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
-    border-color: rgba(255,255,255,0.12);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .action-buttons a:nth-child(1):hover {
-    background: rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .action-buttons a:nth-child(2) {
     background: transparent;
     color: #9ca3af;
-    border-color: rgba(255,255,255,0.08);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .action-buttons a:nth-child(2):hover {
@@ -159,16 +159,18 @@ td {
 .action-buttons a:nth-child(3) {
     background: transparent;
     color: #ef4444;
-    border-color: rgba(239,68,68,0.35);
+    border-color: rgba(239, 68, 68, 0.35);
 }
 
 .action-buttons a:nth-child(3):hover {
-    background: rgba(239,68,68,0.15);
+    background: rgba(239, 68, 68, 0.15);
 }
 
 @media (max-width: 768px) {
 
-    table, tr, td {
+    table,
+    tr,
+    td {
         display: block;
         width: 100%;
     }
@@ -242,7 +244,7 @@ td {
 
     .table-container {
         background: transparent;
-        border: none;  
+        border: none;
         overflow-x: hidden;
     }
 }
@@ -277,9 +279,9 @@ td {
 ================================ */
 
 .detail-wrapper {
-    max-width: 600px;
+    max-width: 1000px;
+    width: 95%;
     margin: 2rem auto;
-    padding: 0 1rem;
 }
 
 .detail-card {
@@ -288,19 +290,43 @@ td {
     border-radius: 12px;
     padding: 0;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    display: flex;
+    min-height: 480px;
+}
+
+.detail-left {
+    flex: 0.8;
+    background: #000;
+    border-right: 1px solid #2a2a2a;
+    position: relative;
+    max-height: 550px;
+}
+
+.detail-right {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 1024px) {
+    .detail-card {
+        flex-direction: column;
+    }
+
+    .detail-left {
+        border-right: none;
+        border-bottom: 1px solid #2a2a2a;
+        height: 300px;
+        flex: none;
+    }
 }
 
 /* ---------------- IMAGE ---------------- */
 
 .detail-image-container {
     width: 100%;
-    height: 220px;
-    background: #0f0f0f;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-bottom: 1px solid #2a2a2a;
+    height: 100%;
     margin-bottom: 0;
 }
 
@@ -311,16 +337,16 @@ td {
 }
 
 /* Content Padding Wrapper */
-.detail-card > div:not(.detail-image-container) {
+.detail-card>div:not(.detail-image-container) {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
 }
 
-.detail-image-container + div {
+.detail-image-container+div {
     padding-top: 1.5rem;
 }
 
-.detail-title-price{
+.detail-title-price {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -395,7 +421,6 @@ td {
     padding: 1rem;
     border-radius: 8px;
     border: 1px solid #252525;
-    margin-bottom: 1.25rem;
 }
 
 /* ---------------- SERVICE PRICE ---------------- */
@@ -430,7 +455,7 @@ td {
 
 /* ---------------- ACTION BUTTONS ---------------- */
 
-.detail-buttons{
+.detail-buttons {
     margin-top: 1.5rem;
     margin-bottom: 1.5rem;
     display: flex;
@@ -459,7 +484,7 @@ td {
 ================================ */
 
 .form-container {
-    max-width: 800px;
+    width: 100%;
     margin: 0 auto;
 }
 
@@ -468,13 +493,58 @@ td {
     border: 1px solid #2a2a2a;
     border-radius: 12px;
     padding: 2rem;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem; /* Compact gap */
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem;
+}
+
+.span-2 {
+    grid-column: span 2;
+}
+
+.span-3 {
+    grid-column: span 3;
+}
+
+.span-6 {
+    grid-column: span 6;
+}
+
+@media (max-width: 768px) {
+
+    .span-2,
+    .span-3 {
+        grid-column: span 6;
+    }
+}
+
+/* --- MESSAGES / ALERTS --- */
+.messages {
+    margin-bottom: 1.5rem;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .form-group {
@@ -515,7 +585,7 @@ td {
 .form-group input:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.5); 
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .form-group textarea {

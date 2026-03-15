@@ -1,5 +1,5 @@
 {% extends 'admin/admin_base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_package.css' %}">
@@ -7,120 +7,73 @@
 
 <div class="detail-wrapper">
     <div class="detail-card">
-
-        {% if package.image %}
-        <div class="detail-image-container">
-            <img src="{{ package.image.url }}" class="detail-image">
+        <!-- Left: Image Section -->
+        <div class="detail-left">
+            {% if package.image %}
+            <div class="detail-image-container">
+                <img src="{{ package.image.url }}" class="detail-image">
+            </div>
+            {% else %}
+            <div class="detail-image-container"
+                style="display: flex; align-items: center; justify-content: center; height: 100%; color: #444;">
+                <p>No Image Available</p>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
 
-        <div class="detail-title-price">
-            <h2 class="detail-title">{{ package.name }}</h2>
-            <p class="detail-price">₱{{ package.price }}</p>
-        </div>
+        <!-- Right: Information Section -->
+        <div class="detail-right">
+            <div class="detail-title-price">
+                <h2 class="detail-title">{{ package.name }}</h2>
+                <p class="detail-price">₱{{ package.price|intcomma }}</p>
+            </div>
 
-        <div class="detail-section">
-            <h4>Package Features</h4>
-            <ul class="detail-list">
-                {% for feature in package.feature_list %}
+            <div class="detail-section">
+                <h4>Package Features</h4>
+                <ul class="detail-list">
+                    {% for feature in package.feature_list %}
                     <li>{{ feature }}</li>
-                {% endfor %}
-            </ul>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            {% if package.notes %}
+            <div class="detail-section">
+                <h4>Notes</h4>
+                <p class="detail-notes">{{ package.notes }}</p>
+            </div>
+            {% endif %}
+
+            <div class="detail-divider"></div>
+
+            <div class="detail-section">
+                <h4>Service Details</h4>
+                <div class="detail-service-charge">
+                    <span>Service Price</span>
+                    <span>₱{{ package.service_charge|intcomma }}</span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h4>Service Features</h4>
+                <p class="detail-notes">{{ package.service_features }}</p>
+            </div>
+
+            {% if package.service_notes %}
+            <div class="detail-section">
+                <h4>Service Notes</h4>
+                <p class="detail-notes">{{ package.service_notes }}</p>
+            </div>
+            {% endif %}
+
+            <div class="action-buttons detail-buttons">
+                <a href="{% url 'admin_package_list' %}" class="btn-back detail">Back</a>
+                <a href="{% url 'admin_package_edit' package.id %}" class="btn-edit detail">Edit</a>
+                <a href="{% url 'admin_package_delete' package.id %}" class="btn-delete detail"
+                    onclick="return confirm('Delete this package?')">Delete</a>
+            </div>
         </div>
-
-        {% if package.notes %}
-        <div class="detail-section">
-            <h4>Notes</h4>
-            <p class="detail-notes">{{ package.notes }}</p>
-        </div>
-        {% endif %}
-        
-
-        <div class="detail-divider"></div>
-
-
-        <div class="detail-service-charge">
-            <p>Service Price</p>
-            <p>₱{{ package.service_charge }}</p>
-        </div>
-
-        <div class="detail-section">
-            <h4>Service Features</h4>
-            <ul class="detail-list">
-                {% for s_feature in package.service_feature_list %}
-                    <li>{{ s_feature }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-
-        {% if package.service_notes %}
-        <div class="detail-section">
-            <h4>Service Notes</h4>
-            <p class="detail-notes">{{ package.service_notes }}</p>
-        </div>
-        {% endif %}
-
-        <div class="action-buttons detail-buttons">
-            <a href="{% url 'admin_package_list' %}" class="btn-back detail">Back</a>
-            <a href="{% url 'admin_package_edit' package.id %}" class="btn-edit detail">Edit</a>
-            <a href="{% url 'admin_package_delete' package.id %}" class="btn-delete detail"
-                onclick="return confirm('Delete this package?')">Delete</a>
-        </div>
-
     </div>
 </div>
 
 {% endblock %}
-
-
-
-
-
-
-
-<!--
-
-<h2>Package Detail</h2>
-
-<div style="border:1px solid #ccc; padding:20px;">
-
-    {% if package.image %}
-        <img src="{{ package.image.url }}" width="200px">
-    {% endif %}
-
-    <h3>Name: {{ package.name }}</h3>
-    <h3>Price: ₱{{ package.price }}</h3>
-
-    <h4>Package Features</h4>
-    <ul>
-        {% for feature in package.feature_list %}
-            <li>{{ feature }}</li>
-        {% endfor %}
-    </ul>
-
-    <p><strong>Notes:</strong> {{ package.notes }}</p>
-
-    <p><strong>Price:</strong> ₱{{ package.price }}</p>
-
-    <hr>
-
-    <p><strong>Service Charge:</strong> ₱{{ package.service_charge }}</p>
-
-    <ul>
-        {% for s_feature in package.service_feature_list %}
-            <li>{{ s_feature }}</li>
-        {% endfor %}
-    </ul>
-
-    <p><strong>Notes:</strong> {{ package.service_notes }}</p>
-
-</div>
-
-<br>
-
-<a href="{% url 'admin_package_list' %}" class="btn btn-secondary">Back</a>
-<a href="{% url 'admin_package_edit' package.id %}" class="btn btn-sm btn-warning">Edit</a>
-<a href="{% url 'admin_package_delete' package.id %}" class="btn btn-sm btn-danger">Delete</a>
-
-
--->

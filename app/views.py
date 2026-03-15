@@ -6,7 +6,7 @@ from django.db.models import Q, Sum, Count
 from django.http import HttpResponseForbidden
 from django.views.generic import TemplateView
 from django.contrib import messages
-from .models import User, Booking, Package, AddOn, AdditionalOnly, AuditLog, Design, ChatMessage, ChatSession
+from .models import Package, Booking, User, AuditLog, Design, Payment, ChatSession, ChatMessage, Review, ReviewImage, AddOn, AdditionalOnly, Notification, AdminNotification
 from django.contrib.auth import get_user_model
 import re
 from django.contrib.auth.forms import PasswordChangeForm
@@ -18,6 +18,8 @@ from datetime import datetime, timedelta
 from django.views.decorators.http import require_POST, require_GET
 import json
 from .services import get_chatbot_response
+from django.db.models import Exists, OuterRef
+from django.utils import timezone
 
 
 
@@ -28,12 +30,39 @@ def log_action(user, action):
     AuditLog.objects.create(user=user, action=action)
 
 
+def get_top_reviews():
+    """Helper function to get the top 3 reviews, prioritizing 5-stars and unique per user."""
+    # Fetch reviews ordered by rating descending, then newest first
+    all_reviews = Review.objects.select_related('user', 'booking').order_by('-rating', '-created_at')
+    
+    top_reviews = []
+    seen_users = set()
+    
+    for review in all_reviews:
+        if review.user.id not in seen_users:
+            top_reviews.append(review)
+            seen_users.add(review.user.id)
+            
+        if len(top_reviews) >= 3:
+            break
+            
+    return top_reviews
+
 class HomePageView(TemplateView):
     template_name = 'client/home.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['top_reviews'] = get_top_reviews()
+        return context
 
 class AboutPageView(TemplateView):
     template_name = 'client/about.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['top_reviews'] = get_top_reviews()
+        return context
     
 
 class ServicesPageView(TemplateView):
@@ -46,6 +75,117 @@ class PackagePageView(TemplateView):
 
 class GalleryPageView(TemplateView):
     template_name = 'client/gallery.html'
+    
+
+def reviews_page(request):
+    reviews = Review.objects.select_related('user', 'booking').order_by('-created_at')
+    
+    import json
+    
+    # Check if the current user has liked each review
+    if request.user.is_authenticated:
+        for review in reviews:
+            review.is_liked_by_user = review.likes.filter(id=request.user.id).exists()
+            review.can_be_liked = (request.user != review.user)
+            
+            # Serialize images for editing if the user owns the review
+            if review.user == request.user:
+                images_data = [{'id': img.id, 'url': img.image.url} for img in review.images.all()]
+                review.images_json = json.dumps(images_data)
+    else:
+        for review in reviews:
+            review.is_liked_by_user = False
+            review.can_be_liked = False
+            
+    return render(request, 'client/reviews.html', {'reviews': reviews})
+
+@login_required
+@require_POST
+def like_review(request, review_id):
+    review = get_object_or_404(Review, id=review_id)
+
+    # Prevent user from liking their own review
+    if review.user == request.user:
+        return JsonResponse({'error': 'You cannot like your own review.'}, status=400)
+
+    # Toggle like
+    if review.likes.filter(id=request.user.id).exists():
+        review.likes.remove(request.user)
+        liked = False
+    else:
+        review.likes.add(request.user)
+        liked = True
+
+    return JsonResponse({
+        'liked': liked,
+        'total_likes': review.total_likes()
+    })
+
+@login_required
+@require_POST
+def edit_review(request, review_id):
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    
+    rating = request.POST.get('rating')
+    comment = request.POST.get('comment')
+    images_to_delete = request.POST.getlist('delete_images[]')
+    new_images = request.FILES.getlist('images')
+    
+    # Validate rating range
+    try:
+        rating_val = int(rating) if rating else 0
+    except (ValueError, TypeError):
+        rating_val = 0
+    if rating_val < 1 or rating_val > 5:
+        return JsonResponse({'status': 'error', 'message': 'Rating must be between 1 and 5.'}, status=400)
+    
+    if rating and comment:
+        # Calculate resulting image count
+        current_images_count = review.images.count()
+        resulting_count = current_images_count - len(images_to_delete) + len(new_images)
+        
+        if resulting_count > 4:
+            return JsonResponse({'status': 'error', 'message': 'You can only have a maximum of 4 pictures per review.'}, status=400)
+            
+        # 1. Delete requested images
+        if images_to_delete:
+            for img_id in images_to_delete:
+                try:
+                    img = ReviewImage.objects.get(id=img_id, review=review)
+                    img.image.delete() # Deletes file from storage
+                    img.delete()       # Deletes record from DB
+                except ReviewImage.DoesNotExist:
+                    pass
+                    
+        # 2. Add new images
+        if new_images:
+            for image in new_images:
+                 ReviewImage.objects.create(review=review, image=image)
+                 
+        # 3. Update Text and Rating
+        review.rating = rating
+        review.comment = comment
+        review.save()
+        
+        log_action(request.user, f"Updated review #{review.id}.")
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Review updated successfully!',
+            'rating': review.rating,
+            'comment': review.comment
+        })
+    
+    return JsonResponse({'status': 'error', 'message': 'Rating and comment are required.'}, status=400)
+
+@login_required
+@require_POST
+def delete_review(request, review_id):
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    review_id_val = review.id
+    review.delete()
+    
+    log_action(request.user, f"Deleted review #{review_id_val}.")
+    return JsonResponse({'status': 'success', 'message': 'Review deleted successfully!'})
     
     
 User = get_user_model()
@@ -92,11 +232,14 @@ def register(request):
         # ✅ Password rules
         if len(password) < 8:
             errors.append("Password must be at least 8 characters.")
-        if not re.search(r'[A-Z]', password):
-            errors.append("Password must contain at least one uppercase letter.")
-        if not re.search(r'[0-9]', password):
-            errors.append("Password must contain at least one number.")
-        # special character optional, no error
+
+        # ✅ Phone number validation
+        if phone:
+            cleaned_phone = re.sub(r'[\s\-\(\)\+]', '', phone)
+            if not cleaned_phone.isdigit():
+                errors.append("Phone number must contain only digits.")
+            elif len(cleaned_phone) < 10 or len(cleaned_phone) > 15:
+                errors.append("Phone number must be between 10 and 15 digits.")
 
         # ❌ If may error, balik form
         if errors:
@@ -195,38 +338,36 @@ def dashboard(request):
     return render(request, 'admin/dashboard.html')
 
 
+def check_booking_expirations():
+    """Find pending bookings past their event date, mark as expired and notify user."""
+    expired_bookings = Booking.objects.filter(status='pending', event_date__lt=timezone.now().date())
+    for b in expired_bookings:
+        b.status = 'expired'
+        b.save()
+        Notification.objects.create(
+            user=b.user,
+            booking=b,
+            message=f"Paumanhin, ang iyong booking #{b.id} para sa {b.event_date} ay na-expire na dahil hindi ito nakumpirma sa tamang oras."
+        )
+
+
 @login_required
 def customer_profile(request):
     if request.user.role != 'customer':
         return HttpResponseForbidden("Not allowed")
 
+    # Auto-expire pending bookings in the past
+    check_booking_expirations()
+
     user_bookings = Booking.objects.filter(user=request.user).order_by('-event_date')
     
-    # Attach formatted time range for the table/modal
+    # Attach formatted time range for the table/modal and check if reviewed
     for b in user_bookings:
         b.time_range_display = get_booking_time_range(b)
-
-    # Prepare Calendar Events
-    all_bookings = Booking.objects.exclude(status__in=['cancelled']).filter(event_date__gte=timezone.now().date())
-    calendar_events = []
-
-    for b in all_bookings:
-        start_dt = datetime.combine(b.event_date, b.event_time) if b.event_time else None
-        end_time_str = get_end_time_from_str(b.special_requests or '')
-        end_dt = None
-        if end_time_str:
-            try:
-                end_time_obj = datetime.strptime(end_time_str, '%H:%M').time()
-                end_dt = datetime.combine(b.event_date, end_time_obj)
-            except ValueError:
-                pass
-
-        calendar_events.append({
-            'title': get_booking_time_range(b), # Shows "10:00 AM - 12:00 PM" on bar
-            'start': start_dt.isoformat() if start_dt else b.event_date.isoformat(),
-            'end': end_dt.isoformat() if end_dt else None,
-            'color': '#d97706' if b.status == 'pending' else '#3b82f6'
-        })
+        if b.status == 'completed':
+            b.has_reviewed = b.reviews.filter(user=request.user).exists()
+        else:
+            b.has_reviewed = False
 
     # Calculate Stats
     total_bookings = user_bookings.count()
@@ -234,14 +375,80 @@ def customer_profile(request):
     confirmed_count = user_bookings.filter(status='confirmed').count()
     completed_count = user_bookings.filter(status='completed').count()
 
+    # Get active packages for the edit modal dropdown
+    active_packages = Package.objects.filter(is_active=True)
+
     return render(request, 'client/customer_profile.html', {
         'user_bookings': user_bookings,
-        'calendar_events': calendar_events,
         'total_bookings': total_bookings,
         'pending_count': pending_count,
         'confirmed_count': confirmed_count,
         'completed_count': completed_count,
+        'packages': active_packages,
     })
+
+@login_required
+@require_POST
+def submit_review(request, id):
+    if request.user.role != 'customer':
+        return HttpResponseForbidden("Not allowed")
+
+    booking = get_object_or_404(Booking, id=id, user=request.user)
+
+    if booking.status != 'completed':
+        messages.error(request, "You can only review completed bookings.")
+        return redirect('customer_profile')
+
+    # Check if already reviewed
+    if booking.reviews.filter(user=request.user).exists():
+        messages.error(request, "You have already reviewed this booking.")
+        return redirect('customer_profile')
+
+    rating = request.POST.get('rating')
+    comment = request.POST.get('comment')
+
+    if rating and comment:
+        # Validate rating range
+        try:
+            rating_val = int(rating)
+        except (ValueError, TypeError):
+            messages.error(request, "Invalid rating value.")
+            return redirect('customer_profile')
+        if rating_val < 1 or rating_val > 5:
+            messages.error(request, "Rating must be between 1 and 5.")
+            return redirect('customer_profile')
+
+        images = request.FILES.getlist('images')
+        
+        if len(images) > 4:
+            messages.error(request, "You can only upload a maximum of 4 pictures.")
+            return redirect('customer_profile')
+
+        review = Review.objects.create(
+            user=request.user,
+            booking=booking,
+            rating=rating,
+            comment=comment
+        )
+        
+        for img in images:
+            ReviewImage.objects.create(review=review, image=img)
+            
+        log_action(request.user, f"Submitted a review for booking #{booking.id}.")
+        
+        # Notify Admin
+        AdminNotification.objects.create(
+            booking=booking,
+            user=request.user,
+            message="submitted a new review."
+        )
+        
+        messages.success(request, "Thank you for your review!")
+        return redirect('reviews')  # Redirect to the new reviews page
+    else:
+        messages.error(request, "Please provide both a rating and a comment.")
+
+    return redirect('customer_profile')
 
 
 @login_required
@@ -279,6 +486,179 @@ def get_booking_time_range(booking):
     return start_str
 
 # -------------------------
+# BOOKING PAGE (Calendar + Form)
+# -------------------------
+@login_required
+def booking_page(request):
+    if request.user.role != 'customer':
+        return HttpResponseForbidden("Not allowed")
+
+    # Prepare Calendar Events
+    all_bookings = Booking.objects.exclude(status__in=['cancelled']).filter(event_date__gte=timezone.now().date())
+    calendar_events = []
+    
+    # Get active packages and optionals for the stepper
+    active_packages = Package.objects.filter(is_active=True)
+    active_addons = AddOn.objects.filter(is_active=True)
+    active_additionals = AdditionalOnly.objects.all()
+
+    for b in all_bookings:
+        start_dt = datetime.combine(b.event_date, b.event_time) if b.event_time else None
+        end_time_str = get_end_time_from_str(b.special_requests or '')
+        end_dt = None
+        if end_time_str:
+            try:
+                end_time_obj = datetime.strptime(end_time_str, '%H:%M').time()
+                end_dt = datetime.combine(b.event_date, end_time_obj)
+            except ValueError:
+                pass
+
+        calendar_events.append({
+            'title': get_booking_time_range(b),
+            'start': start_dt.isoformat() if start_dt else b.event_date.isoformat(),
+            'end': end_dt.isoformat() if end_dt else None,
+            'color': '#d97706' if b.status == 'pending' else '#3b82f6'
+        })
+
+    return render(request, 'client/booking/booking_page.html', {
+        'calendar_events': calendar_events,
+        'packages': active_packages,
+        'active_addons': active_addons,
+        'active_additionals': active_additionals,
+    })
+
+# -------------------------
+# ADMIN CALENDAR PAGE
+# -------------------------
+@login_required
+def admin_calendar(request):
+    if request.user.role not in ['admin', 'staff']:
+        return HttpResponseForbidden("Not allowed")
+
+    # Show ALL bookings regardless of status or date
+    all_bookings = Booking.objects.select_related('user').all()
+    calendar_events = []
+
+    # Color mapping per status
+    status_colors = {
+        'confirmed': '#3b82f6',       # Blue
+        'pending': '#d97706',         # Yellow/Amber
+        'completed': '#22c55e',       # Green
+        'expired': '#6b7280',         # Gray
+        'cancelled': '#ef4444',       # Red
+        'cancel_requested': '#f97316', # Orange
+    }
+
+    for b in all_bookings:
+        start_dt = datetime.combine(b.event_date, b.event_time) if b.event_time else None
+        end_time_str = get_end_time_from_str(b.special_requests or '')
+        end_dt = None
+        if end_time_str:
+            try:
+                end_time_obj = datetime.strptime(end_time_str, '%H:%M').time()
+                end_dt = datetime.combine(b.event_date, end_time_obj)
+            except ValueError:
+                pass
+
+        # Include client name and time range in the title
+        client_name = b.user.first_name or b.user.username
+        time_range = get_booking_time_range(b)
+        event_title = f"{client_name} — {time_range}" if time_range else client_name
+
+        # Clean special requests for display
+        cleaned_requests = remove_end_time_tag(b.special_requests or '')
+
+        calendar_events.append({
+            'title': event_title,
+            'start': start_dt.isoformat() if start_dt else b.event_date.isoformat(),
+            'end': end_dt.isoformat() if end_dt else None,
+            'color': status_colors.get(b.status, '#3b82f6'),
+            'booking_id': b.id,
+            'client_name': f"{b.user.first_name} {b.user.last_name}".strip() or b.user.username,
+            'event_type': b.event_type or '—',
+            'event_location': b.event_location or '—',
+            'package_type': b.package_type or '—',
+            'status': b.get_status_display(),
+            'status_raw': b.status,
+            'time_range': time_range or '—',
+            'event_date': b.event_date.strftime('%B %d, %Y'),
+            'total_price': str(b.total_price),
+        })
+
+    return render(request, 'admin/admin_calendar.html', {
+        'calendar_events': calendar_events,
+    })
+
+
+@login_required
+def mark_notifications_read(request):
+    if request.user.role not in ['admin', 'staff']:
+        return JsonResponse({'status': 'error', 'message': 'Not allowed'}, status=403)
+    
+    if request.method == 'POST':
+        # Mark all legacy booking notifications as read
+        Booking.objects.filter(admin_notified=False).update(admin_notified=True)
+        # Mark all new unified events as read
+        AdminNotification.objects.filter(is_read=False).update(is_read=True)
+        return JsonResponse({'status': 'success'})
+    
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+@login_required
+def hide_notification(request, id):
+    if request.user.role not in ['admin', 'staff']:
+        return JsonResponse({'status': 'error', 'message': 'Not allowed'}, status=403)
+    
+    if request.method == 'POST':
+        notif_id_str = str(id)
+        if notif_id_str.startswith('b_'):
+            # It's a legacy booking notification
+            real_id = notif_id_str.replace('b_', '')
+            booking = get_object_or_404(Booking, id=real_id)
+            booking.admin_notif_hidden = True
+            booking.save()
+        elif notif_id_str.startswith('n_'):
+            # It's a new admin notification event
+            real_id = notif_id_str.replace('n_', '')
+            notif = get_object_or_404(AdminNotification, id=real_id)
+            notif.is_hidden = True
+            notif.save()
+        else:
+            # Fallback for old integer IDs that might still exist in cached templates
+            try:
+                real_id = int(notif_id_str)
+                booking = get_object_or_404(Booking, id=real_id)
+                booking.admin_notif_hidden = True
+                booking.save()
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Invalid ID format'}, status=400)
+                
+        return JsonResponse({'status': 'success'})
+    
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+@login_required
+def mark_customer_notification_read(request, id):
+    """Mark a customer's notification as read via AJAX."""
+    try:
+        notif = Notification.objects.get(id=id, user=request.user)
+        notif.is_read = True
+        notif.save()
+        return JsonResponse({'status': 'success'})
+    except Notification.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
+
+@login_required
+@require_POST
+def clear_all_notifications(request):
+    """Mark all of a customer's notifications as read."""
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'status': 'success'})
+
+
+# -------------------------
 # CREATE BOOKING
 # -------------------------
 @login_required
@@ -307,14 +687,14 @@ def create_booking(request):
             # 1. Past Date Check
             if booking_date < today:
                 messages.error(request, "Cannot book a date in the past.")
-                return redirect('create_booking')
+                return redirect('booking_page')
             
             # 2. Past Time Check (If booking is Today)
             if booking_date == today and start_time:
                 booking_time = datetime.strptime(start_time, '%H:%M').time()
                 if booking_time < now.time():
                     messages.error(request, "Cannot book a time in the past.")
-                    return redirect('create_booking')
+                    return redirect('booking_page')
 
             # 3. Double Booking / Overlap Check
             if start_time and end_time:
@@ -336,7 +716,21 @@ def create_booking(request):
                     # Check for Overlap: (StartA < EndB) and (EndA > StartB)
                     if new_start < b_end and new_end > b_start:
                         messages.error(request, f"Time slot unavailable. Overlaps with an existing booking ({b.event_time.strftime('%H:%M')} - {b_end.strftime('%H:%M')}).")
-                        return redirect('create_booking')
+                        return redirect('booking_page')
+
+        # 4. Validate total_price
+        try:
+            total_price_val = Decimal(request.POST.get('total_price', '0'))
+        except InvalidOperation:
+            messages.error(request, "Invalid price format.")
+            return redirect('booking_page')
+        if total_price_val <= 0:
+            messages.error(request, "Total price must be greater than 0.")
+            return redirect('booking_page')
+        MAX_PRICE = Decimal('99999999.99')
+        if total_price_val > MAX_PRICE:
+            messages.error(request, "Total price exceeds the maximum allowed value.")
+            return redirect('booking_page')
 
         booking = Booking.objects.create(
             user=request.user,
@@ -344,17 +738,17 @@ def create_booking(request):
             event_date=event_date,
             event_time=start_time, # Save start time to event_time field
             event_location=request.POST.get('event_location'),
-            number_of_guests=request.POST.get('number_of_guests'),
             package_type=request.POST.get('package_type'),
             special_requests=special_requests,
-            total_price=request.POST.get('total_price')
+            reference_image=request.FILES.get('reference_image'),
+            total_price=total_price_val
         )
         log_action(request.user, f"Created a new booking #{booking.id}.")
 
         messages.success(request, "Booking created successfully!")
-        return redirect('customer_profile')
+        return redirect('booking_page')
 
-    return render(request, 'client/booking/booking_form.html')
+    return redirect('booking_page')
 
 
 # -------------------------
@@ -426,10 +820,12 @@ def edit_booking(request, id):
         booking.event_date = request.POST.get('event_date')
         booking.event_time = start_time
         booking.event_location = request.POST.get('event_location')
-        booking.number_of_guests = request.POST.get('number_of_guests')
         booking.package_type = request.POST.get('package_type')
         booking.special_requests = special_requests
         booking.total_price = request.POST.get('total_price')
+        
+        if request.FILES.get('reference_image'):
+            booking.reference_image = request.FILES.get('reference_image')
 
         booking.edit_allowed = False  # ❗ after editing, turn off
         booking.save()
@@ -473,12 +869,47 @@ def admin_booking_list(request):
     if request.user.role not in ['admin', 'staff']:
         return HttpResponseForbidden("Not allowed")
 
+    # Auto-expire pending bookings in the past
+    check_booking_expirations()
+
+    status_filter = request.GET.get('status')
     bookings = Booking.objects.order_by('-created_at')
+
+    if status_filter:
+        if status_filter == 'edit_requested':
+            bookings = bookings.filter(edit_requested=True)
+        else:
+            bookings = bookings.filter(status=status_filter)
+    
+    # Search Logic
+    search_query = request.GET.get('search')
+    if search_query:
+        if search_query.startswith('#') and search_query[1:].isdigit():
+            # If search query looks like #123, search by ID
+            bookings = bookings.filter(id=search_query[1:])
+        else:
+            bookings = bookings.filter(
+                Q(user__username__icontains=search_query) |
+                Q(user__email__icontains=search_query) |
+                Q(event_type__icontains=search_query) |
+                Q(status__icontains=search_query) |
+                Q(id__icontains=search_query)
+            )
+            
+    # Pagination Logic (10 items per page)
+    paginator = Paginator(bookings, 10)
+    page_number = request.GET.get('page')
+    bookings_page = paginator.get_page(page_number)
+    
     # Attach formatted time range for display
-    for b in bookings:
+    for b in bookings_page:
         b.time_range_display = get_booking_time_range(b)
 
-    return render(request, 'admin/booking/admin_booking_list.html', {'bookings': bookings})
+    return render(request, 'admin/booking/admin_booking_list.html', {
+        'bookings': bookings_page,
+        'search_query': search_query or "",
+        'status_filter': status_filter or ""
+    })
 
 @login_required
 def admin_booking_detail(request, id):
@@ -510,12 +941,38 @@ def admin_booking_action(request, id, action):
         booking.status = 'confirmed'
         log_action(request.user, f"Confirmed booking #{booking.id} for '{booking.user.username}'.")
         booking.save()
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"Hooray! Your booking #{booking.id} is now CONFIRMED! See you soon! 🎉"
+        )
         messages.success(request, "Booking confirmed!")
     elif action == 'deny':
         booking.status = 'cancelled'
         booking.save()
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"We're sorry, but your booking #{booking.id} was NOT approved. Please check your profile for more details."
+        )
         log_action(request.user, f"Denied booking #{booking.id} for '{booking.user.username}'.")
         messages.success(request, "Booking denied!")
+    elif action == 'complete':
+        booking.status = 'completed'
+        booking.save()
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"Thank you for trusting us! Your booking #{booking.id} is now COMPLETED. We hope you enjoyed our service! ❤️ Please feel free to leave a review about your experience! 😊"
+        )
+        log_action(request.user, f"Marked booking #{booking.id} as completed for '{booking.user.username}'.")
+        messages.success(request, "Booking marked as completed!")
 
     return redirect('admin_booking_list')
 
@@ -532,6 +989,14 @@ def request_cancel_booking(request, id):
     booking.save()
 
     log_action(request.user, f"Requested to cancel booking #{booking.id}.")
+    
+    # Notify Admin
+    AdminNotification.objects.create(
+        booking=booking,
+        user=request.user,
+        message="requested to cancel their booking."
+    )
+    
     messages.success(request, "Cancel request sent. Please wait for admin approval.")
     return redirect('customer_profile')
 
@@ -551,10 +1016,24 @@ def admin_cancel_action(request, id, action):
     if action == 'approve':
         booking.status = 'cancelled'
         log_action(request.user, f"Approved cancellation request for booking #{booking.id}.")
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"Your cancellation request for booking #{booking.id} has been APPROVED. 👍"
+        )
         messages.success(request, "Cancel approved.")
     elif action == 'deny':
         booking.status = 'confirmed'
         log_action(request.user, f"Denied cancellation request for booking #{booking.id}.")
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"We're sorry, but your cancellation request for booking #{booking.id} was NOT approved."
+        )
         messages.success(request, "Cancel denied.")
 
     booking.save()
@@ -572,6 +1051,14 @@ def request_edit_booking(request, id):
     booking.edit_requested = True
     booking.save()
     log_action(request.user, f"Requested to edit booking #{booking.id}.")
+    
+    # Notify Admin
+    AdminNotification.objects.create(
+        booking=booking,
+        user=request.user,
+        message="requested to edit their booking."
+    )
+    
     messages.success(request, "Edit request sent.")
     return redirect('customer_profile')
 
@@ -591,11 +1078,25 @@ def admin_edit_action(request, id, action):
         booking.edit_requested = False
         booking.edit_allowed = True
         log_action(request.user, f"Approved edit request for booking #{booking.id}.")
-        messages.success(request, "Edit approved. You can now edit the booking.")
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"Your edit request for booking #{booking.id} has been APPROVED. You can now update your booking details! ✅"
+        )
+        messages.success(request, "Edit approved. The customer can now edit the booking.")
     elif action == 'deny':
         booking.edit_requested = False
         booking.edit_allowed = False
         log_action(request.user, f"Denied edit request for booking #{booking.id}.")
+        
+        # Notify Customer
+        Notification.objects.create(
+            user=booking.user,
+            booking=booking,
+            message=f"We're sorry, but your edit request for booking #{booking.id} was NOT approved."
+        )
         messages.success(request, "Edit denied.")
 
     booking.save()
@@ -740,7 +1241,12 @@ def admin_package_create(request):
             service_charge = Decimal(request.POST.get('service_charge', 0))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return redirect('admin_package_create')
+            return render(request, 'admin/package/package_form.html')
+
+        MAX_PRICE = Decimal('99999999.99')
+        if price < 0 or price > MAX_PRICE or service_charge < 0 or service_charge > MAX_PRICE:
+            messages.error(request, "Price must be between 0 and 99,999,999.99.")
+            return render(request, 'admin/package/package_form.html')
 
         package = Package.objects.create(
             name=request.POST.get('name'),
@@ -770,7 +1276,12 @@ def admin_package_edit(request, id):
             package.service_charge = Decimal(request.POST.get('service_charge', 0))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return redirect('admin_package_edit', id=id)
+            return render(request, 'admin/package/package_form.html', {'package': package})
+
+        MAX_PRICE = Decimal('99999999.99')
+        if package.price < 0 or package.price > MAX_PRICE or package.service_charge < 0 or package.service_charge > MAX_PRICE:
+            messages.error(request, "Price must be between 0 and 99,999,999.99.")
+            return render(request, 'admin/package/package_form.html', {'package': package})
 
         package.name = request.POST.get('name')
         package.features = request.POST.get('features')
@@ -854,12 +1365,17 @@ def admin_addon_create(request):
 
     if request.method == "POST":
         try:
-            price = Decimal(request.POST['price'])  # ✅ DITO
+            price = Decimal(request.POST['price'])
             solo_raw = request.POST.get('solo_price')
             solo_price = Decimal(solo_raw) if solo_raw else None
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return redirect('admin_addon_create')
+            return render(request, 'admin/package/addon_form.html')
+
+        MAX_PRICE = Decimal('99999999.99')
+        if price < 0 or price > MAX_PRICE or (solo_price is not None and (solo_price < 0 or solo_price > MAX_PRICE)):
+            messages.error(request, "Price must be between 0 and 99,999,999.99.")
+            return render(request, 'admin/package/addon_form.html')
 
         addon = AddOn.objects.create(
             name=request.POST.get('name'),
@@ -899,7 +1415,12 @@ def admin_addon_edit(request, id):
             addon.solo_price = Decimal(solo_raw) if solo_raw else None
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return redirect('admin_addon_edit', id=id)
+            return render(request, 'admin/package/addon_form.html', {'addon': addon})
+
+        MAX_PRICE = Decimal('99999999.99')
+        if addon.price < 0 or addon.price > MAX_PRICE or (addon.solo_price is not None and (addon.solo_price < 0 or addon.solo_price > MAX_PRICE)):
+            messages.error(request, "Price must be between 0 and 99,999,999.99.")
+            return render(request, 'admin/package/addon_form.html', {'addon': addon})
 
         addon.name = request.POST.get('name')
         addon.features = request.POST.get('features')
@@ -938,7 +1459,12 @@ def admin_additional_create(request):
             price = Decimal(request.POST['price'])
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return redirect('admin_additional_create')
+            return render(request, 'admin/package/additional_form.html')
+
+        MAX_PRICE = Decimal('99999999.99')
+        if price < 0 or price > MAX_PRICE:
+            messages.error(request, "Price must be between 0 and 99,999,999.99.")
+            return render(request, 'admin/package/additional_form.html')
 
         additional = AdditionalOnly.objects.create(
             name=request.POST.get('name'),
@@ -966,7 +1492,12 @@ def admin_additional_edit(request, id):
             additional.price = Decimal(request.POST['price'])
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return redirect('admin_additional_edit', id=id)
+            return render(request, 'admin/package/additional_form.html', {'additional': additional})
+
+        MAX_PRICE = Decimal('99999999.99')
+        if additional.price < 0 or additional.price > MAX_PRICE:
+            messages.error(request, "Price must be between 0 and 99,999,999.99.")
+            return render(request, 'admin/package/additional_form.html', {'additional': additional})
 
         additional.name = request.POST.get('name')
         additional.features = request.POST.get('features')
@@ -1014,22 +1545,66 @@ def admin_reports(request):
     if request.user.role != 'admin':
         return HttpResponseForbidden("Admins only")
 
-    # 1. Total Revenue (Sum of total_price for completed bookings)
-    # Note: Mas mainam kung may Payment model status, pero base sa Booking status muna tayo
-    revenue_data = Booking.objects.filter(status='completed').aggregate(Sum('total_price'))
+    # 1. Date Filtering
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    # Default to last 30 days if no date is provided
+    if not start_date_str or not end_date_str:
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30)
+    else:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=30)
+
+    # Base Queryset filtered by date
+    filtered_bookings = Booking.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    )
+
+    # 2. Total Revenue (Sum of total_price for completed bookings in range)
+    revenue_data = filtered_bookings.filter(status='completed').aggregate(Sum('total_price'))
     total_revenue = revenue_data['total_price__sum'] or 0
 
-    # 2. Total Bookings (Lahat ng bookings)
-    total_bookings = Booking.objects.count()
+    # 3. Total Bookings in range
+    total_bookings = filtered_bookings.count()
 
-    # 3. Active Users (Customers only)
+    # 4. Active Users (Total customers ever, usually not date-filtered but can be)
     active_users = User.objects.filter(role='customer', is_active=True).count()
 
-    # 4. Pending Requests
-    pending_requests = Booking.objects.filter(status='pending').count()
+    # 5. Pending Requests in range
+    pending_requests = filtered_bookings.filter(status='pending').count()
 
-    # 5. Recent Transactions (Latest 10 bookings)
-    recent_bookings = Booking.objects.select_related('user').order_by('-created_at')[:10]
+    # 6. Revenue by Event Type (for Chart)
+    revenue_by_event = filtered_bookings.filter(status='completed').values('event_type').annotate(total=Sum('total_price')).order_by('-total')
+    
+    # 7. Booking Status Distribution (for Chart)
+    status_colors_map = {
+        'completed': '#10b981',
+        'confirmed': '#3b82f6',
+        'pending': '#f59e0b',
+        'cancelled': '#ef4444',
+        'denied': '#ef4444',
+        'expired': '#9ca3af'
+    }
+    status_dist_qs = filtered_bookings.values('status').annotate(count=Count('id')).order_by('status')
+    status_distribution = []
+    for item in status_dist_qs:
+        s_raw = item['status']
+        status_distribution.append({
+            'status': s_raw,
+            'label': s_raw.title(),
+            'count': item['count'],
+            'color': status_colors_map.get(s_raw.lower(), '#6366f1')
+        })
+
+    # 8. Recent Transactions in range
+    recent_bookings = filtered_bookings.select_related('user').order_by('-created_at')[:15]
 
     return render(request, 'admin/admin_reports.html', {
         'total_revenue': total_revenue,
@@ -1037,6 +1612,10 @@ def admin_reports(request):
         'active_users': active_users,
         'pending_requests': pending_requests,
         'recent_bookings': recent_bookings,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'revenue_by_event': list(revenue_by_event),
+        'status_distribution': status_distribution,
     })
 
 
@@ -1190,3 +1769,14 @@ def chat_clear(request):
         return JsonResponse({'error': 'session_id required'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def design_canvas_page(request):
+    if request.user.role != 'customer':
+        return HttpResponseForbidden('Not allowed')
+    
+    # We will pass some categories for the sidebar items
+    categories = ['Backdrops', 'Balloons', 'Furniture', 'Decorations']
+    return render(request, 'client/design_canvas.html', {'categories': categories})
+

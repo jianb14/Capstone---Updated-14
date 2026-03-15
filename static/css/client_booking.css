@@ -1,61 +1,474 @@
-/* static/css/client_booking.css */
+/* static/css/client_booking.css — Modal & Calendar Reversion */
 
 .booking-page {
-    padding: 8rem 5% 4rem;
+    padding: 6rem 5% 2rem;
     background: var(--black);
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
 }
 
-.booking-container {
-    width: 100%;
-    max-width: 800px;
-    background: var(--gray);
-    padding: 3rem;
+.booking-calendar-panel {
+    max-width: 900px;
+    margin: 0 auto;
+    background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--light-gray);
     border-radius: 8px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    animation: fadeInUp 0.5s ease-out;
+    padding: 1.5rem;
+    animation: fadeInUp 0.4s ease-out;
 }
 
 @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.booking-header {
+.panel-header {
     text-align: center;
     margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--light-gray);
-    padding-bottom: 1rem;
 }
 
-.booking-header h2 {
-    font-size: 2rem;
+.panel-header h2 {
+    font-size: 1.8rem;
     font-weight: 800;
-    margin-bottom: 0.5rem;
     color: var(--white);
-    letter-spacing: -1px;
+    margin: 0 0 0.5rem 0;
 }
 
-.booking-header p {
+.panel-header p {
     color: var(--dark-gray);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    margin: 0;
 }
 
-/* Form Grid Layout */
+/* ======================== */
+/* CALENDAR STYLES (Reverted to original) */
+/* ======================== */
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--white);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.legend-color {
+    width: 15px;
+    height: 15px;
+    border-radius: 3px;
+}
+
+.legend-color.pending {
+    background-color: #ffc107;
+}
+
+.legend-color.confirmed {
+    background-color: #0d6efd;
+}
+
+#booking-calendar {
+    --fc-border-color: var(--light-gray);
+    --fc-today-bg-color: rgba(255, 255, 255, 0.05);
+    --fc-button-bg-color: transparent;
+    --fc-button-active-bg-color: #ffffff;
+    --fc-button-text-color: #ffffff;
+    --fc-button-hover-bg-color: #ffffff;
+    color: var(--white);
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+/* FullCalendar Reverted Overrides */
+#booking-calendar .fc {
+    font-family: 'Montserrat', sans-serif;
+}
+
+#booking-calendar .fc .fc-toolbar-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* Fix missing button design / hover */
+#booking-calendar .fc .fc-button-primary {
+    background-color: transparent;
+    border: 1px solid #2a2a2a;
+    color: #ffffff;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    outline: none;
+    box-shadow: none !important;
+    margin: 0 2px;
+}
+
+#booking-calendar .fc .fc-button-primary:hover {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+}
+
+#booking-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+#booking-calendar .fc .fc-button-primary:not(:disabled):active {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+}
+
+#booking-calendar .fc-theme-standard td,
+#booking-calendar .fc-theme-standard th {
+    border-color: #2a2a2a;
+}
+
+/* Shrink headers like MON, TUE */
+#booking-calendar .fc .fc-col-header-cell-cushion {
+    color: #888888;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding: 10px 0;
+    font-weight: 600;
+}
+
+#booking-calendar .fc .fc-daygrid-day-number {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+
+#booking-calendar .fc .fc-day-today {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day-frame {
+    min-height: 70px !important;
+    transition: background 0.2s;
+}
+
+#booking-calendar .fc .fc-daygrid-day-frame:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+
+#booking-calendar .fc-event-main {
+    color: #ffffff !important;
+    padding: 4px 6px !important;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+#booking-calendar .fc-event {
+    border: none;
+    padding: 4px 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* --- POPOVER STYLING (Fixed) --- */
+/* Targetin natin ang mismong class ng popover kahit saan siya nakalagay */
+.fc-popover {
+    background-color: #000000 !important;
+    border: 1px solid #444 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9) !important;
+    z-index: 9999 !important;
+}
+
+.fc-popover-header {
+    background-color: #111 !important;
+    /* Slightly lighter black para sa header */
+    color: #ffffff !important;
+    border-bottom: 1px solid #333 !important;
+    padding: 8px 10px !important;
+}
+
+.fc-popover-body {
+    background-color: #000000 !important;
+}
+
+.fc-popover-title {
+    color: #ffffff !important;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.fc-popover-close-icon {
+    color: #ffffff !important;
+    opacity: 0.7;
+    background: transparent !important;
+}
+
+#booking-calendar .fc-more-link {
+    color: white !important;
+    font-size: 0.75rem;
+    text-decoration: none;
+}
+
+.fc .fc-button-primary {
+    background-color: transparent;
+    border: 1px solid var(--light-gray);
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    text-transform: capitalize;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    padding: 0.4rem 1rem;
+    font-size: 14px;
+}
+
+.fc .fc-button-primary:hover {
+    background-color: var(--white);
+    color: var(--black);
+    border-color: var(--white);
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    background-color: var(--white);
+    color: var(--black);
+    border-color: var(--white);
+    font-weight: 700;
+}
+
+.fc .fc-button:focus {
+    box-shadow: none !important;
+}
+
+.fc .fc-toolbar-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+}
+
+/* Day Headers (Mon, Tue, etc.) */
+.fc .fc-col-header-cell-cushion {
+    font-size: 0.8rem;
+    /* Mas maliit na font para sa headers */
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-decoration: none;
+    color: var(--white);
+    padding: 10px 0;
+}
+
+/* Day Numbers (Month View) */
+.fc .fc-daygrid-day-number {
+    font-size: 0.85rem;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 4px 8px;
+}
+
+/* Time Axis Labels (Hours) & All-Day Label */
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-scrollgrid-shrink-cushion,
+.fc .fc-timegrid-axis-cushion {
+    font-size: 0.75rem;
+    /* Mas maliit para malinis */
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    /* Ito ang pipigil sa pag-wrap ng text */
+}
+
+/* Custom Scrollbar Design */
+.fc-scroller::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Day Cell Hover Effect */
+.fc .fc-daygrid-day:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+/* Modal Time Inputs Layout */
+.time-row {
+    display: flex;
+    gap: 15px;
+}
+
+.time-field {
+    flex: 1;
+}
+
+.time-field small {
+    display: block;
+    margin-bottom: 5px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ======================== */
+/* MODAL STYLES (Compact Form) */
+/* ======================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(5px);
+    display: none;
+    /* Hide by default para makita muna ang calendar */
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.show {
+    display: flex;
+    /* Ipakita lang kapag may .show class */
+    opacity: 1;
+    visibility: visible;
+}
+
+.booking-modal-box {
+    background: var(--black);
+    width: 100%;
+    max-width: 700px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    padding: 1.5rem 1.8rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Beautiful Custom Scrollbar for Modal inside WebKit */
+.booking-modal-box::-webkit-scrollbar {
+    width: 8px;
+}
+
+.booking-modal-box::-webkit-scrollbar-track {
+    background: #111;
+    border-radius: 8px;
+}
+
+.booking-modal-box::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 8px;
+    border: 2px solid #111;
+}
+
+.booking-modal-box::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+.modal-overlay.show .booking-modal-box {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    border-bottom: 1px solid #222;
+    padding-bottom: 0.8rem;
+}
+
+.modal-header h2 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--white);
+    margin: 0;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: var(--white);
+}
+
+.form-alerts {
+    margin-bottom: 1rem;
+}
+
+.alert {
+    padding: 0.6rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
 .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 0.8rem;
+    /* slightly larger gap to match larger inputs */
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    margin-bottom: 0.5rem;
 }
 
 .form-group.full-width {
@@ -64,22 +477,22 @@
 
 .form-group label {
     font-weight: 600;
-    margin-bottom: 0.6rem;
-    font-size: 0.85rem;
-    color: var(--white);
-    letter-spacing: 0.5px;
+    margin-bottom: 0.3rem;
+    font-size: 0.7rem;
+    color: #999;
     text-transform: uppercase;
 }
 
+/* Bigger inputs with better focus */
 .form-group input,
 .form-group select,
 .form-group textarea {
-    padding: 1rem;
-    background: var(--black);
-    border: 1px solid var(--light-gray);
+    padding: 0.85rem 1rem;
+    background: #111;
+    border: 1px solid #333;
     color: var(--white);
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     border-radius: 4px;
     transition: all 0.3s ease;
     width: 100%;
@@ -89,60 +502,644 @@
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: var(--white);
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
-    transform: none; /* Alisin ang pag-angat */
+    border-color: #888;
+    /* Brighten border on focus */
+    background: #000;
+    /* Darker background on focus */
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    /* Subtle ring */
+    transform: none;
 }
 
 .form-group input[type="date"],
 .form-group input[type="time"] {
-    color-scheme: dark; /* Ibalik ang native icons para sa date/time */
+    color-scheme: dark;
 }
 
 .form-group textarea {
-    min-height: 120px;
+    min-height: 80px;
     resize: vertical;
-    line-height: 1.6;
+    line-height: 1.5;
 }
 
-/* Submit Button */
-.btn-submit {
+.time-row {
+    display: flex;
+    gap: 8px;
+}
+
+.time-field {
+    flex: 1;
+}
+
+.time-field small {
+    color: #666;
+    display: block;
+    margin-bottom: 3px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+}
+
+/* Fixed Submit Button Hover (Was 'basag' - likely meant background color/text color combo issue) */
+.booking-modal-box .btn-submit {
     width: 100%;
-    padding: 0.9rem 1.5rem; /* Bawasan ang padding para lumiit ang height */
+    padding: 0.8rem 1rem;
     background: var(--white);
     color: var(--black);
-    border: none;
+    border: 2px solid var(--white);
     font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-top: 2rem;
+    margin-top: 1.2rem;
     border-radius: 4px;
-    border: 2px solid var(--white);
 }
 
-.btn-submit:hover {
-    background: var(--black);
-    color: var(--white);
+.booking-modal-box .btn-submit:hover {
+    background: var(--white);
+    color: var(--black);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* RESPONSIVE */
+@media (max-width: 600px) {
     .booking-page {
-        padding: 7rem 5% 3rem;
+        padding: 5rem 3% 1.5rem;
     }
-    
-    .booking-container {
-        padding: 2rem 1.5rem;
+
+    .booking-calendar-panel {
+        padding: 1rem;
     }
 
     .form-grid {
         grid-template-columns: 1fr;
-        gap: 1.2rem;
     }
-    
-    .booking-header h2 {
-        font-size: 1.75rem;
-    }
+}
+
+/* ======================== */
+/* STEPPER & PACKAGE CARDS  */
+/* ======================== */
+
+.stepper-header {
+    border-bottom: none;
+    padding-bottom: 2rem;
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.stepper-header .close-btn {
+    position: absolute;
+    right: 0;
+    top: -10px;
+}
+
+.stepper-wrapper {
+    position: relative;
+    width: 60%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 1.5rem;
+}
+
+/* Connecting Line Background */
+.stepper-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 22px;
+    /* half of 44px circle */
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background: #444;
+    z-index: 1;
+}
+
+/* Blue Progress Line */
+.stepper-progress-line {
+    position: absolute;
+    top: 22px;
+    left: 10%;
+    width: 0%;
+    max-width: 80%;
+    height: 3px;
+    background: #0d6efd;
+    z-index: 2;
+    transition: width 0.4s ease;
+}
+
+.stepper-step-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 3;
+    position: relative;
+}
+
+.step-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s ease;
+    border: 3px solid #222;
+    /* Adds a bit of gap around the line */
+}
+
+.step-label {
+    position: absolute;
+    top: 55px;
+    /* position text below circle */
+    font-size: 0.85rem;
+    color: #888;
+    white-space: nowrap;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- STATE: ACTIVE --- */
+.stepper-step-icon.active .step-circle {
+    background: #0d6efd;
+    border-color: #111;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2);
+}
+
+.stepper-step-icon.active .step-circle::after {
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+}
+
+.stepper-step-icon.active .step-label {
+    color: var(--white);
+}
+
+/* --- STATE: COMPLETED --- */
+.stepper-step-icon.completed .step-circle {
+    background: #0d6efd;
+    border-color: #111;
+}
+
+.stepper-step-icon.completed .step-circle::after {
+    content: '';
+    width: 8px;
+    height: 16px;
+    border: solid white;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+    margin-top: -4px;
+    border-radius: 2px;
+}
+
+.stepper-step-icon.completed .step-label {
+    color: #0d6efd;
+}
+
+.stepper-step {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.stepper-step h3 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--white);
+}
+
+.step-desc {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-bottom: 1.8rem;
+}
+
+/* ======================== */
+/* PACKAGE CARDS (NO IMAGE) */
+/* ======================== */
+.package-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.2rem;
+    margin-bottom: 4rem;
+}
+
+.package-card {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    position: relative;
+    text-align: center;
+}
+
+.package-card:hover {
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.package-card.selected {
+    border-color: white;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.package-card.selected::before {
+    content: '✓';
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: white;
+    color: black;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.package-info {
+    padding: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.package-info h4 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--white);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.package-info .price {
+    color: white;
+    font-weight: 800;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.w-package {
+    font-size: 0.8rem;
+    color: #888;
+    font-weight: 500;
+}
+
+.empty-message {
+    color: #aaa;
+    font-style: italic;
+}
+
+.additional-notes {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 8px;
+    text-align: left;
+    font-style: italic;
+}
+
+.package-info .features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+    color: #aaa;
+    flex-grow: 1;
+    text-align: left;
+}
+
+.package-info .features li {
+    margin-bottom: 0.6rem;
+    position: relative;
+    padding-left: 20px;
+}
+
+.package-info .features li::before {
+    content: "✔";
+    color: white;
+    position: absolute;
+    left: 0;
+    font-size: 0.8rem;
+}
+
+/* ======================== */
+/* ORDER SUMMARY SECTION    */
+/* ======================== */
+.booking-summary-container {
+    grid-column: 1 / -1;
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #333;
+    border-radius: 8px;
+}
+
+.summary-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--white);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 1rem 0;
+}
+
+.summary-divider {
+    width: 100%;
+    height: 1px;
+    background: #333;
+    margin: 0.5rem 0;
+}
+
+.summary-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.4rem 0;
+}
+
+.row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 0;
+    padding-right: 1.5rem;
+}
+
+.row-label {
+    font-size: 1rem;
+    color: #ccc;
+    font-weight: 500;
+}
+
+.row-value {
+    font-size: 1rem;
+    color: var(--white);
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.total-row {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid #444;
+}
+
+.total-row .row-label {
+    color: var(--white);
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.total-row .total-price {
+    font-size: 1.4rem;
+    color: var(--white);
+    font-weight: 900;
+}
+
+.row-note {
+    font-size: 0.8rem;
+    color: #888;
+    line-height: 1.4;
+    margin: 0;
+    font-style: italic;
+}
+
+.service-charge-summary {
+    margin-bottom: 0;
+}
+
+
+/* Modal Actions */
+.modal-actions {
+    margin-top: 1.5rem;
+    border-top: 1px solid #222;
+    padding-top: 1.5rem;
+}
+
+.split-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.booking-back-btn {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    background: transparent;
+    color: var(--white);
+    border: 1px solid #444;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+}
+
+.booking-back-btn:hover {
+    background: #222;
+    border-color: #666;
+}
+
+.booking-modal-box .btn-submit {
+    flex: 2;
+    /* takes more space in split */
+    margin-top: 0;
+    /* remove margin from earlier rule */
+}
+
+.booking-modal-box .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #333;
+    border-color: #333;
+    color: #666;
+}
+
+.booking-modal-box .btn-submit:disabled:hover {
+    transform: none;
+}
+
+/* ======================== */
+/* TOTAL PRICE DISPLAY ROW  */
+/* ======================== */
+.total-price-label {
+    grid-column: 1 / -1;
+    /* Take full width of grid */
+    display: block;
+    margin-top: 2rem;
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0.5px;
+    text-align: right;
+}
+
+.total-price-value {
+    grid-column: 1 / -1;
+    /* Take full width of grid */
+    display: block;
+    margin-top: 0.5rem;
+    font-weight: 800;
+    font-size: 2rem;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    text-align: right;
+}
+
+/* =========================== */
+/* SERVICE CHARGE DISPLAY ROW  */
+/* =========================== */
+.service-charge-row {
+    grid-column: 1 / -1;
+    /* Take full width of grid */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.9rem 1.2rem;
+    border: 1px dashed #444;
+    /* Dotted/Dashed border like requested */
+    border-radius: 6px;
+    margin-top: 2rem;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.service-charge-info {
+    flex: 1;
+    padding-right: 1.5rem;
+}
+
+.service-charge-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #fff;
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.3px;
+}
+
+.service-charge-note {
+    font-size: 0.72rem;
+    color: #888;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.service-charge-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #fff;
+    white-space: nowrap;
+}
+
+/* ======================== */
+/* ADD-ON CARD: SOLO PRICE  */
+/* ======================== */
+
+/* Divider inside add-on card */
+.addon-card-divider {
+    width: 100%;
+    height: 1px;
+    background: #333;
+    margin: 1rem 0 0.8rem 0;
+}
+
+/* Solo Price Button */
+.solo-price-btn {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+    border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.solo-price-btn:hover {
+    border-color: #fff;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.solo-price-btn.active {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+    font-weight: 700;
+}
+
+.solo-price-btn.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* ======================== */
+/* DISABLED STATE FOR CARDS */
+/* ======================== */
+.package-card.disabled {
+    opacity: 0.3;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+}
+
+/* Block clicks on the card body content, but NOT the solo price button */
+.package-card.disabled .package-info {
+    pointer-events: none;
+}
+
+/* Solo price button stays clickable inside disabled cards */
+.package-card.disabled .solo-price-btn {
+    pointer-events: auto;
+    opacity: 1;
+    filter: none;
+}
+
+/* When no package selected, make the add-on card look disabled but still show solo btn properly */
+.addon-selector.disabled {
+    opacity: 1;
+    filter: none;
+    cursor: default;
+}
+
+.addon-selector.disabled .package-info {
+    opacity: 0.3;
+    filter: grayscale(100%);
+    pointer-events: none;
+}
+
+.addon-selector.disabled .addon-card-divider {
+    opacity: 0.3;
+}
+
+.addon-selector.disabled .solo-price-btn {
+    pointer-events: auto;
+    opacity: 1;
+    filter: none;
 }

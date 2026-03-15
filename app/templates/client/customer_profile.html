@@ -1,530 +1,8 @@
 {% extends 'client/base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}">
-<!-- FullCalendar JS -->
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-
-<style>
-    /* Modern Dark Theme for FullCalendar */
-    .fc {
-        font-family: 'Montserrat', sans-serif;
-    }
-
-    /* Toolbar Title */
-    .fc .fc-toolbar-title {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #ffffff;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-
-    /* Buttons (Prev, Next, Month, Week, Today) */
-    .fc .fc-button-primary {
-        background-color: transparent;
-        border: 1px solid #2a2a2a;
-        color: #ffffff;
-        text-transform: uppercase;
-        font-size: 0.65rem;
-        font-weight: 600;
-        letter-spacing: 1px;
-        padding: 0.4rem 0.8rem;
-        border-radius: 4px;
-        transition: all 0.3s ease;
-        outline: none;
-        box-shadow: none !important;
-    }
-
-    .fc .fc-button-primary:hover {
-        background-color: #ffffff;
-        color: #000000;
-        border-color: #ffffff;
-    }
-
-    .fc .fc-button-primary:not(:disabled).fc-button-active, 
-    .fc .fc-button-primary:not(:disabled):active {
-        background-color: #ffffff;
-        color: #000000;
-        border-color: #ffffff;
-    }
-
-    /* Grid & Cells */
-    .fc-theme-standard td, 
-    .fc-theme-standard th {
-        border-color: #2a2a2a;
-    }
-
-    .fc .fc-col-header-cell-cushion {
-        color: #888888;
-        text-decoration: none;
-        text-transform: uppercase;
-        font-size: 0.7rem;
-        padding: 10px 0;
-    }
-
-    .fc .fc-daygrid-day-number {
-        color: #ffffff;
-        text-decoration: none;
-        font-size: 0.8rem;
-    }
-
-    .fc .fc-day-today {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-    }
-
-    /* Reduce Calendar Box Size */
-    .fc .fc-daygrid-day-frame {
-        min-height: 70px !important;
-    }
-
-    /* Event Bars (With Time Text) */
-    .fc-event-main {
-        color: #ffffff !important;
-        padding: 4px 6px !important; /* Padding for bigger box */
-        font-size: 0.65rem;
-        font-weight: 600;
-        text-align: center;
-    }
-
-    /* Popover Styling (When clicking +more) */
-    .fc-theme-standard .fc-popover {
-        background-color: #1a1a1a !important;
-        border: 1px solid #ffffff !important;
-    }
-
-    .fc-theme-standard .fc-popover-header {
-        background-color: #000000 !important; /* Black header */
-        color: #ffffff !important;
-    }
-
-    .fc-popover-title {
-        color: #ffffff !important;
-        font-weight: 700;
-    }
-
-    /* "+ More" Link Styling */
-    .fc-more-link {
-        color: white !important; /* Orange/Gold to stand out */
-        font-size: 0.75rem;
-        text-decoration: none;
-    }
-
-    /* --- UPDATED PROFILE CARD LAYOUT --- */
-
-    /* Top Section: Avatar & Stats */
-    .profile-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10rem;
-    }
-
-    .profile-identity {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-
-    .profile-identity h2 {
-        font-size: 1.4rem;
-        font-weight: 700;
-        color: #ffffff;
-        margin-bottom: 2px;
-        line-height: 1.2;
-    }
-
-    .profile-identity p {
-        color: #888;
-        font-size: 0.85rem;
-        margin-top: 2px;
-    }
-
-    .stats-row {
-        display: flex;
-        gap: 2rem;
-    }
-
-    .stat-item {
-        text-align: center;
-    }
-
-    .stat-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #ffffff;
-        display: block;
-        line-height: 1;
-    }
-
-    .stat-label {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        color: #666;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        margin-top: 4px;
-        display: block;
-    }
-
-    /* Bottom Section: Info & Buttons */
-    .profile-bottom {
-        padding: 1.5rem 2rem;
-        background: rgba(255, 255, 255, 0.02);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 4rem;
-    }
-
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(4, auto);
-        gap: 0 4rem;
-    }
-
-    .info-item {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .info-label {
-        font-size: 0.7rem;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 2px;
-    }
-
-    .info-value {
-        font-size: 0.95rem;
-        color: #fff;
-        font-weight: 500;
-    }
-
-    .profile-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .btn-sm {
-        padding: 0.6rem 1.2rem;
-        font-size: 0.85rem;
-        border-radius: 4px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s linear;
-        cursor: pointer;
-        /* Additions for alignment and hover effects */
-        position: relative;
-        overflow: hidden;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .btn-outline {
-        background: transparent;
-        border: 1px solid #444;
-        color: #ccc;
-        font-family: 'Montserrat', sans-serif;
-    }
-
-    .btn-outline:hover {
-        border-color: #fff;
-        color: #fff;
-    }
-
-    .profile-actions .btn-primary {
-        background: #fff;
-        color: #000;
-        border: 1px solid #fff;
-    }
-
-    .profile-actions .btn-primary:hover {
-        color: #fff;
-    }
-
-    .profile-actions .btn-primary span {
-        position: relative;
-        z-index: 1;
-    }
-
-    .profile-actions .btn-primary::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: #111;
-        transform: translate(-50%, -50%);
-        transition: width 0.4s ease, padding-bottom 0.4s ease;
-        z-index: 0;
-    }
-
-    .profile-actions .btn-primary:hover::before {
-        width: 220%;
-        padding-bottom: 220%;
-    }
-
-    /* Responsive */
-    @media (max-width: 900px) {
-        .profile-top, .profile-bottom {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1.5rem;
-        }
-        .stats-row {
-            width: 100%;
-            justify-content: space-between;
-        }
-        .info-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            width: 100%;
-        }
-        .profile-actions {
-            width: 100%;
-        }
-        .profile-actions .btn-sm {
-            flex: 1;
-            text-align: center;
-        }
-    }
-
-
-    
-    .status-text {
-        font-size: 0.8rem;
-        color: #888;
-        font-style: italic;
-        align-self: center;
-        padding: 0.4rem 0.8rem;
-    }
-
-    /* --- MODAL STYLES (Floating Card Overlay) --- */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7); /* Less dark background */
-        backdrop-filter: blur(3px);       /* Less blur effect */
-        z-index: 2000;
-        display: none; /* Hidden by default */
-        justify-content: center;
-        align-items: center;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .modal-overlay.show {
-        display: flex;
-        opacity: 1;
-    }
-
-    .modal-card {
-        background: #111111;
-        border: 1px solid #333333;
-        border-radius: 16px;
-        padding: 2rem;
-        width: 90%;
-        max-width: 500px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        position: relative;
-        transform: translateY(20px);
-        transition: transform 0.3s ease;
-    }
-
-    .modal-overlay.show .modal-card {
-        transform: translateY(0);
-    }
-
-    .modal-close {
-        position: absolute;
-        top: 1.5rem;
-        right: 1.5rem;
-        background: transparent;
-        border: none;
-        color: #666;
-        font-size: 1.5rem;
-        cursor: pointer;
-        transition: color 0.2s;
-        line-height: 1;
-    }
-
-    .modal-close:hover {
-        color: #fff;
-    }
-
-    .modal-header {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        border-bottom: 1px solid #2a2a2a;
-        padding-bottom: 1rem;
-    }
-
-    .modal-header h2 {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #ffffff;
-        margin-bottom: 0.2rem;
-    }
-
-    .modal-id {
-        font-size: 0.85rem;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .modal-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.8rem;
-        font-size: 0.95rem;
-    }
-
-    .modal-label { color: #888; font-weight: 500; }
-    .modal-value { color: #fff; font-weight: 600; text-align: right; }
-
-    .status-badge-lg {
-        display: inline-block;
-        padding: 0.3rem 0.8rem;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
-    /* Status Colors for Modal */
-    .status-pending { background: rgba(217, 119, 6, 0.15); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.3); }
-    .status-confirmed { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
-    .status-completed { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .status-cancelled, .status-cancel_requested { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
-
-    .btn-edit { background: #ffffff; color: #000000; border: 1px solid #ffffff; }
-    .btn-edit:hover { background: #e5e5e5;}
-
-    .btn-delete { background: transparent; color: #ef4444; border: 1px solid #ef4444; }
-    .btn-delete:hover { background: rgba(239, 68, 68, 0.1);}
-    
-    .waiting-text { text-align: center; color: #d97706; font-style: italic; font-size: 0.9rem; }
-    .waiting-text-red { text-align: center; color: #ef4444; font-style: italic; font-size: 0.9rem; }
-
-
-
-
-
-    /* --- PASSWORD MODAL REFINEMENTS --- */
-    #passwordModal .modal-card {
-        max-width: 420px;
-        padding: 2.5rem 2rem;
-        background: #111;
-        border: 1px solid #333;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-    }
-
-    #passwordModal .modal-header {
-        text-align: left;
-        border-bottom: none;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0;
-    }
-
-    #passwordModal .modal-header h2 {
-        font-size: 1.5rem;
-        letter-spacing: -0.5px;
-    }
-
-    #passwordModal .modal-close {
-        top: 1.5rem;
-        right: 1.5rem;
-    }
-
-    #changePasswordForm .form-group {
-        margin-bottom: 1.2rem;
-    }
-
-    #changePasswordForm label {
-        font-size: 0.6em;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #888;
-        margin-bottom: 0.4rem;
-        font-weight: 600;
-    }
-
-    #changePasswordForm input {
-        background: #0a0a0a;
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        font-size: 0.95rem;
-        color: #fff;
-        transition: all 0.2s ease;
-    }
-
-    #changePasswordForm input:focus {
-        border-color: #fff;
-        background: #000;
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
-        transform: none;
-    }
-
-    #btnSavePassword {
-        margin-top: 0.5rem;
-        padding: 0.9rem;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        background: #fff;
-        color: #000;
-        font-weight: 700;
-        width: 100%;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    #btnSavePassword:hover {
-        background: #e5e5e5;
-        transform: translateY(-2px);
-    }
-
-    .field-error {
-        color: #ef4444;
-        font-size: 0.8rem;
-        margin-top: 0.4rem;
-        display: none;
-    }
-
-    .form-message {
-        padding: 0.75rem;
-        margin-bottom: 1.5rem;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        text-align: center;
-        display: none;
-    }
-    
-    .form-message.success {
-        background: rgba(16, 185, 129, 0.1);
-        color: #10b981;
-        border: 1px solid rgba(16, 185, 129, 0.2);
-    }
-
-    .form-message.error {
-        background: rgba(239, 68, 68, 0.1);
-        color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-    /* ------------------------------------- */
-</style>
 
 <div class="profile-page">
     <div class="profile-bg"></div>
@@ -532,7 +10,7 @@
     <div class="profile-container">
         <!-- Profile Card -->
         <div class="profile-card">
-            
+
             <!-- Top: Identity & Stats -->
             <div class="profile-top">
                 <div class="profile-identity">
@@ -585,24 +63,12 @@
                 </div>
 
                 <div class="profile-actions">
-                    <a onclick="openPasswordModal()" class="btn-sm btn-outline">Change Password</a>
-                    <a href="{% url 'create_booking' %}" class="btn-sm btn-primary" style="text-decoration: none;"><span>Create Booking</span></a>
+                    <a onclick="openPasswordModal()" class="btn-sm btn-outline"><span>Change Password</span></a>
+                    <a href="{% url 'create_booking' %}" class="btn-sm btn-primary"><span>Create Booking</span></a>
                 </div>
             </div>
         </div>
 
-        <!-- Calendar Section -->
-        <div class="calendar-section">
-            <h3>Events Calendar</h3>
-            <p>An overview of all scheduled events. Confirmed events are in blue, pending are in yellow.</p>
-            <div class="calendar-wrapper">
-                <div class="calendar-legend">
-                    <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Confirmed)</div>
-                    <div class="legend-item"><span class="legend-color pending"></span>Pending (Reserved)</div>
-                </div>
-                <div id="calendar"></div>
-            </div>
-        </div>
 
         <!-- Your Bookings Table -->
         <div class="bookings-section">
@@ -631,34 +97,55 @@
                             <td data-label="Actions">
                                 <div class="action-buttons">
                                     <!-- Trigger Modal on Click -->
-                                    <a href="javascript:void(0)" onclick="openBookingModal('{{ b.id }}')" class="btn-view">View</a>
+                                    <a href="javascript:void(0)" onclick="openBookingModal('{{ b.id }}')"
+                                        class="btn-view">View</a>
                                     {% if b.status == 'pending' %}
-                                        <a href="{% url 'edit_booking' b.id %}" class="btn-edit">Edit</a>
-                                        <a href="{% url 'delete_booking' b.id %}" class="btn-delete">Delete</a>
+                                    <a href="javascript:void(0)" onclick="openEditModal('{{ b.id }}')"
+                                        class="btn-edit">Edit</a>
+                                    <a href="javascript:void(0)" onclick="openDeleteModal('{{ b.id }}')"
+                                        class="btn-delete">Delete</a>
                                     {% elif b.status == 'confirmed' and not b.edit_requested and not b.edit_allowed %}
-                                        <a href="{% url 'request_edit_booking' b.id %}" class="btn-edit">Req. Edit</a>
-                                        <a href="{% url 'request_cancel_booking' b.id %}" class="btn-delete">Req. Cancel</a>
+                                    <a href="{% url 'request_edit_booking' b.id %}" class="btn-edit">Req. Edit</a>
+                                    <a href="{% url 'request_cancel_booking' b.id %}" class="btn-delete">Req. Cancel</a>
                                     {% elif b.edit_requested %}
-                                        <span class="status-text">Edit Requested</span>
+                                    <span class="status-text">Edit Requested</span>
                                     {% elif b.edit_allowed %}
-                                        <a href="{% url 'edit_booking' b.id %}" class="btn-edit">Edit Now</a>
+                                    <a href="javascript:void(0)" onclick="openEditModal('{{ b.id }}')"
+                                        class="btn-edit">Edit Now</a>
                                     {% elif b.status == 'cancel_requested' %}
-                                        <span class="status-text">Cancel Requested</span>
+                                    <span class="status-text">Cancel Requested</span>
+                                    {% elif b.status == 'completed' %}
+                                    {% if not b.has_reviewed %}
+                                    <a href="javascript:void(0)" onclick="openReviewModal('{{ b.id }}')"
+                                        class="btn-review">Leave Review</a>
+                                    {% else %}
+                                    <span class="reviewed-text">Reviewed</span>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
-                                
+
                                 <!-- Hidden Data for Modal (Pre-rendered) -->
                                 <div id="booking-data-{{ b.id }}" style="display:none;">
                                     <div class="data-type">{{ b.event_type }}</div>
                                     <div class="data-date">{{ b.event_date|date:"M d, Y" }}</div>
                                     <div class="data-time">{{ b.time_range_display }}</div>
                                     <div class="data-location">{{ b.event_location }}</div>
-                                    <div class="data-guests">{{ b.number_of_guests }}</div>
                                     <div class="data-package">{{ b.package_type|default:"-" }}</div>
-                                    <div class="data-price">₱{{ b.total_price }}</div>
+                                    <div class="data-price">₱{{ b.total_price|intcomma }}</div>
                                     <div class="data-status">{{ b.get_status_display }}</div>
                                     <div class="data-status-class">status-{{ b.status }}</div>
                                     <div class="data-requests">{{ b.special_requests|default:"" }}</div>
+
+                                    <!-- Raw Data for Editing -->
+                                    <div class="raw-type">{{ b.event_type }}</div>
+                                    <div class="raw-date">{{ b.event_date|date:"Y-m-d" }}</div>
+                                    <div class="raw-time">{{ b.event_time|date:"H:i" }}</div>
+                                    <div class="raw-location">{{ b.event_location }}</div>
+                                    <div class="raw-package">{{ b.package_type|default:"" }}</div>
+                                    <div class="raw-price">{{ b.total_price }}</div>
+                                    <div class="raw-requests">{{ b.special_requests|default:"" }}</div>
+                                    <div class="raw-edit-url">{% url 'edit_booking' b.id %}</div>
+                                    <div class="raw-delete-url">{% url 'delete_booking' b.id %}</div>
                                 </div>
                             </td>
                         </tr>
@@ -677,7 +164,7 @@
 <div id="bookingModal" class="modal-overlay">
     <div class="modal-card">
         <button class="modal-close" onclick="closeBookingModal()">&times;</button>
-        
+
         <div class="modal-header">
             <h2>Booking Details</h2>
             <span class="modal-id" id="modalId">ID: #</span>
@@ -689,15 +176,12 @@
         </div>
         <div class="modal-row">
             <span class="modal-label">Date & Time</span>
-            <span class="modal-value"><span id="modalDate"></span> <br> <small style="color:#888" id="modalTime"></small></span>
+            <span class="modal-value"><span id="modalDate"></span> <br> <small style="color:#888"
+                    id="modalTime"></small></span>
         </div>
         <div class="modal-row">
             <span class="modal-label">Location</span>
             <span class="modal-value" id="modalLocation"></span>
-        </div>
-        <div class="modal-row">
-            <span class="modal-label">Guests</span>
-            <span class="modal-value" id="modalGuests"></span>
         </div>
         <div class="modal-row">
             <span class="modal-label">Package</span>
@@ -712,9 +196,14 @@
             <span id="modalStatusBadge" class="status-badge-lg"></span>
         </div>
 
-        <div id="modalRequestsContainer" style="margin-top: 1rem; padding: 1rem; background: #1a1a1a; border-radius: 8px; border: 1px dashed #333; display: none;">
-            <span class="modal-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">Special Requests</span>
-            <p id="modalRequests" style="color: #ccc; font-size: 0.9rem; margin: 0; line-height: 1.5;"></p>
+        <div id="modalRequestsContainer"
+            style="margin-top: 1rem; padding: 1rem; background: #1a1a1a; border-radius: 8px; border: 1px dashed #333; display: none;">
+            <span class="modal-label"
+                style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">Special
+                Requests</span>
+            <p id="modalRequests"
+                style="color: #ccc; font-size: 0.9rem; margin: 0; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; word-break: break-all;">
+            </p>
         </div>
     </div>
 </div>
@@ -722,7 +211,7 @@
 <!-- CHANGE PASSWORD MODAL -->
 <div id="passwordModal" class="modal-overlay">
     <div class="modal-card">
-        
+
         <div class="modal-header">
             <h2>Change Password</h2>
             <button class="modal-close" onclick="closePasswordModal()">&times;</button>
@@ -734,17 +223,29 @@
             {% csrf_token %}
             <div class="form-group">
                 <label for="id_old_password">Current Password</label>
-                <input type="password" name="old_password" id="id_old_password" required>
+                <div class="password-input-wrapper">
+                    <input type="password" name="old_password" id="id_old_password" required>
+                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle password visibility"
+                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_old_password', this)">
+                </div>
                 <div class="field-error" id="error_old_password"></div>
             </div>
             <div class="form-group">
                 <label for="id_new_password1">New Password</label>
-                <input type="password" name="new_password1" id="id_new_password1" required>
+                <div class="password-input-wrapper">
+                    <input type="password" name="new_password1" id="id_new_password1" required>
+                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle password visibility"
+                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password1', this)">
+                </div>
                 <div class="field-error" id="error_new_password1"></div>
             </div>
             <div class="form-group">
                 <label for="id_new_password2">Confirm New Password</label>
-                <input type="password" name="new_password2" id="id_new_password2" required>
+                <div class="password-input-wrapper">
+                    <input type="password" name="new_password2" id="id_new_password2" required>
+                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle password visibility"
+                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password2', this)">
+                </div>
                 <div class="field-error" id="error_new_password2"></div>
             </div>
             <button type="submit" id="btnSavePassword">Update Password</button>
@@ -752,182 +253,534 @@
     </div>
 </div>
 
+<!-- EDIT BOOKING MODAL -->
+<div id="editBookingModal" class="modal-overlay">
+    <div class="booking-modal-box">
+        <div class="modal-header">
+            <h2>Edit Booking</h2>
+            <button class="close-btn" onclick="closeEditModal()">&times;</button>
+        </div>
+
+        <form id="editBookingForm" method="POST" action="">
+            {% csrf_token %}
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Event Type</label>
+                    <select id="edit_event_type_select" name="event_type" required
+                        onchange="toggleEditOtherEventType(this)">
+                        <option value="" disabled>Select an Event</option>
+                        <option value="Birthday">Birthday</option>
+                        <option value="Wedding">Wedding</option>
+                        <option value="Anniversary">Anniversary</option>
+                        <option value="Corporate Event">Corporate Event</option>
+                        <option value="Christening">Christening</option>
+                        <option value="Bridal Shower">Bridal Shower</option>
+                        <option value="Baby Shower">Baby Shower</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="edit_event_type_other" placeholder="Please specify your event type"
+                        style="display: none; margin-top: 10px;">
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Event Date</label>
+                    <input type="date" id="edit_event_date" name="event_date" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Event Duration</label>
+                    <div class="time-row">
+                        <div class="time-field">
+                            <small>Start</small>
+                            <input type="time" id="edit_start_time" name="start_time" required>
+                        </div>
+                        <div class="time-field">
+                            <small>End</small>
+                            <input type="time" id="edit_end_time" name="end_time" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Location</label>
+                    <input type="text" id="edit_event_location" name="event_location" required>
+                </div>
+
+                <!-- Removed guests -->
+
+                <div class="form-group full-width">
+                    <label>Package Type</label>
+                    <select id="edit_package_type" name="package_type" required onchange="updateEditPrice(this)">
+                        <option value="" disabled>Select a Package</option>
+                        {% for package in packages %}
+                        <option value="{{ package.name }}" data-price="{{ package.price }}">{{ package.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Special Requests</label>
+                    <textarea id="edit_special_requests" name="special_requests"></textarea>
+                </div>
+
+                <span class="total-price-label">Total Price:</span>
+                <span class="total-price-value" id="edit_price_display">₱0.00</span>
+                <input type="hidden" id="edit_total_price" name="total_price">
+            </div>
+
+            <button type="submit" class="btn-submit">Update Booking</button>
+        </form>
+    </div>
+</div>
+
+<!-- DELETE CONFIRMATION MODAL -->
+<div id="deleteBookingModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header delete-header">
+            <h2>Delete Booking?</h2>
+            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <p>Are you sure you want to cancel this booking request? This action cannot be undone.</p>
+
+        <form id="deleteBookingForm" method="POST" action="">
+            {% csrf_token %}
+            <div class="delete-actions">
+                <button type="button" class="btn-cancel-modal" onclick="closeDeleteModal()">No, Keep it</button>
+                <button type="submit" class="btn-confirm-delete">Yes, Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div id="reviewModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Leave a Review</h2>
+            <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+        </div>
+
+        <form id="reviewForm" method="POST" action="" enctype="multipart/form-data">
+            {% csrf_token %}
+            <!-- Hidden input for booking ID (optional if action URL has it, but good for JS) -->
+            <input type="hidden" id="review_booking_id" name="booking_id">
+
+            <div class="form-group">
+                <label>Rating</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5" required />
+                    <label for="star5" title="5 stars">&#9733;</label>
+
+                    <input type="radio" id="star4" name="rating" value="4" />
+                    <label for="star4" title="4 stars">&#9733;</label>
+
+                    <input type="radio" id="star3" name="rating" value="3" />
+                    <label for="star3" title="3 stars">&#9733;</label>
+
+                    <input type="radio" id="star2" name="rating" value="2" />
+                    <label for="star2" title="2 stars">&#9733;</label>
+
+                    <input type="radio" id="star1" name="rating" value="1" />
+                    <label for="star1" title="1 star">&#9733;</label>
+                </div>
+                <div id="star-description"
+                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1rem; min-height: 1.2rem;">
+                    Select a rating</div>
+            </div>
+
+            <div class="form-group reviews-group">
+                <label for="review_comment">Your Review</label>
+                <textarea id="review_comment" name="comment" placeholder="Tell us about your experience..."
+                    required></textarea>
+            </div>
+
+            <div class="form-group reviews-group">
+                <label for="review_images">Upload Pictures (Optional)</label>
+                <input type="file" id="review_images" name="images" multiple accept="image/*" class="file-input">
+                <small style="color: #666; font-size: 0.75rem;">You can select up to 4 images.</small>
+            </div>
+
+            <button type="submit" class="btn-submit-review">Submit Review</button>
+        </form>
+    </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var calendarEl = document.getElementById('calendar');
 
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        headerToolbar: {
-            left: 'prev,next',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,today'
-        },
-        eventDisplay: 'block', /* Ito ang maglalagay ng background color sa events */
-        displayEventTime: false, /* Hide default time to prevent duplication */
-        dayMaxEvents: 2,       /* Limit to 2 events, then show +more */
 
-        events: [
-            {% for event in calendar_events %}
-            {
-                title: '{{ event.title }}',
-                start: '{{ event.start }}',
-                {% if event.end %}end: '{{ event.end }}',{% endif %}
-                backgroundColor: '{{ event.color }}',
-                borderColor: '{{ event.color }}',
-                textColor: '#ffffff'
-            },
-            {% endfor %}
-        ],
+    // --- MODAL FUNCTIONS ---
+    function openBookingModal(id) {
+        const modal = document.getElementById('bookingModal');
+        const dataDiv = document.getElementById('booking-data-' + id);
 
-        eventTimeFormat: {
-            hour: '2-digit',
-            minute: '2-digit',
-            meridiem: false
+        if (!dataDiv) return;
+
+        // Populate Data from hidden div
+        document.getElementById('modalId').textContent = 'ID: #' + id;
+        document.getElementById('modalType').textContent = dataDiv.querySelector('.data-type').textContent;
+        document.getElementById('modalDate').textContent = dataDiv.querySelector('.data-date').textContent;
+
+        // Use pre-formatted time range from backend
+        document.getElementById('modalTime').textContent = dataDiv.querySelector('.data-time').textContent;
+
+        document.getElementById('modalLocation').textContent = dataDiv.querySelector('.data-location').textContent;
+        document.getElementById('modalPackage').textContent = dataDiv.querySelector('.data-package').textContent;
+        document.getElementById('modalPrice').textContent = dataDiv.querySelector('.data-price').textContent;
+
+        // Status Badge
+        const statusText = dataDiv.querySelector('.data-status').textContent;
+        const statusClass = dataDiv.querySelector('.data-status-class').textContent;
+        const badge = document.getElementById('modalStatusBadge');
+        badge.textContent = statusText;
+        badge.className = 'status-badge-lg ' + statusClass;
+
+        // Special Requests
+        const rawRequests = dataDiv.querySelector('.data-requests').textContent;
+        // Parse out the internal (End Time: HH:MM) tag
+        let displayRequests = rawRequests;
+        const endTimeMatch = rawRequests.match(/\(End Time: (\d{2}:\d{2})\)/);
+        if (endTimeMatch) {
+            displayRequests = rawRequests.replace(endTimeMatch[0], '').trim();
         }
-    });
 
-    calendar.render();
-});
+        const reqContainer = document.getElementById('modalRequestsContainer');
+        if (displayRequests.trim()) {
+            document.getElementById('modalRequests').textContent = displayRequests;
+            reqContainer.style.display = 'block';
+        } else {
+            reqContainer.style.display = 'none';
+        }
 
-// --- MODAL FUNCTIONS ---
-function openBookingModal(id) {
-    const modal = document.getElementById('bookingModal');
-    const dataDiv = document.getElementById('booking-data-' + id);
-    
-    if (!dataDiv) return;
-
-    // Populate Data from hidden div
-    document.getElementById('modalId').textContent = 'ID: #' + id;
-    document.getElementById('modalType').textContent = dataDiv.querySelector('.data-type').textContent;
-    document.getElementById('modalDate').textContent = dataDiv.querySelector('.data-date').textContent;
-    
-    // Use pre-formatted time range from backend
-    document.getElementById('modalTime').textContent = dataDiv.querySelector('.data-time').textContent;
-
-    document.getElementById('modalLocation').textContent = dataDiv.querySelector('.data-location').textContent;
-    document.getElementById('modalGuests').textContent = dataDiv.querySelector('.data-guests').textContent;
-    document.getElementById('modalPackage').textContent = dataDiv.querySelector('.data-package').textContent;
-    document.getElementById('modalPrice').textContent = dataDiv.querySelector('.data-price').textContent;
-    
-    // Status Badge
-    const statusText = dataDiv.querySelector('.data-status').textContent;
-    const statusClass = dataDiv.querySelector('.data-status-class').textContent;
-    const badge = document.getElementById('modalStatusBadge');
-    badge.textContent = statusText;
-    badge.className = 'status-badge-lg ' + statusClass;
-
-    // Special Requests
-    const requests = dataDiv.querySelector('.data-requests').textContent;
-    const reqContainer = document.getElementById('modalRequestsContainer');
-    if (requests.trim()) {
-        document.getElementById('modalRequests').textContent = requests;
-        reqContainer.style.display = 'block';
-    } else {
-        reqContainer.style.display = 'none';
+        // Show Modal
+        modal.classList.add('show');
     }
 
-    // Show Modal
-    modal.classList.add('show');
-}
+    function closeBookingModal() {
+        document.getElementById('bookingModal').classList.remove('show');
+    }
 
-function closeBookingModal() {
-    document.getElementById('bookingModal').classList.remove('show');
-}
+    // --- EDIT MODAL FUNCTIONS ---
+    function openEditModal(id) {
+        const modal = document.getElementById('editBookingModal');
+        const dataDiv = document.getElementById('booking-data-' + id);
 
-// --- PASSWORD MODAL FUNCTIONS ---
-function openPasswordModal() {
-    document.getElementById('passwordModal').classList.add('show');
-}
+        if (!dataDiv) return;
 
-function closePasswordModal() {
-    document.getElementById('passwordModal').classList.remove('show');
-    // Reset form on close
-    document.getElementById('changePasswordForm').reset();
-    document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
-    document.getElementById('passwordMsg').style.display = 'none';
-}
+        // Get Raw Data
+        const editUrl = dataDiv.querySelector('.raw-edit-url').textContent;
+        const type = dataDiv.querySelector('.raw-type').textContent;
+        const date = dataDiv.querySelector('.raw-date').textContent;
+        const startTime = dataDiv.querySelector('.raw-time').textContent;
+        const location = dataDiv.querySelector('.raw-location').textContent;
+        const pkg = dataDiv.querySelector('.raw-package').textContent;
+        const price = dataDiv.querySelector('.raw-price').textContent;
+        const requests = dataDiv.querySelector('.raw-requests').textContent;
 
-// --- AJAX PASSWORD SUBMISSION ---
-document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const form = this;
-    const btn = document.getElementById('btnSavePassword');
-    const msgBox = document.getElementById('passwordMsg');
-    
-    // Clear previous errors
-    document.querySelectorAll('.field-error').forEach(el => {
-        el.textContent = '';
-        el.style.display = 'none';
-    });
-    msgBox.style.display = 'none';
-    msgBox.className = 'form-message';
-
-    // Loading state
-    btn.disabled = true;
-    btn.textContent = 'Updating...';
-
-    const formData = new FormData(form);
-
-    fetch(form.action, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+        // Parse End Time from Special Requests (Format: "(End Time: HH:MM)")
+        let endTime = '';
+        let cleanRequests = requests;
+        const endTimeMatch = requests.match(/\(End Time: (\d{2}:\d{2})\)/);
+        if (endTimeMatch) {
+            endTime = endTimeMatch[1];
+            cleanRequests = requests.replace(endTimeMatch[0], '').trim();
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        btn.disabled = false;
-        btn.textContent = 'Update Password';
 
-        if (data.success) {
-            msgBox.textContent = data.message;
-            msgBox.classList.add('success');
-            msgBox.style.display = 'block';
-            form.reset();
-            // Optional: Close modal after 2 seconds
-            setTimeout(closePasswordModal, 2000);
+        // Populate Form
+        document.getElementById('editBookingForm').action = editUrl;
+
+        const selectEl = document.getElementById('edit_event_type_select');
+        const otherEl = document.getElementById('edit_event_type_other');
+        const commonTypes = ['Birthday', 'Wedding', 'Anniversary', 'Corporate Event', 'Christening', 'Bridal Shower', 'Baby Shower'];
+
+        if (commonTypes.includes(type)) {
+            selectEl.value = type;
+            otherEl.style.display = 'none';
+            otherEl.required = false;
+            otherEl.removeAttribute('name');
+            selectEl.name = 'event_type';
+            otherEl.value = '';
         } else {
-            // Show field specific errors
-            if (data.errors) {
-                for (const [field, errors] of Object.entries(data.errors)) {
-                    const errorDiv = document.getElementById('error_' + field);
-                    if (errorDiv) {
-                        errorDiv.textContent = errors[0]; // Show first error
-                        errorDiv.style.display = 'block';
-                    } else {
-                        // Fallback for non-field errors
-                        msgBox.textContent = errors[0];
-                        msgBox.classList.add('error');
-                        msgBox.style.display = 'block';
+            selectEl.value = 'Other';
+            otherEl.style.display = 'block';
+            otherEl.required = true;
+            otherEl.name = 'event_type';
+            selectEl.removeAttribute('name');
+            otherEl.value = type;
+        }
+
+        document.getElementById('edit_event_date').value = date;
+        document.getElementById('edit_start_time').value = startTime;
+        document.getElementById('edit_end_time').value = endTime;
+        document.getElementById('edit_event_location').value = location;
+        // Set package select dropdown
+        const pkgSelect = document.getElementById('edit_package_type');
+        pkgSelect.value = pkg;
+        // Trigger price update based on selected package
+        const selectedOption = pkgSelect.options[pkgSelect.selectedIndex];
+        if (selectedOption && selectedOption.dataset.price) {
+            const pkgPrice = selectedOption.dataset.price;
+            document.getElementById('edit_total_price').value = pkgPrice;
+            document.getElementById('edit_price_display').textContent = '₱' + parseFloat(pkgPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else {
+            document.getElementById('edit_total_price').value = price;
+            document.getElementById('edit_price_display').textContent = '₱' + parseFloat(price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        document.getElementById('edit_special_requests').value = cleanRequests;
+
+        modal.classList.add('show');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editBookingModal').classList.remove('show');
+    }
+
+    function toggleEditOtherEventType(selectElement) {
+        const otherInput = document.getElementById('edit_event_type_other');
+        if (selectElement.value === 'Other') {
+            otherInput.style.display = 'block';
+            otherInput.required = true;
+            otherInput.name = 'event_type';
+            selectElement.removeAttribute('name');
+        } else {
+            otherInput.style.display = 'none';
+            otherInput.required = false;
+            otherInput.removeAttribute('name');
+            selectElement.name = 'event_type';
+        }
+    }
+
+    // Auto-update price when package is changed in edit modal
+    function updateEditPrice(selectElement) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        if (selectedOption && selectedOption.dataset.price) {
+            const newPrice = selectedOption.dataset.price;
+            document.getElementById('edit_total_price').value = newPrice;
+            document.getElementById('edit_price_display').textContent = '₱' + parseFloat(newPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    }
+
+    // --- DELETE MODAL FUNCTIONS ---
+    function openDeleteModal(id) {
+        const modal = document.getElementById('deleteBookingModal');
+        const dataDiv = document.getElementById('booking-data-' + id);
+
+        if (!dataDiv) return;
+
+        const deleteUrl = dataDiv.querySelector('.raw-delete-url').textContent;
+        document.getElementById('deleteBookingForm').action = deleteUrl;
+        modal.classList.add('show');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteBookingModal').classList.remove('show');
+    }
+
+    // --- PASSWORD MODAL FUNCTIONS ---
+    function openPasswordModal() {
+        document.getElementById('passwordModal').classList.add('show');
+    }
+
+    function closePasswordModal() {
+        document.getElementById('passwordModal').classList.remove('show');
+        // Reset form on close
+        document.getElementById('changePasswordForm').reset();
+        document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+        document.getElementById('passwordMsg').style.display = 'none';
+
+        // Reset password fields to password type and eye icon to view
+        ['id_old_password', 'id_new_password1', 'id_new_password2'].forEach(id => {
+            let input = document.getElementById(id);
+            if (input) input.type = 'password';
+        });
+        document.querySelectorAll('.password-toggle-icon').forEach(icon => {
+            icon.src = "{% static 'images/eye-view.png' %}";
+        });
+    }
+
+    function togglePasswordVisibility(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.src = "{% static 'images/eye-hide.png' %}";
+        } else {
+            input.type = 'password';
+            icon.src = "{% static 'images/eye-view.png' %}";
+        }
+    }
+
+    // --- REVIEW MODAL FUNCTIONS ---
+    function openReviewModal(id) {
+        const modal = document.getElementById('reviewModal');
+        // Set the form action dynamically based on booking ID
+        document.getElementById('reviewForm').action = `/booking/${id}/review/`;
+        document.getElementById('review_booking_id').value = id;
+        modal.classList.add('show');
+    }
+
+    function closeReviewModal() {
+        const modal = document.getElementById('reviewModal');
+        modal.classList.remove('show');
+        document.getElementById('reviewForm').reset();
+    }
+
+    // --- AJAX PASSWORD SUBMISSION ---
+    document.getElementById('changePasswordForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const form = this;
+        const btn = document.getElementById('btnSavePassword');
+        const msgBox = document.getElementById('passwordMsg');
+
+        // Clear previous errors
+        document.querySelectorAll('.field-error').forEach(el => {
+            el.textContent = '';
+            el.style.display = 'none';
+        });
+        msgBox.style.display = 'none';
+        msgBox.className = 'form-message';
+
+        // Loading state
+        btn.disabled = true;
+        btn.textContent = 'Updating...';
+
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = 'Update Password';
+
+                if (data.success) {
+                    msgBox.textContent = data.message;
+                    msgBox.classList.add('success');
+                    msgBox.style.display = 'block';
+                    form.reset();
+                    // Optional: Close modal after 2 seconds
+                    setTimeout(closePasswordModal, 2000);
+                } else {
+                    // Show field specific errors
+                    if (data.errors) {
+                        for (const [field, errors] of Object.entries(data.errors)) {
+                            const errorDiv = document.getElementById('error_' + field);
+                            if (errorDiv) {
+                                errorDiv.textContent = errors[0]; // Show first error
+                                errorDiv.style.display = 'block';
+                            } else {
+                                // Fallback for non-field errors
+                                msgBox.textContent = errors[0];
+                                msgBox.classList.add('error');
+                                msgBox.style.display = 'block';
+                            }
+                        }
                     }
                 }
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        btn.disabled = false;
-        btn.textContent = 'Update Password';
-        msgBox.textContent = 'An error occurred. Please try again.';
-        msgBox.classList.add('error');
-        msgBox.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.textContent = 'Update Password';
+                msgBox.textContent = 'An error occurred. Please try again.';
+                msgBox.classList.add('error');
+                msgBox.style.display = 'block';
+            });
     });
-});
 
-// Close on outside click
-window.onclick = function(event) {
-    const bookingModal = document.getElementById('bookingModal');
-    const passwordModal = document.getElementById('passwordModal');
-    
-    if (event.target == bookingModal) {
-        closeBookingModal();
-    } else if (event.target == passwordModal) {
-        closePasswordModal();
+    // Close on outside click
+    window.onclick = function (event) {
+        const bookingModal = document.getElementById('bookingModal');
+        const passwordModal = document.getElementById('passwordModal');
+        const editModal = document.getElementById('editBookingModal');
+        const deleteModal = document.getElementById('deleteBookingModal');
+        const reviewModal = document.getElementById('reviewModal');
+
+        if (event.target == bookingModal) {
+            closeBookingModal();
+        } else if (event.target == passwordModal) {
+            closePasswordModal();
+        } else if (event.target == editModal) {
+            closeEditModal();
+        } else if (event.target == deleteModal) {
+            closeDeleteModal();
+        } else if (event.target == reviewModal) {
+            closeReviewModal();
+        }
     }
-}
+
+    // --- ENHANCED STAR RATING LOGIC ---
+    document.addEventListener("DOMContentLoaded", function () {
+        const starInputs = document.querySelectorAll('.star-rating input');
+        const starLabels = document.querySelectorAll('.star-rating label');
+
+        // Function to update star colors based on current hover/check
+        function updateStars(hoveredValue) {
+            let checkedValue = 0;
+            const checkedInput = document.querySelector('.star-rating input:checked');
+            if (checkedInput) {
+                checkedValue = parseInt(checkedInput.value);
+            }
+
+            const activeValue = hoveredValue !== null ? hoveredValue : checkedValue;
+            const starDescription = document.getElementById('star-description');
+
+            const descriptions = {
+                1: "1 Star - Poor",
+                2: "2 Stars - Fair",
+                3: "3 Stars - Good",
+                4: "4 Stars - Very Good",
+                5: "5 Stars - Excellent"
+            };
+
+            if (activeValue >= 1 && activeValue <= 5) {
+                starDescription.textContent = descriptions[activeValue];
+            } else {
+                starDescription.textContent = "Select a rating";
+            }
+
+            starLabels.forEach(label => {
+                // Since it's flex-direction: row-reverse, label.htmlFor corresponds to 'starX'
+                const starVal = parseInt(label.htmlFor.replace('star', ''));
+                if (starVal <= activeValue) {
+                    label.classList.add('active'); // Will color through CSS
+                } else {
+                    label.classList.remove('active');
+                }
+            });
+        }
+
+        // Add event listeners to labels for explicit JS coloring instead of relying solely on CSS siblings
+        starLabels.forEach(label => {
+            const starVal = parseInt(label.htmlFor.replace('star', ''));
+
+            label.addEventListener('mouseenter', () => updateStars(starVal));
+            label.addEventListener('mouseleave', () => updateStars(null));
+        });
+
+        // Add event listeners to inputs for when they are clicked
+        starInputs.forEach(input => {
+            input.addEventListener('change', () => updateStars(null));
+        });
+
+        // Image upload limit validation
+        const reviewImagesInput = document.getElementById('review_images');
+        if (reviewImagesInput) {
+            reviewImagesInput.addEventListener('change', function () {
+                if (this.files.length > 4) {
+                    alert('You can only upload a maximum of 4 pictures.');
+                    this.value = ''; // Reset input so they have to select again
+                }
+            });
+        }
+
+        // Initial setup
+        updateStars(null);
+    });
 </script>
 
 {% endblock %}

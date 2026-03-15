@@ -1,6 +1,7 @@
 import re
 import urllib.parse
 from django.conf import settings
+from .models import Package, AddOn, AdditionalOnly
 try:
     from huggingface_hub import InferenceClient
 except ImportError:
@@ -45,9 +46,93 @@ def contains_profanity(text):
 
 def is_image_request(text):
     text = text.lower()
-    keywords = ['picture', 'image', 'photo', 'design', 'gawa ka', 'draw', 'generate', 'show me', 'backdrop', 'balloon']
+    keywords = [
+        'picture', 'image', 'photo', 'design', 'gawa ka', 'draw', 'generate',
+        'show me', 'backdrop', 'balloon', 'cartoon', 'anime', 'character',
+        'themed', 'concept', 'gawa ng', 'pakita', 'igawa', 'lagay',
+    ]
     # If it contains an image keyword AND is short enough to be a prompt, or explicitly asks for an image
     return any(kw in text for kw in keywords)
+
+def get_system_context():
+    """
+    Fetches real-time data from the database and returns a comprehensive, 
+    step-by-step instruction manual of the entire Balloorina system for the AI.
+    """
+    try:
+        # Fetch Active Packages
+        packages = Package.objects.filter(is_active=True)
+        package_info = "AVAILABLE PACKAGES:\n"
+        for p in packages:
+            feats = ", ".join(p.feature_list()[:5])
+            package_info += f"- {p.name}: ₱{p.price:,.2f} (Features: {feats})\n"
+
+        # Fetch Active Add-ons
+        addons = AddOn.objects.filter(is_active=True)
+        addon_info = "AVAILABLE ADD-ONS:\n"
+        for a in addons:
+            solo_text = f", Solo Price: ₱{a.solo_price:,.2f}" if a.solo_price else ""
+            addon_info += f"- {a.name}: ₱{a.price:,.2f} w/ package{solo_text}\n"
+            
+        # Fetch Active Additionals
+        additionals = AdditionalOnly.objects.filter(is_active=True)
+        additional_info = "ADDITIONAL ITEMS:\n"
+        for a in additionals:
+            additional_info += f"- {a.name}: ₱{a.price:,.2f}\n"
+
+        # Construct the exhaustive manual
+        system_rules = f"""
+BALLOORINA SYSTEM MANUAL & KNOWLEDGE BASE
+You are Balloorina's official AI assistant. You must ONLY provide factual information based on this manual. If a user asks a question not covered here, apologize and say you only know about Balloorina's services and system.
+
+1. ABOUT BALLOORINA
+Founded in 2020, Balloorina is Metro Manila's premier balloon styling and event decoration service.
+- Mission: To transform ordinary spaces into extraordinary experiences.
+- Core Values: Excellence, Creativity, Integrity, Customer Focus, Professionalism, Sustainability.
+
+2. REAL-TIME OFFERS & PRICING
+{package_info}
+{addon_info}
+{additional_info}
+
+3. HOW TO BOOK (STEP-BY-STEP PROCESS)
+Users must explicitly go to the "Booking" page in the navigation menu to start booking.
+- STEP 0 (Calendar): The user views the Events Calendar (Blue=Confirmed, Yellow=Pending). They must click on an available Date (cannot be in the past).
+- STEP 1 (Selection): A modal opens. The user chooses a main Package OR a solo Add-on. They can also add any regular Add-ons and Additional Items. The system calculates the total price, including a Service & Logistics Fee if applicable. They click "Next Step".
+- STEP 2 (Event Details): The user fills out a form requiring: Event Type, Event Date, Start Time, End Time, Venue Address/Location, Special Requests, and an optional Reference Image. 
+- SUBMIT: The user clicks "Submit Booking". The booking immediately falls into a "Pending" status and awaits Admin approval.
+
+4. BOOKING STATUS & MANAGEMENT
+- PENDING: The booking is successfully submitted but waiting for Admin review.
+- CONFIRMED: The Admin approved the booking. At this point, the customer is expected to pay.
+- COMPLETED: The event is finished.
+- DENIED/CANCELLED: The booking was rejected or cancelled.
+
+5. EDITING OR CANCELLING A BOOKING
+Customers CANNOT edit or cancel confirmed bookings immediately. They must request permission via their Profile Dashboard.
+- EDIT: Only "Confirmed" bookings can request an edit. The user clicks "Request Edit". Once the Admin approves the request, the user's dashboard will show an "Edit Booking" button allowing them to modify time/location/package.
+- CANCEL: "Pending" or "Confirmed" bookings can request a cancellation. Once requested, the Admin must approve it to fully cancel the booking.
+
+6. PAYMENTS
+Balloorina accepts GCash, Credit/Debit Cards, and PayPal. Payment is typically negotiated or processed after a booking is CONFIRMED by the admin. 
+
+7. ACCOUNTS & DASHBOARD
+- Anyone can browse the site, but users must Register and Login (Customer role) to book.
+- Customer Dashboard: After logging in, users click their Profile icon -> Dashboard. Here they can see all their Bookings, Request Edits/Cancels, and view Notifications.
+
+8. INTERACTIVE FEATURES
+- Design Canvas: A page where users can drag, drop, rotate, and resize items to visualize their event backdrop before booking.
+- Reviews: After a booking is marked "COMPLETED", the user gets a notification allowing them to write a Review and rate the service (1-5 stars) on the Reviews page.
+
+RULES FOR THE AI:
+- When a user asks "How do I book", list out the explicit steps from section 3 clearly.
+- When a user asks about canceling or editing, explain the request process in section 5.
+- Always be polite, enthusiastic, and speak strictly from this knowledge base.
+"""
+        return system_rules
+    except Exception as e:
+        print(f"Error fetching system context: {e}")
+        return "You are Balloorina's assistant. Provide helpful and factual answers."
 
 def get_chatbot_response(user_message, conversation_history=None):
     """
@@ -77,28 +162,44 @@ def get_chatbot_response(user_message, conversation_history=None):
         model_id = "Qwen/Qwen2.5-72B-Instruct"
 
         # Construct System Prompt
-        system_prompt = (
-            "You are the official AI assistant for 'Balloorina', a premium balloon decoration and event styling company in the Philippines. "
-            "You MUST ONLY answer questions related to Balloorina's services: balloon decorations, backdrop designs, event styling, packages, bookings, and event planning. "
+        base_prompt = (
+            "You are the official AI assistant of Balloorina, a premium balloon decoration and event styling company in the Philippines. "
+            "Only answer questions related to Balloorina’s services: balloon decorations, backdrop designs, event styling, event packages, bookings, and event planning."
             "If a user asks about anything NOT related to Balloorina or event decoration (e.g. coding, math, general knowledge, other topics), "
             "politely decline and say: 'I can only assist with Balloorina event services and balloon decoration inquiries. How can I help with your event?' "
-            "Keep your answers concise, elegant, and friendly. DO NOT use profanity or bad words ever. "
+            "Keep all responses short, direct, elegant, and friendly. Do not use profanity. "
+            "ALWAYS base your answers about packages, prices, and booking rules on the exact SYSTEM CONTEXT below.\n\n"
         )
+        
+        system_context = get_system_context()
+        
+        system_prompt = base_prompt + system_context
 
         image_triggered = is_image_request(user_message)
 
         if image_triggered:
             system_prompt += (
                 "The user wants a picture/design of a balloon decoration or event backdrop setup. "
-                "IMPORTANT: You must describe a REAL EVENT DECORATION SETUP, NOT cartoon characters or illustrations. "
-                "Think of actual balloon garlands, balloon arches, printed backdrop panels, number balloons, flower arrangements, chairs, and fairy lights — like a real party venue setup. "
-                "If the user mentions a theme (e.g. Avengers, Disney, etc.), incorporate the theme through COLORS, PRINTED PANELS, and THEMED PROPS — NOT by drawing the actual characters. "
-                "You MUST reply with exactly ONE highly descriptive image prompt wrapped in [PROMPT] and [/PROMPT] tags, along with a polite intro message. "
-                "Always end the image prompt with: 'balloon decoration setup, event styling, real event photography, high quality' "
-                "Example for Avengers theme: 'Here is a concept for your Avengers-themed backdrop: "
-                "[PROMPT]elegant event backdrop with red blue and gold color scheme, large printed Avengers logo panel, "
-                "organic balloon garland arch in red navy blue and gold balloons, scattered star balloons, "
-                "white chair in center, LED number balloons, fairy lights, balloon decoration setup, event styling, real event photography, high quality[/PROMPT] "
+                "You MUST create a WIDE SHOT, FULL EVENT BACKDROP setup. Do NOT just generate an entrance arch or a single doorway. "
+                "The scene must be a wide center stage setup that includes backdrop panels, balloon garlands spreading across the panels, "
+                "number balloons, furniture/dessert table props, flower arrangements, and fairy lights. "
+                "IMPORTANT: If the user mentions specific characters, cartoons, anime, or themes (e.g., Naruto, Avengers, Mickey Mouse, Hello Kitty, Frozen, Spider-Man, etc.), "
+                "you MUST INCLUDE the ACTUAL characters or illustrations of those characters in the backdrop design. "
+                "For example, if they ask for Naruto-themed, include Naruto character artwork/illustrations on the backdrop panels. "
+                "If they ask for Disney, include the actual Disney characters. Do NOT just use colors — actually incorporate the characters visually. "
+                "Combine the themed characters with elegant balloon decorations, garlands, and event styling elements. "
+                "CRITICAL INSTRUCTION: You MUST reply with exactly ONE highly descriptive image prompt wrapped EXACTLY in [PROMPT] and [/PROMPT] tags, preceded by a polite intro message. "
+                "EVEN IF the user's request is vague or general (e.g., 'give me an example'), YOU MUST INVENT A BEAUTIFUL THEME AND Output the [PROMPT] block. "
+                "DO NOT ask the user for clarification. DO NOT output any bullet points, features list, or markdown. Your response should ONLY be a short intro sentence followed by the [PROMPT] block. "
+                "Always start the image prompt with: WIDE SHOT, full event backdrop center stage, "
+                "and end the image prompt with: wide event styling, luxury balloon decoration setup, high quality, detailed, vibrant colors. "
+                "Example for Naruto anime theme: "
+                "Here is a concept for your Naruto-themed backdrop: "
+                "[PROMPT]WIDE SHOT, full event backdrop center stage featuring large Naruto character illustration on the center wooden panel, "
+                "orange and black color scheme, kunai and shuriken decorative props on cylinders, "
+                "massive organic balloon garland arch wrapping the panels in orange, black, and white balloons, "
+                "Konoha leaf symbol printed on side panels, ninja-themed party decorations, "
+                "fairy lights, wide event styling, luxury balloon decoration setup, high quality, detailed, vibrant colors[/PROMPT]"
                 "Let me know if you want any changes!' "
             )
 
@@ -160,7 +261,7 @@ def get_chatbot_response(user_message, conversation_history=None):
                     img_url = f"{settings.MEDIA_URL}ai_generated/{filename}"
                     
                     clean_reply = f'{intro_text}<br><br>'
-                    clean_reply += f'<img src="{img_url}" alt="{img_prompt}" '
+                    clean_reply += f'<img src="{img_url}" alt="Balloorina Design Concept" '
                     clean_reply += f'style="max-width:100%; border-radius:8px; margin-top:6px; box-shadow:0 4px 12px rgba(0,0,0,0.5);">'
                     if outro_text:
                         clean_reply += f'<br><br>{outro_text}'

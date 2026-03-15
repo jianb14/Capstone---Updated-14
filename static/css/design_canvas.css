@@ -1,0 +1,371 @@
+/* ============================================
+   DESIGN CANVAS PAGE - Dark Theme
+   ============================================ */
+
+.design-canvas-section {
+    margin-top: 80px;
+    padding: 10px 1%;
+    min-height: calc(100vh - 80px);
+    background-color: var(--black);
+}
+
+/* Main Layout: Sidebar + Canvas */
+.design-layout {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin: 0 auto;
+    height: calc(100vh - 100px);
+    width: 100%;
+    max-width: 1400px;
+    overflow: hidden;
+}
+
+/* ---- SIDEBAR ---- */
+.inventory-sidebar {
+    width: 260px;
+    min-width: 260px;
+    background-color: var(--gray);
+    border: 1px solid var(--light-gray);
+    border-radius: 12px;
+    padding: 14px 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.inventory-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.inventory-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.inventory-sidebar::-webkit-scrollbar-thumb {
+    background-color: #333;
+    border-radius: 10px;
+}
+
+.sidebar-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--white);
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-title i {
+    color: var(--dark-gray);
+}
+
+/* Category Accordion */
+.inventory-category {
+    border: 1px solid var(--light-gray);
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+    width: 100%;
+}
+
+.category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    color: var(--white);
+    transition: all 0.3s ease;
+    user-select: none;
+    backdrop-filter: blur(4px);
+}
+
+.category-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.category-header i:first-child {
+    margin-right: 8px;
+    opacity: 0.7;
+}
+
+.category-header .chevron {
+    font-size: 0.7rem;
+    transition: transform 0.3s ease;
+    opacity: 0.5;
+}
+
+.category-header .chevron.rotated {
+    transform: rotate(180deg);
+}
+
+/* Items grid inside a category */
+.category-items {
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    width: 100%;
+}
+
+.category-items.open {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+}
+
+/* Individual draggable item */
+.draggable-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: grab;
+    width: calc(33.333% - 6px);
+    /* 3 items per row, accounting for gap */
+    aspect-ratio: 1 / 1;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.0) 100%);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    flex-shrink: 0;
+}
+
+.draggable-item:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+.draggable-item:active {
+    cursor: grabbing;
+    transform: scale(0.92);
+}
+
+.item-preview {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+}
+
+.item-preview-img-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.item-preview-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.item-preview.circle {
+    border-radius: 50%;
+}
+
+.item-preview.triangle {
+    width: 0;
+    height: 0;
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+    border-bottom: 30px solid #f59e0b;
+    background: transparent !important;
+    margin-bottom: 6px;
+}
+
+.item-label {
+    display: none;
+    /* Hide labels to save space, user can rely on hover tooltips */
+}
+
+.sidebar-tip {
+    margin-top: auto;
+    padding: 12px;
+    background: var(--light-gray);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--dark-gray);
+    line-height: 1.4;
+}
+
+.sidebar-tip i {
+    margin-right: 4px;
+}
+
+/* ---- CANVAS AREA ---- */
+.canvas-area {
+    flex: 1 1 0%;
+    /* Strict width math: 100% - sidebar(260) - gap(10) */
+    width: calc(100% - 270px);
+    max-width: calc(100% - 270px);
+    display: flex;
+    flex-direction: column;
+    background: var(--gray);
+    border: 1px solid var(--light-gray);
+    border-radius: 12px;
+    padding: 11px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.canvas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    justify-content: right;
+    margin-bottom: 16px;
+    gap: 10px;
+    overflow-x: auto;
+}
+
+.canvas-header::-webkit-scrollbar {
+    height: 4px;
+}
+
+.canvas-header::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.canvas-header::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 4px;
+}
+
+.canvas-header h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--white);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.canvas-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    /* Prevent stacking */
+    align-items: center;
+}
+
+/* Control Buttons */
+.ctrl-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--light-gray);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: var(--dark-gray);
+}
+
+.ctrl-btn:hover {
+    background: var(--light-gray);
+    color: var(--white);
+}
+
+.ctrl-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.ctrl-btn-primary {
+    background: var(--white);
+    color: var(--black);
+    border-color: var(--white);
+}
+
+.ctrl-btn-primary:hover {
+    background: var(--dark-gray);
+    color: var(--black);
+}
+
+/* Canvas Drop Zone — Canva-style artboard workspace */
+#canvasDropZone {
+    flex: 1;
+    position: relative;
+    border: none;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.3);
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
+    background-size: 16px 16px;
+    transition: background-color 0.3s;
+    cursor: default;
+}
+
+#canvasDropZone.drag-over {
+    background-color: #111111;
+}
+
+/* Drop Hint (shown when canvas is empty) */
+.drop-hint {
+    display: none !important;
+}
+
+.drop-hint i {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.drop-hint p {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Fabric.js canvas wrapper override */
+.canvas-area .canvas-container {
+    position: relative !important;
+    z-index: 1;
+}
+
+/* ---- RESPONSIVE ---- */
+@media screen and (max-width: 768px) {
+    .design-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .inventory-sidebar {
+        width: 100%;
+        min-width: unset;
+        max-height: 200px;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 12px;
+    }
+
+    .inventory-category {
+        min-width: 180px;
+    }
+
+    #canvasDropZone {
+        min-height: 400px;
+    }
+}

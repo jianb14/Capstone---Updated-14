@@ -1,5 +1,5 @@
 {% extends 'admin/admin_base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_booking.css' %}">
@@ -19,13 +19,15 @@
         <div class="detail-status">
             <span>Current Status:</span>
             {% if booking.status == 'confirmed' or booking.status == 'completed' %}
-                <span class="status-badge active">{{ booking.get_status_display }}</span>
+            <span class="status-badge {{ booking.status }}">{{ booking.get_status_display }}</span>
+            {% elif booking.status == 'expired' %}
+            <span class="status-badge expired">{{ booking.get_status_display }}</span>
             {% elif booking.status == 'cancelled' or booking.status == 'denied' %}
-                <span class="status-badge inactive">{{ booking.get_status_display }}</span>
+            <span class="status-badge inactive">{{ booking.get_status_display }}</span>
             {% elif booking.status == 'pending' %}
-                <span class="status-badge pending">{{ booking.get_status_display }}</span>
+            <span class="status-badge pending">{{ booking.get_status_display }}</span>
             {% else %}
-                <span class="status-badge">{{ booking.get_status_display }}</span>
+            <span class="status-badge">{{ booking.get_status_display }}</span>
             {% endif %}
         </div>
     </div>
@@ -72,17 +74,20 @@
                 <span class="value">{{ booking.event_location }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Guests</span>
-                <span class="value">{{ booking.number_of_guests }}</span>
-            </div>
-            <div class="info-row">
                 <span class="label">Package</span>
                 <span class="value">{{ booking.package_type|default:"-" }}</span>
             </div>
             <div class="info-row total-price">
                 <span class="label">Total Price</span>
-                <span class="value">₱{{ booking.total_price }}</span>
+                <span class="value">₱{{ booking.total_price|intcomma }}</span>
             </div>
+            {% if booking.reference_image %}
+            <div class="info-row">
+                <span class="label">Reference Picture</span>
+                <span class="value"><a href="{{ booking.reference_image.url }}" target="_blank"
+                        style="color: #3b82f6;">View Picture</a></span>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Special Requests -->
@@ -101,16 +106,20 @@
         <a href="{% url 'admin_booking_list' %}" class="btn-back">← Back to List</a>
 
         {% if booking.status == 'pending' %}
-            <a href="{% url 'admin_booking_action' booking.id 'confirm' %}" class="btn-action primary">Confirm Booking</a>
-            <a href="{% url 'admin_booking_action' booking.id 'deny' %}" class="btn-action danger">Deny Booking</a>
+        <a href="{% url 'admin_booking_action' booking.id 'confirm' %}" class="btn-action primary">Confirm Booking</a>
+        <a href="{% url 'admin_booking_action' booking.id 'deny' %}" class="btn-action danger">Deny Booking</a>
 
         {% elif booking.status == 'cancel_requested' %}
-            <a href="{% url 'admin_cancel_action' booking.id 'approve' %}" class="btn-action primary">Approve Cancellation</a>
-            <a href="{% url 'admin_cancel_action' booking.id 'deny' %}" class="btn-action danger">Reject Cancellation</a>
+        <a href="{% url 'admin_cancel_action' booking.id 'approve' %}" class="btn-action primary">Approve Cancel</a>
+        <a href="{% url 'admin_cancel_action' booking.id 'deny' %}" class="btn-action danger">Deny Cancel</a>
 
         {% elif booking.edit_requested %}
-            <a href="{% url 'admin_edit_action' booking.id 'approve' %}" class="btn-action primary">Approve Edit</a>
-            <a href="{% url 'admin_edit_action' booking.id 'deny' %}" class="btn-action danger">Deny Edit</a>
+        <a href="{% url 'admin_edit_action' booking.id 'approve' %}" class="btn-action primary">Approve Edit</a>
+        <a href="{% url 'admin_edit_action' booking.id 'deny' %}" class="btn-action danger">Deny Edit</a>
+
+        {% elif booking.status == 'confirmed' %}
+        <a href="{% url 'admin_booking_action' booking.id 'complete' %}" class="btn-action primary">Mark as
+            Completed</a>
         {% endif %}
     </div>
 </div>

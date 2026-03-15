@@ -1,5 +1,5 @@
 {% extends 'admin/admin_base.html' %}
-{% load static %}
+{% load static humanize %}
 
 
 {% block content %}
@@ -15,70 +15,181 @@
     </div>
 </div>
 
-<div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Customer</th>
-                <th>Event</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for b in bookings %}
-            <tr>
-                <td data-label="ID">#{{ b.id }}</td>
-                <td data-label="Customer">
-                    <div style="font-weight: 500; color: #fff;">{{ b.user.username }}</div>
-                    {% if b.user.email %}
-                    <div style="font-size: 0.8rem; color: #888;">{{ b.user.email }}</div>
-                    {% endif %}
-                </td>
-                <td data-label="Event">{{ b.event_type }}</td>
-                <td data-label="Date">
-                    <div>{{ b.event_date }}</div>
-                    <div style="font-size: 0.8rem; color: #888;">{{ b.time_range_display|default:"-" }}</div>
-                </td>
-                <td data-label="Status">
-                    {% if b.status == 'confirmed' or b.status == 'completed' %}
-                        <span class="status-badge active">{{ b.get_status_display }}</span>
-                    {% elif b.status == 'cancelled' or b.status == 'denied' %}
-                        <span class="status-badge inactive">{{ b.get_status_display }}</span>
-                    {% elif b.status == 'pending' %}
-                        <span class="status-badge pending">{{ b.get_status_display }}</span>
-                    {% else %}
-                        <span class="status-badge">{{ b.get_status_display }}</span>
-                    {% endif %}
-                </td>
-                <td data-label="Actions">
-                    <div class="action-buttons">
-                        <a href="{% url 'admin_booking_detail' b.id %}">View</a>
+<div class="search-bar">
+    <form method="GET" action="" id="filterForm">
+        <div class="search-controls">
 
-                        {% if b.status == 'pending' %}
-                        <a href="{% url 'admin_booking_action' b.id 'confirm' %}">Confirm</a>
-                        <a href="{% url 'admin_booking_action' b.id 'deny' %}">Deny</a>
+            <div class="search-input-wrapper">
+                <input type="text" id="searchInput" name="search" placeholder="Search by ID, Username, Email, Type..."
+                    value="{{ search_query }}">
+            </div>
 
-                        {% elif b.status == 'cancel_requested' %}
-                        <a href="{% url 'admin_cancel_action' b.id 'approve' %}">Approve</a>
-                        <a href="{% url 'admin_cancel_action' b.id 'deny' %}">Reject</a>
-
-                        {% elif b.edit_requested %}
-                        <a href="{% url 'admin_edit_action' b.id 'approve' %}">Approve Edit</a>
-                        <a href="{% url 'admin_edit_action' b.id 'deny' %}">Deny Edit</a>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 2rem;">No bookings yet.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            <div class="select-wrapper">
+                <select name="status" onchange="this.form.submit()" class="filter-select">
+                    <option value="" {% if not status_filter %}selected{% endif %}>All Bookings</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="cancel_requested" {% if status_filter == 'cancel_requested' %}selected{% endif %}>
+                        Cancel
+                        Requested</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+                    <option value="edit_requested" {% if status_filter == 'edit_requested' %}selected{% endif %}>Edit
+                        Request
+                    </option>
+                </select>
+            </div>
+        </div>
+    </form>
 </div>
 
+<div id="booking-content">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Event</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td data-label="ID">#{{ b.id }}</td>
+                    <td data-label="Customer">
+                        <div style="font-weight: 500; color: #fff;">{{ b.user.username }}</div>
+                        {% if b.user.email %}
+                        <div style="font-size: 0.8rem; color: #888;">{{ b.user.email }}</div>
+                        {% endif %}
+                    </td>
+                    <td data-label="Event">{{ b.event_type }}</td>
+                    <td data-label="Date">
+                        <div>{{ b.event_date }}</div>
+                        <div style="font-size: 0.8rem; color: #888;">{{ b.time_range_display|default:"-" }}</div>
+                    </td>
+                    <td data-label="Status">
+                        {% if b.status == 'confirmed' or b.status == 'completed' %}
+                        <span class="status-badge {{ b.status }}">{{ b.get_status_display }}</span>
+                        {% elif b.status == 'expired' %}
+                        <span class="status-badge expired">{{ b.get_status_display }}</span>
+                        {% elif b.status == 'cancelled' or b.status == 'denied' %}
+                        <span class="status-badge inactive">{{ b.get_status_display }}</span>
+                        {% elif b.status == 'pending' %}
+                        <span class="status-badge pending">{{ b.get_status_display }}</span>
+                        {% else %}
+                        <span class="status-badge">{{ b.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Actions">
+                        <div class="action-buttons">
+                            <a href="{% url 'admin_booking_detail' b.id %}">View</a>
+
+                            {% if b.status == 'pending' %}
+                            <a href="{% url 'admin_booking_action' b.id 'confirm' %}">Confirm</a>
+                            <a href="{% url 'admin_booking_action' b.id 'deny' %}">Deny</a>
+
+                            {% elif b.status == 'cancel_requested' %}
+                            <a href="{% url 'admin_cancel_action' b.id 'approve' %}">Approve Cancel</a>
+                            <a href="{% url 'admin_cancel_action' b.id 'deny' %}">Deny Cancel</a>
+
+                            {% elif b.edit_requested %}
+                            <a href="{% url 'admin_edit_action' b.id 'approve' %}">Approve Edit</a>
+                            <a href="{% url 'admin_edit_action' b.id 'deny' %}">Deny Edit</a>
+
+                            {% elif b.status == 'confirmed' %}
+                            <a href="{% url 'admin_booking_action' b.id 'complete' %}" class="btn-complete">Mark as
+                                Completed</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem;">No bookings found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if bookings.has_other_pages %}
+    <div class="pagination">
+        {% if bookings.has_previous %}
+        <a href="?page={{ bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+            class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+        {% endif %}
+
+        <span class="current-page">Page {{ bookings.number }} of {{ bookings.paginator.num_pages }}</span>
+
+        {% if bookings.has_next %}
+        <a href="?page={{ bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+            class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('searchInput');
+        const contentContainer = document.getElementById('booking-content');
+        let debounceTimer;
+
+        if (searchInput && contentContainer) {
+            searchInput.addEventListener('input', function (e) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const query = e.target.value;
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('search', query);
+                    url.searchParams.delete('page'); // Bumalik sa page 1 para sa bagong search
+
+                    // Ipagpatuloy ang pag-keep ng status filter kung meron
+                    const statusFilter = url.searchParams.get('status');
+                    if (statusFilter) {
+                        url.searchParams.set('status', statusFilter);
+                    }
+
+                    // Magdagdag ng loading indicator
+                    contentContainer.style.opacity = '0.5';
+                    contentContainer.style.transition = 'opacity 0.2s ease-in-out';
+
+                    fetch(url.toString())
+                        .then(response => response.text())
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const newContent = doc.getElementById('booking-content');
+
+                            if (newContent) {
+                                contentContainer.innerHTML = newContent.innerHTML;
+                            }
+
+                            // I-update ang URL nang hindi nagre-reload ng page
+                            window.history.pushState({ path: url.toString() }, '', url.toString());
+                        })
+                        .catch(error => {
+                            console.error('Error fetching search results:', error);
+                        })
+                        .finally(() => {
+                            contentContainer.style.opacity = '1';
+                        });
+                }, 300); // Maghintay ng 300ms pagkatapos mag-type ng user
+            });
+        }
+    });
+</script>
 {% endblock %}

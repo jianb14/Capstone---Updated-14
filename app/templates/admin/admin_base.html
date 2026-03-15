@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,13 +10,15 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <!-- Base CSS -->
     <link rel="stylesheet" href="{% static 'css/admin_base.css' %}">
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- Mobile Menu Button -->
     <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">
@@ -32,12 +35,16 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        {% block content %}{% endblock %}
+        {% include 'components/admin_topbar.html' %}
+
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
     </main>
 
     <!-- JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
 
             function toggleMobileSidebar() {
                 const sidebar = document.querySelector('.sidebar');
@@ -69,6 +76,7 @@
 
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
 
 

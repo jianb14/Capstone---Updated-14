@@ -18,6 +18,9 @@ from .views import (
     edit_booking,
     delete_booking,
     view_booking,
+    submit_review,
+    edit_review,
+    delete_review,
 
     request_cancel_booking,
     admin_cancel_action,
@@ -51,11 +54,20 @@ from .views import (
     admin_additional_edit,
     admin_additional_detail,
     admin_reports,
+    admin_calendar,
+    mark_notifications_read,
+    hide_notification,
 
     chat_api,
     chat_history,
     chat_sessions,
     chat_clear,
+    booking_page,
+    reviews_page,
+    like_review,
+    mark_customer_notification_read,
+    clear_all_notifications,
+    design_canvas_page,
 )
 
 urlpatterns = [
@@ -73,12 +85,18 @@ urlpatterns = [
     path('customer/', customer_profile, name='customer_profile'),
     path('change-password/', change_password, name='change_password'),
     path('admin-profile/', admin_profile, name='admin_profile'),
-
-    # Booking CRUD
+    path('reviews/', reviews_page, name='reviews'),
+    path('reviews/<int:review_id>/like/', like_review, name='like_review'),
+    path('reviews/<int:review_id>/edit/', edit_review, name='edit_review'),
+    path('reviews/<int:review_id>/delete/', delete_review, name='delete_review'),
+    # Booking
+    path('booking/', booking_page, name='booking_page'),
     path('booking/create/', create_booking, name='create_booking'),
     path('booking/<int:id>/', view_booking, name='view_booking'),
     path('booking/<int:id>/edit/', edit_booking, name='edit_booking'),
     path('booking/<int:id>/delete/', delete_booking, name='delete_booking'),
+    path('booking/<int:id>/review/', submit_review, name='submit_review'),
+    path('design/', design_canvas_page, name='design_canvas'),
 
     # Admin Booking Approval
     path('staff/bookings/', admin_booking_list, name='admin_booking_list'),
@@ -102,6 +120,11 @@ urlpatterns = [
 
     # Reports
     path('staff/reports/', admin_reports, name='admin_reports'),
+
+    # Admin Calendar & Notifications
+    path('staff/calendar/', admin_calendar, name='admin_calendar'),
+    path('staff/notifications/read/', mark_notifications_read, name='mark_notifications_read'),
+    path('staff/notifications/<int:id>/hide/', hide_notification, name='hide_notification'),
 
     # Admin Package Management
     path('staff/packages/', admin_package_list, name='admin_package_list'),
@@ -129,4 +152,7 @@ urlpatterns = [
     path('api/chat/sessions/', chat_sessions, name='chat_sessions'),
     path('api/chat/clear/', chat_clear, name='chat_clear'),
 
+    # Customer Notifications
+    path('notifications/<int:id>/read/', mark_customer_notification_read, name='mark_customer_notification_read'),
+    path('notifications/clear-all/', clear_all_notifications, name='clear_all_notifications'),
 ]

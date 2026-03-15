@@ -13,6 +13,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
@@ -46,6 +48,10 @@
                 btn.addEventListener("click", function (e) {
                     e.stopPropagation(); // Prevent window click from firing immediately
                     menu.classList.toggle("show");
+
+                    // Close notification dropdown if open
+                    const notifDropdown = document.getElementById("notif-dropdown");
+                    if (notifDropdown) notifDropdown.classList.remove("show");
                 });
 
                 // Close dropdown if clicked outside
@@ -53,6 +59,87 @@
                     if (menu.classList.contains("show") && !profileDropdown.contains(e.target)) {
                         menu.classList.remove("show");
                     }
+                });
+            }
+
+            // Notification Dropdown Toggle
+            const notifBell = document.getElementById("notif-bell");
+            const notifDropdown = document.getElementById("notif-dropdown");
+            const clearAllBtn = document.getElementById("clear-all-notifs");
+
+            if (notifBell && notifDropdown) {
+                notifBell.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    notifDropdown.classList.toggle("show");
+
+                    // Close profile dropdown if open
+                    const profileMenu = document.querySelector(".dropdown-menu");
+                    if (profileMenu) profileMenu.classList.remove("show");
+                });
+
+                window.addEventListener("click", function (e) {
+                    if (notifDropdown.classList.contains("show") && !notifDropdown.contains(e.target) && e.target !== notifBell) {
+                        notifDropdown.classList.remove("show");
+                    }
+                });
+            }
+
+            // Mark individual notification as read
+            const notifItems = document.querySelectorAll(".notif-item.unread");
+            notifItems.forEach(item => {
+                item.addEventListener("click", function () {
+                    const notifId = this.dataset.id;
+                    fetch(`/notifications/${notifId}/read/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                this.classList.remove("unread");
+                                const dot = this.querySelector(".unread-dot");
+                                if (dot) dot.remove();
+
+                                // Update badge count
+                                const badge = document.querySelector(".notif-badge");
+                                if (badge) {
+                                    let count = parseInt(badge.textContent);
+                                    if (count > 1) {
+                                        badge.textContent = count - 1;
+                                    } else {
+                                        badge.remove();
+                                    }
+                                }
+                            }
+                        });
+                });
+            });
+
+            // Clear all notifications
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener("click", function () {
+                    fetch('/notifications/clear-all/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                document.querySelectorAll(".notif-item.unread").forEach(item => {
+                                    item.classList.remove("unread");
+                                    const dot = item.querySelector(".unread-dot");
+                                    if (dot) dot.remove();
+                                });
+                                const badge = document.querySelector(".notif-badge");
+                                if (badge) badge.remove();
+                            }
+                        });
                 });
             }
         });
@@ -73,7 +160,6 @@
             align-items: center;
             justify-content: center;
             color: var(--black);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
             cursor: pointer;
             z-index: 9999;
             font-size: 14px;
@@ -85,7 +171,6 @@
 
         .ai-fab:hover {
             transform: translateY(-3px);
-            box-shadow: 0 3px 1px rgba(255, 255, 255, 0.2);
         }
 
         .ai-fab i {
@@ -195,7 +280,7 @@
         }
 
         .ai-recent-chat-item {
-            padding: 0.6rem 0.8rem;
+            padding: 0.3rem 0.8rem;
             background: transparent;
             border-radius: 6px;
             color: var(--dark-gray);
@@ -534,6 +619,7 @@
 
             let currentSessionId = null;
             let historyLoadedForSession = {};
+            let isGenerating = false;
 
             // ---- Markdown-to-HTML Formatter ----
             function formatMarkdown(text) {
@@ -541,6 +627,10 @@
 
                 // Simple check if it's already complex HTML (like an image response)
                 if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>⚠️')) {
+                    // Fix img alt text and add onerror handler for broken images
+                    html = html.replace(/<img\s+src="([^"]+)"\s+alt="([^"]*)"([^>]*)>/g, function (match, src, alt, rest) {
+                        return '<img src="' + src + '" alt="Balloorina Design Concept" onerror="this.style.display=\'none\';this.insertAdjacentHTML(\'afterend\',\'<div style=padding:16px;background:#1a1a1a;border-radius:8px;border:1px_solid_#333;text-align:center;color:#a3a3a3;>⚠️ Image could not be loaded. Please try generating again.</div>\');"' + rest + '>';
+                    });
                     // Try to inject download loop logic if it's an image.
                     if (html.includes('<img ')) {
                         // Extracting the src assuming it's structured consistently
@@ -791,6 +881,10 @@
                     if (!currentSessionId) {
                         loadSessions();
                     }
+                    // Scroll to bottom when reopened (catches responses that arrived while closed)
+                    setTimeout(() => {
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }, 100);
                 }
             }
             fab.addEventListener('click', toggleWidget);
@@ -800,6 +894,7 @@
             async function sendAiMessage() {
                 const message = chatInput.value.trim();
                 if (!message) return;
+                if (isGenerating) return; // Prevent double-send while generating
 
                 // User Message UI
                 typingIndicator.style.display = 'none';
@@ -816,6 +911,12 @@
                 typingIndicator.style.display = 'flex';
                 chatBox.appendChild(typingIndicator);
                 chatBox.scrollTop = chatBox.scrollHeight;
+
+                // Disable send button & mark as generating
+                isGenerating = true;
+                sendBtn.disabled = true;
+                sendBtn.style.opacity = '0.5';
+                sendBtn.style.cursor = 'not-allowed';
 
                 try {
                     const payload = { message: message };
@@ -861,6 +962,12 @@
 
                     chatBox.insertBefore(botDiv, typingIndicator);
 
+                    // If widget was closed during generation, auto-scroll when it reopens
+                    if (!widget.classList.contains('active')) {
+                        // The response is now in the DOM; it will be visible when the widget is reopened
+                        // The toggleWidget function already scrolls to bottom on reopen
+                    }
+
                 } catch (e) {
                     typingIndicator.style.display = 'none';
                     const errDiv = document.createElement('div');
@@ -869,6 +976,12 @@
                     errDiv.textContent = 'Connection error. Please try again.';
                     chatBox.insertBefore(errDiv, typingIndicator);
                 }
+
+                // Re-enable send button
+                isGenerating = false;
+                sendBtn.disabled = false;
+                sendBtn.style.opacity = '1';
+                sendBtn.style.cursor = 'pointer';
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
 

@@ -3,15 +3,49 @@
 <nav class="navbar">
     <div class="nav-container">
         {% if user.is_authenticated and user.role == 'customer' %}
-        <a href="{% url 'home' %}"><img class="logo" src="{% static 'images/balloorina.jpg'%}" alt="Ballorina.ph"></a>
+        <a href="{% url 'home' %}"><img class="logo" src="{% static 'images/BalloorinaLogo1.png'%}"
+                alt="Ballorina.ph"></a>
         <div class="nav-links">
             <a href="{% url 'home' %}">Home</a>
             <a href="{% url 'about' %}">About</a>
             <a href="{% url 'services' %}">Service</a>
             <a href="{% url 'package' %}">Package</a>
             <a href="{% url 'gallery' %}">Gallery</a>
-            <a href="{% url 'create_booking' %}">Booking</a>
+            <a href="{% url 'booking_page' %}">Booking</a>
+            <a href="{% url 'design_canvas' %}">Custom Design</a>
             <div class="profile-dropdown">
+                <div class="notification-wrapper">
+                    <button class="notification-bell-btn" id="notif-bell" aria-label="Notifications">
+                        <i class="fas fa-bell"></i>
+                        {% if unread_notifications_count > 0 %}
+                        <span class="notif-badge">{{ unread_notifications_count }}</span>
+                        {% endif %}
+                    </button>
+                    <div class="notification-dropdown" id="notif-dropdown">
+                        <div class="notif-header">
+                            <span>Notifications</span>
+                            <button id="clear-all-notifs" class="clear-all-btn">Mark all as read</button>
+                        </div>
+                        <div class="notif-list">
+                            {% for notif in customer_notifications %}
+                            <div class="notif-item {% if not notif.is_read %}unread{% endif %}"
+                                data-id="{{ notif.id }}">
+                                <div class="notif-content">
+                                    <p>{{ notif.message }}</p>
+                                    <small>{{ notif.created_at|timesince }} ago</small>
+                                </div>
+                                {% if not notif.is_read %}
+                                <div class="unread-dot"></div>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <div class="notif-empty">
+                                <p>No notifications yet</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
                 <button class="profile-avatar-btn" aria-label="Profile menu">
                     <div class="nav-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
                 </button>
@@ -24,11 +58,17 @@
                         </div>
                     </div>
                     <div class="dropdown-divider"></div>
-                    <a href="{% url 'customer_profile' %}" class="dropdown-item">Profile Dashboard</a>
+                    <a href="{% url 'customer_profile' %}" class="dropdown-item">
+                        <i class="fas fa-user-circle"></i> Profile Dashboard
+                    </a>
                     <div class="dropdown-divider"></div>
-                    <a href="#" class="dropdown-item">Settings</a>
+                    <a href="#" class="dropdown-item">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
                     <div class="dropdown-divider"></div>
-                    <a href="{% url 'logout' %}" class="dropdown-item logout-text">Log Out</a>
+                    <a href="{% url 'logout' %}" class="dropdown-item logout-text">
+                        <i class="fas fa-sign-out-alt"></i> Log Out
+                    </a>
                 </div>
             </div>
         </div>
@@ -38,14 +78,15 @@
             <span></span>
         </div>
         {% elif not user.is_authenticated %}
-        <a href="{% url 'home' %}"><img class="logo" src="{% static 'images/balloorina.jpg'%}" alt="Ballorina.ph"></a>
+        <a href="{% url 'home' %}"><img class="logo" src="{% static 'images/BalloorinaLogo1.png'%}"
+                alt="Ballorina.ph"></a>
         <div class="nav-links">
             <a href="{% url 'home' %}">Home</a>
             <a href="{% url 'about' %}">About</a>
             <a href="{% url 'services' %}">Service</a>
             <a href="{% url 'package' %}">Package</a>
             <a href="{% url 'gallery' %}">Gallery</a>
-            <a href="{% url 'login' %}">Login</a>
+            <a class="login-link" href="{% url 'login' %}">Login</a>
         </div>
         <div class="mobile-menu">
             <span></span>

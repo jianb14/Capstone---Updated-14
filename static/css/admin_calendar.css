@@ -1,0 +1,384 @@
+/* admin_calendar.css — Admin Calendar Page Styles */
+/* Same design as client booking calendar */
+
+.admin-calendar-page {
+    padding: 0;
+}
+
+.admin-calendar-panel {
+    max-width: 950px;
+    margin: 0 auto;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1.5rem;
+    animation: calFadeInUp 0.4s ease-out;
+}
+
+@keyframes calFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.admin-calendar-panel .panel-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.admin-calendar-panel .panel-header h2 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 0 0.5rem 0;
+}
+
+.admin-calendar-panel .panel-header p {
+    color: #888;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* ======================== */
+/* CALENDAR LEGEND           */
+/* ======================== */
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    color: #ffffff;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.legend-color {
+    width: 15px;
+    height: 15px;
+    border-radius: 3px;
+}
+
+.legend-color.pending {
+    background-color: #d97706;
+}
+
+.legend-color.confirmed {
+    background-color: #3b82f6;
+}
+
+.legend-color.completed {
+    background-color: #22c55e;
+}
+
+.legend-color.expired {
+    background-color: #6b7280;
+}
+
+.legend-color.cancelled {
+    background-color: #ef4444;
+}
+
+/* ======================== */
+/* FULLCALENDAR OVERRIDES    */
+/* ======================== */
+#admin-calendar {
+    --fc-border-color: #2a2a2a;
+    --fc-today-bg-color: rgba(255, 255, 255, 0.05);
+    --fc-button-bg-color: transparent;
+    --fc-button-active-bg-color: #ffffff;
+    --fc-button-text-color: #ffffff;
+    --fc-button-hover-bg-color: #ffffff;
+    color: #ffffff;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+#admin-calendar .fc {
+    font-family: 'Montserrat', sans-serif;
+}
+
+#admin-calendar .fc .fc-toolbar-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'Montserrat', sans-serif !important;
+}
+
+.fc .fc-button-primary {
+    background-color: transparent !important;
+    border: 1px solid #444 !important;
+    color: #ffffff !important;
+    font-family: 'Montserrat', sans-serif !important;
+    font-weight: 500;
+    text-transform: capitalize;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    padding: 0.4rem 1rem;
+    font-size: 14px;
+    letter-spacing: normal;
+    outline: none;
+    box-shadow: none !important;
+}
+
+.fc .fc-button-primary:hover {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+#admin-calendar .fc .fc-button:focus {
+    box-shadow: none !important;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+    border-color: #2a2a2a;
+    background-color: transparent !important;
+}
+
+.fc .fc-col-header-cell {
+    background-color: #000 !important;
+}
+
+.fc .fc-col-header-cell-cushion {
+    color: #888888;
+    text-decoration: none;
+    text-transform: capitalize !important;
+    font-size: 0.8rem;
+    padding: 10px 0;
+    font-weight: 600;
+}
+
+#admin-calendar .fc .fc-daygrid-day-number {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+
+#admin-calendar .fc .fc-day-today {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+#admin-calendar .fc .fc-daygrid-day-frame {
+    transition: background 0.2s;
+}
+
+#admin-calendar .fc .fc-daygrid-day-frame:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+#admin-calendar .fc-event-main {
+    color: #ffffff !important;
+    padding: 4px 6px !important;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+#admin-calendar .fc-event {
+    border: none;
+    padding: 4px 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* Popover Styling */
+.fc-popover {
+    background-color: #000000 !important;
+    border: 1px solid #444 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9) !important;
+    z-index: 9999 !important;
+}
+
+.fc-popover-header {
+    background-color: #111 !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #333 !important;
+    padding: 8px 10px !important;
+}
+
+.fc-popover-body {
+    background-color: #000000 !important;
+}
+
+.fc-popover-title {
+    color: #ffffff !important;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.fc-popover-close-icon {
+    color: #ffffff !important;
+    opacity: 0.7;
+    background: transparent !important;
+}
+
+#admin-calendar .fc-more-link {
+    color: white !important;
+    font-size: 0.75rem;
+    text-decoration: none;
+}
+
+/* Time Axis Labels */
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-scrollgrid-shrink-cushion,
+.fc .fc-timegrid-axis-cushion {
+    font-size: 0.65rem !important;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: capitalize !important;
+    text-decoration: none;
+    white-space: nowrap !important;
+}
+
+/* Custom Scrollbar */
+#admin-calendar .fc-scroller::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#admin-calendar .fc-scroller::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#admin-calendar .fc-scroller::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+#admin-calendar .fc-scroller::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Day Cell Hover Effect */
+#admin-calendar .fc .fc-daygrid-day:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-calendar-panel {
+        padding: 1rem;
+    }
+
+    #admin-calendar .fc .fc-toolbar-title {
+        font-size: 1.2rem;
+    }
+
+    .cal-modal {
+        width: 95%;
+        margin: 1rem;
+    }
+}
+
+/* ======================== */
+/* EVENT CLICK POPOVER       */
+/* ======================== */
+.cal-popover {
+    position: fixed;
+    z-index: 9999;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    width: 250px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+    transition: all 0.2s ease;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.cal-popover.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.cal-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.8rem;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    border-radius: 8px 8px 0 0;
+}
+
+.cal-popover-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cal-popover-close {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.cal-popover-close:hover {
+    color: #fff;
+}
+
+.cal-popover-body {
+    padding: 0.5rem;
+}
+
+.cal-pop-event {
+    padding: 0.5rem 0.65rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.cal-pop-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.25rem;
+}
+
+.cal-pop-detail {
+    font-size: 0.75rem;
+    color: #999;
+    line-height: 1.5;
+}
+
+#admin-calendar .fc-event {
+    cursor: pointer;
+}

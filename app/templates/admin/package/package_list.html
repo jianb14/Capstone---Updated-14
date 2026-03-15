@@ -1,5 +1,5 @@
 {% extends 'admin/admin_base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_package.css' %}">
@@ -9,7 +9,7 @@
 <div class="page-header">
     <h1>Package Management</h1>
     <div class="breadcrumb">
-        <span >Admin</span>
+        <span>Admin</span>
         <span class="separator">/</span>
         <span>Packages</span>
     </div>
@@ -40,14 +40,14 @@
 
                 <td data-label="Most Popular">
                     {% if package.is_featured %}
-                        <span class="status-badge active">Yes</span>
+                    <span class="status-badge active">Yes</span>
                     {% else %}
-                        <span class="status-badge inactive">No</span>
+                    <span class="status-badge inactive">No</span>
                     {% endif %}
                 </td>
 
-                <td data-label="Price">₱{{ package.price }}</td>
-                <td data-label="Service Charge">₱{{ package.service_charge }}</td>
+                <td data-label="Price">₱{{ package.price|intcomma }}</td>
+                <td data-label="Service Charge">₱{{ package.service_charge|intcomma }}</td>
 
                 <td data-label="Actions">
                     <div class="action-buttons">
@@ -92,12 +92,12 @@
             {% for addon in addons %}
             <tr>
                 <td data-label="Name">{{ addon.name }}</td>
-                <td data-label="Price">₱{{ addon.price }}</td>
+                <td data-label="Price">₱{{ addon.price|intcomma }}</td>
                 <td data-label="Solo Price">
                     {% if addon.solo_price %}
-                        ₱{{ addon.solo_price }}
+                    ₱{{ addon.solo_price|intcomma }}
                     {% else %}
-                        —
+                    —
                     {% endif %}
                 </td>
 
@@ -144,7 +144,7 @@
             {% for additional in additionals %}
             <tr>
                 <td data-label="Name">{{ additional.name }}</td>
-                <td data-label="Price">₱{{ additional.price }}</td>
+                <td data-label="Price">₱{{ additional.price|intcomma }}</td>
 
                 <td data-label="Actions">
                     <div class="action-buttons">
