@@ -1,17 +1,31 @@
-{% extends 'admin/admin_base.html' %}
+﻿{% extends 'admin/admin_base.html' %}
 {% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_package.css' %}">
 
+<div class="page-header detail-page-header">
+    <div>
+        <h1>Package Details</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_package_list' %}">Packages</a>
+            <span class="separator">/</span>
+            <span>{{ package.name }}</span>
+        </div>
+    </div>
+    <a href="{% url 'admin_package_list' %}" class="btn-top-back">&larr; Back to List</a>
+</div>
 
 <div class="detail-wrapper">
     <div class="detail-card">
-        <!-- Left: Image Section -->
         <div class="detail-left">
             {% if package.image %}
             <div class="detail-image-container">
-                <img src="{{ package.image.url }}" class="detail-image">
+                <button type="button" class="detail-image-trigger" data-full-src="{{ package.image.url }}"
+                    aria-label="Open full image">
+                    <img src="{{ package.image.url }}" class="detail-image">
+                    <span class="detail-image-hint">Click to view full image</span>
+                </button>
             </div>
             {% else %}
             <div class="detail-image-container"
@@ -21,15 +35,14 @@
             {% endif %}
         </div>
 
-        <!-- Right: Information Section -->
         <div class="detail-right">
             <div class="detail-title-price">
                 <h2 class="detail-title">{{ package.name }}</h2>
-                <p class="detail-price">₱{{ package.price|intcomma }}</p>
+                <p class="detail-price">&#8369;{{ package.price|intcomma }}</p>
             </div>
 
             <div class="detail-section">
-                <h4>Package Features</h4>
+                <h4>Package Inclusions</h4>
                 <ul class="detail-list">
                     {% for feature in package.feature_list %}
                     <li>{{ feature }}</li>
@@ -44,36 +57,63 @@
             </div>
             {% endif %}
 
-            <div class="detail-divider"></div>
-
-            <div class="detail-section">
-                <h4>Service Details</h4>
-                <div class="detail-service-charge">
-                    <span>Service Price</span>
-                    <span>₱{{ package.service_charge|intcomma }}</span>
-                </div>
-            </div>
-
-            <div class="detail-section">
-                <h4>Service Features</h4>
-                <p class="detail-notes">{{ package.service_features }}</p>
-            </div>
-
-            {% if package.service_notes %}
-            <div class="detail-section">
-                <h4>Service Notes</h4>
-                <p class="detail-notes">{{ package.service_notes }}</p>
-            </div>
-            {% endif %}
-
             <div class="action-buttons detail-buttons">
                 <a href="{% url 'admin_package_list' %}" class="btn-back detail">Back</a>
                 <a href="{% url 'admin_package_edit' package.id %}" class="btn-edit detail">Edit</a>
                 <a href="{% url 'admin_package_delete' package.id %}" class="btn-delete detail"
-                    onclick="return confirm('Delete this package?')">Delete</a>
+                    data-swal-confirm="true"
+                    data-swal-title="Delete package?"
+                    data-swal-text="Delete this package?"
+                    data-swal-confirm-text="Yes, delete package">Delete</a>
             </div>
         </div>
     </div>
 </div>
+
+<div id="detailImageModal" class="detail-image-modal" aria-hidden="true">
+    <button type="button" class="detail-image-modal-close" id="detailImageModalClose" aria-label="Close image preview">&times;</button>
+    <img id="detailImageModalImg" src="" alt="Full Preview">
+</div>
+
+<script>
+    (function () {
+        const trigger = document.querySelector('.detail-image-trigger');
+        const modal = document.getElementById('detailImageModal');
+        const modalImg = document.getElementById('detailImageModalImg');
+        const closeBtn = document.getElementById('detailImageModalClose');
+
+        if (!trigger || !modal || !modalImg || !closeBtn) return;
+
+        function openModal(src) {
+            modalImg.src = src;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            modalImg.src = '';
+            document.body.style.overflow = '';
+        }
+
+        trigger.addEventListener('click', function () {
+            const src = this.getAttribute('data-full-src');
+            if (src) openModal(src);
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+    })();
+</script>
 
 {% endblock %}

@@ -1,0 +1,224 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+
+<div class="page-header">
+    <h1>{% if label %}Edit Canvas Label{% else %}Create Canvas Label{% endif %}</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
+        <span class="separator">/</span>
+        <span>{% if label %}Edit{% else %}Create{% endif %} Label</span>
+    </div>
+</div>
+
+<div class="form-container canvas-category-container">
+    <div class="form-card canvas-category-card">
+        <form method="POST" novalidate>
+            {% csrf_token %}
+            <div class="form-grid canvas-category-grid">
+                <div class="form-group span-6 custom-select-field">
+                    <label for="category">Category</label>
+                    {% if label %}
+                    <input type="text" value="{{ label.category.name }}" readonly>
+                    {% else %}
+                    <div class="custom-filter-dropdown" id="labelCategoryDropdown">
+                        <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                            <span id="labelCategoryDropdownText">
+                                Select Category
+                            </span>
+                            <span class="dropdown-caret" aria-hidden="true"></span>
+                        </div>
+                        <ul class="dropdown-options">
+                            {% for cat in categories %}
+                            <li data-value="{{ cat.id }}" {% if label and label.category.id == cat.id %}class="selected"{% endif %}>{{ cat.name }}</li>
+                            {% endfor %}
+                        </ul>
+                        <select name="category" id="category" class="filter-select" required>
+                            <option value="" disabled hidden {% if not label or not label.category %}selected{% endif %}>Select Category</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if label and label.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <p class="field-error" data-error-for="category"></p>
+                </div>
+                <div class="form-group span-6">
+                    <label for="name">Label Name</label>
+                    <input type="text" name="name" id="name" value="{{ label.name|default:'' }}" placeholder="e.g. Entrance Arch" required>
+                    <p class="field-error" data-error-for="name"></p>
+                </div>
+                <div class="form-group span-6">
+                    <label for="order">Display Order</label>
+                    <input type="number" name="order" id="order" value="{{ label.order|default:'1' }}" min="1" placeholder="1">
+                    <p class="field-error" data-error-for="order"></p>
+                </div>
+                <div class="form-group span-6">
+                    <label for="is_active">Status</label>
+                    <label for="is_active" class="active-toggle-box image-active-row">
+                        <input type="checkbox" name="is_active" id="is_active" {% if label %}{% if label.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+                        <span>Active (can be used in asset forms)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'admin_canvas_assets' %}" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-save">{% if label %}Update{% else %}Create{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    (function () {
+        const form = document.querySelector('.canvas-category-card form');
+        if (!form) return;
+
+        const nameInput = document.getElementById('name');
+        const orderInput = document.getElementById('order');
+        const categorySelectEl = document.getElementById('category');
+        const categoryDropdown = document.getElementById('labelCategoryDropdown');
+        const categoryTriggerEl = categoryDropdown ? categoryDropdown.querySelector('.dropdown-trigger') : null;
+        const categoryOptions = categoryDropdown ? categoryDropdown.querySelectorAll('.dropdown-options li') : [];
+        const categoryTextNode = document.getElementById('labelCategoryDropdownText');
+
+        const resolveGroup = (fieldName) => {
+            const input = document.getElementById(fieldName);
+            if (input) {
+                return input.closest('.form-group');
+            }
+            const error = form.querySelector(`[data-error-for="${fieldName}"]`);
+            return error ? error.closest('.form-group') : null;
+        };
+
+        const setFieldError = (fieldName, message) => {
+            const group = resolveGroup(fieldName);
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        };
+
+        const clearFieldError = (fieldName) => {
+            const group = resolveGroup(fieldName);
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        };
+
+        {% if not label %}
+        if (categoryDropdown && categoryTriggerEl && categoryTextNode && categorySelectEl && categoryOptions.length) {
+            const closeDropdown = () => {
+                categoryDropdown.classList.remove('open');
+                categoryTriggerEl.setAttribute('aria-expanded', 'false');
+            };
+
+            const toggleDropdown = () => {
+                const isOpen = categoryDropdown.classList.toggle('open');
+                categoryTriggerEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            };
+
+            categoryTriggerEl.addEventListener('click', toggleDropdown);
+            categoryTriggerEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleDropdown();
+                }
+            });
+
+            categoryOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const value = this.getAttribute('data-value') || '';
+                    categorySelectEl.value = value;
+                    categoryTextNode.textContent = this.textContent.trim();
+                    categoryOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    if (value) {
+                        clearFieldError('category');
+                    }
+                    closeDropdown();
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!categoryDropdown.contains(e.target)) closeDropdown();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeDropdown();
+            });
+        }
+        {% endif %}
+
+        if (nameInput) {
+            nameInput.addEventListener('input', function () {
+                if (nameInput.value.trim()) {
+                    clearFieldError('name');
+                }
+            });
+        }
+
+        if (orderInput) {
+            orderInput.addEventListener('input', function () {
+                const orderValue = Number(orderInput.value || '0');
+                if (Number.isInteger(orderValue) && orderValue >= 1) {
+                    clearFieldError('order');
+                }
+            });
+        }
+
+        if (categorySelectEl) {
+            categorySelectEl.addEventListener('change', function () {
+                if (categorySelectEl.value) {
+                    clearFieldError('category');
+                }
+            });
+        }
+
+        form.addEventListener('submit', function (event) {
+            let firstInvalidField = null;
+
+            {% if not label %}
+            if (!categorySelectEl || !categorySelectEl.value) {
+                setFieldError('category', 'Category is required*');
+                firstInvalidField = categoryTriggerEl || categorySelectEl;
+            } else {
+                clearFieldError('category');
+            }
+            {% endif %}
+
+            if (!nameInput || !nameInput.value.trim()) {
+                setFieldError('name', 'Label name is required*');
+                if (!firstInvalidField) {
+                    firstInvalidField = nameInput;
+                }
+            } else {
+                clearFieldError('name');
+            }
+
+            const orderValue = Number(orderInput ? orderInput.value : '1');
+            if (!Number.isInteger(orderValue) || orderValue < 1) {
+                setFieldError('order', 'Display order must be a whole number greater than 0.');
+                if (!firstInvalidField) {
+                    firstInvalidField = orderInput;
+                }
+            } else {
+                clearFieldError('order');
+            }
+
+            if (firstInvalidField) {
+                event.preventDefault();
+                firstInvalidField.focus();
+            }
+        });
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_gallery.css' %}">
+
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Gallery Management</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <span>Gallery</span>
+    </div>
+</div>
+
+<!-- ================= CATEGORIES ================= -->
+<div class="page-header title-header" id="gallery-images-section">
+    <h1>Categories</h1>
+    <a href="{% url 'admin_gallery_category_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Category</a>
+</div>
+
+<div class="table-container">
+    <table class="gallery-categories-table">
+        <thead>
+            <tr>
+                <th>CATEGORY NAME</th>
+                <th>ORDER</th>
+                <th>IMAGES</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <td data-label="Category Name">{{ cat.name }}</td>
+                <td data-label="Order">{{ cat.order }}</td>
+                <td data-label="Images">{{ cat.images.count }}</td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_gallery_category_edit' cat.id %}">Edit</a>
+                        <a href="{% url 'admin_gallery_category_delete' cat.id %}"
+                            data-swal-confirm="true"
+                            data-swal-title="Delete category?"
+                            data-swal-text="Delete this category? All its images will also be deleted."
+                            data-swal-confirm-text="Yes, delete category">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No categories found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+<!-- ================= IMAGES ================= -->
+<div class="page-header title-header">
+    <h1>Gallery Images</h1>
+    <div class="gallery-images-toolbar">
+        <form method="GET" class="gallery-filter-form" id="galleryFilterForm">
+            <div class="custom-filter-dropdown" id="imageCategoryDropdown">
+                <div class="dropdown-trigger">
+                    <span id="imageCategoryDropdownText">
+                        {% if selected_image_category != 'all' %}
+                        {% for cat in categories %}
+                        {% if cat.id|stringformat:"s" == selected_image_category|stringformat:"s" %}{{ cat.name }}{% endif %}
+                        {% endfor %}
+                        {% else %}
+                        All Categories
+                        {% endif %}
+                    </span>
+                    <span class="dropdown-caret" aria-hidden="true"></span>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="all" {% if selected_image_category == 'all' or not selected_image_category %}class="selected"{% endif %}>All Categories</li>
+                    {% for cat in categories %}
+                    <li data-value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_image_category|stringformat:"s" %}class="selected"{% endif %}>{{ cat.name }}</li>
+                    {% endfor %}
+                </ul>
+                <select name="image_category" class="filter-select" id="imageCategoryFilterSelect">
+                    <option value="all" {% if selected_image_category == 'all' or not selected_image_category %}selected{% endif %}>All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_image_category|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <a href="{% url 'admin_gallery_image_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add Image</a>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="gallery-images-table">
+        <thead>
+            <tr>
+                <th>PREVIEW</th>
+                <th>CAPTION</th>
+                <th>CATEGORY</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody id="galleryImagesTableBody">
+            {% for img in gallery_images %}
+            <tr>
+                <td data-label="Preview">
+                    <img src="{{ img.image.url }}" alt="{{ img.caption }}"
+                        style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #2a2a2a;">
+                </td>
+                <td data-label="Caption" class="gallery-caption-cell">
+                    <span class="gallery-caption-text" title="{{ img.caption|default:'No caption' }}">
+                        {{ img.caption|default:"-" }}
+                    </span>
+                </td>
+                <td data-label="Category">{{ img.category.name }}</td>
+                <td data-label="Status">
+                    {% if img.is_active %}
+                    <span class="status-badge active">Active</span>
+                    {% else %}
+                    <span class="status-badge inactive">Hidden</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_gallery_image_detail' img.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=gallery-images-section" class="view-btn">View</a>
+                        <a href="{% url 'admin_gallery_image_edit' img.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=gallery-images-section" class="edit-btn">Edit</a>
+                        <a href="{% url 'admin_gallery_image_delete' img.id %}" class="delete-btn"
+                            data-swal-confirm="true"
+                            data-swal-title="Delete image?"
+                            data-swal-text="Delete this image?"
+                            data-swal-confirm-text="Yes, delete image">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No images found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination" id="galleryPaginationContainer">
+    {% if gallery_images.has_other_pages %}
+        {% if gallery_images.has_previous %}
+        <a href="?page={{ gallery_images.previous_page_number }}{% if selected_image_category and selected_image_category != 'all' %}&image_category={{ selected_image_category }}{% endif %}"
+            class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+        {% endif %}
+
+        <span class="current-page">Page {{ gallery_images.number }} of {{ gallery_images.paginator.num_pages }}</span>
+
+        {% if gallery_images.has_next %}
+        <a href="?page={{ gallery_images.next_page_number }}{% if selected_image_category and selected_image_category != 'all' %}&image_category={{ selected_image_category }}{% endif %}"
+            class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+        {% endif %}
+    {% endif %}
+</div>
+
+<br><br>
+
+<script>
+    (function () {
+        const dropdown = document.getElementById('imageCategoryDropdown');
+        const trigger = dropdown ? dropdown.querySelector('.dropdown-trigger') : null;
+        const options = dropdown ? dropdown.querySelectorAll('.dropdown-options li') : [];
+        const valueText = document.getElementById('imageCategoryDropdownText');
+        const select = document.getElementById('imageCategoryFilterSelect');
+        const form = document.getElementById('galleryFilterForm');
+        const tableBody = document.getElementById('galleryImagesTableBody');
+        const paginationContainer = document.getElementById('galleryPaginationContainer');
+        const tableContainer = document.querySelector('.table-container');
+
+        if (!dropdown || !trigger || !select || !form || !tableBody || !paginationContainer) return;
+
+        function closeMenu() {
+            dropdown.classList.remove('open');
+        }
+
+        function fetchGallerySection(url) {
+            if (tableContainer) tableContainer.style.opacity = '0.5';
+
+            fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const newTableBody = doc.getElementById('galleryImagesTableBody');
+                    const newPagination = doc.getElementById('galleryPaginationContainer');
+
+                    if (newTableBody) tableBody.innerHTML = newTableBody.innerHTML;
+                    if (newPagination) paginationContainer.innerHTML = newPagination.innerHTML;
+
+                    if (tableContainer) tableContainer.style.opacity = '1';
+                })
+                .catch(() => {
+                    if (tableContainer) tableContainer.style.opacity = '1';
+                });
+        }
+
+        trigger.addEventListener('click', function () {
+            dropdown.classList.toggle('open');
+        });
+
+        options.forEach(option => {
+            option.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                select.value = selectedValue;
+                valueText.textContent = this.textContent.trim();
+
+                options.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+
+                closeMenu();
+                const url = new URL(window.location.href);
+                url.searchParams.set('image_category', selectedValue);
+                url.searchParams.set('page', '1');
+                window.history.pushState({}, '', url);
+                fetchGallerySection(url.toString());
+            });
+        });
+
+        paginationContainer.addEventListener('click', function (e) {
+            const link = e.target.closest('a.page-link');
+            if (!link) return;
+            e.preventDefault();
+            const url = link.getAttribute('href');
+            if (!url) return;
+            window.history.pushState({}, '', url);
+            fetchGallerySection(url);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target)) closeMenu();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeMenu();
+        });
+
+        window.addEventListener('popstate', function () {
+            fetchGallerySection(window.location.href);
+        });
+
+        const scrollTarget = new URLSearchParams(window.location.search).get('scroll');
+        if (scrollTarget) {
+            const targetEl = document.getElementById(scrollTarget);
+            if (targetEl) {
+                setTimeout(() => {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    const cleanedUrl = new URL(window.location.href);
+                    cleanedUrl.searchParams.delete('scroll');
+                    window.history.replaceState({}, '', cleanedUrl.toString());
+                }, 80);
+            }
+        }
+    })();
+</script>
+
+{% endblock %}

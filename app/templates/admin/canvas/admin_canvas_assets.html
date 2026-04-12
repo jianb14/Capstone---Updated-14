@@ -1,0 +1,608 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+
+<div class="page-header">
+    <h1>Canvas Asset Management</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <span>Canvas Assets</span>
+    </div>
+</div>
+
+<div class="page-header title-header" id="canvas-assets-section">
+    <h1>Canvas Categories</h1>
+    <a href="{% url 'admin_canvas_category_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Category</a>
+</div>
+
+<div class="table-container canvas-categories-container">
+    <table class="gallery-categories-table canvas-category-table">
+        <thead>
+            <tr>
+                <th>CATEGORY NAME</th>
+                <th>ORDER</th>
+                <th>STATUS</th>
+                <th>ASSETS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody id="canvasCategoriesTableBody">
+            {% for cat in categories_page %}
+            <tr>
+                <td data-label="Category Name">{{ cat.name }}</td>
+                <td data-label="Order">{{ cat.order }}</td>
+                <td data-label="Status">
+                    {% if cat.is_active %}
+                    <span class="status-badge active">Active</span>
+                    {% else %}
+                    <span class="status-badge inactive">Hidden</span>
+                    {% endif %}
+                </td>
+                <td data-label="Assets">{{ cat.assets.count }}</td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_canvas_category_edit' cat.id %}">Edit</a>
+                        <a href="{% url 'admin_canvas_category_delete' cat.id %}"
+                           data-swal-confirm="true"
+                           data-swal-title="Delete category?"
+                           data-swal-text="Delete this category and all linked canvas assets?"
+                           data-swal-confirm-text="Yes, delete category">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No categories found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="pagination" id="canvasCategoriesPaginationContainer">
+    {% if categories_page.has_other_pages %}
+        {% if categories_page.has_previous %}
+        <a href="?cat_page={{ categories_page.previous_page_number }}&lbl_page={{ labels_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+        {% endif %}
+
+        <span class="current-page">Page {{ categories_page.number }} of {{ categories_page.paginator.num_pages }}</span>
+
+        {% if categories_page.has_next %}
+        <a href="?cat_page={{ categories_page.next_page_number }}&lbl_page={{ labels_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+        {% endif %}
+    {% endif %}
+</div>
+
+<br><br>
+
+<div class="page-header title-header" id="canvas-assets-list-section">
+    <h1>Canvas Labels</h1>
+    <a href="{% url 'admin_canvas_label_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Label</a>
+</div>
+
+<div class="table-container canvas-labels-container">
+    <table class="gallery-categories-table canvas-label-table">
+        <thead>
+            <tr>
+                <th>CATEGORY</th>
+                <th>LABEL NAME</th>
+                <th>ORDER</th>
+                <th>STATUS</th>
+                <th>ASSETS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody id="canvasLabelsTableBody">
+            {% for lbl in labels_page %}
+            <tr>
+                <td data-label="Category">{{ lbl.category.name }}</td>
+                <td data-label="Label Name">{{ lbl.name }}</td>
+                <td data-label="Order">{{ lbl.order }}</td>
+                <td data-label="Status">
+                    {% if lbl.is_active %}
+                    <span class="status-badge active">Active</span>
+                    {% else %}
+                    <span class="status-badge inactive">Hidden</span>
+                    {% endif %}
+                </td>
+                <td data-label="Assets">{{ lbl.assets.count }}</td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_canvas_label_edit' lbl.id %}">Edit</a>
+                        <a href="{% url 'admin_canvas_label_delete' lbl.id %}"
+                           data-swal-confirm="true"
+                           data-swal-title="Delete label?"
+                           data-swal-text="Delete this label? Assets under this label will become unlabeled."
+                           data-swal-confirm-text="Yes, delete label">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No labels found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="pagination" id="canvasLabelsPaginationContainer">
+    {% if labels_page.has_other_pages %}
+        {% if labels_page.has_previous %}
+        <a href="?lbl_page={{ labels_page.previous_page_number }}&cat_page={{ categories_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+        {% endif %}
+
+        <span class="current-page">Page {{ labels_page.number }} of {{ labels_page.paginator.num_pages }}</span>
+
+        {% if labels_page.has_next %}
+        <a href="?lbl_page={{ labels_page.next_page_number }}&cat_page={{ categories_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+        {% endif %}
+    {% endif %}
+</div>
+
+<br><br>
+
+<div class="page-header title-header">
+    <h1>Canvas Assets</h1>
+    <div class="gallery-images-toolbar">
+        <form method="GET" class="gallery-filter-form" id="canvasAssetFilterForm">
+            <div class="custom-filter-dropdown" id="canvasAssetCategoryDropdown">
+                <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                    <span id="canvasAssetCategoryDropdownText">
+                        {% if selected_asset_category != 'all' and selected_asset_category %}
+                            {% for cat in categories %}
+                                {% if cat.id|stringformat:"s" == selected_asset_category|stringformat:"s" %}{{ cat.name }}{% endif %}
+                            {% endfor %}
+                        {% else %}
+                            All Categories
+                        {% endif %}
+                    </span>
+                    <span class="dropdown-caret" aria-hidden="true"></span>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="all" {% if selected_asset_category == 'all' or not selected_asset_category %}class="selected"{% endif %}>All Categories</li>
+                    {% for cat in categories %}
+                    <li data-value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_asset_category|stringformat:"s" %}class="selected"{% endif %}>{{ cat.name }}</li>
+                    {% endfor %}
+                </ul>
+                <select name="asset_category" id="canvasAssetCategoryFilterSelect" class="filter-select">
+                    <option value="all" {% if selected_asset_category == 'all' or not selected_asset_category %}selected{% endif %}>All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == selected_asset_category|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="custom-filter-dropdown" id="canvasAssetLabelDropdown">
+                <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                    <span id="canvasAssetLabelDropdownText">
+                        {% if selected_asset_label != 'all' and selected_asset_label %}
+                            {% for lbl in labels %}
+                                {% if lbl.id|stringformat:"s" == selected_asset_label|stringformat:"s" %}{{ lbl.name }}{% endif %}
+                            {% endfor %}
+                        {% else %}
+                            All Labels
+                        {% endif %}
+                    </span>
+                    <span class="dropdown-caret" aria-hidden="true"></span>
+                </div>
+                <ul class="dropdown-options" id="canvasAssetLabelDropdownOptions">
+                    <li data-value="all" data-category-id="all" {% if selected_asset_label == 'all' or not selected_asset_label %}class="selected"{% endif %}>All Labels</li>
+                    {% for lbl in labels %}
+                    <li data-value="{{ lbl.id }}" data-category-id="{{ lbl.category_id }}" {% if lbl.id|stringformat:"s" == selected_asset_label|stringformat:"s" %}class="selected"{% endif %}>{{ lbl.name }}</li>
+                    {% endfor %}
+                </ul>
+                <select name="asset_label" id="canvasAssetLabelFilterSelect" class="filter-select">
+                    <option value="all" data-category-id="all" {% if selected_asset_label == 'all' or not selected_asset_label %}selected{% endif %}>All Labels</option>
+                    {% for lbl in labels %}
+                    <option value="{{ lbl.id }}" data-category-id="{{ lbl.category_id }}" {% if lbl.id|stringformat:"s" == selected_asset_label|stringformat:"s" %}selected{% endif %}>{{ lbl.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <a href="{% url 'admin_canvas_asset_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add Asset</a>
+    </div>
+</div>
+
+<div class="table-container" id="canvasAssetsTableContainer">
+    <table class="gallery-images-table canvas-assets-table">
+        <thead>
+            <tr>
+                <th>PREVIEW</th>
+                <th>ASSET NAME</th>
+                <th>CATEGORY</th>
+                <th>LABEL GROUP</th>
+                <th>SIZE</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody id="canvasAssetsTableBody">
+            {% for asset in canvas_assets %}
+            <tr>
+                <td data-label="Preview">
+                    {% if asset.image %}
+                    <img src="{{ asset.image.url }}" alt="{{ asset.label }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #2a2a2a;">
+                    {% elif asset.static_path %}
+                    <img src="{% static asset.static_path %}" alt="{{ asset.label }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #2a2a2a;">
+                    {% else %}
+                    <span>-</span>
+                    {% endif %}
+                </td>
+                <td data-label="Asset Name">{{ asset.label }}</td>
+                <td data-label="Category">{{ asset.category.name }}</td>
+                <td data-label="Label Group">{% if asset.label_ref %}{{ asset.label_ref.name }}{% else %}{{ asset.subgroup|default:"-" }}{% endif %}</td>
+                <td data-label="Size">{{ asset.width }} &times; {{ asset.height }}</td>
+                <td data-label="Status">
+                    {% if asset.is_active %}
+                    <span class="status-badge active">Active</span>
+                    {% else %}
+                    <span class="status-badge inactive">Hidden</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_canvas_asset_detail' asset.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=canvas-assets-list-section" class="view-btn">View</a>
+                        <a href="{% url 'admin_canvas_asset_edit' asset.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=canvas-assets-list-section" class="edit-btn">Edit</a>
+                        <a href="{% url 'admin_canvas_asset_delete' asset.id %}" class="delete-btn"
+                           data-swal-confirm="true"
+                           data-swal-title="Delete canvas asset?"
+                           data-swal-text="Delete this canvas asset record?"
+                           data-swal-confirm-text="Yes, delete asset">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">No assets found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination" id="canvasAssetsPaginationContainer">
+    {% if canvas_assets.has_other_pages %}
+        {% if canvas_assets.has_previous %}
+        <a href="?page={{ canvas_assets.previous_page_number }}&cat_page={{ categories_page.number }}&lbl_page={{ labels_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+        {% endif %}
+
+        <span class="current-page">Page {{ canvas_assets.number }} of {{ canvas_assets.paginator.num_pages }}</span>
+
+        {% if canvas_assets.has_next %}
+        <a href="?page={{ canvas_assets.next_page_number }}&cat_page={{ categories_page.number }}&lbl_page={{ labels_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        {% else %}
+        <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+        {% endif %}
+    {% endif %}
+</div>
+<script>
+    (function () {
+        const form = document.getElementById('canvasAssetFilterForm');
+        const categoryDropdown = document.getElementById('canvasAssetCategoryDropdown');
+        const categoryTrigger = categoryDropdown ? categoryDropdown.querySelector('.dropdown-trigger') : null;
+        const categoryText = document.getElementById('canvasAssetCategoryDropdownText');
+        const categorySelect = document.getElementById('canvasAssetCategoryFilterSelect');
+        const labelDropdown = document.getElementById('canvasAssetLabelDropdown');
+        const labelTrigger = labelDropdown ? labelDropdown.querySelector('.dropdown-trigger') : null;
+        const labelText = document.getElementById('canvasAssetLabelDropdownText');
+        const labelSelect = document.getElementById('canvasAssetLabelFilterSelect');
+        const tableBody = document.getElementById('canvasAssetsTableBody');
+        const paginationContainer = document.getElementById('canvasAssetsPaginationContainer');
+        const tableContainer = document.getElementById('canvasAssetsTableContainer');
+
+        if (!form || !categoryDropdown || !categoryTrigger || !categoryText || !categorySelect || !labelDropdown || !labelTrigger || !labelText || !labelSelect || !tableBody || !paginationContainer) return;
+
+        const dropdowns = [categoryDropdown, labelDropdown];
+        let allLabelOptions = [];
+
+        function refreshAllLabelOptions() {
+            allLabelOptions = Array.from(labelSelect.options).map(function (opt) {
+                return {
+                    value: opt.value,
+                    text: opt.textContent.trim(),
+                    categoryId: opt.getAttribute('data-category-id') || 'all'
+                };
+            });
+        }
+
+        function closeDropdown(dropdown) {
+            const trigger = dropdown.querySelector('.dropdown-trigger');
+            dropdown.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function closeAllDropdowns() {
+            dropdowns.forEach(closeDropdown);
+        }
+
+        function toggleDropdown(dropdown) {
+            const trigger = dropdown.querySelector('.dropdown-trigger');
+            const willOpen = !dropdown.classList.contains('open');
+            closeAllDropdowns();
+            if (willOpen) {
+                dropdown.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function updateDropdownText(selectEl, textEl, fallbackText) {
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            textEl.textContent = selectedOption ? selectedOption.textContent.trim() : fallbackText;
+        }
+
+        function buildFilterUrl(pageValue) {
+            const url = new URL(window.location.href);
+            const categoryValue = categorySelect.value || 'all';
+            const labelValue = labelSelect.value || 'all';
+
+            if (categoryValue !== 'all') url.searchParams.set('asset_category', categoryValue);
+            else url.searchParams.delete('asset_category');
+
+            if (labelValue !== 'all') url.searchParams.set('asset_label', labelValue);
+            else url.searchParams.delete('asset_label');
+
+            url.searchParams.set('page', pageValue || '1');
+            return url;
+        }
+
+        function filterLabelOptionsByCategory() {
+            const selectedCategory = categorySelect.value || 'all';
+            const currentLabel = labelSelect.value || 'all';
+
+            labelSelect.innerHTML = '';
+            allLabelOptions.forEach(function (opt) {
+                if (opt.value === 'all' || selectedCategory === 'all' || opt.categoryId === selectedCategory) {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    option.setAttribute('data-category-id', opt.categoryId);
+                    labelSelect.appendChild(option);
+                }
+            });
+
+            const hasCurrent = Array.from(labelSelect.options).some(function (opt) { return opt.value === currentLabel; });
+            labelSelect.value = hasCurrent ? currentLabel : 'all';
+
+            const optionsContainer = labelDropdown.querySelector('.dropdown-options');
+            optionsContainer.innerHTML = '';
+            Array.from(labelSelect.options).forEach(function (opt) {
+                const li = document.createElement('li');
+                li.setAttribute('data-value', opt.value);
+                li.setAttribute('data-category-id', opt.getAttribute('data-category-id') || 'all');
+                li.textContent = opt.textContent.trim();
+                if (opt.value === labelSelect.value) li.classList.add('selected');
+                optionsContainer.appendChild(li);
+            });
+
+            bindDropdownOptions(labelDropdown, labelSelect, labelText, 'All Labels');
+            updateDropdownText(labelSelect, labelText, 'All Labels');
+        }
+
+        function fetchCanvasAssets(urlObj) {
+            if (tableContainer) tableContainer.style.opacity = '0.5';
+
+            fetch(urlObj.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (response) { return response.text(); })
+                .then(function (html) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTbody = doc.getElementById('canvasAssetsTableBody');
+                    const newPagination = doc.getElementById('canvasAssetsPaginationContainer');
+                    if (newTbody) tableBody.innerHTML = newTbody.innerHTML;
+                    if (newPagination) paginationContainer.innerHTML = newPagination.innerHTML;
+                    if (tableContainer) tableContainer.style.opacity = '1';
+                })
+                .catch(function () {
+                    if (tableContainer) tableContainer.style.opacity = '1';
+                });
+        }
+
+        function showToast(message, icon) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: icon || 'success',
+                    title: message,
+                    showConfirmButton: false,
+                    timer: 2200,
+                    timerProgressBar: true,
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+            }
+        }
+
+        function syncSectionsFromDoc(doc) {
+            const currentCategoryTbody = document.getElementById('canvasCategoriesTableBody');
+            const currentLabelsTbody = document.getElementById('canvasLabelsTableBody');
+            const currentAssetsTbody = document.getElementById('canvasAssetsTableBody');
+            const currentCategoryPagination = document.getElementById('canvasCategoriesPaginationContainer');
+            const currentLabelPagination = document.getElementById('canvasLabelsPaginationContainer');
+            const currentAssetsPagination = document.getElementById('canvasAssetsPaginationContainer');
+
+            const newCategoryTbody = doc.getElementById('canvasCategoriesTableBody');
+            const newLabelsTbody = doc.getElementById('canvasLabelsTableBody');
+            const newAssetsTbody = doc.getElementById('canvasAssetsTableBody');
+            const newCategoryPagination = doc.getElementById('canvasCategoriesPaginationContainer');
+            const newLabelPagination = doc.getElementById('canvasLabelsPaginationContainer');
+            const newAssetsPagination = doc.getElementById('canvasAssetsPaginationContainer');
+
+            if (currentCategoryTbody && newCategoryTbody) currentCategoryTbody.innerHTML = newCategoryTbody.innerHTML;
+            if (currentLabelsTbody && newLabelsTbody) currentLabelsTbody.innerHTML = newLabelsTbody.innerHTML;
+            if (currentAssetsTbody && newAssetsTbody) currentAssetsTbody.innerHTML = newAssetsTbody.innerHTML;
+            if (currentCategoryPagination && newCategoryPagination) currentCategoryPagination.innerHTML = newCategoryPagination.innerHTML;
+            if (currentLabelPagination && newLabelPagination) currentLabelPagination.innerHTML = newLabelPagination.innerHTML;
+            if (currentAssetsPagination && newAssetsPagination) currentAssetsPagination.innerHTML = newAssetsPagination.innerHTML;
+
+            const newCategoryList = doc.querySelector('#canvasAssetCategoryDropdown .dropdown-options');
+            const currentCategoryList = categoryDropdown.querySelector('.dropdown-options');
+            if (newCategoryList && currentCategoryList) currentCategoryList.innerHTML = newCategoryList.innerHTML;
+
+            const newCategorySelect = doc.getElementById('canvasAssetCategoryFilterSelect');
+            if (newCategorySelect) categorySelect.innerHTML = newCategorySelect.innerHTML;
+
+            const newLabelSelect = doc.getElementById('canvasAssetLabelFilterSelect');
+            if (newLabelSelect) labelSelect.innerHTML = newLabelSelect.innerHTML;
+
+            refreshAllLabelOptions();
+            filterLabelOptionsByCategory();
+            updateDropdownText(categorySelect, categoryText, 'All Categories');
+            updateDropdownText(labelSelect, labelText, 'All Labels');
+            bindDropdownOptions(categoryDropdown, categorySelect, categoryText, 'All Categories');
+        }
+
+        function refreshCanvasAssetsPage(urlObj) {
+            if (tableContainer) tableContainer.style.opacity = '0.5';
+
+            return fetch(urlObj.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (response) { return response.text(); })
+                .then(function (html) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    syncSectionsFromDoc(doc);
+                    if (tableContainer) tableContainer.style.opacity = '1';
+                })
+                .catch(function () {
+                    if (tableContainer) tableContainer.style.opacity = '1';
+                });
+        }
+
+        function onFilterChanged(resetPage) {
+            closeAllDropdowns();
+            const url = buildFilterUrl(resetPage ? '1' : (new URL(window.location.href).searchParams.get('page') || '1'));
+            window.history.pushState({}, '', url.toString());
+            fetchCanvasAssets(url);
+        }
+
+        function bindDropdownOptions(dropdown, selectEl, textEl, fallbackText) {
+            const options = dropdown.querySelectorAll('.dropdown-options li');
+            options.forEach(function (option) {
+                option.addEventListener('click', function () {
+                    const selectedValue = this.getAttribute('data-value') || 'all';
+                    selectEl.value = selectedValue;
+                    dropdown.querySelectorAll('.dropdown-options li').forEach(function (opt) {
+                        opt.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                    updateDropdownText(selectEl, textEl, fallbackText);
+
+                    if (selectEl === categorySelect) {
+                        filterLabelOptionsByCategory();
+                    }
+                    onFilterChanged(true);
+                });
+            });
+        }
+
+        categoryTrigger.addEventListener('click', function () { toggleDropdown(categoryDropdown); });
+        labelTrigger.addEventListener('click', function () { toggleDropdown(labelDropdown); });
+
+        [categoryTrigger, labelTrigger].forEach(function (trigger) {
+            trigger.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleDropdown(trigger.closest('.custom-filter-dropdown'));
+                }
+            });
+        });
+
+        refreshAllLabelOptions();
+        bindDropdownOptions(categoryDropdown, categorySelect, categoryText, 'All Categories');
+        filterLabelOptionsByCategory();
+        updateDropdownText(categorySelect, categoryText, 'All Categories');
+        updateDropdownText(labelSelect, labelText, 'All Labels');
+
+        paginationContainer.addEventListener('click', function (e) {
+            const link = e.target.closest('a.page-link');
+            if (!link) return;
+            e.preventDefault();
+            const href = link.getAttribute('href');
+            if (!href) return;
+            const url = new URL(href, window.location.href);
+            window.history.pushState({}, '', url.toString());
+            fetchCanvasAssets(url);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!categoryDropdown.contains(e.target) && !labelDropdown.contains(e.target)) {
+                closeAllDropdowns();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeAllDropdowns();
+        });
+
+        window.addEventListener('popstate', function () {
+            const url = new URL(window.location.href);
+            categorySelect.value = url.searchParams.get('asset_category') || 'all';
+            filterLabelOptionsByCategory();
+            labelSelect.value = url.searchParams.get('asset_label') || 'all';
+            updateDropdownText(categorySelect, categoryText, 'All Categories');
+            updateDropdownText(labelSelect, labelText, 'All Labels');
+            fetchCanvasAssets(url);
+        });
+
+        document.addEventListener('click', function (e) {
+            const deleteLink = e.target.closest('a[data-swal-confirm="true"]');
+            if (!deleteLink) return;
+            if (!deleteLink.closest('#canvasCategoriesTableBody') &&
+                !deleteLink.closest('#canvasLabelsTableBody') &&
+                !deleteLink.closest('#canvasAssetsTableBody')) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const targetUrl = deleteLink.getAttribute('href');
+            const title = deleteLink.getAttribute('data-swal-title') || 'Delete item?';
+            const text = deleteLink.getAttribute('data-swal-text') || 'This action cannot be undone.';
+            const confirmText = deleteLink.getAttribute('data-swal-confirm-text') || 'Yes, delete';
+
+            const runDelete = function () {
+                fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function () {
+                        return refreshCanvasAssetsPage(new URL(window.location.href));
+                    })
+                    .then(function () {
+                        showToast('Item deleted successfully.', 'success');
+                    });
+            };
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: confirmText,
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#4b5563',
+                    reverseButtons: true,
+                    background: '#151515',
+                    color: '#fff'
+                }).then(function (result) {
+                    if (result.isConfirmed) runDelete();
+                });
+            } else if (confirm(text)) {
+                runDelete();
+            }
+        }, true);
+    })();
+</script>
+{% endblock %}
+

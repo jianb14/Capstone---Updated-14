@@ -14,38 +14,56 @@
     </div>
 </div>
 
-<div class="form-container">
-    <form method="post" class="form-card">
+<div class="form-container user-form-container">
+    <form method="post" class="form-card user-edit-form user-form-card" id="adminUserEditForm" novalidate>
         {% csrf_token %}
 
         <div class="form-grid">
             <div class="form-group">
                 <label>First Name</label>
-                <input type="text" name="first_name" value="{{ u.first_name }}" required>
+                <input type="text" name="first_name" id="first_name" value="{{ u.first_name }}" required>
+                <p class="field-error" data-error-for="first_name"></p>
             </div>
 
             <div class="form-group">
                 <label>Last Name</label>
-                <input type="text" name="last_name" value="{{ u.last_name }}" required>
+                <input type="text" name="last_name" id="last_name" value="{{ u.last_name }}" required>
+                <p class="field-error" data-error-for="last_name"></p>
             </div>
 
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="email" value="{{ u.email }}" required>
+                <input type="email" name="email" id="email" value="{{ u.email }}" required>
+                <p class="field-error" data-error-for="email"></p>
             </div>
 
             <div class="form-group">
                 <label>Phone</label>
-                <input type="text" name="phone_number" value="{{ u.phone_number }}" placeholder="09XXXXXXXXX">
+                <input type="text" name="phone_number" id="phone_number" value="{{ u.phone_number }}" placeholder="09XXXXXXXXX" required>
+                <p class="field-error" data-error-for="phone_number"></p>
             </div>
 
-            <div class="form-group full-width">
+            <div class="form-group full-width role-field">
                 <label>Role</label>
-                <select name="role" required>
-                    <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
-                    <option value="staff" {% if u.role == 'staff' %}selected{% endif %}>Staff</option>
-                    <option value="customer" {% if u.role == 'customer' %}selected{% endif %}>Customer</option>
-                </select>
+                <div class="custom-filter-dropdown" id="editRoleDropdown">
+                    <div class="dropdown-trigger">
+                        <span id="editRoleDropdownText">
+                            {% if u.role == 'admin' %}Admin{% elif u.role == 'staff' %}Staff{% else %}Customer{% endif %}
+                        </span>
+                        <span class="dropdown-caret" aria-hidden="true"></span>
+                    </div>
+                    <ul class="dropdown-options">
+                        <li data-value="admin" {% if u.role == 'admin' %}class="selected"{% endif %}>Admin</li>
+                        <li data-value="staff" {% if u.role == 'staff' %}class="selected"{% endif %}>Staff</li>
+                        <li data-value="customer" {% if u.role == 'customer' %}class="selected"{% endif %}>Customer</li>
+                    </ul>
+                    <select name="role" id="role" class="filter-select">
+                        <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="staff" {% if u.role == 'staff' %}selected{% endif %}>Staff</option>
+                        <option value="customer" {% if u.role == 'customer' %}selected{% endif %}>Customer</option>
+                    </select>
+                </div>
+                <p class="field-error" data-error-for="role"></p>
             </div>
         </div>
 
@@ -55,6 +73,113 @@
         </div>
     </form>
 </div>
+
+<script>
+    (function () {
+        const form = document.getElementById('adminUserEditForm');
+        if (!form) return;
+
+        const roleDropdown = document.getElementById('editRoleDropdown');
+        const roleTrigger = roleDropdown ? roleDropdown.querySelector('.dropdown-trigger') : null;
+        const roleOptions = roleDropdown ? roleDropdown.querySelectorAll('.dropdown-options li') : [];
+        const roleText = document.getElementById('editRoleDropdownText');
+        const roleSelect = document.getElementById('role');
+        const firstName = document.getElementById('first_name');
+        const lastName = document.getElementById('last_name');
+        const email = document.getElementById('email');
+        const phoneNumber = document.getElementById('phone_number');
+
+        const setFieldError = (fieldName, message) => {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : form.querySelector(`[data-error-for="${fieldName}"]`)?.closest('.form-group');
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        };
+
+        const clearFieldError = (fieldName) => {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : form.querySelector(`[data-error-for="${fieldName}"]`)?.closest('.form-group');
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        };
+
+        if (roleTrigger && roleOptions.length && roleSelect) {
+            const closeRoleDropdown = () => roleDropdown.classList.remove('open');
+
+            roleTrigger.addEventListener('click', function () {
+                roleDropdown.classList.toggle('open');
+            });
+
+            roleOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const selectedValue = this.getAttribute('data-value') || '';
+                    roleSelect.value = selectedValue;
+                    roleText.textContent = this.textContent.trim();
+                    roleOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    clearFieldError('role');
+                    closeRoleDropdown();
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!roleDropdown.contains(e.target)) closeRoleDropdown();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeRoleDropdown();
+            });
+        }
+
+        const requiredFields = [
+            { id: 'first_name', message: 'First name is required*' },
+            { id: 'last_name', message: 'Last name is required*' },
+            { id: 'email', message: 'Email is required*' },
+            { id: 'phone_number', message: 'Phone number is required*' },
+            { id: 'role', message: 'Role is required*' }
+        ];
+
+        requiredFields.forEach(field => {
+            const input = document.getElementById(field.id);
+            if (!input) return;
+            const eventName = field.id === 'role' ? 'change' : 'input';
+            input.addEventListener(eventName, () => {
+                const hasValue = (input.value || '').trim();
+                if (hasValue) clearFieldError(field.id);
+            });
+        });
+
+        form.addEventListener('submit', function (e) {
+            let firstInvalidField = null;
+
+            requiredFields.forEach(field => {
+                const input = document.getElementById(field.id);
+                const value = input ? (input.value || '').trim() : '';
+                if (!value) {
+                    setFieldError(field.id, field.message);
+                    if (!firstInvalidField) {
+                        firstInvalidField = field.id === 'role' && roleTrigger ? roleTrigger : input;
+                    }
+                    return;
+                }
+                clearFieldError(field.id);
+            });
+
+            if (firstInvalidField) {
+                e.preventDefault();
+                firstInvalidField.focus();
+            }
+        });
+    })();
+</script>
 
 {% endblock %}
 

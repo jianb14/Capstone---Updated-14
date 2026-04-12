@@ -1,0 +1,95 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_gallery.css' %}">
+
+<div class="page-header">
+    <h1>{% if category %}Edit Category{% else %}Create Category{% endif %}</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <a href="{% url 'admin_gallery' %}">Gallery</a>
+        <span class="separator">/</span>
+        <span>{% if category %}Edit{% else %}Create{% endif %} Category</span>
+    </div>
+</div>
+
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="form-container gallery-form-container">
+    <div class="form-card gallery-form-card">
+        <form method="POST" id="galleryCategoryForm" novalidate>
+            {% csrf_token %}
+            <div class="form-grid">
+                <div class="form-group span-3">
+                    <label for="name">Category Name</label>
+                    <input type="text" name="name" id="name" value="{{ category.name|default:'' }}" placeholder="e.g. Weddings" required>
+                    <p class="field-error" data-error-for="name"></p>
+                </div>
+                <div class="form-group span-3">
+                    <label for="order">Display Order</label>
+                    <input type="number" name="order" id="order" value="{{ category.order|default:'0' }}" min="0" placeholder="0">
+                </div>
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'admin_gallery' %}" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-save">{% if category %}Update{% else %}Create{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const form = document.getElementById('galleryCategoryForm');
+        if (!form) return;
+        const nameInput = document.getElementById('name');
+
+        const setFieldError = (fieldName, message) => {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        };
+
+        const clearFieldError = (fieldName) => {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        };
+
+        if (nameInput) {
+            nameInput.addEventListener('input', () => {
+                if (nameInput.value.trim()) clearFieldError('name');
+            });
+        }
+
+        form.addEventListener('submit', function (e) {
+            if (!nameInput || !nameInput.value.trim()) {
+                e.preventDefault();
+                setFieldError('name', 'Category name is required*');
+                if (nameInput) nameInput.focus();
+                return;
+            }
+            clearFieldError('name');
+        });
+    })();
+</script>
+
+{% endblock %}

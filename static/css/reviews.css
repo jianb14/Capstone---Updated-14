@@ -1,16 +1,25 @@
-/* reviews.css */
+﻿/* reviews.css */
 /* Dark Theme with Structured Layout */
 
 .reviews-page {
     min-height: 80vh;
-    padding: 8rem 1rem 4rem 1rem;
-    background-color: var(--black);
-    /* Reverted to dark background */
+    padding: 6rem 1rem 4rem 1rem;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
+    background-size: 25px 25px;
     color: var(--white);
     display: flex;
     flex-direction: column;
     align-items: center;
     font-family: 'Roboto', 'Montserrat', Arial, sans-serif;
+    animation: fadeInPage 0.5s ease;
+}
+
+.reviews-container {
+    background-color: black;
+    padding: 1rem;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 1100px;
 }
 
 .reviews-list {
@@ -24,53 +33,110 @@
 .reviews-filter-container {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
     margin-bottom: 2rem;
     width: 100%;
     max-width: 1100px;
-    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
-.select-wrapper {
+.reviews-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+.reviews-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.filter-select { display: none; }
+
+.custom-filter-dropdown {
     position: relative;
-    display: inline-block;
+    user-select: none;
+    font-family: 'Montserrat', sans-serif;
 }
-
-.filter-select {
-    padding: 8px 32px 8px 16px;
-    /* Increased right padding for arrow */
-    background-color: #111;
-    color: white;
+.custom-filter-dropdown .dropdown-trigger {
+    padding: 0.5rem 1rem;
     border: 1px solid #444;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    font-family: Montserrat, sans-serif;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-}
-
-.select-wrapper::after {
-    content: "⏷";
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: white;
+    background: #111;
+    color: #fff;
+    border-radius: 8px;
     font-size: 0.9rem;
-    pointer-events: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 170px;
 }
-
-
-.filter-select:focus {
-    border-color: #888;
+.custom-filter-dropdown .dropdown-trigger i {
+    transition: transform 0.3s ease;
 }
-
-.filter-select option {
-    background-color: #111;
+.custom-filter-dropdown.open .dropdown-trigger {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+.custom-filter-dropdown.open .dropdown-trigger i {
+    transform: rotate(180deg);
+}
+.custom-filter-dropdown .dropdown-options {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: #151515;
+    border: 1px solid #333;
+    border-radius: 8px;
+    list-style: none;
+    z-index: 100;
+    max-height: 250px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    margin: 0;
+}
+.custom-filter-dropdown .dropdown-options::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-filter-dropdown .dropdown-options::-webkit-scrollbar-track {
+    background: #111;
+    border-radius: 4px;
+}
+.custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+.custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+.custom-filter-dropdown.open .dropdown-options {
+    display: block;
+    animation: slideDownFade 0.2s ease forwards;
+    transform-origin: top center;
+}
+@keyframes slideDownFade {
+    from { opacity: 0; transform: scaleY(0.95); }
+    to { opacity: 1; transform: scaleY(1); }
+}
+.custom-filter-dropdown .dropdown-options li {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.custom-filter-dropdown .dropdown-options li:hover {
+    background: #222;
+    color: #fff;
+}
+.custom-filter-dropdown .dropdown-options li.selected {
     color: #fff;
 }
 
@@ -427,7 +493,7 @@
 .modal-card {
     background: #111111;
     border: 1px solid #333333;
-    border-radius: 16px;
+    border-radius: 8px;
     padding: 2.5rem 2rem;
     width: 90%;
     max-width: 500px;
@@ -465,9 +531,7 @@
 
 .modal-header {
     text-align: left;
-    margin-bottom: 1.5rem;
     padding-bottom: 10px;
-    border-bottom: 1px solid #2a2a2a;
 }
 
 .modal-header h2 {
@@ -555,6 +619,7 @@
     margin-bottom: 8px;
 }
 
+
 #editReviewForm textarea {
     background: #0a0a0a;
     border: 1px solid #333;
@@ -572,6 +637,25 @@
     border-color: rgba(255, 255, 255, 0.5);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
     outline: none;
+}
+
+#editReviewForm .review-field-error {
+    display: none;
+    margin-top: 4px;
+    margin-bottom: 6px;
+    color: #ef4444 !important;
+    font-weight: 600;
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+
+#editReviewForm .form-group.has-error .review-field-error {
+    display: block !important;
+}
+
+#editReviewForm .form-group.has-error textarea,
+#editReviewForm .form-group textarea.has-error {
+    border-color: #ef4444 !important;
 }
 
 .btn-submit-review {
@@ -592,3 +676,4 @@
     background: #eee;
     transform: translateY(-2px);
 }
+

@@ -1,0 +1,302 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_gallery.css' %}">
+
+<div class="page-header">
+    <h1>{% if gallery_image %}Edit Image{% else %}Add Image{% endif %}</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <a href="{% url 'admin_gallery' %}">Gallery</a>
+        <span class="separator">/</span>
+        <span>{% if gallery_image %}Edit{% else %}Add{% endif %} Image</span>
+    </div>
+</div>
+
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="form-container gallery-form-container">
+    <div class="form-card gallery-form-card gallery-image-form-card">
+        <form method="POST" enctype="multipart/form-data" class="gallery-image-form" id="galleryImageForm" novalidate>
+            {% csrf_token %}
+            {% if next_url %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            {% endif %}
+            {% if scroll_target %}
+            <input type="hidden" name="scroll_target" value="{{ scroll_target }}">
+            {% endif %}
+            <div class="form-grid">
+                <div class="form-group span-3 gallery-category-group">
+                    <label for="category">Category</label>
+                    <div class="custom-filter-dropdown form-category-dropdown" id="formCategoryDropdown">
+                        <div class="dropdown-trigger">
+                            <span id="formCategoryDropdownText">
+                                {% if gallery_image and gallery_image.category %}
+                                    {{ gallery_image.category.name }}
+                                {% else %}
+                                    Select Category
+                                {% endif %}
+                            </span>
+                            <span class="dropdown-caret" aria-hidden="true"></span>
+                        </div>
+                        <ul class="dropdown-options">
+                            {% for cat in categories %}
+                            <li data-value="{{ cat.id }}" {% if gallery_image and gallery_image.category.id == cat.id %}class="selected"{% endif %}>{{ cat.name }}</li>
+                            {% endfor %}
+                        </ul>
+                        <select name="category" id="category" class="filter-select" required>
+                            {% if not gallery_image %}
+                            <option value="" selected disabled hidden>Select Category</option>
+                            {% endif %}
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if gallery_image and gallery_image.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <p class="field-error" data-error-for="category"></p>
+                </div>
+                {% if gallery_image %}
+                <div class="form-group span-3 current-image-panel">
+                    <label>Current Image</label>
+                    <div class="current-image-shell" id="currentImageShell" role="button" tabindex="0" aria-label="Open image preview">
+                        <img src="{{ gallery_image.image.url }}" alt="{{ gallery_image.caption }}" class="current-image-preview" id="currentImagePreview">
+                        <span class="image-preview-hint">Click to view full image</span>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="form-group span-3">
+                    <div class="image-field-header">
+                        <label for="image">Image{% if gallery_image %} (optional: upload a new file to replace current image){% endif %}</label>
+                    </div>
+                    <div class="custom-file-input" data-current-file="{% if gallery_image and gallery_image.image %}{{ gallery_image.image.name|escapejs }}{% endif %}">
+                        <input type="file" name="image" id="image" class="real-file-input" accept="image/*">
+                        <button type="button" class="file-trigger-btn">Choose File</button>
+                        <span class="file-name-text" id="imageFileNameText">
+                            {% if gallery_image and gallery_image.image %}
+                                {{ gallery_image.image.name }}
+                            {% else %}
+                                No file chosen
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="field-error" data-error-for="image"></p>
+                    {% if gallery_image %}
+                    <label for="is_active" class="active-toggle-box image-active-row">
+                        <input type="checkbox" name="is_active" id="is_active" {% if gallery_image.is_active %}checked{% endif %}>
+                        <span>Active (visible on gallery page)</span>
+                    </label>
+                    {% endif %}
+                </div>
+                <div class="form-group span-3">
+                    <label for="caption">Caption (optional)</label>
+                    <input type="text" name="caption" id="caption" value="{{ gallery_image.caption|default:'' }}" placeholder="Short description">
+                </div>
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'admin_gallery' %}" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-save">{% if gallery_image %}Update{% else %}Upload{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% if gallery_image %}
+<div class="image-preview-modal" id="imagePreviewModal" aria-hidden="true">
+    <div class="image-preview-backdrop" data-close-modal="true"></div>
+    <div class="image-preview-dialog" role="dialog" aria-modal="true" aria-label="Image preview">
+        <button type="button" class="image-preview-close" id="imagePreviewCloseBtn" aria-label="Close image preview">&times;</button>
+        <img src="{{ gallery_image.image.url }}" alt="{{ gallery_image.caption }}" id="imagePreviewModalImg">
+    </div>
+</div>
+{% endif %}
+
+<script>
+    (function () {
+        const dropdown = document.getElementById('formCategoryDropdown');
+        if (!dropdown) return;
+
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const options = dropdown.querySelectorAll('.dropdown-options li');
+        const valueText = document.getElementById('formCategoryDropdownText');
+        const select = document.getElementById('category');
+        const fileWrapper = document.querySelector('.custom-file-input');
+        const fileInput = document.getElementById('image');
+        const form = document.getElementById('galleryImageForm');
+        const categoryGroup = select ? select.closest('.form-group') : null;
+        const imageGroup = fileInput ? fileInput.closest('.form-group') : null;
+        const fileButton = fileWrapper ? fileWrapper.querySelector('.file-trigger-btn') : null;
+        const fileNameText = document.getElementById('imageFileNameText');
+        const currentImagePreview = document.getElementById('currentImagePreview');
+        const currentImageShell = document.getElementById('currentImageShell');
+        const imagePreviewModal = document.getElementById('imagePreviewModal');
+        const imagePreviewModalImg = document.getElementById('imagePreviewModalImg');
+        const imagePreviewCloseBtn = document.getElementById('imagePreviewCloseBtn');
+        let previewObjectUrl = null;
+        const isCreateMode = {% if gallery_image %}false{% else %}true{% endif %};
+
+        function setFieldError(fieldName, message) {
+            const group = fieldName === 'category' ? categoryGroup : imageGroup;
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        }
+
+        function clearFieldError(fieldName) {
+            const group = fieldName === 'category' ? categoryGroup : imageGroup;
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        }
+
+        function closeMenu() {
+            dropdown.classList.remove('open');
+        }
+
+        trigger.addEventListener('click', function () {
+            dropdown.classList.toggle('open');
+        });
+
+        options.forEach(option => {
+            option.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                select.value = selectedValue;
+                valueText.textContent = this.textContent.trim();
+
+                options.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                if (select.value) {
+                    clearFieldError('category');
+                }
+                closeMenu();
+            });
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target)) closeMenu();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeMenu();
+        });
+
+        if (fileWrapper && fileInput && fileButton && fileNameText) {
+            const currentFilePath = fileWrapper.getAttribute('data-current-file') || '';
+            const currentFileName = currentFilePath ? currentFilePath.split('/').pop() : '';
+
+            if (currentFileName) {
+                fileNameText.textContent = currentFileName;
+            }
+
+            fileButton.addEventListener('click', function () {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files.length > 0) {
+                    const selectedFile = this.files[0];
+                    fileNameText.textContent = selectedFile.name;
+                    clearFieldError('image');
+
+                    if (currentImagePreview) {
+                        if (previewObjectUrl) {
+                            URL.revokeObjectURL(previewObjectUrl);
+                        }
+                        previewObjectUrl = URL.createObjectURL(selectedFile);
+                        currentImagePreview.src = previewObjectUrl;
+                        if (imagePreviewModalImg) {
+                            imagePreviewModalImg.src = previewObjectUrl;
+                        }
+                    }
+                } else {
+                    fileNameText.textContent = currentFileName || 'No file chosen';
+                }
+            });
+        }
+
+        if (form && select && fileInput) {
+            select.addEventListener('change', function () {
+                if (select.value) {
+                    clearFieldError('category');
+                }
+            });
+
+            form.addEventListener('submit', function (e) {
+                let firstInvalidField = null;
+
+                if (!select.value) {
+                    setFieldError('category', 'Category is required*');
+                    firstInvalidField = trigger;
+                } else {
+                    clearFieldError('category');
+                }
+
+                if (isCreateMode && (!fileInput.files || fileInput.files.length === 0)) {
+                    setFieldError('image', 'Image is required*');
+                    if (!firstInvalidField) {
+                        firstInvalidField = fileButton || fileInput;
+                    }
+                } else {
+                    clearFieldError('image');
+                }
+
+                if (firstInvalidField) {
+                    e.preventDefault();
+                    firstInvalidField.focus();
+                }
+            });
+        }
+
+        if (currentImageShell && imagePreviewModal && imagePreviewModalImg) {
+            function openImageModal() {
+                imagePreviewModal.classList.add('open');
+                imagePreviewModal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('modal-open');
+            }
+
+            function closeImageModal() {
+                imagePreviewModal.classList.remove('open');
+                imagePreviewModal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('modal-open');
+            }
+
+            currentImageShell.addEventListener('click', openImageModal);
+            currentImageShell.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openImageModal();
+                }
+            });
+
+            if (imagePreviewCloseBtn) {
+                imagePreviewCloseBtn.addEventListener('click', closeImageModal);
+            }
+
+            imagePreviewModal.addEventListener('click', function (e) {
+                if (e.target.matches('[data-close-modal="true"]')) {
+                    closeImageModal();
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && imagePreviewModal.classList.contains('open')) {
+                    closeImageModal();
+                }
+            });
+        }
+    })();
+</script>
+
+{% endblock %}

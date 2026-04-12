@@ -127,4 +127,42 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 load_dotenv()
 
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+
+# Email and password reset security
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@balloorina.local")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = env_int("EMAIL_PORT", 587)
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
+EMAIL_FAIL_SILENTLY = env_bool("EMAIL_FAIL_SILENTLY", True)
+
+# Default Django token timeout is 3 days; tighten for better security.
+PASSWORD_RESET_TIMEOUT = env_int("PASSWORD_RESET_TIMEOUT", 1800)
+
+# Forgot-password abuse protections
+FORGOT_PASSWORD_RATE_LIMIT_PER_IP = env_int("FORGOT_PASSWORD_RATE_LIMIT_PER_IP", 5)
+FORGOT_PASSWORD_RATE_LIMIT_PER_EMAIL = env_int("FORGOT_PASSWORD_RATE_LIMIT_PER_EMAIL", 3)
+FORGOT_PASSWORD_RATE_LIMIT_WINDOW_SECONDS = env_int("FORGOT_PASSWORD_RATE_LIMIT_WINDOW_SECONDS", 3600)
+FORGOT_PASSWORD_COOLDOWN_SECONDS = env_int("FORGOT_PASSWORD_COOLDOWN_SECONDS", 60)

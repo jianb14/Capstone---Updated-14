@@ -180,8 +180,9 @@ def get_chatbot_response(user_message, conversation_history=None):
         if image_triggered:
             system_prompt += (
                 "The user wants a picture/design of a balloon decoration or event backdrop setup. "
-                "You MUST create a WIDE SHOT, FULL EVENT BACKDROP setup. Do NOT just generate an entrance arch or a single doorway. "
-                "The scene must be a wide center stage setup that includes backdrop panels, balloon garlands spreading across the panels, "
+                "You MUST create a WIDE SHOT, FULL EVENT BACKDROP setup. "
+                "CRITICAL INSTRUCTION: DO NOT use the word 'arch' in your image prompt unless the user explicitly requests an entrance arch. Text-to-image models get confused by negative words, so NEVER mention 'no arch', 'without arch', or 'half-arch'. If no arch is requested, strictly use terms like 'balloon garlands', 'balloon clusters', 'cascading balloons', or 'organic balloon arrangements' only. "
+                "The scene must be a wide center stage setup focusing on the main backdrop panels, balloon garlands spreading across the panels, "
                 "number balloons, furniture/dessert table props, flower arrangements, and fairy lights. "
                 "IMPORTANT: If the user mentions specific characters, cartoons, anime, or themes (e.g., Naruto, Avengers, Mickey Mouse, Hello Kitty, Frozen, Spider-Man, etc.), "
                 "you MUST INCLUDE the ACTUAL characters or illustrations of those characters in the backdrop design. "
@@ -197,7 +198,7 @@ def get_chatbot_response(user_message, conversation_history=None):
                 "Here is a concept for your Naruto-themed backdrop: "
                 "[PROMPT]WIDE SHOT, full event backdrop center stage featuring large Naruto character illustration on the center wooden panel, "
                 "orange and black color scheme, kunai and shuriken decorative props on cylinders, "
-                "massive organic balloon garland arch wrapping the panels in orange, black, and white balloons, "
+                "massive organic balloon garland wrapping the panels in orange, black, and white balloons, "
                 "Konoha leaf symbol printed on side panels, ninja-themed party decorations, "
                 "fairy lights, wide event styling, luxury balloon decoration setup, high quality, detailed, vibrant colors[/PROMPT]"
                 "Let me know if you want any changes!' "
@@ -244,8 +245,15 @@ def get_chatbot_response(user_message, conversation_history=None):
                     import time
                     
                     image_model = "stabilityai/stable-diffusion-xl-base-1.0"
+                    
+                    user_wants_arch = any(word in user_message.lower() for word in ['arch', 'entrance', 'doorway', 'archway', 'banderitas'])
+                    neg_prompt = "low quality, blurry, distorted, text, watermark, bad anatomy, bad lighting, cropped, out of frame"
+                    if not user_wants_arch:
+                        neg_prompt += ", entrance arch, doorway arch, full balloon arch, archway, upside-down U-shape arch, foreground arch, structural arch over stage"
+
                     generated_image = client.text_to_image(
                         prompt=img_prompt,
+                        negative_prompt=neg_prompt,
                         model=image_model,
                     )
                     

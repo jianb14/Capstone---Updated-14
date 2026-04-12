@@ -1,0 +1,166 @@
+{% extends 'client/base.html' %}
+{% load static humanize %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}">
+<style>
+    .select-design-page {
+        padding: 4rem 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - 80px); /* Adjust based on navbar */
+    }
+    
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .page-header h1 {
+        font-size: 2.5rem;
+        color: var(--white);
+        margin-bottom: 1rem;
+    }
+    
+    .page-header p {
+        color: #aaa;
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Override package card cursor for links */
+    .package-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .package-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+        height: 100%;
+    }
+    
+    .package-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(217, 119, 6, 0.2);
+        border-color: var(--primary-color);
+    }
+
+    /* Custom Design Card styling */
+    .custom-design-card {
+        background: linear-gradient(145deg, #2a2a2a, #222);
+        border: 2px dashed #555;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+
+    .custom-design-card i {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 1.5rem;
+    }
+
+    .custom-design-card:hover {
+        border-style: solid;
+        border-color: var(--primary-color);
+        background: linear-gradient(145deg, #333, #222);
+    }
+</style>
+
+<div class="select-design-page">
+    <div class="page-header">
+        <h1>Select Your Starting Point</h1>
+        <p>Choose a base package to customize, or start from scratch with a blank canvas.</p>
+    </div>
+
+    <div class="package-cards-grid">
+        
+        <!-- Custom Design (Blank Canvas) Option -->
+        <div class="package-card custom-design-card" style="padding: 2rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <i class="fas fa-paint-brush"></i>
+                <div class="package-info" style="margin-bottom: 1.5rem;">
+                    <h4>Custom Design</h4>
+                    <div class="price">Blank Canvas</div>
+                    <p style="font-size: 0.85rem; color: #888; margin-top: 10px;">Start entirely from scratch with complete freedom.</p>
+                </div>
+            </div>
+            <a href="{% url 'design_canvas' %}?custom=true" class="btn btn-primary w-100" style="background-color: var(--primary-color); border: none; font-weight: 600; padding: 0.8rem;">
+                Start from Scratch
+            </a>
+        </div>
+
+        <!-- Active Packages -->
+        {% for package in packages %}
+        <div class="package-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="package-info">
+                <h4 style="margin-bottom: 0.5rem; min-height: 40px; display: flex; align-items: center; justify-content: center;">{{ package.name }}</h4>
+                <div class="price" style="margin-bottom: 1.5rem;">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
+                
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="openModal('featureModal{{ package.id }}')" style="border-radius: 20px; font-size: 0.8rem; padding: 6px 16px; margin-bottom: 1.5rem; background: transparent; border: 1px solid var(--light-gray); color: var(--white); cursor: pointer; transition: all 0.3s ease;">
+                    <i class="fas fa-list" style="margin-right: 5px;"></i> View Inclusions
+                </button>
+            </div>
+            
+            <a href="{% url 'design_canvas' %}?package_id={{ package.id }}" class="btn btn-primary w-100" style="background-color: var(--primary-color); border: none; font-weight: 600; padding: 0.8rem; border-radius: 4px; color: white; text-align: center; text-decoration: none;">
+                Select Design
+            </a>
+        </div>
+
+        <!-- Custom Modal for {{ package.name }} -->
+        <div class="modal-overlay" id="featureModal{{ package.id }}">
+            <div class="booking-modal-box" style="max-width: 450px;">
+                <div class="modal-header" style="border-bottom: 1px solid #333; padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="font-size: 1.3rem; margin: 0; color: #fff;">{{ package.name }} Inclusions</h2>
+                    <button type="button" class="close-btn" onclick="closeModal('featureModal{{ package.id }}')" style="background: none; border: none; font-size: 1.8rem; color: #888; cursor: pointer;">&times;</button>
+                </div>
+                <div class="modal-body" style="text-align: left; padding: 0 0 1.5rem 0;">
+                    <ul class="features" style="list-style-type: none; padding-left: 0; margin: 0;">
+                        {% for feature in package.feature_list %}
+                        <li style="margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: flex-start;">
+                            <i class="fas fa-check" style="color: #e91e8c; margin-right: 12px; margin-top: 4px;"></i>
+                            <span style="color: #ddd;">{{ feature }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <a href="{% url 'design_canvas' %}?package_id={{ package.id }}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 1rem; border-radius: 4px;">Start with this Package</a>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+
+<script>
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.add('show');
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('show');
+    }
+
+    // Close modal when clicking on the background overlay
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal-overlay')) {
+            e.target.classList.remove('show');
+        }
+    });
+
+    // Close modal on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay.show').forEach(function(modal) {
+                modal.classList.remove('show');
+            });
+        }
+    });
+</script>
+{% endblock %}

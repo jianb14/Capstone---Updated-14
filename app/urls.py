@@ -3,16 +3,23 @@ from .views import (
     HomePageView,
     AboutPageView,
     ServicesPageView,
+    GuidelinesPageView,
     PackagePageView,
     GalleryPageView,
     
     register,
+    verify_email,
     user_login,
     user_logout,
     dashboard,
     customer_profile,
+    my_profile,
+    my_reviews,
     change_password,
     admin_profile,
+    forgot_password_request,
+    password_reset_confirm,
+    report_concern,
 
     create_booking,
     edit_booking,
@@ -42,6 +49,7 @@ from .views import (
     admin_package_delete,
     admin_package_list,
     admin_package_detail,
+    admin_service_charge_update,
     package,
     
     admin_addon_create,
@@ -54,6 +62,7 @@ from .views import (
     admin_additional_edit,
     admin_additional_detail,
     admin_reports,
+    admin_concern_update,
     admin_calendar,
     mark_notifications_read,
     hide_notification,
@@ -68,21 +77,59 @@ from .views import (
     mark_customer_notification_read,
     clear_all_notifications,
     design_canvas_page,
+    my_designs_page,
+    select_design_type,
+    save_user_design,
+    rename_user_design,
+    delete_user_design,
+    admin_gallery,
+    admin_gallery_category_create,
+    admin_gallery_category_edit,
+    admin_gallery_category_delete,
+    admin_gallery_image_create,
+    admin_gallery_image_detail,
+    admin_gallery_image_edit,
+    admin_gallery_image_delete,
+    admin_canvas_assets,
+    admin_canvas_category_create,
+    admin_canvas_category_edit,
+    admin_canvas_category_delete,
+    admin_canvas_label_create,
+    admin_canvas_label_edit,
+    admin_canvas_label_delete,
+    admin_canvas_asset_create,
+    admin_canvas_asset_detail,
+    admin_canvas_asset_edit,
+    admin_canvas_asset_delete,
 )
 
 urlpatterns = [
     path('', HomePageView.as_view(), name='home'),
     path('about/', AboutPageView.as_view(), name='about'),
     path('services/', ServicesPageView.as_view(), name='services'),
+    path('guidelines/', GuidelinesPageView.as_view(), name='guidelines'),
     path('package/', PackagePageView.as_view(), name='package'),
     path('gallery/', GalleryPageView.as_view(), name='gallery'),
+    
+    # Custom Design Dashboard
+    path('my-designs/', my_designs_page, name='my_designs'),
+    path('select-design/', select_design_type, name='select_design_type'),
+    path('my-designs/save/', save_user_design, name='save_user_design'),
+    path('my-designs/rename/<int:id>/', rename_user_design, name='rename_user_design'),
+    path('my-designs/delete/<int:id>/', delete_user_design, name='delete_user_design'),
 
     path('register/', register, name='register'),
+    path('verify-email/<uidb64>/<token>/', verify_email, name='verify_email'),
     path('login/', user_login, name='login'),
+    path('forgot-password/', forgot_password_request, name='forgot_password'),
+    path('reset-password/<uidb64>/<token>/', password_reset_confirm, name='password_reset_confirm'),
     path('logout/', user_logout, name='logout'),
 
     path('dashboard/', dashboard, name='dashboard'),
-    path('customer/', customer_profile, name='customer_profile'),
+    path('customer/', customer_profile, name='customer_profile'), # This will act as My Bookings
+    path('my-profile/', my_profile, name='my_profile'),
+    path('my-reviews/', my_reviews, name='my_reviews'),
+    path('report-concern/', report_concern, name='report_concern'),
     path('change-password/', change_password, name='change_password'),
     path('admin-profile/', admin_profile, name='admin_profile'),
     path('reviews/', reviews_page, name='reviews'),
@@ -120,6 +167,7 @@ urlpatterns = [
 
     # Reports
     path('staff/reports/', admin_reports, name='admin_reports'),
+    path('staff/reports/concerns/<int:id>/update/', admin_concern_update, name='admin_concern_update'),
 
     # Admin Calendar & Notifications
     path('staff/calendar/', admin_calendar, name='admin_calendar'),
@@ -132,6 +180,7 @@ urlpatterns = [
     path('staff/packages/<int:id>/edit/', admin_package_edit, name='admin_package_edit'),
     path('staff/packages/<int:id>/delete/', admin_package_delete, name='admin_package_delete'),
     path('staff/packages/<int:id>/view/', admin_package_detail, name='admin_package_detail'),
+    path('staff/packages/service-charge/', admin_service_charge_update, name='admin_service_charge_update'),
     path('packages/', package, name='package'),
     
     # ADDONS
@@ -155,4 +204,27 @@ urlpatterns = [
     # Customer Notifications
     path('notifications/<int:id>/read/', mark_customer_notification_read, name='mark_customer_notification_read'),
     path('notifications/clear-all/', clear_all_notifications, name='clear_all_notifications'),
+
+    # Admin Gallery Management
+    path('staff/gallery/', admin_gallery, name='admin_gallery'),
+    path('staff/gallery/category/create/', admin_gallery_category_create, name='admin_gallery_category_create'),
+    path('staff/gallery/category/<int:id>/edit/', admin_gallery_category_edit, name='admin_gallery_category_edit'),
+    path('staff/gallery/category/<int:id>/delete/', admin_gallery_category_delete, name='admin_gallery_category_delete'),
+    path('staff/gallery/image/create/', admin_gallery_image_create, name='admin_gallery_image_create'),
+    path('staff/gallery/image/<int:id>/view/', admin_gallery_image_detail, name='admin_gallery_image_detail'),
+    path('staff/gallery/image/<int:id>/edit/', admin_gallery_image_edit, name='admin_gallery_image_edit'),
+    path('staff/gallery/image/<int:id>/delete/', admin_gallery_image_delete, name='admin_gallery_image_delete'),
+
+    # Admin Canvas Assets Management
+    path('staff/canvas-assets/', admin_canvas_assets, name='admin_canvas_assets'),
+    path('staff/canvas-assets/category/create/', admin_canvas_category_create, name='admin_canvas_category_create'),
+    path('staff/canvas-assets/category/<int:id>/edit/', admin_canvas_category_edit, name='admin_canvas_category_edit'),
+    path('staff/canvas-assets/category/<int:id>/delete/', admin_canvas_category_delete, name='admin_canvas_category_delete'),
+    path('staff/canvas-assets/label/create/', admin_canvas_label_create, name='admin_canvas_label_create'),
+    path('staff/canvas-assets/label/<int:id>/edit/', admin_canvas_label_edit, name='admin_canvas_label_edit'),
+    path('staff/canvas-assets/label/<int:id>/delete/', admin_canvas_label_delete, name='admin_canvas_label_delete'),
+    path('staff/canvas-assets/asset/create/', admin_canvas_asset_create, name='admin_canvas_asset_create'),
+    path('staff/canvas-assets/asset/<int:id>/view/', admin_canvas_asset_detail, name='admin_canvas_asset_detail'),
+    path('staff/canvas-assets/asset/<int:id>/edit/', admin_canvas_asset_edit, name='admin_canvas_asset_edit'),
+    path('staff/canvas-assets/asset/<int:id>/delete/', admin_canvas_asset_delete, name='admin_canvas_asset_delete'),
 ]

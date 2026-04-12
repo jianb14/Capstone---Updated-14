@@ -24,20 +24,48 @@
                     value="{{ search_query }}">
             </div>
 
-            <div class="select-wrapper">
-                <select name="status" onchange="this.form.submit()" class="filter-select">
+            <div class="custom-filter-dropdown" id="bookingStatusDropdown">
+                <div class="dropdown-trigger">
+                    <span id="bookingStatusDropdownText">
+                        {% if status_filter == 'pending' %}
+                        Pending
+                        {% elif status_filter == 'confirmed' %}
+                        Confirmed
+                        {% elif status_filter == 'cancel_requested' %}
+                        Cancel Requested
+                        {% elif status_filter == 'cancelled' %}
+                        Cancelled
+                        {% elif status_filter == 'completed' %}
+                        Completed
+                        {% elif status_filter == 'expired' %}
+                        Expired
+                        {% elif status_filter == 'edit_requested' %}
+                        Edit Request
+                        {% else %}
+                        All Bookings
+                        {% endif %}
+                    </span>
+                    <span class="dropdown-caret" aria-hidden="true"></span>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="" {% if not status_filter %}class="selected"{% endif %}>All Bookings</li>
+                    <li data-value="pending" {% if status_filter == 'pending' %}class="selected"{% endif %}>Pending</li>
+                    <li data-value="confirmed" {% if status_filter == 'confirmed' %}class="selected"{% endif %}>Confirmed</li>
+                    <li data-value="cancel_requested" {% if status_filter == 'cancel_requested' %}class="selected"{% endif %}>Cancel Requested</li>
+                    <li data-value="cancelled" {% if status_filter == 'cancelled' %}class="selected"{% endif %}>Cancelled</li>
+                    <li data-value="completed" {% if status_filter == 'completed' %}class="selected"{% endif %}>Completed</li>
+                    <li data-value="expired" {% if status_filter == 'expired' %}class="selected"{% endif %}>Expired</li>
+                    <li data-value="edit_requested" {% if status_filter == 'edit_requested' %}class="selected"{% endif %}>Edit Request</li>
+                </ul>
+                <select name="status" class="filter-select" id="statusFilterSelect">
                     <option value="" {% if not status_filter %}selected{% endif %}>All Bookings</option>
                     <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
                     <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
-                    <option value="cancel_requested" {% if status_filter == 'cancel_requested' %}selected{% endif %}>
-                        Cancel
-                        Requested</option>
+                    <option value="cancel_requested" {% if status_filter == 'cancel_requested' %}selected{% endif %}>Cancel Requested</option>
                     <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                     <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
                     <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
-                    <option value="edit_requested" {% if status_filter == 'edit_requested' %}selected{% endif %}>Edit
-                        Request
-                    </option>
+                    <option value="edit_requested" {% if status_filter == 'edit_requested' %}selected{% endif %}>Edit Request</option>
                 </select>
             </div>
         </div>
@@ -84,25 +112,31 @@
                         {% else %}
                         <span class="status-badge">{{ b.get_status_display }}</span>
                         {% endif %}
-                    </td>
+                        </td>
                     <td data-label="Actions">
                         <div class="action-buttons">
+                            {% if b.status == 'cancel_requested' %}
+                            <a href="{% url 'admin_booking_detail' b.id %}">View Cancel</a>
+                            {% elif b.edit_requested %}
+                            <a href="{% url 'admin_booking_detail' b.id %}">View Edit</a>
+                            {% else %}
                             <a href="{% url 'admin_booking_detail' b.id %}">View</a>
+                            {% endif %}
 
                             {% if b.status == 'pending' %}
-                            <a href="{% url 'admin_booking_action' b.id 'confirm' %}">Confirm</a>
-                            <a href="{% url 'admin_booking_action' b.id 'deny' %}">Deny</a>
+                            <a href="{% url 'admin_booking_action' b.id 'confirm' %}" onclick="return confirmAdminAction(this, 'Confirm Booking', 'Are you sure you want to confirm this booking?', 'Yes, Confirm')">Confirm</a>
+                            <a href="javascript:void(0)" onclick="openDenyReasonPrompt('{{ b.id }}')" class="deny-link">Deny</a>
 
                             {% elif b.status == 'cancel_requested' %}
-                            <a href="{% url 'admin_cancel_action' b.id 'approve' %}">Approve Cancel</a>
-                            <a href="{% url 'admin_cancel_action' b.id 'deny' %}">Deny Cancel</a>
+                            <a href="{% url 'admin_cancel_action' b.id 'approve' %}" onclick="return confirmAdminAction(this, 'Approve Cancel Request', 'Are you sure you want to approve this cancellation request?', 'Yes, Approve')">Approve Cancel</a>
+                            <a href="{% url 'admin_cancel_action' b.id 'deny' %}" onclick="return confirmAdminAction(this, 'Deny Cancel Request', 'Are you sure you want to deny this cancellation request?', 'Yes, Deny')">Deny Cancel</a>
 
                             {% elif b.edit_requested %}
-                            <a href="{% url 'admin_edit_action' b.id 'approve' %}">Approve Edit</a>
-                            <a href="{% url 'admin_edit_action' b.id 'deny' %}">Deny Edit</a>
+                            <a href="{% url 'admin_edit_action' b.id 'approve' %}" onclick="return confirmAdminAction(this, 'Approve Edit Request', 'Are you sure you want to approve this edit request?', 'Yes, Approve')">Approve Edit</a>
+                            <a href="{% url 'admin_edit_action' b.id 'deny' %}" onclick="return confirmAdminAction(this, 'Deny Edit Request', 'Are you sure you want to deny this edit request?', 'Yes, Deny')">Deny Edit</a>
 
                             {% elif b.status == 'confirmed' %}
-                            <a href="{% url 'admin_booking_action' b.id 'complete' %}" class="btn-complete">Mark as
+                            <a href="{% url 'admin_booking_action' b.id 'complete' %}" onclick="return confirmAdminAction(this, 'Mark as Completed', 'Are you sure you want to mark this booking as completed?', 'Yes, Complete')" class="btn-complete">Mark as
                                 Completed</a>
                             {% endif %}
                         </div>
@@ -139,12 +173,23 @@
     {% endif %}
 </div>
 
+<form id="denyBookingForm" method="POST" action="{% url 'admin_booking_action' 0 'deny' %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="deny_reason" id="denyReasonInput">
+</form>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('searchInput');
+        const filterForm = document.getElementById('filterForm');
+        const statusDropdown = document.getElementById('bookingStatusDropdown');
+        const statusTrigger = statusDropdown ? statusDropdown.querySelector('.dropdown-trigger') : null;
+        const statusOptions = statusDropdown ? statusDropdown.querySelectorAll('.dropdown-options li') : [];
+        const statusText = document.getElementById('bookingStatusDropdownText');
+        const statusFilter = document.getElementById('statusFilterSelect');
         const contentContainer = document.getElementById('booking-content');
         let debounceTimer;
 
@@ -190,6 +235,124 @@
                 }, 300); // Maghintay ng 300ms pagkatapos mag-type ng user
             });
         }
+
+        function closeStatusMenu() {
+            if (!statusDropdown) return;
+            statusDropdown.classList.remove('open');
+        }
+
+        if (statusTrigger && statusOptions.length && statusFilter && filterForm) {
+            statusTrigger.addEventListener('click', function () {
+                statusDropdown.classList.toggle('open');
+            });
+
+            statusOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const selectedValue = this.getAttribute('data-value') || '';
+                    statusFilter.value = selectedValue;
+                    statusText.textContent = this.textContent.trim();
+
+                    statusOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+
+                    closeStatusMenu();
+                    filterForm.submit();
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!statusDropdown.contains(e.target)) {
+                    closeStatusMenu();
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    closeStatusMenu();
+                }
+            });
+        }
+
+        window.openDenyReasonPrompt = function (bookingId) {
+            const submit = function (reason) {
+                const form = document.getElementById('denyBookingForm');
+                const input = document.getElementById('denyReasonInput');
+                if (!form || !input) return;
+                const baseAction = form.getAttribute('action');
+                form.setAttribute('action', baseAction.replace('/0/', `/${bookingId}/`));
+                input.value = reason;
+                form.submit();
+            };
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Deny Booking',
+                    input: 'textarea',
+                    customClass: {
+                        popup: 'booking-request-popup',
+                        title: 'booking-request-title',
+                        input: 'booking-request-textarea',
+                        confirmButton: 'booking-request-confirm',
+                        cancelButton: 'booking-request-cancel'
+                    },
+                    buttonsStyling: false,
+                    inputPlaceholder: 'Enter the reason for denying this booking.',
+                    inputAttributes: {
+                        maxlength: 500
+                    },
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return 'Denial reason is required*';
+                        }
+                        return null;
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Submit',
+                    cancelButtonText: 'Cancel',
+                    background: '#111',
+                    color: '#fff'
+                }).then((result) => {
+                    if (result.isConfirmed && result.value && result.value.trim()) {
+                        submit(result.value.trim());
+                    }
+                });
+                return;
+            }
+
+            const reason = window.prompt('Enter the reason for denying this booking.');
+            if (reason && reason.trim()) submit(reason.trim());
+        };
+
+        window.confirmAdminAction = function (linkEl, title, text, confirmText) {
+            if (!linkEl || !linkEl.href) return false;
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: confirmText || 'Yes, Continue',
+                    cancelButtonText: 'Cancel',
+                    customClass: {
+                        popup: 'booking-request-popup',
+                        title: 'booking-request-title',
+                        confirmButton: 'booking-request-confirm',
+                        cancelButton: 'booking-request-cancel'
+                    },
+                    buttonsStyling: false,
+                    background: '#111',
+                    color: '#fff'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = linkEl.href;
+                    }
+                });
+                return false;
+            }
+
+            return window.confirm(text || 'Are you sure?');
+        };
     });
 </script>
 {% endblock %}

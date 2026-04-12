@@ -1,4 +1,4 @@
-{% extends 'client/base.html' %}
+﻿{% extends 'client/base.html' %}
 {% load static humanize %}
 
 {% block content %}
@@ -20,6 +20,29 @@
                 <div class="legend-item"><span class="legend-color pending"></span>Pending (Reserved)</div>
             </div>
             <div id="booking-calendar"></div>
+
+            <!-- Custom Month/Year Picker Modal -->
+            <div id="custom-month-year-picker" class="month-year-picker" style="display: none;">
+                <div class="myp-header">
+                    <button type="button" id="myp-prev-year"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span id="myp-year-display">2026</span>
+                    <button type="button" id="myp-next-year"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <div class="myp-months-grid">
+                    <button type="button" data-month="0">Jan</button>
+                    <button type="button" data-month="1">Feb</button>
+                    <button type="button" data-month="2">Mar</button>
+                    <button type="button" data-month="3">Apr</button>
+                    <button type="button" data-month="4">May</button>
+                    <button type="button" data-month="5">Jun</button>
+                    <button type="button" data-month="6">Jul</button>
+                    <button type="button" data-month="7">Aug</button>
+                    <button type="button" data-month="8">Sep</button>
+                    <button type="button" data-month="9">Oct</button>
+                    <button type="button" data-month="10">Nov</button>
+                    <button type="button" data-month="11">Dec</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -41,18 +64,12 @@
                 <button type="button" class="close-btn" id="closeModalBtn">&times;</button>
             </div>
 
-            <form method="POST" action="{% url 'create_booking' %}" id="bookingForm" enctype="multipart/form-data">
+            <form method="POST" action="{% url 'create_booking' %}" id="bookingForm" enctype="multipart/form-data"
+                data-global-service-charge="{{ global_service_charge|default:'0' }}"
+                data-global-service-charge-note="{{ global_service_charge_note|default:'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.' }}">
                 {% csrf_token %}
 
-                {% if messages %}
-                {% for message in messages %}
-                {% if 'error' in message.tags %}
-                <div class="form-alerts">
-                    <div class="alert alert-error">{{ message }}</div>
-                </div>
-                {% endif %}
-                {% endfor %}
-                {% endif %}
+
 
                 <!-- STEP 1: PACKAGE SELECTION -->
                 <div class="stepper-step active-step" id="step-1">
@@ -61,11 +78,11 @@
 
                     <div class="package-cards-grid">
                         {% for package in packages %}
-                        <div class="package-card" data-package="{{ package.name }}" data-price="{{ package.price }}"
-                            data-service-charge="{{ package.service_charge }}">
+                        <div class="package-card" data-package="{{ package.name }}" data-price="{{ package.price }}">
                             <div class="package-info">
                                 <h4>{{ package.name }}</h4>
-                                <div class="price">₱{{ package.price|intcomma }}</div>
+                                <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
+                                <p class="feature-label">Package Inclusions</p>
                                 <ul class="features">
                                     {% for feature in package.feature_list %}
                                     <li>{{ feature }}</li>
@@ -79,7 +96,7 @@
                     </div>
 
                     <!-- Add-ons Section -->
-                    <h3>Add-ons (Optional)</h3>
+                    <h3>Entrance Arch</h3>
                     <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without
                         a package.</p>
                     <div class="package-cards-grid addons-selection-grid">
@@ -87,22 +104,17 @@
                         <div class="package-card addon-selector" data-name="{{ addon.name }}"
                             data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
                             <div class="package-info">
+                                <span class="card-top-label">FOR ADD-ONS</span>
                                 <h4>{{ addon.name }}</h4>
-                                <div class="price">₱{{ addon.price|intcomma }} <span class="w-package">w/ Package</span>
+                                <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span>
                                 </div>
+                                <p class="feature-label">What&apos;s Included</p>
                                 <ul class="features">
                                     {% for feature in addon.feature_list %}
                                     <li>{{ feature }}</li>
                                     {% endfor %}
                                 </ul>
                             </div>
-                            {% if addon.solo_price %}
-                            <div class="addon-card-divider"></div>
-                            <button type="button" class="solo-price-btn" data-addon-name="{{ addon.name }}"
-                                data-solo-price="{{ addon.solo_price }}">
-                                Solo Price — ₱{{ addon.solo_price|intcomma }}
-                            </button>
-                            {% endif %}
                         </div>
                         {% empty %}
                         <p class="empty-message">No add-ons available at the moment.</p>
@@ -110,16 +122,18 @@
                     </div>
 
                     <!-- Additionals Section -->
-                    <h3>Additionals (Optional)</h3>
+                    <h3>Welcome Stand</h3>
                     <p class="step-desc">Individual items to customize your event.</p>
                     <div class="package-cards-grid additionals-selection-grid">
                         {% for additional in active_additionals %}
                         <div class="package-card additional-selector" data-name="{{ additional.name }}"
                             data-price="{{ additional.price }}">
                             <div class="package-info">
+                                <span class="card-top-label">ADDITIONAL ONLY</span>
                                 <h4>{{ additional.name }}</h4>
-                                <div class="price">₱{{ additional.price|intcomma }}</div>
+                                <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
                                 {% if additional.features %}
+                                <p class="feature-label">What&apos;s Included</p>
                                 <ul class="features">
                                     {% for feature in additional.features.splitlines %}
                                     <li>{{ feature }}</li>
@@ -152,23 +166,40 @@
 
                         <div class="form-group full-width">
                             <label>Event Type</label>
-                            <select id="event_type_select" name="event_type" required
-                                onchange="toggleOtherEventType(this)">
-                                <option value="" disabled selected>Select an Event</option>
-                                <option value="Birthday">Birthday</option>
-                                <option value="Wedding">Wedding</option>
-                                <option value="Anniversary">Anniversary</option>
-                                <option value="Corporate Event">Corporate Event</option>
-                                <option value="Christening">Christening</option>
-                                <option value="Other">Other</option>
-                            </select>
+
+                            <!-- Custom Select UI -->
+                            <div class="custom-select-container" id="eventTypeCustomSelect">
+                                <!-- The visible selected value box -->
+                                <div class="custom-select-trigger">
+                                    <span>Select an Event</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+
+                                <!-- The dropdown list -->
+                                <ul class="custom-select-options">
+                                    <li data-value="Birthday">Birthday</li>
+                                    <li data-value="Wedding">Wedding</li>
+                                    <li data-value="Anniversary">Anniversary</li>
+                                    <li data-value="Corporate Event">Corporate Event</li>
+                                    <li data-value="Christening">Christening</li>
+                                    <li data-value="Other">Other</li>
+                                </ul>
+
+                                <!-- Hidden input that actually submits the form data -->
+                                <input type="text" id="event_type_select" name="event_type"
+                                    style="opacity: 0; position: absolute; height: 1px; width: 1px; bottom: 0; pointer-events: none;">
+                            </div>
+
                             <input type="text" id="event_type_other" placeholder="Please specify your event type"
                                 style="display: none; margin-top: 10px;">
+                            <small class="booking-field-error" id="event_type_error"></small>
+                            <small class="booking-field-error" id="event_type_other_error"></small>
                         </div>
 
                         <div class="form-group full-width">
                             <label>Event Date</label>
-                            <input type="date" id="event_date" name="event_date" required>
+                            <input type="date" id="event_date" name="event_date" data-label="Event Date" required>
+                            <small class="booking-field-error" id="event_date_error"></small>
                         </div>
 
                         <div class="form-group full-width">
@@ -176,18 +207,21 @@
                             <div class="time-row">
                                 <div class="time-field">
                                     <small>Start</small>
-                                    <input type="time" id="start_time" name="start_time" required>
+                                    <input type="time" id="start_time" name="start_time" data-label="Start Time" required>
+                                    <small class="booking-field-error" id="start_time_error"></small>
                                 </div>
                                 <div class="time-field">
                                     <small>End</small>
-                                    <input type="time" id="end_time" name="end_time" required>
+                                    <input type="time" id="end_time" name="end_time" data-label="End Time" required>
+                                    <small class="booking-field-error" id="end_time_error"></small>
                                 </div>
                             </div>
                         </div>
 
                         <div class="form-group full-width">
-                            <label>Location</label>
-                            <input type="text" name="event_location" placeholder="Venue Address" required>
+                            <label>Location (Venue Address)</label>
+                            <input type="text" id="event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" data-label="Event Location" required>
+                            <small class="booking-field-error" id="event_location_error"></small>
                         </div>
 
                         <!-- Removed No. of Guests -->
@@ -196,15 +230,24 @@
                         <input type="hidden" name="package_type" id="package_type_input">
                         <input type="hidden" name="total_price" id="total_price_input">
 
+                        <!-- Special Requests -->
                         <div class="form-group full-width">
-                            <label>Choose Picture (Optional Reference)</label>
-                            <input type="file" name="reference_image" accept="image/*"
-                                style="padding: 0.6rem; border: 1px dashed #444; background: transparent; border-radius: 4px;">
+                            <label for="booking_special_requests">Special Requests (Optional)</label>
+                            <textarea id="booking_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                         </div>
-
+                        
+                        <!-- Reference Images -->
                         <div class="form-group full-width">
-                            <label>Special Requests</label>
-                            <textarea name="special_requests" placeholder="Any notes..."></textarea>
+                            <label for="booking_reference_images_ui">Add Reference Pictures (Optional)</label>
+                            <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
+                            <!-- Hidden proper input for backend submission -->
+                            <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
+                            
+                            <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
+                            <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
+                            
+                            <!-- Container for Preview Images -->
+                            <div id="bookingImagePreviewContainer" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;"></div>
                         </div>
 
                         <!-- Order Summary Section -->
@@ -221,8 +264,7 @@
                                 style="display: none;">
                                 <div class="row-info">
                                     <span class="row-label">Service & Logistics Fee</span>
-                                    <p class="row-note">Includes toll fees, fuel, styling fee, crew meals, and
-                                        ingress/egress logistics.</p>
+                                    <p class="row-note" id="service_charge_note_text">{{ global_service_charge_note|default:"Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics." }}</p>
                                 </div>
                                 <span class="row-value" id="service_charge_display">₱0.00</span>
                             </div>
@@ -238,7 +280,7 @@
 
                     <div class="modal-actions split-actions">
                         <button type="button" class="booking-back-btn" id="btnPrevStep">Back</button>
-                        <button type="submit" class="btn-submit">Submit Booking</button>
+                        <button type="button" class="btn-submit" id="btnSubmitBooking">Submit Booking</button>
                     </div>
                 </div>
             </form>
@@ -252,18 +294,36 @@
         const calendarEl = document.getElementById('booking-calendar');
         const modalOverlay = document.getElementById('bookingModalOverlay');
         const closeBtn = document.getElementById('closeModalBtn');
+        const bookingForm = document.getElementById('bookingForm');
 
         // Form Inputs
         const dateInput = document.getElementById('event_date');
         const startTimeInput = document.getElementById('start_time');
         const endTimeInput = document.getElementById('end_time');
+        const eventLocationInput = document.getElementById('event_location');
+        const eventTypeErrorEl = document.getElementById('event_type_error');
+        const eventTypeOtherErrorEl = document.getElementById('event_type_other_error');
+        const eventDateErrorEl = document.getElementById('event_date_error');
+        const startTimeErrorEl = document.getElementById('start_time_error');
+        const endTimeErrorEl = document.getElementById('end_time_error');
+        const eventLocationErrorEl = document.getElementById('event_location_error');
 
-        // Date calculations for min restriction
-        const now = new Date();
-        const offset = now.getTimezoneOffset();
-        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
-        const todayStr = localDate.toISOString().split('T')[0];
-        dateInput.setAttribute('min', todayStr);
+        // Date calculations (dynamic local date/time to avoid stale "today" after midnight)
+        function getLocalTodayStr() {
+            const now = new Date();
+            const offset = now.getTimezoneOffset();
+            const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+            return localDate.toISOString().split('T')[0];
+        }
+
+        function formatLocalDate(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        dateInput.setAttribute('min', getLocalTodayStr());
 
         // --- Stepper Logic Variables ---
         const step1Indicator = document.getElementById('step-1-indicator');
@@ -278,23 +338,26 @@
         const priceDisplay = document.getElementById('total_price_display');
         const eventTypeSelect = document.getElementById('event_type_select');
         const eventTypeOther = document.getElementById('event_type_other');
+        const eventTypeTrigger = document.querySelector('#eventTypeCustomSelect .custom-select-trigger');
+        const globalServiceCharge = parseFloat((bookingForm?.dataset.globalServiceCharge || '0'));
+        const globalServiceChargeNote = bookingForm?.dataset.globalServiceChargeNote || 'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.';
 
         // --- Selection State ---
         let selectedPackageName = null;
         let selectedPackagePrice = 0;
-        let selectedServiceCharge = 0;   // Track service charge for the selected package
+        let selectedServiceCharge = globalServiceCharge;
         let selectedAddonName = null;    // single add-on name
         let selectedAddonPrice = 0;
         let selectedAdditionalName = null;  // single additional name
         let selectedAdditionalPrice = 0;
         let soloModeAddon = null;       // name of the add-on in solo price mode (or null)
         let soloModePrice = 0;
+        let bookingSubmitAttempted = false;
 
         // --- DOM References ---
         const packageOnlyCards = document.querySelectorAll('.package-cards-grid:not(.addons-selection-grid):not(.additionals-selection-grid) .package-card');
         const addonCards = document.querySelectorAll('.addon-selector');
         const additionalCards = document.querySelectorAll('.additional-selector');
-        const soloPriceBtns = document.querySelectorAll('.solo-price-btn');
 
         // =============================================
         // UTILITY FUNCTIONS
@@ -303,17 +366,36 @@
             return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        function formatEventTooltipDate(dateObj) {
+            return new Intl.DateTimeFormat('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            }).format(dateObj);
+        }
+
+        function formatEventTooltipTime(dateObj) {
+            return new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            }).format(dateObj);
+        }
+
         function calculateTotalPrice() {
             let total = 0;
+            const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
             if (soloModeAddon) {
-                // Solo mode: solo price + additional only
+                // Solo mode: solo price (+ optional additional)
                 total = soloModePrice;
             } else {
-                // Package mode: package + service charge + addon (regular) + additional
-                total = selectedPackagePrice + selectedServiceCharge;
+                // Package mode: package + addon (+ optional additional)
+                total = selectedPackagePrice;
                 if (selectedAddonName) total += selectedAddonPrice;
             }
             if (selectedAdditionalName) total += selectedAdditionalPrice;
+            if (hasBaseSelection) total += selectedServiceCharge;
             return total;
         }
 
@@ -356,58 +438,67 @@
             // --- Add-on cards ---
             addonCards.forEach(card => {
                 const name = card.dataset.name;
-                if (soloModeAddon) {
-                    // In solo mode: only the solo-selected addon is highlighted, others disabled
-                    if (name === soloModeAddon) {
-                        card.classList.add('selected');
-                        card.classList.remove('disabled');
-                    } else {
-                        card.classList.remove('selected');
-                        card.classList.add('disabled');
-                    }
-                } else if (!selectedPackageName) {
-                    // No package selected: add-on card body disabled (solo price still clickable)
-                    card.classList.remove('selected');
-                    card.classList.add('disabled');
-                } else {
-                    // Package selected: highlight if selected
+                const priceEl = card.querySelector('.price');
+                const basePrice = parseFloat(card.dataset.price);
+                const soloPrice = parseFloat(card.dataset.soloPrice);
+
+                if (selectedPackageName) {
+                    // Package Selected: Show Discount/Bundle Price
+                    priceEl.innerHTML = `${formatPrice(basePrice)} <span class="w-package">w/ Package</span>`;
                     card.classList.remove('disabled');
                     if (name === selectedAddonName) {
                         card.classList.add('selected');
                     } else {
                         card.classList.remove('selected');
                     }
-                }
-            });
-
-            // --- Solo price buttons ---
-            soloPriceBtns.forEach(btn => {
-                const addonName = btn.dataset.addonName;
-                if (soloModeAddon === addonName) {
-                    btn.classList.add('active');
-                    btn.classList.remove('disabled');
-                } else if (selectedPackageName) {
-                    // Package selected: disable solo price buttons
-                    btn.classList.remove('active');
-                    btn.classList.add('disabled');
                 } else {
-                    btn.classList.remove('active', 'disabled');
+                    // No Package: Show Solo Price
+                    if (soloPrice > 0) {
+                        priceEl.innerHTML = `${formatPrice(soloPrice)}`;
+                        card.classList.remove('disabled');
+                        if (name === soloModeAddon) {
+                            card.classList.add('selected');
+                        } else {
+                            card.classList.remove('selected');
+                        }
+                    } else {
+                        priceEl.innerHTML = `${formatPrice(basePrice)} <span class="w-package">w/ Package only</span>`;
+                        card.classList.add('disabled');
+                        card.classList.remove('selected');
+                    }
                 }
             });
 
-            // --- Additional cards (always available) ---
+
+
+            // --- Additional cards (enabled only if base package/solo is selected) ---
+            const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
+
+            // Clear additional selection if base selection is removed
+            if (!hasBaseSelection) {
+                selectedAdditionalName = null;
+                selectedAdditionalPrice = 0;
+            }
+
             additionalCards.forEach(card => {
                 const name = card.dataset.name;
-                if (name === selectedAdditionalName) {
-                    card.classList.add('selected');
-                } else {
+
+                if (!hasBaseSelection) {
+                    card.classList.add('disabled');
                     card.classList.remove('selected');
+                } else {
+                    card.classList.remove('disabled');
+                    if (name === selectedAdditionalName) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
                 }
             });
 
             // --- Next button: enabled if package selected OR solo mode active ---
-            const hasSelection = selectedPackageName !== null || soloModeAddon !== null;
-            btnNextStep.disabled = !hasSelection;
+            // const hasBaseSelection is already defined above
+            btnNextStep.disabled = !hasBaseSelection;
 
             updatePriceDisplay();
         }
@@ -417,6 +508,14 @@
         // =============================================
         function resetModalSteps() {
             document.getElementById('bookingForm').reset();
+            bookingSubmitAttempted = false;
+            clearBookingValidationErrors();
+            
+            // Clear image previews
+            const bookingPreviewGrid = document.getElementById('bookingImagePreviewContainer');
+            if (bookingPreviewGrid) bookingPreviewGrid.innerHTML = '';
+            const bookingLimitError = document.getElementById('bookingImageLimitError');
+            if (bookingLimitError) bookingLimitError.style.display = 'none';
 
             step1Content.style.display = 'block';
             step2Content.style.display = 'none';
@@ -428,7 +527,7 @@
 
             selectedPackageName = null;
             selectedPackagePrice = 0;
-            selectedServiceCharge = 0;
+            selectedServiceCharge = globalServiceCharge;
             selectedAddonName = null;
             selectedAddonPrice = 0;
             selectedAdditionalName = null;
@@ -439,7 +538,16 @@
             eventTypeOther.style.display = 'none';
             eventTypeOther.removeAttribute('name');
             eventTypeOther.required = false;
+            eventTypeOther.value = ''; // Ensure 'Other' input is cleared
+
             eventTypeSelect.name = 'event_type';
+            eventTypeSelect.value = ''; // Ensure hidden input is cleared
+
+            // Reset Custom Select UI text
+            const eventTriggerSpan = document.querySelector('#eventTypeCustomSelect .custom-select-trigger span');
+            if (eventTriggerSpan) {
+                eventTriggerSpan.textContent = 'Select an Event';
+            }
 
             btnNextStep.disabled = true;
             packageInput.value = '';
@@ -461,18 +569,18 @@
 
                 const pkgName = this.dataset.package;
                 const pkgPrice = parseFloat(this.dataset.price);
-                const svcCharge = parseFloat(this.dataset.serviceCharge) || 0;
 
                 if (selectedPackageName === pkgName) {
                     // Deselect
                     selectedPackageName = null;
                     selectedPackagePrice = 0;
-                    selectedServiceCharge = 0;
+                    // Also clear regular addon selection to prevent price bugs
+                    selectedAddonName = null;
+                    selectedAddonPrice = 0;
                 } else {
                     // Select new package (single select)
                     selectedPackageName = pkgName;
                     selectedPackagePrice = pkgPrice;
-                    selectedServiceCharge = svcCharge;
                 }
 
                 updateUIStates();
@@ -480,73 +588,57 @@
         });
 
         // =============================================
-        // EVENT: ADD-ON CARD BODY CLICK (Regular Price)
+        // EVENT: ADD-ON CARD BODY CLICK
         // =============================================
         addonCards.forEach(card => {
             card.addEventListener('click', function (e) {
-                // Ignore if click was on the solo price button
-                if (e.target.closest('.solo-price-btn')) return;
-
-                // If solo mode active or no package selected, ignore card body click
-                if (soloModeAddon) return;
-                if (!selectedPackageName) return;
-
                 const name = this.dataset.name;
-                const price = parseFloat(this.dataset.price);
-
-                if (selectedAddonName === name) {
-                    // Deselect
-                    selectedAddonName = null;
-                    selectedAddonPrice = 0;
-                } else {
-                    // Select this one (single select)
-                    selectedAddonName = name;
-                    selectedAddonPrice = price;
-                }
-
-                updateUIStates();
-            });
-        });
-
-        // =============================================
-        // EVENT: SOLO PRICE BUTTON CLICK
-        // =============================================
-        soloPriceBtns.forEach(btn => {
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation(); // Don't trigger card body click
-
-                // If a package is selected, solo price is disabled
-                if (selectedPackageName) return;
-
-                const addonName = this.dataset.addonName;
+                const basePrice = parseFloat(this.dataset.price);
                 const soloPrice = parseFloat(this.dataset.soloPrice);
 
-                if (soloModeAddon === addonName) {
-                    // Deselect solo mode → go back to normal
-                    soloModeAddon = null;
-                    soloModePrice = 0;
+                if (selectedPackageName) {
+                    // Package is active -> Use standard addon select
+                    if (selectedAddonName === name) {
+                        selectedAddonName = null;
+                        selectedAddonPrice = 0;
+                    } else {
+                        selectedAddonName = name;
+                        selectedAddonPrice = basePrice;
+                    }
                 } else {
-                    // Activate solo mode for this add-on
-                    soloModeAddon = addonName;
-                    soloModePrice = soloPrice;
+                    // No package active -> Use solo mode logic if a solo price exists
+                    if (soloPrice > 0) {
+                        if (soloModeAddon === name) {
+                            soloModeAddon = null;
+                            soloModePrice = 0;
+                        } else {
+                            soloModeAddon = name;
+                            soloModePrice = soloPrice;
 
-                    // Clear package and regular add-on selections
-                    selectedPackageName = null;
-                    selectedPackagePrice = 0;
-                    selectedServiceCharge = 0;
-                    selectedAddonName = null;
-                    selectedAddonPrice = 0;
+                            // Clear other selections safely
+                            selectedPackageName = null;
+                            selectedPackagePrice = 0;
+                            selectedAddonName = null;
+                            selectedAddonPrice = 0;
+                        }
+                    } else {
+                        return; // cannot be bought solo
+                    }
                 }
-
                 updateUIStates();
             });
         });
 
+
+
         // =============================================
-        // EVENT: ADDITIONAL CARD CLICK (Always available)
+        // EVENT: ADDITIONAL CARD CLICK (Available if base selected)
         // =============================================
         additionalCards.forEach(card => {
             card.addEventListener('click', function () {
+                const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
+                if (!hasBaseSelection) return; // Prevent selection if disabled
+
                 const name = this.dataset.name;
                 const price = parseFloat(this.dataset.price);
 
@@ -596,6 +688,14 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,today'
             },
+            dayCellClassNames: function (arg) {
+                const cellDate = formatLocalDate(arg.date);
+                const todayLocal = getLocalTodayStr();
+                if (cellDate < todayLocal) {
+                    return ['is-past-date'];
+                }
+                return [];
+            },
             eventDisplay: 'block',
             displayEventTime: false,
             dayMaxEvents: 2,
@@ -619,9 +719,36 @@
         meridiem: false
     },
 
+        eventDidMount: function (info) {
+            const startDate = info.event.start;
+            const endDate = info.event.end;
+            if (!startDate) return;
+
+            const dateText = formatEventTooltipDate(startDate);
+            const timeText = endDate
+                ? `${formatEventTooltipTime(startDate)} - ${formatEventTooltipTime(endDate)}`
+                : formatEventTooltipTime(startDate);
+
+            info.el.setAttribute('title', `${dateText}\n${timeText}`);
+        },
+
         dateClick: function (info) {
             const clickedDate = info.dateStr;
-            if (clickedDate < todayStr) return;
+            if (clickedDate < getLocalTodayStr()) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: 'This date has already passed.',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    background: '#1a1a1a',
+                    color: '#fff',
+                    iconColor: '#ef4444'
+                });
+                return;
+            }
 
             resetModalSteps();
             dateInput.value = clickedDate;
@@ -638,11 +765,78 @@
     calendar.render();
 
     // =============================================
+    // CUSTOM MONTH/YEAR PICKER LOGIC
+    // =============================================
+    const mypModal = document.getElementById('custom-month-year-picker');
+    const mypYearDisplay = document.getElementById('myp-year-display');
+    const mypPrevBtn = document.getElementById('myp-prev-year');
+    const mypNextBtn = document.getElementById('myp-next-year');
+    const mypMonthBtns = document.querySelectorAll('.myp-months-grid button');
+
+    let currentPickerYear = new Date().getFullYear();
+
+    // Intercept clicks on the calendar title
+    document.getElementById('booking-calendar').addEventListener('click', function (e) {
+        if (e.target.classList.contains('fc-toolbar-title')) {
+            const currentDate = calendar.getDate();
+            currentPickerYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth();
+
+            mypYearDisplay.textContent = currentPickerYear;
+
+            // Highlight current month
+            mypMonthBtns.forEach(btn => {
+                if (parseInt(btn.getAttribute('data-month')) === currentMonth) {
+                    btn.classList.add('active-month');
+                } else {
+                    btn.classList.remove('active-month');
+                }
+            });
+
+            mypModal.style.display = 'block';
+        }
+    });
+
+    // Close modal if clicked outside
+    document.addEventListener('click', function (e) {
+        if (mypModal.style.display === 'block') {
+            // Check if click originates inside the modal or on the title itself
+            if (!mypModal.contains(e.target) && !e.target.classList.contains('fc-toolbar-title') && !e.target.closest('.myp-header')) {
+                mypModal.style.display = 'none';
+            }
+        }
+    });
+
+    // Year navigation
+    mypPrevBtn.addEventListener('click', () => {
+        currentPickerYear--;
+        mypYearDisplay.textContent = currentPickerYear;
+    });
+
+    mypNextBtn.addEventListener('click', () => {
+        currentPickerYear++;
+        mypYearDisplay.textContent = currentPickerYear;
+    });
+
+    // Month selection
+    mypMonthBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            const selectedMonth = parseInt(this.getAttribute('data-month'));
+            // Navigate FullCalendar to the 1st day of chosen month/year
+            const newDate = new Date(currentPickerYear, selectedMonth, 1);
+            calendar.gotoDate(newDate);
+
+            mypModal.style.display = 'none';
+        });
+    });
+
+    // =============================================
     // TIME VALIDATION
     // =============================================
     function updateTimeConstraints() {
         const selectedDate = dateInput.value;
-        if (selectedDate === todayStr) {
+        const now = new Date();
+        if (selectedDate === getLocalTodayStr()) {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             startTimeInput.min = `${hours}:${minutes}`;
@@ -654,6 +848,116 @@
     function validateEndTime() {
         if (startTimeInput.value) {
             endTimeInput.min = startTimeInput.value;
+        }
+    }
+
+    function setBookingFieldError(fieldKey, message) {
+        const fieldMap = {
+            event_type: {
+                container: document.getElementById('eventTypeCustomSelect')?.closest('.form-group'),
+                errorEl: eventTypeErrorEl,
+                inputEl: eventTypeTrigger
+            },
+            event_type_other: {
+                container: eventTypeOther?.closest('.form-group'),
+                errorEl: eventTypeOtherErrorEl,
+                inputEl: eventTypeOther
+            },
+            event_date: {
+                container: dateInput?.closest('.form-group'),
+                errorEl: eventDateErrorEl,
+                inputEl: dateInput
+            },
+            start_time: {
+                container: startTimeInput?.closest('.time-field'),
+                errorEl: startTimeErrorEl,
+                inputEl: startTimeInput
+            },
+            end_time: {
+                container: endTimeInput?.closest('.time-field'),
+                errorEl: endTimeErrorEl,
+                inputEl: endTimeInput
+            },
+            event_location: {
+                container: eventLocationInput?.closest('.form-group'),
+                errorEl: eventLocationErrorEl,
+                inputEl: eventLocationInput
+            }
+        };
+
+        const config = fieldMap[fieldKey];
+        if (!config || !config.errorEl) return;
+
+        config.container?.classList.toggle('has-error', !!message);
+        config.inputEl?.classList.toggle('has-error', !!message);
+        config.errorEl.textContent = message || '';
+    }
+
+    function clearBookingValidationErrors() {
+        ['event_type', 'event_type_other', 'event_date', 'start_time', 'end_time', 'event_location']
+            .forEach((fieldKey) => setBookingFieldError(fieldKey, ''));
+    }
+
+    function validateBookingStepTwoFields() {
+        clearBookingValidationErrors();
+        let firstInvalidField = null;
+
+        if (!eventTypeSelect.value) {
+            setBookingFieldError('event_type', 'Event Type is required*');
+            firstInvalidField = 'event_type';
+        }
+
+        if (eventTypeSelect.value === 'Other' && !eventTypeOther.value.trim()) {
+            setBookingFieldError('event_type_other', 'Please specify your event type.');
+            if (!firstInvalidField) firstInvalidField = 'event_type_other';
+        }
+
+        if (!dateInput.value) {
+            setBookingFieldError('event_date', 'Event Date is required*');
+            if (!firstInvalidField) firstInvalidField = 'event_date';
+        }
+
+        if (!startTimeInput.value) {
+            setBookingFieldError('start_time', 'Start Time is required*');
+            if (!firstInvalidField) firstInvalidField = 'start_time';
+        }
+
+        if (!endTimeInput.value) {
+            setBookingFieldError('end_time', 'End Time is required*');
+            if (!firstInvalidField) firstInvalidField = 'end_time';
+        }
+
+        if (!eventLocationInput.value.trim()) {
+            setBookingFieldError('event_location', 'Event Location is required*');
+            if (!firstInvalidField) firstInvalidField = 'event_location';
+        }
+
+        return firstInvalidField;
+    }
+
+    function focusBookingField(fieldKey) {
+        if (fieldKey === 'event_type' && eventTypeTrigger) {
+            eventTypeTrigger.focus();
+            return;
+        }
+        if (fieldKey === 'event_type_other' && eventTypeOther) {
+            eventTypeOther.focus();
+            return;
+        }
+        if (fieldKey === 'event_date' && dateInput) {
+            dateInput.focus();
+            return;
+        }
+        if (fieldKey === 'start_time' && startTimeInput) {
+            startTimeInput.focus();
+            return;
+        }
+        if (fieldKey === 'end_time' && endTimeInput) {
+            endTimeInput.focus();
+            return;
+        }
+        if (fieldKey === 'event_location' && eventLocationInput) {
+            eventLocationInput.focus();
         }
     }
 
@@ -716,10 +1020,13 @@
         // 4. Update Service Charge Visibility & Display
         const svcRow = document.getElementById('serviceChargeRow');
         const svcDisplay = document.getElementById('service_charge_display');
+        const svcNote = document.getElementById('service_charge_note_text');
         const finalPriceDisplay = document.getElementById('total_price_display');
+        const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
 
-        if (selectedServiceCharge > 0 && !soloModeAddon) {
+        if (hasBaseSelection && selectedServiceCharge > 0) {
             svcDisplay.textContent = formatPrice(selectedServiceCharge);
+            if (svcNote) svcNote.textContent = globalServiceChargeNote;
             svcRow.style.display = 'flex';
         } else {
             svcRow.style.display = 'none';
@@ -736,7 +1043,111 @@
         step1Indicator.classList.add('completed');
         step2Indicator.classList.add('active');
         stepperLine.style.width = '100%';
+
+        // Scroll modal back to top
+        document.querySelector('.booking-modal-box').scrollTop = 0;
     });
+
+    // =============================================
+    // BOOKING MULTI-IMAGE PREVIEW & ACCUMULATION LOGIC
+    // =============================================
+    const bookingUiFilesInput = document.getElementById('booking_reference_images_ui');
+    const bookingFilesInput = document.getElementById('booking_reference_images');
+    const bookingPreviewGrid = document.getElementById('bookingImagePreviewContainer');
+    const bookingLimitError = document.getElementById('bookingImageLimitError');
+    let bookingAccumulatedFiles = new DataTransfer();
+    
+    if (bookingUiFilesInput) {
+        bookingUiFilesInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            bookingLimitError.style.display = 'none';
+            
+            files.forEach(file => {
+                if (bookingAccumulatedFiles.items.length < 4) {
+                    bookingAccumulatedFiles.items.add(file);
+                } else {
+                    bookingLimitError.style.display = 'block';
+                }
+            });
+            
+            // Assign to the hidden real input
+            bookingFilesInput.files = bookingAccumulatedFiles.files;
+            
+            // Clear the UI input so the same file can trigger 'change' again!
+            e.target.value = '';
+            
+            renderBookingImagePreviews();
+        });
+    }
+
+    function renderBookingImagePreviews() {
+        bookingPreviewGrid.innerHTML = '';
+        const files = Array.from(bookingAccumulatedFiles.files);
+        
+        files.forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.style.position = 'relative';
+                    imgContainer.style.display = 'inline-block';
+                    
+                    const el = document.createElement('img');
+                    el.src = event.target.result;
+                    el.style.width = '120px';
+                    el.style.height = '120px';
+                    el.style.objectFit = 'cover';
+                    el.style.borderRadius = '5px';
+                    el.style.border = '1px solid #444';
+
+                    // Delete Button (Reviews Style)
+                    const delLabel = document.createElement('label');
+                    delLabel.style.position = 'absolute';
+                    delLabel.style.top = '-5px';
+                    delLabel.style.right = '-5px';
+                    delLabel.style.background = 'rgba(0,0,0,0.7)';
+                    delLabel.style.color = '#fff';
+                    delLabel.style.borderRadius = '50%';
+                    delLabel.style.width = '24px';
+                    delLabel.style.height = '24px';
+                    delLabel.style.display = 'flex';
+                    delLabel.style.alignItems = 'center';
+                    delLabel.style.justifyContent = 'center';
+                    delLabel.style.cursor = 'pointer';
+                    delLabel.style.fontSize = '18px';
+                    delLabel.style.transition = 'background 0.2s';
+                    delLabel.title = "Remove image";
+                    delLabel.innerHTML = '&times;';
+                    
+                    delLabel.onmouseenter = function() {
+                        this.style.background = '#ef4444';
+                    };
+                    delLabel.onmouseleave = function() {
+                        this.style.background = 'rgba(0,0,0,0.7)';
+                    };
+                    
+                    delLabel.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const newDt = new DataTransfer();
+                        const currentFiles = Array.from(bookingAccumulatedFiles.files);
+                        currentFiles.splice(index, 1); // remove clicked item
+                        currentFiles.forEach(f => newDt.items.add(f));
+                        bookingAccumulatedFiles = newDt;
+                        bookingFilesInput.files = bookingAccumulatedFiles.files;
+                        bookingLimitError.style.display = 'none';
+                        renderBookingImagePreviews();
+                    };
+                    
+                    imgContainer.appendChild(el);
+                    imgContainer.appendChild(delLabel);
+                    bookingPreviewGrid.appendChild(imgContainer);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
 
     btnPrevStep.addEventListener('click', function () {
         step2Content.style.display = 'none';
@@ -746,27 +1157,229 @@
         step1Indicator.classList.add('active');
         step1Indicator.classList.remove('completed');
         stepperLine.style.width = '0%';
+
+        // Scroll modal back to top
+        document.querySelector('.booking-modal-box').scrollTop = 0;
     });
 
     dateInput.addEventListener('change', updateTimeConstraints);
     startTimeInput.addEventListener('change', validateEndTime);
+    dateInput.addEventListener('input', () => {
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
+    startTimeInput.addEventListener('input', () => {
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
+    endTimeInput.addEventListener('input', () => {
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
+    eventLocationInput.addEventListener('input', () => {
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
+    eventTypeOther.addEventListener('input', () => {
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
     updateTimeConstraints();
     validateEndTime();
 
-    window.toggleOtherEventType = function (selectElement) {
+    window.toggleOtherEventType = function (value) {
         const otherInput = document.getElementById('event_type_other');
-        if (selectElement.value === 'Other') {
+        const hiddenInput = document.getElementById('event_type_select');
+
+        if (value === 'Other') {
             otherInput.style.display = 'block';
             otherInput.required = true;
             otherInput.name = 'event_type';
-            selectElement.removeAttribute('name');
+            hiddenInput.removeAttribute('name');
         } else {
             otherInput.style.display = 'none';
             otherInput.required = false;
             otherInput.removeAttribute('name');
-            selectElement.name = 'event_type';
+            hiddenInput.name = 'event_type';
         }
     };
+
+    // =============================================
+    // CUSTOM SELECT DROPDOWN LOGIC
+    // =============================================
+    const customSelect = document.getElementById('eventTypeCustomSelect');
+    if (customSelect) {
+        const trigger = customSelect.querySelector('.custom-select-trigger');
+        const triggerText = trigger.querySelector('span');
+        const options = customSelect.querySelectorAll('.custom-select-options li');
+        const hiddenInput = document.getElementById('event_type_select');
+        if (trigger) trigger.setAttribute('tabindex', '0');
+
+        // Toggle dropdown
+        trigger.addEventListener('click', function () {
+            customSelect.classList.toggle('open');
+        });
+
+        // Handle option click
+        options.forEach(option => {
+            option.addEventListener('click', function () {
+                const value = this.getAttribute('data-value');
+                const text = this.textContent;
+
+                // Update visual trigger
+                triggerText.textContent = text;
+                triggerText.style.color = '#fff';
+
+                // Update hidden input
+                hiddenInput.value = value;
+
+                // Close dropdown
+                customSelect.classList.remove('open');
+
+                // Trigger the 'Other' logic
+                window.toggleOtherEventType(value);
+                if (bookingSubmitAttempted) {
+                    validateBookingStepTwoFields();
+                }
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!customSelect.contains(e.target)) {
+                customSelect.classList.remove('open');
+            }
+        });
+    }
+
+
+    // =============================================
+    // AJAX FORM SUBMISSION WITH SWEETALERT2
+    // =============================================
+    const btnSubmitBooking = document.getElementById('btnSubmitBooking');
+
+    btnSubmitBooking.addEventListener('click', function () {
+        bookingSubmitAttempted = true;
+        const firstInvalidField = validateBookingStepTwoFields();
+        if (firstInvalidField) {
+            focusBookingField(firstInvalidField);
+            return;
+        }
+
+        const startTimeStr = startTimeInput.value;
+        const endTimeStr = endTimeInput.value;
+
+        // Validate Minimum 1 Hour Duration (client-side, stays on Step 2)
+        if (startTimeStr && endTimeStr) {
+            const startNode = new Date(`1970-01-01T${startTimeStr}:00`);
+            let endNode = new Date(`1970-01-01T${endTimeStr}:00`);
+            if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
+
+            const diffMins = (endNode - startNode) / 60000;
+            if (diffMins < 60) {
+                setBookingFieldError('end_time', 'Event duration must be at least 1 hour.');
+                endTimeInput.focus();
+                return; // Stay on Step 2
+            }
+        }
+
+        const formData = new FormData(bookingForm);
+        const originalBtnText = btnSubmitBooking.textContent;
+        btnSubmitBooking.disabled = true;
+        btnSubmitBooking.textContent = 'Submitting...';
+
+        fetch(bookingForm.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                btnSubmitBooking.disabled = false;
+                btnSubmitBooking.textContent = originalBtnText;
+
+                if (data.success) {
+                    // === SUCCESS: Close modal, show check, update calendar ===
+                    modalOverlay.classList.remove('show');
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Booking Submitted!',
+                        text: data.message,
+                        showConfirmButton: false,
+                        timer: 2500,
+                        timerProgressBar: true,
+                        background: '#1a1a1a',
+                        color: '#fff',
+                        iconColor: '#22c55e'
+                    }).then(() => {
+                        // Add new event to calendar dynamically (yellow bar)
+                        if (data.event_data) {
+                            calendar.addEvent(data.event_data);
+                        }
+
+                        // Reset form
+                        bookingForm.reset();
+                        resetModalSteps();
+
+                        // Reset custom Event Type dropdown visual
+                        const triggerSpan = document.querySelector('#eventTypeCustomSelect .custom-select-trigger span');
+                        if (triggerSpan) {
+                            triggerSpan.textContent = 'Select an Event';
+                            triggerSpan.style.color = '#999';
+                        }
+                        const eventTypeHidden = document.getElementById('event_type_select');
+                        if (eventTypeHidden) eventTypeHidden.value = '';
+
+                        // Reset JS state variables
+                        selectedPackageName = null;
+                        selectedPackagePrice = 0;
+                        selectedServiceCharge = globalServiceCharge;
+                        selectedAddonName = null;
+                        selectedAddonPrice = 0;
+                        soloModeAddon = null;
+                        soloModePrice = 0;
+                        selectedAdditionalName = null;
+                        selectedAdditionalPrice = 0;
+
+                        // Deselect all package/addon/additional cards visually
+                        document.querySelectorAll('.package-card, .addon-card, .additional-card').forEach(c => c.classList.remove('selected'));
+                    });
+                } else {
+                    // === ERROR: Show toast, STAY on Step 2 (don't close modal) ===
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: data.message,
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true,
+                        background: '#1a1a1a',
+                        color: '#fff',
+                        iconColor: '#ef4444'
+                    });
+                }
+            })
+            .catch(error => {
+                btnSubmitBooking.disabled = false;
+                btnSubmitBooking.textContent = originalBtnText;
+                // Network error toast, stay on Step 2
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: 'Please check your connection and try again.',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    background: '#1a1a1a',
+                    color: '#fff',
+                    iconColor: '#ef4444'
+                });
+            });
+    });
+
     });
 </script>
 {% endblock %}
+
+
+

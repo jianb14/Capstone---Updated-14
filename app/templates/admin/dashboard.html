@@ -1,6 +1,776 @@
 {% extends 'admin/admin_base.html' %}
+{% load static humanize %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+{% endblock %}
 
 {% block content %}
-<h2>Admin / Staff Dashboard</h2>
-<p>Only admin and staff can see this.</p>
+<div class="dash-wrap">
+
+    <!-- ═══ HEADER ═══ -->
+    <div class="dash-head">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="dash-sub">Live overview of bookings, requests, and daily operations.</p>
+        </div>
+    </div>
+
+    <!-- ═══ FILTER BAR — Dedicated Row ═══ -->
+    <form method="GET" action="{% url 'dashboard' %}" class="dash-filter-row">
+        <input type="hidden" id="event_type_filter" name="event_type" value="{{ selected_event_type }}">
+        <div class="filter-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+        </div>
+        <span class="filter-label">Filter</span>
+        <div class="filter-sep"></div>
+        <div class="filter-fields">
+            <div class="filter-group">
+                <label for="start_date">From</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="end_date">To</label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+        </div>
+        <div class="filter-actions">
+            <!-- Quick Presets -->
+            <button type="button" class="btn-preset" data-preset="today">Today</button>
+            <button type="button" class="btn-preset" data-preset="7days">7 Days</button>
+            <button type="button" class="btn-preset" data-preset="month">This Month</button>
+            <button type="button" class="btn-preset" data-preset="all">All Time</button>
+            <button type="submit" class="btn-apply" style="margin-left: 12px;">Apply</button>
+            <a href="{% url 'dashboard' %}" class="btn-reset">Reset</a>
+        </div>
+    </form>
+
+    <style>
+        .btn-preset {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ccc;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 6px;
+        }
+        .btn-preset:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+    </style>
+
+    <!-- ═══ ROW 1 — Data Modules ═══ -->
+    <div class="data-modules">
+        <div class="data-mod">
+            <div class="mod-header">
+                <span class="mod-title">Total Bookings</span>
+                <span class="mod-badge">Current Range</span>
+            </div>
+            <div class="mod-body">
+                <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
+                <div class="mod-viz">
+                    <svg class="ring-chart" viewBox="0 0 44 44">
+                        <circle class="ring-bg" cx="22" cy="22" r="18"/>
+                        <circle class="ring-fill blue" cx="22" cy="22" r="18" stroke-dasharray="113" stroke-dashoffset="113" id="ring-bookings"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mod-footer">Bookings in selected range</div>
+        </div>
+
+        <div class="data-mod">
+            <div class="mod-header">
+                <span class="mod-title">Total Revenue</span>
+                <span class="mod-badge">Current Range</span>
+            </div>
+            <div class="mod-body">
+                <div class="mod-value" data-count="{{ total_revenue }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ total_revenue|floatformat:"-2"|intcomma }}</div>
+                <div class="mod-viz">
+                    <canvas id="sparkline-revenue" class="sparkline-canvas"></canvas>
+                </div>
+            </div>
+            <div class="mod-footer">Completed bookings in range</div>
+        </div>
+
+        <div class="data-mod">
+            <div class="mod-header">
+                <span class="mod-title">Action Queue</span>
+                <span class="mod-badge">Current Range</span>
+            </div>
+                <div class="mod-body">
+                    <div class="mod-value" data-count="{{ action_queue_total }}">{{ action_queue_total }}</div>
+                    <div class="mod-viz">
+                        <div class="stacked-bar-wrap">
+                            <div class="stacked-bar" id="queue-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            <div class="mod-footer action-queue-footer">
+                <span class="aq-pending">{{ pending_approvals }} pending</span>,
+                <span class="aq-edit">{{ edit_requests }} edit</span>,
+                <span class="aq-cancel">{{ cancel_requests }} cancel</span>
+            </div>
+        </div>
+
+        <div class="data-mod">
+            <div class="mod-header">
+                <span class="mod-title">Period Trend</span>
+                <span class="mod-badge">Trend</span>
+            </div>
+            <div class="mod-body">
+                <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
+                <div class="mod-viz">
+                    <div class="trend-arrow">
+                        {% if period_delta >= 0 %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                            <polyline points="17 6 23 6 23 12"></polyline>
+                        </svg>
+                        <span class="trend-delta pos">+{{ period_delta }}</span>
+                        {% else %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                            <polyline points="17 18 23 18 23 12"></polyline>
+                        </svg>
+                        <span class="trend-delta neg">{{ period_delta }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="mod-footer">
+                <span class="{% if period_delta >= 0 %}pos{% else %}neg{% endif %}">
+                    {% if period_delta >= 0 %}+{% endif %}{{ period_delta }} vs previous period ({{ period_delta_pct }}%)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ ROW 2 — Charts ═══ -->
+    <div class="chart-row">
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>{{ trend_title }}</h2>
+                <select class="seg-select" id="trend-segment">
+                    <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
+                    {% for event_type in event_type_options %}
+                    <option value="{{ event_type }}" {% if selected_event_type == event_type %}selected{% endif %}>{{ event_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="chart-shell">
+                <div class="skeleton-shimmer" id="shimmer-trend"></div>
+                <canvas id="opsTrendChart"></canvas>
+            </div>
+        </div>
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Status Snapshot</h2>
+                <span class="tag">Summary<span class="tag-count">{{ total_bookings }}</span></span>
+            </div>
+            <div class="chart-shell small" style="position:relative;">
+                <div class="skeleton-shimmer" id="shimmer-status"></div>
+                <div class="donut-center">
+                    <div class="donut-count">{{ total_bookings }}</div>
+                    <div class="donut-label">Total</div>
+                </div>
+                <canvas id="statusMixChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ ROW 3 — Performance + Revenue by Event ═══ -->
+    <div class="perf-row">
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Performance Snapshot</h2>
+                <span class="tag">Current filter</span>
+            </div>
+            <div class="metric-grid">
+                <div class="metric-tile">
+                    <span class="m-label">Total Revenue</span>
+                    <span class="m-value">&#8369;{{ total_revenue|floatformat:2|intcomma }}</span>
+                    <span class="m-sub {% if revenue_delta >= 0 %}pos{% else %}neg{% endif %}">{% if revenue_delta >= 0 %}+{% endif %}{{ revenue_delta_pct }}% vs previous</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="m-label">Avg Booking Value</span>
+                    <span class="m-value">&#8369;{{ avg_booking_value|floatformat:2|intcomma }}</span>
+                    <span class="m-sub">Completed bookings only</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="m-label">Completion Rate</span>
+                    <span class="m-value">{{ completion_rate }}%</span>
+                    <span class="m-sub">{{ completed_count }} of {{ total_bookings }}</span>
+                </div>
+                <div class="metric-tile">
+                    <span class="m-label">Cancellation Rate</span>
+                    <span class="m-value">{{ cancellation_rate }}%</span>
+                    <span class="m-sub">{{ cancelled_count }} cancelled</span>
+                </div>
+            </div>
+        </div>
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Revenue by Event Type</h2>
+                <span class="tag">Breakdown</span>
+            </div>
+            <div class="chart-shell small">
+                <div class="skeleton-shimmer" id="shimmer-revenue"></div>
+                <canvas id="revenueByEventChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ ROW 4 — Bottom Grid (4 panels) ═══ -->
+    <div class="bottom-grid">
+        <!-- Live Feed -->
+        <div class="glass-panel">
+            <div class="panel-head-ext">
+                <h2>Live Operational Feed</h2>
+                <div class="panel-dots"><span></span><span></span><span></span></div>
+            </div>
+            <ul class="feed-list">
+                {% for booking in recent_bookings|slice:":8" %}
+                <li class="feed-item">
+                    <div class="feed-avatar av-{{ booking.status }}">{{ booking.user.username|first }}</div>
+                    <div class="feed-text">
+                        <strong>{{ booking.get_status_display }}</strong>
+                        <small>#{{ booking.id }} · {{ booking.event_type }}</small>
+                    </div>
+                    <span class="feed-time">{{ booking.created_at|timesince }} ago</span>
+                </li>
+                {% empty %}
+                <li class="feed-item"><span class="empty">No recent activity.</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Alerts -->
+        <div class="glass-panel">
+            <div class="panel-head-ext">
+                <h2>Operational Alerts</h2>
+                <div class="panel-dots"><span></span><span></span><span></span></div>
+            </div>
+            {% if upcoming_deadline_bookings %}
+            <div class="alert-stack">
+                {% for booking in upcoming_deadline_bookings %}
+                <div class="alert-card">
+                    <div class="alert-info">
+                        <strong>#{{ booking.id }} - {{ booking.user.username }}</strong>
+                        <p>{{ booking.event_type }} | {{ booking.event_date|date:"M d, Y" }}</p>
+                    </div>
+                    <span class="alert-chip {% if booking.days_left == 0 %}danger{% elif booking.days_left == 1 %}warn{% else %}muted{% endif %}">
+                        {% if booking.days_left == 0 %}Today{% else %}{{ booking.days_left }}d left{% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty">No urgent pending bookings in the next 3 days.</p>
+            {% endif %}
+        </div>
+
+        <!-- Insights Hub (UNIQUE DATA — no duplicates) -->
+        <div class="glass-panel">
+            <div class="panel-head-ext">
+                <h2>Strategic Insights</h2>
+                <div class="panel-dots"><span></span><span></span><span></span></div>
+            </div>
+            <div class="insight-stack">
+                <div class="insight-card">
+                    <div class="insight-icon ic-revenue">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </div>
+                    <div class="insight-text">
+                        <div class="insight-label">Top Event (Revenue)</div>
+                        <div class="insight-val">{{ top_event_label }}</div>
+                    </div>
+                    <span class="insight-amount">&#8369;{{ top_event_revenue|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-icon ic-package">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    </div>
+                    <div class="insight-text">
+                        <div class="insight-label">Top Package</div>
+                        <div class="insight-val">{{ top_package_name }}</div>
+                        <div class="insight-sub">{{ top_package_count }} bookings</div>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-icon ic-users">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                    <div class="insight-text">
+                        <div class="insight-label">Active Customers</div>
+                        <div class="insight-val">{{ active_users }}</div>
+                        <div class="insight-sub">Verified active accounts</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Center -->
+        <div class="glass-panel">
+            <div class="panel-head-ext">
+                <h2>Action Center</h2>
+                <div class="panel-dots"><span></span><span></span><span></span></div>
+            </div>
+            <div class="action-stack">
+                <a href="{% url 'admin_booking_list' %}?status=pending" class="action-btn">
+                    <div class="action-btn-icon ab-review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></div>
+                    <span class="action-btn-text">Review Pending</span>
+                    <svg class="action-btn-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
+                <a href="{% url 'admin_booking_list' %}?status=edit_requested" class="action-btn">
+                    <div class="action-btn-icon ab-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+                    <span class="action-btn-text">Edit Requests</span>
+                    <svg class="action-btn-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
+                <a href="{% url 'admin_booking_list' %}?status=cancel_requested" class="action-btn">
+                    <div class="action-btn-icon ab-cancel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
+                    <span class="action-btn-text">Cancel Requests</span>
+                    <svg class="action-btn-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
+                <a href="{% url 'admin_calendar' %}" class="action-btn">
+                    <div class="action-btn-icon ab-cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
+                    <span class="action-btn-text">Open Calendar</span>
+                    <svg class="action-btn-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ ROW 5 — Status Summary + Recent Transactions ═══ -->
+    <div class="two-col-row">
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Status Summary</h2>
+                <span class="tag">Breakdown</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Status</th><th>Count</th><th>Share</th></tr></thead>
+                    <tbody>
+                        {% for row in status_table %}
+                        <tr>
+                            <td><span class="dot" style="background-color:{{ row.color }};"></span>{{ row.label }}</td>
+                            <td>{{ row.count }}</td>
+                            <td>{{ row.share_pct }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="empty">No status data.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Recent Transactions</h2>
+                <span class="tag">{{ total_bookings }} records</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>User</th><th>Event</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for booking in recent_bookings|slice:":6" %}
+                        <tr>
+                            <td>#{{ booking.id }}</td>
+                            <td>{{ booking.user.username }}</td>
+                            <td>{{ booking.event_type }}</td>
+                            <td>{{ booking.created_at|date:"M d, Y" }}</td>
+                            <td>&#8369;{{ booking.total_price|floatformat:2|intcomma }}</td>
+                            <td><span class="status status-{{ booking.status }}">{{ booking.get_status_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="empty">No transactions.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Django Data -->
+{{ dashboard_trend_labels|json_script:"dash-trend-labels" }}
+{{ dashboard_bookings_trend|json_script:"dash-bookings-trend" }}
+{{ dashboard_revenue_trend|json_script:"dash-revenue-trend" }}
+{{ dashboard_prev_bookings_trend|json_script:"dash-prev-bookings-trend" }}
+{{ dashboard_prev_revenue_trend|json_script:"dash-prev-revenue-trend" }}
+{{ revenue_by_event|json_script:"dash-revenue-by-event" }}
+{{ queue_breakdown|json_script:"dash-queue-breakdown" }}
+{{ dashboard_status_labels|json_script:"dash-status-labels" }}
+{{ dashboard_status_values|json_script:"dash-status-values" }}
+{{ dashboard_status_colors|json_script:"dash-status-colors" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.has('compare')) {
+        currentUrl.searchParams.delete('compare');
+        const cleanQuery = currentUrl.searchParams.toString();
+        const cleanUrl = cleanQuery ? `${currentUrl.pathname}?${cleanQuery}` : currentUrl.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+    }
+
+    /* Counter */
+    function animateCounter(el) {
+        const raw = el.getAttribute('data-count');
+        if (!raw) return;
+        const target = parseFloat(raw.replace(/,/g, ''));
+        if (isNaN(target)) return;
+        const prefix = el.getAttribute('data-prefix') || '';
+        const decimalsMode = el.getAttribute('data-decimals') || '0';
+        const dec = parseInt(decimalsMode, 10);
+        const dur = 1200, start = performance.now();
+        function ease(t) { return 1 - Math.pow(1 - t, 3); }
+        function formatValue(v) {
+            if (decimalsMode === 'auto2') {
+                return prefix + v.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+            }
+            if (!isNaN(dec) && dec > 0) {
+                return prefix + v.toLocaleString('en-US', {
+                    minimumFractionDigits: dec,
+                    maximumFractionDigits: dec
+                });
+            }
+            return prefix + Math.round(v).toLocaleString('en-US');
+        }
+        function step(now) {
+            const p = Math.min((now - start) / dur, 1), v = target * ease(p);
+            el.textContent = formatValue(v);
+            if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+    const kpis = document.querySelectorAll('.mod-value[data-count]');
+    if ('IntersectionObserver' in window) {
+        const obs = new IntersectionObserver(es => { es.forEach(e => { if (e.isIntersecting) { animateCounter(e.target); obs.unobserve(e.target); } }); }, { threshold: 0.3 });
+        kpis.forEach(el => obs.observe(el));
+    } else { kpis.forEach(animateCounter); }
+
+    /* Ring */
+    const ring = document.getElementById('ring-bookings');
+    if (ring) {
+        const bk = parseInt('{{ total_bookings }}' || '0', 10);
+        setTimeout(() => { ring.style.strokeDashoffset = 113 - (113 * Math.min(bk / Math.max(bk, 20), 1)); }, 400);
+    }
+
+    /* Stacked Bar */
+    const qb = document.getElementById('queue-bar');
+    if (qb) {
+        const p = parseInt('{{ pending_approvals }}' || '0', 10);
+        const e = parseInt('{{ edit_requests }}' || '0', 10);
+        const c = parseInt('{{ cancel_requests }}' || '0', 10);
+        const t = p + e + c || 1;
+        qb.innerHTML = '<span class="bar-pending" style="width:' + (p/t*100) + '%;animation-delay:0.3s"></span><span class="bar-edit" style="width:' + (e/t*100) + '%;animation-delay:0.45s"></span><span class="bar-cancel" style="width:' + (c/t*100) + '%;animation-delay:0.6s"></span>';
+    }
+
+    /* Quick Presets */
+    const filterForm = document.querySelector('.dash-filter-row');
+    const trendSegment = document.getElementById('trend-segment');
+    const eventTypeFilterInput = document.getElementById('event_type_filter');
+
+    if (trendSegment && filterForm && eventTypeFilterInput) {
+        trendSegment.addEventListener('change', function () {
+            eventTypeFilterInput.value = this.value || 'all';
+            filterForm.submit();
+        });
+    }
+
+    document.querySelectorAll('.btn-preset').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const preset = this.getAttribute('data-preset');
+            const startInput = document.getElementById('start_date');
+            const endInput = document.getElementById('end_date');
+            const today = new Date();
+            const formatDate = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+            
+            endInput.value = formatDate(today);
+            
+            if (preset === 'today') {
+                startInput.value = formatDate(today);
+            } else if (preset === '7days') {
+                const past = new Date(today);
+                past.setDate(today.getDate() - 6);
+                startInput.value = formatDate(past);
+            } else if (preset === 'month') {
+                const past = new Date(today.getFullYear(), today.getMonth(), 1);
+                startInput.value = formatDate(past);
+            } else if (preset === 'all') {
+                startInput.value = '2000-01-01'; // Fallback far past
+            }
+            
+            this.closest('form').submit();
+        });
+    });
+
+    /* Shimmer */
+    function rmShim(id) { const s = document.getElementById(id); if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 600); } }
+
+    if (typeof Chart === 'undefined') return;
+
+    const tLabels = JSON.parse(document.getElementById('dash-trend-labels').textContent || '[]');
+    const bTrend  = JSON.parse(document.getElementById('dash-bookings-trend').textContent || '[]');
+    const rTrend  = JSON.parse(document.getElementById('dash-revenue-trend').textContent || '[]');
+    const prevBTrend = JSON.parse(document.getElementById('dash-prev-bookings-trend').textContent || '[]');
+    const prevRTrend = JSON.parse(document.getElementById('dash-prev-revenue-trend').textContent || '[]');
+    const revEvt  = JSON.parse(document.getElementById('dash-revenue-by-event').textContent || '[]');
+    const sLabels = JSON.parse(document.getElementById('dash-status-labels').textContent || '[]');
+    const sValues = JSON.parse(document.getElementById('dash-status-values').textContent || '[]');
+    const sColors = JSON.parse(document.getElementById('dash-status-colors').textContent || '[]');
+
+    const ttip = { backgroundColor: 'rgba(8,8,8,0.94)', borderColor: 'rgba(255,255,255,0.06)', borderWidth: 1, titleColor: '#eee', bodyColor: '#999', cornerRadius: 8, padding: 10, titleFont: { weight: '600', size: 11 }, bodyFont: { size: 10.5 } };
+
+    /* Sparkline */
+    const spk = document.getElementById('sparkline-revenue');
+    if (spk && rTrend.length) {
+        const sCtx = spk.getContext('2d');
+        const sg = sCtx.createLinearGradient(0, 0, 0, 32);
+        sg.addColorStop(0, 'rgba(16,185,129,0.3)'); sg.addColorStop(1, 'rgba(16,185,129,0.01)');
+        new Chart(spk, {
+            type: 'line',
+            data: {
+                labels: tLabels,
+                datasets: [{
+                    data: rTrend,
+                    borderColor: '#10b981',
+                    backgroundColor: sg,
+                    borderWidth: 1.8,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                    pointHoverBackgroundColor: '#10b981',
+                    clip: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 800, easing: 'easeOutQuart' },
+                layout: { padding: { left: 2, right: 2, top: 1, bottom: 1 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true, mode: 'index', intersect: false, ...ttip, padding: 6, displayColors: false }
+                },
+                scales: { x: { display: false }, y: { display: false } }
+            }
+        });
+    }
+
+    /* Ops Trend */
+    const tc = document.getElementById('opsTrendChart');
+    if (tc) {
+        const ctx = tc.getContext('2d');
+        const bg = ctx.createLinearGradient(0, 0, 0, 260); bg.addColorStop(0, 'rgba(59,130,246,0.22)'); bg.addColorStop(1, 'rgba(59,130,246,0.01)');
+        const rg = ctx.createLinearGradient(0, 0, 0, 260); rg.addColorStop(0, 'rgba(20,184,166,0.18)'); rg.addColorStop(1, 'rgba(20,184,166,0.01)');
+
+        const trendDatasets = [
+            {
+                label: 'Bookings',
+                data: bTrend,
+                borderColor: '#3b82f6',
+                backgroundColor: bg,
+                tension: 0.42,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#111',
+                pointBorderWidth: 2,
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#3b82f6',
+                pointHoverBorderWidth: 3,
+                borderWidth: 2.5
+            },
+            {
+                label: 'Revenue (PHP)',
+                data: rTrend,
+                borderColor: '#14b8a6',
+                backgroundColor: rg,
+                tension: 0.42,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#14b8a6',
+                pointBorderColor: '#111',
+                pointBorderWidth: 2,
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#14b8a6',
+                pointHoverBorderWidth: 3,
+                borderWidth: 2.5,
+                yAxisID: 'y1'
+            }
+        ];
+
+        if (prevBTrend.length === bTrend.length && prevBTrend.length > 0) {
+            trendDatasets.push({
+                label: 'Bookings (Previous)',
+                data: prevBTrend,
+                borderColor: 'rgba(59,130,246,0.55)',
+                backgroundColor: 'transparent',
+                borderDash: [6, 5],
+                tension: 0.35,
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                borderWidth: 1.8
+            });
+        }
+
+        if (prevRTrend.length === rTrend.length && prevRTrend.length > 0) {
+            trendDatasets.push({
+                label: 'Revenue (Previous)',
+                data: prevRTrend,
+                borderColor: 'rgba(20,184,166,0.5)',
+                backgroundColor: 'transparent',
+                borderDash: [6, 5],
+                tension: 0.35,
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                borderWidth: 1.8,
+                yAxisID: 'y1'
+            });
+        }
+
+        new Chart(tc, {
+            type: 'line',
+            data: { labels: tLabels, datasets: trendDatasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                animation: { duration: 1200, easing: 'easeOutQuart', delay: c => c.dataIndex * 60 + c.datasetIndex * 150 },
+                plugins: { legend: { labels: { color: '#999', usePointStyle: true, pointStyle: 'circle', boxWidth: 7, padding: 14, font: { size: 11, weight: '500' } } }, tooltip: { ...ttip, displayColors: true, boxPadding: 5, callbacks: { label: c => c.dataset.label.includes('Revenue') ? 'Revenue  ₱' + c.parsed.y.toLocaleString() : c.dataset.label + '  ' + c.parsed.y } } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', precision: 0, font: { size: 10 } } },
+                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false, drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }
+                }
+            },
+            plugins: [{ id: 's1', afterRender() { rmShim('shimmer-trend'); } }]
+        });
+    }
+
+    /* Status Donut */
+    const sc = document.getElementById('statusMixChart');
+    if (sc) {
+        const pm = { completed:'#10b981', confirmed:'#3b82f6', pending:'#f59e0b', cancelled:'#ef4444', denied:'#ef4444', expired:'#555', edit_requested:'#3b82f6', cancel_requested:'#f87171' };
+        const pal = sLabels.map((l, i) => pm[String(l||'').toLowerCase().replace(/\s+/g,'')] || sColors[i] || '#555');
+        new Chart(sc, {
+            type: 'doughnut',
+            data: { labels: sLabels, datasets: [{ data: sValues, backgroundColor: pal, borderWidth: 0, hoverOffset: 10, borderRadius: 4, spacing: 2 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { animateRotate: true, animateScale: true, duration: 1100, easing: 'easeOutQuart' },
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        align: 'center',
+                        fullSize: false,
+                        labels: {
+                            color: '#999',
+                            boxWidth: 9,
+                            boxHeight: 9,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 11,
+                            font: { size: 11 },
+                            generateLabels(chart) {
+                                const data = chart.data || {};
+                                const dataset = (data.datasets && data.datasets[0]) || {};
+                                const labels = data.labels || [];
+                                const values = dataset.data || [];
+                                const bgColors = dataset.backgroundColor || [];
+                                const total = values.reduce((sum, value) => sum + (Number(value) || 0), 0);
+
+                                return labels.map((labelText, index) => {
+                                    const value = Number(values[index]) || 0;
+                                    const pct = total > 0 ? ((value / total) * 100).toFixed(1).replace(/\.0$/, '') : '0';
+                                    return {
+                                        text: `${labelText || 'Unknown'} (${pct}%)`,
+                                        fillStyle: Array.isArray(bgColors) ? bgColors[index] : bgColors,
+                                        strokeStyle: Array.isArray(bgColors) ? bgColors[index] : bgColors,
+                                        lineWidth: 0,
+                                        hidden: !chart.getDataVisibility(index),
+                                        index,
+                                        pointStyle: 'circle',
+                                        color: '#9ca3af',
+                                        fontColor: '#9ca3af'
+                                    };
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        ...ttip,
+                        callbacks: {
+                            label(context) {
+                                const values = (context.dataset && context.dataset.data) || [];
+                                const total = values.reduce((sum, value) => sum + (Number(value) || 0), 0);
+                                const value = Number(context.parsed) || 0;
+                                const pct = total > 0 ? ((value / total) * 100).toFixed(1).replace(/\.0$/, '') : '0';
+                                return `${context.label}: ${value} (${pct}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '68%',
+                layout: { padding: { top: 12, bottom: 12, right: 8 } }
+            },
+            plugins: [{
+                id: 'statusCenterAlign',
+                afterLayout(chart) {
+                    const container = chart.canvas.parentElement;
+                    if (!container || !chart.chartArea) return;
+                    const centerEl = container.querySelector('.donut-center');
+                    if (!centerEl) return;
+                    const { left, right, top, bottom } = chart.chartArea;
+                    centerEl.style.left = `${(left + right) / 2}px`;
+                    centerEl.style.top = `${(top + bottom) / 2}px`;
+                    centerEl.style.transform = 'translate(-50%, -50%)';
+                },
+                afterRender() {
+                    rmShim('shimmer-status');
+                }
+            }]
+        });
+    }
+
+    /* Revenue by Event */
+    const rc = document.getElementById('revenueByEventChart');
+    if (rc && revEvt.length) {
+        const bCtx = rc.getContext('2d');
+        const bGrad = bCtx.createLinearGradient(0, 0, 0, 200); bGrad.addColorStop(0, 'rgba(59,130,246,0.6)'); bGrad.addColorStop(1, 'rgba(59,130,246,0.1)');
+        new Chart(rc, {
+            type: 'bar',
+            data: { labels: revEvt.map(i => i.event_type), datasets: [{ label: 'Revenue', data: revEvt.map(i => i.total), backgroundColor: bGrad, borderColor: '#3b82f6', borderWidth: 1, borderRadius: 8, maxBarThickness: 38, hoverBackgroundColor: 'rgba(59,130,246,0.75)' }] },
+            options: { responsive: true, maintainAspectRatio: false, animation: { duration: 900, easing: 'easeOutQuart', delay: c => c.dataIndex * 100 }, plugins: { legend: { display: false }, tooltip: { ...ttip, callbacks: { label: c => '₱' + c.parsed.y.toLocaleString() } } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 10 } } } } },
+            plugins: [{ id: 's3', afterRender() { rmShim('shimmer-revenue'); } }]
+        });
+    }
+});
+</script>
 {% endblock %}
+
+

@@ -300,14 +300,138 @@ td[data-label="Phone"] {
         border-color: rgba(255, 255, 255, 0.5);;
     }
 
+    .form-group .field-error {
+        color: #ff6b6b;
+        font-size: 0.75rem;
+        margin-top: 0.45rem;
+        display: none;
+    }
+
+    .form-group.has-error .field-error {
+        display: block;
+    }
+
+    .form-group.has-error input[type="text"],
+    .form-group.has-error input[type="email"],
+    .form-group.has-error select {
+        border-color: #ef4444;
+    }
+
+    .user-edit-form .role-field .filter-select {
+        display: none;
+    }
+
+    .user-edit-form .role-field .custom-filter-dropdown {
+        position: relative;
+        user-select: none;
+        width: 100%;
+    }
+
+    .user-edit-form .role-field .dropdown-trigger {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        background: #0f0f0f;
+        border: 1px solid #2a2a2a;
+        color: #fff;
+        border-radius: 6px;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .user-edit-form .role-field .custom-filter-dropdown.open .dropdown-trigger {
+        border-color: rgba(255, 255, 255, 0.45);
+    }
+
+    .user-edit-form .role-field.has-error .dropdown-trigger {
+        border-color: #ef4444 !important;
+    }
+
+    .user-edit-form .role-field .dropdown-caret {
+        width: 8px;
+        height: 8px;
+        display: inline-block;
+        border-right: 2px solid #ffffff;
+        border-bottom: 2px solid #ffffff;
+        transform: rotate(45deg) translateY(-1px);
+        transition: transform 0.25s ease;
+        opacity: 0.95;
+        flex-shrink: 0;
+    }
+
+    .user-edit-form .role-field .custom-filter-dropdown.open .dropdown-caret {
+        transform: rotate(-135deg) translateY(-1px);
+    }
+
+    .user-edit-form .role-field .dropdown-options {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: #151515;
+        border: 1px solid #333;
+        border-radius: 8px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        z-index: 120;
+        max-height: 220px;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .user-edit-form .role-field .dropdown-options::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .user-edit-form .role-field .dropdown-options::-webkit-scrollbar-track {
+        background: #111;
+        border-radius: 4px;
+    }
+
+    .user-edit-form .role-field .dropdown-options::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 4px;
+    }
+
+    .user-edit-form .role-field .dropdown-options::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    .user-edit-form .role-field .custom-filter-dropdown.open .dropdown-options {
+        display: block;
+        animation: userRoleDropdownIn 0.2s ease forwards;
+        transform-origin: top center;
+    }
+
+    .user-edit-form .role-field .dropdown-options li {
+        padding: 9px 15px;
+        font-size: 0.85rem;
+        color: #ccc;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .user-edit-form .role-field .dropdown-options li:hover {
+        background: #222;
+        color: #fff;
+    }
+
+    .user-edit-form .role-field .dropdown-options li.selected {
+        color: #fff;
+    }
+
     .form-actions {
         display: flex;
         justify-content: flex-end;
         align-items: center;
         gap: 0.5rem;
-        margin-top: 2rem;
         padding-top: 1.5rem;
-        border-top: 1px solid #2a2a2a;
     }
 
     .btn-save {
@@ -343,6 +467,35 @@ td[data-label="Phone"] {
 
     .btn-cancel:hover {
         color: #fff;
+    }
+
+    .user-form-container {
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .user-form-card {
+        padding: 1.6rem 2rem;
+        background: #0b0b0b;
+        border: 1px solid #202020;
+    }
+
+    .user-form-container .form-grid {
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    .user-form-container .form-group {
+        margin-bottom: 0;
+    }
+
+    .user-form-container .form-group input[type="text"],
+    .user-form-container .form-group input[type="email"],
+    .user-form-container .form-group select,
+    .user-form-container .user-edit-form .role-field .dropdown-trigger {
+        min-height: 42px;
+        padding: 0.62rem 0.75rem;
     }
 
 
@@ -384,8 +537,7 @@ td[data-label="Phone"] {
     }
 
     .search-bar input,
-    .select-wrapper,
-    .search-bar select {
+    .search-bar .custom-filter-dropdown {
         width: 100%;
     }
 
@@ -526,6 +678,9 @@ td[data-label="Phone"] {
         z-index: 5;
     }
 
+    .user-form-card {
+        padding: 1.2rem;
+    }
 }
 
 /* Custom Scrollbar */
@@ -580,37 +735,123 @@ td[data-label="Phone"] {
     border-color:rgba(255, 255, 255, 0.3);
 }
 
-.select-wrapper {
+.search-bar .filter-select {
+    display: none;
+}
+
+.search-bar .custom-filter-dropdown {
     position: relative;
+    user-select: none;
+    min-width: 170px;
 }
 
-.search-bar select {
-    padding: 0.5rem 2rem 0.6rem 1rem;
-    background: #0f0f0f;
-    border: 1px solid #2a2a2a;
+.search-bar .custom-filter-dropdown .dropdown-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: #111;
+    border: 1px solid #444;
     color: #fff;
-    border-radius: 5px;
-    font-family: inherit;
-    outline: none;
+    border-radius: 8px;
+    padding: 0 1rem;
+    min-height: 38px;
+    height: 38px;
+    line-height: 1;
+    font-size: 0.9rem;
     cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
+    transition: all 0.3s ease;
 }
 
-.select-wrapper::after {
-    content: "⏷";
-    font-size: 14px;
+.search-bar .custom-filter-dropdown.open .dropdown-trigger {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.search-bar .custom-filter-dropdown .dropdown-caret {
+    width: 8px;
+    height: 8px;
+    display: inline-block;
+    border-right: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    transform: rotate(45deg) translateY(-1px);
+    transition: transform 0.25s ease;
+    opacity: 0.95;
+}
+
+.search-bar .custom-filter-dropdown.open .dropdown-caret {
+    transform: rotate(-135deg) translateY(-1px);
+}
+
+.search-bar .custom-filter-dropdown .dropdown-options {
     position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-63%);
-    pointer-events: none;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: #151515;
+    border: 1px solid #333;
+    border-radius: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    z-index: 100;
+    max-height: 250px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
+.search-bar .custom-filter-dropdown .dropdown-options::-webkit-scrollbar {
+    width: 6px;
+}
 
-.search-bar select:focus {
-    border-color: rgba(255, 255, 255, 0.3);
+.search-bar .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-track {
+    background: #111;
+    border-radius: 4px;
+}
+
+.search-bar .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+.search-bar .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.search-bar .custom-filter-dropdown.open .dropdown-options {
+    display: block;
+    animation: userRoleDropdownIn 0.2s ease forwards;
+    transform-origin: top center;
+}
+
+@keyframes userRoleDropdownIn {
+    from {
+        opacity: 0;
+        transform: scaleY(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+.search-bar .custom-filter-dropdown .dropdown-options li {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-bar .custom-filter-dropdown .dropdown-options li:hover {
+    background: #222;
+    color: #fff;
+}
+
+.search-bar .custom-filter-dropdown .dropdown-options li.selected {
+    color: #fff;
 }
 
 /* Pagination */
@@ -656,3 +897,4 @@ td[data-label="Phone"] {
     width: 20px;
     height: 20px;
 }
+

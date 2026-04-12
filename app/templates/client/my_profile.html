@@ -1,0 +1,298 @@
+﻿{% extends 'client/base.html' %}
+{% load static humanize %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/my_profile.css' %}">
+
+<div class="my-profile-page">
+    <div class="my-profile-wrapper">
+        
+        <div class="my-profile-card">
+            
+            <!-- Cover Section -->
+            <div class="my-profile-cover"></div>
+
+            <!-- Header Section -->
+            <div class="my-profile-header">
+                <div class="avatar-wrapper">
+                    <div class="my-profile-avatar">
+                        {{ user.first_name|default:user.username|slice:":1"|upper }}
+                    </div>
+                </div>
+                <div class="my-profile-title">
+                    <h2>{% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}</h2>
+                    <p>Member since {{ user.date_joined|date:"Y" }}</p>
+                </div>
+            </div>
+            
+            <!-- Body Section -->
+            <div class="my-profile-body">
+                
+                <div class="profile-section">
+                    <h3 class="section-title"><i class="far fa-address-card"></i> Personal Information</h3>
+                    <div class="info-grid-modern">
+                        <div class="info-group">
+                            <label>First Name</label>
+                            <div class="info-val">{{ user.first_name|default:"Not specified" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label>Last Name</label>
+                            <div class="info-val">{{ user.last_name|default:"Not specified" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label>Email Address</label>
+                            <div class="info-val">{{ user.email|default:"Not specified" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label>Phone Number</label>
+                            <div class="info-val">{{ user.phone_number|default:"Not specified" }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-section">
+                    <h3 class="section-title"><i class="fas fa-fingerprint"></i> Account Security</h3>
+                    <p class="security-desc">Ensure your account is using a long, random password to stay secure. Change it regularly.</p>
+                    <button class="btn-change-password" onclick="openPasswordModal()">
+                        <i class="fas fa-key"></i> Change Password
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div id="passwordModal" class="modal-overlay"> <!-- We reuse the clean classes defined in my_profile.css -->
+    <div class="modal-card">
+
+        <div class="modal-header">
+            <h2>Change Password</h2>
+            <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+        </div>
+
+        <form id="changePasswordForm" action="{% url 'change_password' %}" method="POST" novalidate>
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_old_password">Current Password</label>
+                <div class="password-input-wrapper">
+                    <input type="password" name="old_password" id="id_old_password" required placeholder="Enter current password">
+                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
+                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_old_password', this)">
+                </div>
+                <small class="field-error"></small>
+            </div>
+            
+            <div class="form-group">
+                <label for="id_new_password1">New Password</label>
+                <div class="password-input-wrapper">
+                    <input type="password" name="new_password1" id="id_new_password1" required placeholder="Enter new password">
+                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
+                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password1', this)">
+                </div>
+                <small class="field-error"></small>
+            </div>
+            
+            <div class="form-group">
+                <label for="id_new_password2">Confirm New Password</label>
+                <div class="password-input-wrapper">
+                    <input type="password" name="new_password2" id="id_new_password2" required placeholder="Confirm new password">
+                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
+                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password2', this)">
+                </div>
+                <small class="field-error"></small>
+            </div>
+            
+            <button type="submit" id="btnSavePassword">Update Password</button>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // SweetAlert2 Toast configuration
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        background: '#1a1a1a',
+        color: '#fff',
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    // --- PASSWORD MODAL FUNCTIONS ---
+    function openPasswordModal() {
+        document.getElementById('passwordModal').classList.add('show');
+    }
+
+    function closePasswordModal() {
+        document.getElementById('passwordModal').classList.remove('show');
+        // Reset form on close
+        const form = document.getElementById('changePasswordForm');
+        if (form) form.reset();
+        document.querySelectorAll('#changePasswordForm .field-error').forEach((el) => {
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm .form-group').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        document.querySelectorAll('#changePasswordForm input.has-error').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+
+        // Reset password fields to password type and eye icon to view
+        ['id_old_password', 'id_new_password1', 'id_new_password2'].forEach(id => {
+            let input = document.getElementById(id);
+            if (input) input.type = 'password';
+        });
+        document.querySelectorAll('.password-toggle-icon').forEach(icon => {
+            icon.src = "{% static 'images/eye-view.png' %}";
+        });
+    }
+
+    function togglePasswordVisibility(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.src = "{% static 'images/eye-hide.png' %}";
+        } else {
+            input.type = 'password';
+            icon.src = "{% static 'images/eye-view.png' %}";
+        }
+    }
+
+    // --- AJAX PASSWORD SUBMISSION ---
+    const pwForm = document.getElementById('changePasswordForm');
+    if (pwForm) {
+        const requiredInputs = Array.from(pwForm.querySelectorAll('input[required]'));
+        let submitAttempted = false;
+
+        const setFieldError = (input, message) => {
+            const group = input.closest('.form-group');
+            if (!group) return;
+            const errorEl = group.querySelector('.field-error');
+            group.classList.toggle('has-error', !!message);
+            input.classList.toggle('has-error', !!message);
+            if (errorEl) errorEl.textContent = message || '';
+        };
+
+        const getValidationMessage = (input) => {
+            if (input.validity.valueMissing) {
+                const label = input.closest('.form-group')?.querySelector('label')?.textContent?.trim() || input.name;
+                return `${label} is required*`;
+            }
+            return '';
+        };
+
+        const validateField = (input) => {
+            if (!input.checkValidity()) {
+                setFieldError(input, getValidationMessage(input) || input.validationMessage);
+                return false;
+            }
+            setFieldError(input, '');
+            return true;
+        };
+
+        const validateRequiredFields = () => {
+            let firstInvalidInput = null;
+            let isValid = true;
+            requiredInputs.forEach((input) => {
+                const valid = validateField(input);
+                if (!valid && !firstInvalidInput) firstInvalidInput = input;
+                isValid = isValid && valid;
+            });
+            return { isValid, firstInvalidInput };
+        };
+
+        pwForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            submitAttempted = true;
+
+            const validation = validateRequiredFields();
+            if (!validation.isValid) {
+                if (validation.firstInvalidInput) validation.firstInvalidInput.focus();
+                return;
+            }
+
+            const form = this;
+            const btn = document.getElementById('btnSavePassword');
+
+            // Loading state
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest' // So Django knows it's AJAX
+                }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.textContent = 'Update Password';
+
+                    if (data.success) {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        form.reset();
+                        // Close modal after delay
+                        setTimeout(closePasswordModal, 1500);
+                    } else {
+                        // Gather the first error to display
+                        let errorMsg = 'Update failed. Please check your inputs.';
+                        if (data.errors) {
+                            for (const [field, errors] of Object.entries(data.errors)) {
+                                errorMsg = errors[0]; // Show first error found
+                                break;
+                            }
+                        }
+                        Toast.fire({
+                            icon: 'error',
+                            title: errorMsg
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    btn.disabled = false;
+                    btn.textContent = 'Update Password';
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'An error occurred. Please try again.'
+                    });
+                });
+        });
+
+        requiredInputs.forEach((input) => {
+            input.addEventListener('input', () => {
+                if (submitAttempted) validateField(input);
+            });
+            input.addEventListener('blur', () => {
+                if (submitAttempted) validateField(input);
+            });
+        });
+    }
+
+    // Close on outside click
+    window.onclick = function (event) {
+        const passwordModal = document.getElementById('passwordModal');
+        if (event.target == passwordModal) {
+            closePasswordModal();
+        }
+    }
+</script>
+{% endblock %}
+

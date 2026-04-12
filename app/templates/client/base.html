@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
@@ -66,11 +68,103 @@
             const notifBell = document.getElementById("notif-bell");
             const notifDropdown = document.getElementById("notif-dropdown");
             const clearAllBtn = document.getElementById("clear-all-notifs");
+            const notifItems = document.querySelectorAll(".notif-item");
+            const notifList = document.querySelector(".notif-list");
+
+            function getNotificationDateLabel(isoDate) {
+                if (!isoDate) return "Earlier";
+
+                const notifDate = new Date(isoDate);
+                if (Number.isNaN(notifDate.getTime())) return "Earlier";
+
+                const now = new Date();
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const notifDayStart = new Date(notifDate.getFullYear(), notifDate.getMonth(), notifDate.getDate());
+                const diffDays = Math.floor((todayStart - notifDayStart) / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 0) return "Today";
+                if (diffDays === 1) return "Yesterday";
+
+                return notifDate.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric"
+                });
+            }
+
+            function groupNotificationItemsByDate() {
+                if (!notifList) return;
+
+                notifList.querySelectorAll(".notif-date-header").forEach(header => header.remove());
+                const items = Array.from(notifList.querySelectorAll(".notif-item"));
+                if (!items.length) return;
+
+                let currentLabel = null;
+                items.forEach(item => {
+                    const label = getNotificationDateLabel(item.dataset.createdAt);
+                    if (label !== currentLabel) {
+                        const header = document.createElement("div");
+                        header.className = "notif-date-header";
+                        header.textContent = label;
+                        notifList.insertBefore(header, item);
+                        currentLabel = label;
+                    }
+                });
+            }
+
+            groupNotificationItemsByDate();
+
+            function removeNotificationBadge() {
+                const badge = document.querySelector(".notif-badge");
+                if (badge) badge.remove();
+            }
+
+            function markNotifItemUiAsRead(item) {
+                if (!item || !item.classList.contains("unread")) return;
+                item.classList.remove("unread");
+                const dot = item.querySelector(".unread-dot");
+                if (dot) dot.remove();
+            }
+
+            function markAllNotificationsAsRead() {
+                // Update UI immediately so badge disappears right away.
+                document.querySelectorAll(".notif-item.unread").forEach(markNotifItemUiAsRead);
+                removeNotificationBadge();
+
+                return fetch('/notifications/clear-all/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                }).catch(() => { });
+            }
+
+            function markSingleNotificationAsRead(notifId, item) {
+                if (!item || !item.classList.contains("unread")) return Promise.resolve();
+
+                markNotifItemUiAsRead(item);
+                const hasUnreadLeft = document.querySelector(".notif-item.unread");
+                if (!hasUnreadLeft) removeNotificationBadge();
+
+                return fetch(`/notifications/${notifId}/read/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                }).catch(() => { });
+            }
 
             if (notifBell && notifDropdown) {
                 notifBell.addEventListener("click", function (e) {
                     e.stopPropagation();
+                    const willOpen = !notifDropdown.classList.contains("show");
                     notifDropdown.classList.toggle("show");
+
+                    if (willOpen) {
+                        markAllNotificationsAsRead();
+                    }
 
                     // Close profile dropdown if open
                     const profileMenu = document.querySelector(".dropdown-menu");
@@ -78,68 +172,106 @@
                 });
 
                 window.addEventListener("click", function (e) {
-                    if (notifDropdown.classList.contains("show") && !notifDropdown.contains(e.target) && e.target !== notifBell) {
+                    if (notifDropdown.classList.contains("show") && !notifDropdown.contains(e.target) && !notifBell.contains(e.target)) {
                         notifDropdown.classList.remove("show");
                     }
                 });
             }
 
-            // Mark individual notification as read
-            const notifItems = document.querySelectorAll(".notif-item.unread");
+            // Mark individual notification as read, then open booking detail.
             notifItems.forEach(item => {
-                item.addEventListener("click", function () {
+                item.addEventListener("click", function (e) {
                     const notifId = this.dataset.id;
-                    fetch(`/notifications/${notifId}/read/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}',
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                this.classList.remove("unread");
-                                const dot = this.querySelector(".unread-dot");
-                                if (dot) dot.remove();
+                    const bookingUrl = this.getAttribute("href");
+                    if (!bookingUrl) return;
 
-                                // Update badge count
-                                const badge = document.querySelector(".notif-badge");
-                                if (badge) {
-                                    let count = parseInt(badge.textContent);
-                                    if (count > 1) {
-                                        badge.textContent = count - 1;
-                                    } else {
-                                        badge.remove();
-                                    }
-                                }
-                            }
-                        });
+                    e.preventDefault();
+                    markSingleNotificationAsRead(notifId, this).finally(() => {
+                        window.location.href = bookingUrl;
+                    });
                 });
             });
 
             // Clear all notifications
             if (clearAllBtn) {
-                clearAllBtn.addEventListener("click", function () {
-                    fetch('/notifications/clear-all/', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}',
-                            'Content-Type': 'application/json'
+                clearAllBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    markAllNotificationsAsRead();
+                });
+            }
+
+            // Testimonials marquee: build a true seamless loop for Home/About.
+            const marqueeWrappers = document.querySelectorAll(".marquee-wrapper");
+            if (marqueeWrappers.length) {
+                const MARQUEE_SPEED_PX_PER_SEC = 55;
+                const resizeTimers = new WeakMap();
+
+                const getGapPx = (track) => {
+                    const styles = window.getComputedStyle(track);
+                    const rawGap = styles.columnGap && styles.columnGap !== "normal"
+                        ? styles.columnGap
+                        : styles.gap;
+                    const parsed = parseFloat(rawGap);
+                    return Number.isFinite(parsed) ? parsed : 0;
+                };
+
+                const buildMarquee = (wrapper) => {
+                    const track = wrapper.querySelector(".marquee-track");
+                    if (!track) return;
+
+                    if (!track.dataset.sourceMarkup) {
+                        const explicitSource = Array.from(track.children).filter(
+                            el => el.getAttribute("aria-hidden") !== "true"
+                        );
+                        const sourceNodes = explicitSource.length ? explicitSource : Array.from(track.children);
+                        track.dataset.sourceMarkup = sourceNodes.map(el => el.outerHTML).join("");
+                    }
+
+                    if (!track.dataset.sourceMarkup) return;
+
+                    track.innerHTML = track.dataset.sourceMarkup;
+                    const gap = getGapPx(track);
+                    const sourceWidth = track.scrollWidth;
+                    if (!sourceWidth) return;
+
+                    const distance = sourceWidth + gap;
+                    const wrapperWidth = wrapper.clientWidth || 1;
+                    const totalSets = Math.max(2, Math.ceil(wrapperWidth / distance) + 1);
+
+                    const sourceMarkup = track.dataset.sourceMarkup;
+                    for (let i = 1; i < totalSets; i += 1) {
+                        track.insertAdjacentHTML("beforeend", sourceMarkup);
+                    }
+
+                    track.querySelectorAll(".testimonial-card").forEach((card, idx) => {
+                        if (idx >= (track.dataset.sourceCount ? Number(track.dataset.sourceCount) : 0)) {
+                            card.setAttribute("aria-hidden", "true");
                         }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                document.querySelectorAll(".notif-item.unread").forEach(item => {
-                                    item.classList.remove("unread");
-                                    const dot = item.querySelector(".unread-dot");
-                                    if (dot) dot.remove();
-                                });
-                                const badge = document.querySelector(".notif-badge");
-                                if (badge) badge.remove();
-                            }
-                        });
+                    });
+
+                    track.style.setProperty("--marquee-distance", `${distance}px`);
+                    const durationSec = Math.max(18, distance / MARQUEE_SPEED_PX_PER_SEC);
+                    track.style.setProperty("--marquee-duration", `${durationSec}s`);
+                };
+
+                marqueeWrappers.forEach((wrapper) => {
+                    const track = wrapper.querySelector(".marquee-track");
+                    if (track && !track.dataset.sourceCount) {
+                        const visibleCount = Array.from(track.children).filter(
+                            el => el.getAttribute("aria-hidden") !== "true"
+                        ).length;
+                        track.dataset.sourceCount = String(visibleCount || track.children.length || 0);
+                    }
+
+                    buildMarquee(wrapper);
+
+                    window.addEventListener("resize", function () {
+                        const existing = resizeTimers.get(wrapper);
+                        if (existing) clearTimeout(existing);
+                        const timer = setTimeout(() => buildMarquee(wrapper), 150);
+                        resizeTimers.set(wrapper, timer);
+                    });
                 });
             }
         });
@@ -152,25 +284,47 @@
             position: fixed;
             bottom: 30px;
             right: 30px;
-            width: 180px;
-            height: 46px;
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, var(--white) 0%, #e0e0e0 100%);
-            border-radius: 8px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--black);
             cursor: pointer;
             z-index: 9999;
-            font-size: 14px;
-            font-weight: 600;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid var(--black);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         }
 
+        /* Tooltip */
+        .ai-fab::after {
+            content: 'Chat with Balloorina';
+            position: absolute;
+            right: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            color: var(--white);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
-        .ai-fab:hover {
-            transform: translateY(-3px);
+        .ai-fab:hover::after {
+            opacity: 1;
+            visibility: visible;
         }
 
         .ai-fab i {
@@ -244,7 +398,7 @@
         .ai-recent-chats {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 0 0.8rem 0.8rem 0.8rem;
+            padding: 0 0.6rem 0.6rem 0.6rem;
         }
 
         /* Sidebar Custom Scrollbar */
@@ -280,7 +434,7 @@
         }
 
         .ai-recent-chat-item {
-            padding: 0.3rem 0.8rem;
+            padding: 0.2em 0.8rem;
             background: transparent;
             border-radius: 6px;
             color: var(--dark-gray);
@@ -317,7 +471,7 @@
         }
 
         .ai-chat-header {
-            padding: 1rem 1.2rem;
+            padding: 0.6rem 1.2rem;
             background-color: var(--black);
             border-bottom: 1px solid var(--light-gray);
             display: flex;
@@ -415,18 +569,19 @@
 
         .ai-input-area {
             display: flex;
-            padding: 0.8rem;
+            padding: 0.4rem;
             background-color: var(--gray);
             border-top: 1px solid var(--light-gray);
             gap: 10px;
-            align-items: flex-end;
+            align-items: center;
+            justify-content: center;
         }
 
         #ai-widget-input {
             flex-grow: 1;
-            padding: 12px 18px;
+            padding: 8px 18px;
             border: 1px solid var(--light-gray);
-            border-radius: 15px;
+            border-radius: 8px;
             background-color: var(--black);
             color: var(--white);
             font-family: 'Montserrat', sans-serif;
@@ -443,7 +598,7 @@
         }
 
         #ai-widget-input:focus {
-            border-color: var(--dark-gray);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
         #ai-widget-send {
@@ -456,8 +611,7 @@
             font-weight: 700;
             font-family: 'Montserrat', sans-serif;
             transition: all 0.3s ease;
-            height: 42px;
-            align-self: flex-end;
+            height: 36px;
             flex-shrink: 0;
         }
 
@@ -557,11 +711,18 @@
                 font-size: 24px;
             }
         }
+
+        /* Ensure SweetAlert modals appear above the AI widget */
+        .swal2-container {
+            z-index: 10000 !important;
+        }
     </style>
 
     {% if user.is_authenticated %}
-    <div class="ai-fab" id="ai-fab" title="Chat with Design Assistant">
-        <p>Chat with Balloorina</p>
+    <div class="ai-fab" id="ai-fab">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
     </div>
 
     <div class="ai-widget-container" id="ai-widget">
@@ -795,21 +956,42 @@
                             delBtn.style.fontSize = '1.1rem';
                             delBtn.onclick = async (e) => {
                                 e.stopPropagation();
-                                if (confirm('Delete this chat?')) {
-                                    await fetch('/api/chat/clear/', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRFToken': '{{ csrf_token }}'
-                                        },
-                                        body: JSON.stringify({ session_id: session.id })
-                                    });
-                                    if (currentSessionId === session.id) {
-                                        startNewChat();
-                                    } else {
-                                        loadSessions();
+                                Swal.fire({
+                                    title: 'Are you sure?',
+                                    text: "You won't be able to revert this!",
+                                    icon: 'warning',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#6c757d',
+                                    cancelButtonColor: '#d33',
+                                    confirmButtonText: 'Yes, delete it!',
+                                    background: '#1e1e1e',
+                                    color: '#fff'
+                                }).then(async (result) => {
+                                    if (result.isConfirmed) {
+                                        await fetch('/api/chat/clear/', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRFToken': '{{ csrf_token }}'
+                                            },
+                                            body: JSON.stringify({ session_id: session.id })
+                                        });
+                                        if (currentSessionId === session.id) {
+                                            startNewChat();
+                                        } else {
+                                            loadSessions();
+                                        }
+                                        Swal.fire({
+                                            title: 'Deleted!',
+                                            text: 'Your chat has been deleted.',
+                                            icon: 'success',
+                                            background: '#1e1e1e',
+                                            color: '#fff',
+                                            timer: 1500,
+                                            showConfirmButton: false
+                                        });
                                     }
-                                }
+                                });
                             };
                             li.appendChild(delBtn);
 
@@ -1024,6 +1206,38 @@
         });
     </script>
     {% endif %}
+
+    <!-- Global SweetAlert Django Messages Handler -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                background: '#1a1a1a',
+                color: '#fff',
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            });
+
+            {% if messages %}
+                {% for message in messages %}
+                    const messageType = '{{ message.tags|escapejs }}' === 'error' ? 'error' : ('{{ message.tags|escapejs }}' === 'success' ? 'success' : 'info');
+                    const messageText = '{{ message|escapejs }}';
+                    const isLoginSuccess = messageType === 'success' && messageText.toLowerCase().includes('login successful');
+                    Toast.fire({
+                        icon: messageType,
+                        title: messageText,
+                        timer: isLoginSuccess ? 1500 : 4000
+                    });
+                {% endfor %}
+            {% endif %}
+        });
+    </script>
 </body>
 
 </html>

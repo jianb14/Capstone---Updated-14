@@ -1,0 +1,425 @@
+﻿/* static/css/my_profile.css */
+
+:root {
+    --bg-dark: #050505;
+    --card-bg: #0f0f0f;
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-main: #ffffff;
+    --text-muted: #8e8e8e;
+    --accent-color: #f5f5f5;
+    --accent-hover: #ffffff;
+    --glass-bg: rgba(25, 25, 25, 0.6);
+}
+
+body {
+    background-color: var(--bg-dark);
+}
+
+.my-profile-page {
+    padding: 80px 5% 4rem;
+    min-height: 100vh;
+    font-family: 'Montserrat', sans-serif;
+    display: flex;
+    justify-content: center;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
+    background-size: 25px 25px;
+    animation: fadeInPage 0.5s ease forwards;
+}
+
+.my-profile-wrapper {
+    width: 100%;
+    max-width: 800px;
+}
+
+/* Main Profile Card */
+.my-profile-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+/* Cover Section */
+.my-profile-cover {
+    height: 80px;
+    width: 100%;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #111 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.my-profile-cover::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.05"/></svg>');
+    opacity: 0.4;
+}
+
+/* Header Section */
+.my-profile-header {
+    display: flex;
+    align-items: flex-end;
+    padding: 0 2.5rem;
+    margin-top: -15px;
+    position: relative;
+    z-index: 2;
+    margin-bottom: 1.5rem;
+}
+
+.avatar-wrapper {
+    padding: 5px;
+    background: var(--card-bg);
+    border-radius: 50%;
+    margin-right: 1.25rem;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+
+.my-profile-avatar {
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffffff, #d4d4d4);
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+}
+
+.my-profile-title {
+    padding-bottom: 2px;
+}
+
+.my-profile-title h2 {
+    font-size: 1.5rem;
+    color: var(--text-main);
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.3px;
+}
+
+.my-profile-title p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* Body Section */
+.my-profile-body {
+    padding: 0 2.5rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.profile-section {
+    background: var(--glass-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.profile-section:hover {
+    background: rgba(30, 30, 30, 0.6);
+}
+
+.section-title {
+    font-size: 1rem;
+    color: var(--text-main);
+    margin: 0 0 1.25rem 0;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.section-title i {
+    color: #888;
+    font-size: 1rem;
+}
+
+/* Info Grid - Elegant Minimalist */
+.info-grid-modern {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem 2rem;
+}
+
+.info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.info-group label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #777;
+    font-weight: 600;
+}
+
+.info-val {
+    font-size: 0.95rem;
+    color: var(--text-main);
+    font-weight: 400;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Action Section */
+.security-desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+    max-width: 550px;
+}
+
+.btn-change-password {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: var(--text-main);
+    padding: 0.65rem 1.4rem 0.75rem 1.4rem;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+}
+
+.btn-change-password:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0);
+}
+
+/* Password Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.show {
+    display: flex;
+    opacity: 1;
+}
+
+.modal-card {
+    background: #0f0f0f;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9);
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.modal-overlay.show .modal-card {
+    transform: translateY(0) scale(1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: var(--text-main);
+    font-family: Montserrat, sans-serif;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: #0f0f0f;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    margin-top: -10px;
+}
+
+.modal-close:hover {
+    color: var(--text-main);
+}
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: #a0a0a0;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    padding: 0.8rem 2.8rem 0.8rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.password-input-wrapper input:focus {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: none;
+    transform: none;
+}
+
+.password-toggle-icon {
+    position: absolute;
+    right: 12px;
+    width: 18px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.password-toggle-icon:hover {
+    opacity: 1;
+}
+
+
+.field-error {
+    color: #ff6b6b;
+    font-size: 0.75rem;
+    margin-top: 0.4rem;
+    display: none;
+}
+
+#changePasswordForm .form-group.has-error .field-error {
+    display: block;
+}
+
+#changePasswordForm .form-group.has-error input,
+#changePasswordForm input.has-error {
+    border-color: #ef4444 !important;
+}
+
+.form-message {
+    padding: 0.8rem;
+    border-radius: 10px;
+    margin-bottom: 1.2rem;
+    font-size: 0.85rem;
+    display: none;
+    text-align: center;
+}
+
+.form-message.success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.form-message.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #ff6b6b;
+}
+
+#btnSavePassword {
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--text-main);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    margin-top: 0.8rem;
+    transition: all 0.3s;
+}
+
+#btnSavePassword:hover:not(:disabled) {
+    background: #e0e0e0;
+}
+
+#btnSavePassword:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .my-profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 0 1.5rem;
+        margin-top: -42px;
+    }
+    
+    .avatar-wrapper {
+        margin-right: 0;
+        margin-bottom: 0.8rem;
+    }
+
+    .my-profile-body {
+        padding: 0 1.5rem 1.5rem;
+        gap: 1.25rem;
+    }
+    
+    .profile-section {
+        padding: 1.25rem;
+    }
+
+    .info-grid-modern {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* Fix SweetAlert z-index to appear above modal */
+.swal2-container {
+    z-index: 9999 !important;
+}
+

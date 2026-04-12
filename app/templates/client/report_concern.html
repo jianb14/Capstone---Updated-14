@@ -1,0 +1,464 @@
+﻿{% extends 'client/base.html' %}
+{% load static tz %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/report_concern.css' %}">
+
+<div class="concern-page">
+    <div class="concern-wrap">
+        <section class="panel concern-report-panel">
+            <h1>Report a Concern</h1>
+            <p class="sub">Share bugs, account issues, payment concerns, or other feedback.</p>
+
+            <form method="post" class="concern-form" id="concernForm" novalidate>
+                {% csrf_token %}
+                <label for="category">Category</label>
+                <div class="custom-filter-dropdown" id="categoryDropdown">
+                    <div class="dropdown-trigger">
+                        <span id="categoryDropdownText">Select Category</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <ul class="dropdown-options">
+                        <li data-value="bug">Bug Report</li>
+                        <li data-value="account">Account Issue</li>
+                        <li data-value="payment">Payment Concern</li>
+                        <li data-value="booking">Booking Concern</li>
+                        <li data-value="other">Other</li>
+                    </ul>
+                    <select id="category" name="category" class="filter-select">
+                        <option value="" {% if not form_data.category %}selected{% endif %}>Select Category</option>
+                        <option value="bug" {% if form_data.category == 'bug' %}selected{% endif %}>Bug Report</option>
+                        <option value="account" {% if form_data.category == 'account' %}selected{% endif %}>Account Issue</option>
+                        <option value="payment" {% if form_data.category == 'payment' %}selected{% endif %}>Payment Concern</option>
+                        <option value="booking" {% if form_data.category == 'booking' %}selected{% endif %}>Booking Concern</option>
+                        <option value="other" {% if form_data.category == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <small class="field-error" id="category_error"></small>
+
+                <div id="otherCategoryWrap" class="other-category-wrap">
+                    <label for="other_category">Specify Concern Type</label>
+                    <input
+                        type="text"
+                        id="other_category"
+                        name="other_category"
+                        maxlength="80"
+                        value="{{ form_data.other_category|default:'' }}"
+                        placeholder="e.g., specify your concern type">
+                    <small class="field-error" id="other_category_error"></small>
+                </div>
+
+                <label for="subject">Subject</label>
+                <input
+                    type="text"
+                    id="subject"
+                    name="subject"
+                    maxlength="150"
+                    placeholder="e.g., short summary of your concern"
+                    value="{{ form_data.subject|default:'' }}">
+                <small class="field-error" id="subject_error"></small>
+
+                <label for="message">Message</label>
+                <textarea
+                    id="message"
+                    name="message"
+                    rows="6"
+                    placeholder="e.g., explain what happened and the details">{{ form_data.message|default:'' }}</textarea>
+                <small class="field-error" id="message_error"></small>
+
+                <button type="submit">Submit Concern</button>
+            </form>
+        </section>
+
+        <section class="panel concern-history-panel">
+            <h2>My Concern History</h2>
+            {% if my_tickets %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in my_tickets %}
+                        <tr>
+                            <td>#CON-{{ ticket.id }}</td>
+                            <td>{{ ticket.get_category_display }}</td>
+                            <td><span class="status status-{{ ticket.status }}">{{ ticket.get_status_display }}</span></td>
+                            <td>{{ ticket.created_at|timezone:"Asia/Manila"|date:"M d, Y g:i A" }}</td>
+                            <td>
+                                <button type="button" class="btn-view-concern"
+                                    data-ticket="#CON-{{ ticket.id }}"
+                                    data-category="{{ ticket.get_category_display|escape }}"
+                                    data-status-raw="{{ ticket.status }}"
+                                    data-status="{{ ticket.get_status_display|escape }}"
+                                    data-created="{{ ticket.created_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}"
+                                    data-updated="{{ ticket.updated_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}">
+                                    View
+                                </button>
+                                <div class="concern-hidden-texts" hidden>
+                                    <p class="full-subject">{{ ticket.subject }}</p>
+                                    <p class="full-message">{{ ticket.message }}</p>
+                                    <p class="full-admin-notes">{{ ticket.admin_notes|default:"" }}</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty">You have no submitted concerns yet.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+<div class="concern-modal-overlay client-concern-modal" id="concernDetailModal" aria-hidden="true">
+    <div class="concern-modal-card client-concern-modal-card" role="dialog" aria-modal="true" aria-labelledby="concernModalTitle">
+        <div class="concern-modal-head">
+            <div class="concern-modal-title-wrap">
+                <h3 id="concernModalTitle">Concern Details</h3>
+                <span class="concern-modal-id" id="modalTicket">ID: -</span>
+            </div>
+            <button type="button" class="concern-modal-close" id="concernModalClose" aria-label="Close">&times;</button>
+        </div>
+        <div class="concern-modal-body">
+            <div class="detail-grid">
+                <div class="detail-row"><span>Category</span><strong id="modalCategory">-</strong></div>
+                <div class="detail-row"><span>Status</span><strong id="modalStatus" class="client-modal-status">-</strong></div>
+                <div class="detail-row"><span>Created</span><strong id="modalCreated">-</strong></div>
+                <div class="detail-row"><span>Updated</span><strong id="modalUpdated">-</strong></div>
+            </div>
+
+            <div class="detail-block">
+                <h4>Subject</h4>
+                <p id="modalSubject">-</p>
+            </div>
+
+            <div class="detail-block">
+                <h4>Message</h4>
+                <p id="modalMessage">-</p>
+            </div>
+
+            <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
+                <h4>Admin Notes</h4>
+                <p id="modalAdminNotes" class="client-modal-admin-notes">-</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ form_error_toasts|json_script:"concern-form-errors" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categorySelect = document.getElementById('category');
+        const otherWrap = document.getElementById('otherCategoryWrap');
+        const otherInput = document.getElementById('other_category');
+        const subjectInput = document.getElementById('subject');
+        const messageInput = document.getElementById('message');
+        const concernForm = document.getElementById('concernForm');
+        const categoryDropdown = document.getElementById('categoryDropdown');
+        const categoryDropdownText = document.getElementById('categoryDropdownText');
+        const dropdownTrigger = categoryDropdown ? categoryDropdown.querySelector('.dropdown-trigger') : null;
+        const dropdownOptions = categoryDropdown ? categoryDropdown.querySelectorAll('.dropdown-options li') : [];
+
+        const modal = document.getElementById('concernDetailModal');
+        const closeBtn = document.getElementById('concernModalClose');
+        const viewButtons = document.querySelectorAll('.btn-view-concern');
+
+        const modalFields = {
+            ticket: document.getElementById('modalTicket'),
+            category: document.getElementById('modalCategory'),
+            status: document.getElementById('modalStatus'),
+            created: document.getElementById('modalCreated'),
+            updated: document.getElementById('modalUpdated'),
+            subject: document.getElementById('modalSubject'),
+            message: document.getElementById('modalMessage'),
+            adminNotes: document.getElementById('modalAdminNotes')
+        };
+        const adminNotesBlock = document.getElementById('modalAdminNotesBlock');
+
+        function syncOtherCategoryVisibility() {
+            const isOther = categorySelect && categorySelect.value === 'other';
+            if (otherWrap) {
+                otherWrap.style.display = isOther ? 'block' : 'none';
+            }
+            if (otherInput) {
+                if (!isOther) {
+                    otherInput.value = '';
+                    setFieldError('other_category', '');
+                }
+            }
+        }
+
+        let submitAttempted = false;
+        const fieldConfigs = {
+            category: {
+                container: categoryDropdown,
+                errorEl: document.getElementById('category_error')
+            },
+            other_category: {
+                container: otherWrap,
+                errorEl: document.getElementById('other_category_error')
+            },
+            subject: {
+                container: null,
+                input: subjectInput,
+                errorEl: document.getElementById('subject_error')
+            },
+            message: {
+                container: null,
+                input: messageInput,
+                errorEl: document.getElementById('message_error')
+            }
+        };
+
+        function setFieldError(key, message) {
+            const config = fieldConfigs[key];
+            if (!config || !config.errorEl) return;
+
+            if (config.input) {
+                config.input.classList.toggle('has-error', !!message);
+            }
+
+            if (config.container) {
+                config.container.classList.toggle('has-error', !!message);
+            }
+
+            config.errorEl.textContent = message || '';
+            config.errorEl.classList.toggle('show', !!message);
+        }
+
+        function clearAllFieldErrors() {
+            setFieldError('category', '');
+            setFieldError('other_category', '');
+            setFieldError('subject', '');
+            setFieldError('message', '');
+        }
+
+        function validateConcernForm() {
+            clearAllFieldErrors();
+            let firstInvalidField = null;
+
+            if (!categorySelect || !categorySelect.value) {
+                setFieldError('category', 'Category is required*');
+                firstInvalidField = 'category';
+            }
+
+            if (categorySelect && categorySelect.value === 'other' && !otherInput.value.trim()) {
+                setFieldError('other_category', 'Specify concern type is required*');
+                if (!firstInvalidField) firstInvalidField = 'other_category';
+            }
+
+            if (!subjectInput.value.trim()) {
+                setFieldError('subject', 'Subject is required*');
+                if (!firstInvalidField) firstInvalidField = 'subject';
+            }
+
+            if (!messageInput.value.trim()) {
+                setFieldError('message', 'Message is required*');
+                if (!firstInvalidField) firstInvalidField = 'message';
+            }
+
+            return firstInvalidField;
+        }
+
+        if (dropdownTrigger && categoryDropdown) {
+            dropdownTrigger.setAttribute('tabindex', '0');
+            dropdownTrigger.addEventListener('click', function () {
+                categoryDropdown.classList.toggle('open');
+            });
+        }
+
+        if (dropdownOptions.length && categorySelect) {
+            dropdownOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const value = this.getAttribute('data-value');
+                    const text = this.textContent.trim();
+
+                    categorySelect.value = value;
+                    if (categoryDropdownText) categoryDropdownText.textContent = text;
+
+                    dropdownOptions.forEach(item => item.classList.remove('selected'));
+                    this.classList.add('selected');
+
+                    if (categoryDropdown) categoryDropdown.classList.remove('open');
+                    syncOtherCategoryVisibility();
+                    if (submitAttempted) validateConcernForm();
+                });
+            });
+        }
+
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function () {
+                const selectedText = categorySelect.options[categorySelect.selectedIndex] ? categorySelect.options[categorySelect.selectedIndex].text : 'Select Category';
+                if (categoryDropdownText) categoryDropdownText.textContent = selectedText;
+                dropdownOptions.forEach(item => item.classList.toggle('selected', item.getAttribute('data-value') === categorySelect.value));
+                syncOtherCategoryVisibility();
+                if (submitAttempted) validateConcernForm();
+            });
+        }
+
+        document.addEventListener('click', function (event) {
+            if (categoryDropdown && !categoryDropdown.contains(event.target)) {
+                categoryDropdown.classList.remove('open');
+            }
+        });
+
+        if (categorySelect && categorySelect.value) {
+            const selectedText = categorySelect.options[categorySelect.selectedIndex] ? categorySelect.options[categorySelect.selectedIndex].text : 'Select Category';
+            if (categoryDropdownText) categoryDropdownText.textContent = selectedText;
+        }
+        syncOtherCategoryVisibility();
+        clearAllFieldErrors();
+
+        if (concernForm) {
+            concernForm.addEventListener('submit', function (event) {
+                submitAttempted = true;
+                const firstInvalidField = validateConcernForm();
+                if (firstInvalidField) {
+                    event.preventDefault();
+                    if (firstInvalidField === 'category' && dropdownTrigger) {
+                        categoryDropdown.classList.remove('open');
+                        dropdownTrigger.focus();
+                    } else if (firstInvalidField === 'other_category' && otherInput) {
+                        otherInput.focus();
+                    } else if (firstInvalidField === 'subject' && subjectInput) {
+                        subjectInput.focus();
+                    } else if (firstInvalidField === 'message' && messageInput) {
+                        messageInput.focus();
+                    }
+                }
+            });
+        }
+
+        if (otherInput) {
+            otherInput.addEventListener('input', function () {
+                if (submitAttempted) {
+                    validateConcernForm();
+                }
+            });
+        }
+
+        if (subjectInput) {
+            subjectInput.addEventListener('input', function () {
+                if (submitAttempted) {
+                    validateConcernForm();
+                }
+            });
+        }
+
+        if (messageInput) {
+            messageInput.addEventListener('input', function () {
+                if (submitAttempted) {
+                    validateConcernForm();
+                }
+            });
+        }
+
+        function textOrDash(value) {
+            const clean = (value || '').trim();
+            return clean ? clean : '-';
+        }
+
+        function openModal(button) {
+            const row = button.closest('tr');
+            const subjectNode = row ? row.querySelector('.full-subject') : null;
+            const messageNode = row ? row.querySelector('.full-message') : null;
+            const notesNode = row ? row.querySelector('.full-admin-notes') : null;
+
+            modalFields.ticket.textContent = 'ID: ' + textOrDash(button.dataset.ticket);
+            modalFields.category.textContent = textOrDash(button.dataset.category);
+            modalFields.status.textContent = textOrDash(button.dataset.status);
+            modalFields.status.className = 'client-modal-status status-' + (button.dataset.statusRaw || 'new');
+            modalFields.created.textContent = textOrDash(button.dataset.created);
+            modalFields.updated.textContent = textOrDash(button.dataset.updated);
+            modalFields.subject.textContent = textOrDash(subjectNode ? subjectNode.textContent : '');
+            modalFields.message.textContent = textOrDash(messageNode ? messageNode.textContent : '');
+            const statusRaw = button.dataset.statusRaw || 'new';
+            const adminNotesRaw = notesNode ? notesNode.textContent.trim() : '';
+            const shouldShowAdminNotes = (statusRaw === 'in_progress' || statusRaw === 'resolved') && !!adminNotesRaw;
+
+            modalFields.adminNotes.textContent = textOrDash(adminNotesRaw);
+            if (modalFields.adminNotes.textContent === '-') {
+                modalFields.adminNotes.classList.add('is-empty');
+            } else {
+                modalFields.adminNotes.classList.remove('is-empty');
+            }
+            if (adminNotesBlock) {
+                adminNotesBlock.style.display = shouldShowAdminNotes ? 'block' : 'none';
+            }
+
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        viewButtons.forEach((button) => {
+            button.addEventListener('click', () => openModal(button));
+        });
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (modal) {
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) closeModal();
+            });
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && modal && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+
+        const formErrorsEl = document.getElementById('concern-form-errors');
+        if (typeof Swal !== 'undefined' && formErrorsEl) {
+            let formErrors = [];
+            try {
+                formErrors = JSON.parse(formErrorsEl.textContent || '[]');
+            } catch (e) {
+                formErrors = [];
+            }
+
+            if (Array.isArray(formErrors) && formErrors.length) {
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3800,
+                    timerProgressBar: true,
+                    background: '#1a1a1a',
+                    color: '#fff',
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer);
+                        toast.addEventListener('mouseleave', Swal.resumeTimer);
+                    }
+                });
+
+                formErrors.forEach((msg, index) => {
+                    setTimeout(() => {
+                        Toast.fire({
+                            icon: 'error',
+                            title: msg
+                        });
+                    }, index * 250);
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}
+

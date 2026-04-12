@@ -132,6 +132,8 @@
         text-decoration: none;
         font-weight: 600;
         font-size: 0.9rem;
+        cursor: pointer;
+        font-family: inherit;
         transition: all 0.3s ease;
     }
 
@@ -168,6 +170,106 @@
     .btn-back:hover {
         color: #fff;
     }
+
+    .booking-request-popup {
+        background: #111111 !important;
+        border: 1px solid #2a2a2a !important;
+        border-radius: 14px !important;
+        padding: 1.2rem 1.2rem 1rem !important;
+        width: min(92vw, 560px) !important;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    .booking-request-title {
+        color: #f5f7fb !important;
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.02em !important;
+        margin-bottom: 0.7rem !important;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    .booking-request-textarea {
+        background: #0a0a0a !important;
+        border: 1px solid #303030 !important;
+        border-radius: 10px !important;
+        color: #e8ecf3 !important;
+        min-height: 140px !important;
+        line-height: 1.55 !important;
+        font-size: 1rem !important;
+        padding: 0.85rem 0.95rem !important;
+        resize: vertical !important;
+        box-shadow: none !important;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    .booking-request-textarea::placeholder {
+        color: #7a7a7a !important;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    .booking-request-textarea:focus {
+        outline: none !important;
+        border-color: #5a5a5a !important;
+        box-shadow: none !important;
+    }
+
+    .booking-request-textarea::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .booking-request-textarea::-webkit-scrollbar-track {
+        background: #0a0a0a;
+        border-radius: 10px;
+    }
+
+    .booking-request-textarea::-webkit-scrollbar-thumb {
+        background: #3b3b3b;
+        border-radius: 10px;
+        border: 2px solid #0a0a0a;
+    }
+
+    .booking-request-textarea::-webkit-scrollbar-thumb:hover {
+        background: #4a4a4a;
+    }
+
+    .booking-request-popup .swal2-actions {
+        gap: 0.6rem !important;
+        margin-top: 1rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+
+    .booking-request-confirm,
+    .booking-request-cancel {
+        min-width: 104px !important;
+        border-radius: 8px !important;
+        padding: 0.55rem 1.05rem !important;
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        border: 1px solid transparent !important;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    .booking-request-confirm {
+        background: #f0f0f0 !important;
+        color: #111 !important;
+        border-color: #f0f0f0 !important;
+    }
+
+    .booking-request-confirm:hover {
+        background: #dcdcdc !important;
+        border-color: #dcdcdc !important;
+    }
+
+    .booking-request-cancel {
+        background: #242424 !important;
+        color: #d6d6d6 !important;
+        border-color: #3a3a3a !important;
+    }
+
+    .booking-request-cancel:hover {
+        background: #2f2f2f !important;
+    }
 </style>
 
 <div class="booking-detail-page">
@@ -196,7 +298,7 @@
         </div>
         <div class="detail-row">
             <span class="detail-label">Total Price</span>
-            <span class="detail-value" style="font-size: 1.1rem;">₱{{ booking.total_price|intcomma }}</span>
+            <span class="detail-value" style="font-size: 1.1rem;">₱{{ booking.total_price|floatformat:"-2"|intcomma }}</span>
         </div>
         {% if booking.reference_image %}
         <div class="detail-row">
@@ -231,8 +333,8 @@
 
             {% elif booking.status == 'confirmed' and not booking.edit_requested and not booking.edit_allowed %}
             <div class="action-group">
-                <a href="{% url 'request_edit_booking' booking.id %}" class="btn-card btn-edit">Request Edit</a>
-                <a href="{% url 'request_cancel_booking' booking.id %}" class="btn-card btn-delete">Request Cancel</a>
+                <button type="button" class="btn-card btn-edit" onclick="openRequestEditPrompt('{{ booking.id }}')">Request Edit</button>
+                <button type="button" class="btn-card btn-delete" onclick="openRequestCancelPrompt('{{ booking.id }}')">Request Cancel</button>
             </div>
 
             {% elif booking.edit_requested %}
@@ -252,3 +354,92 @@
         </div>
     </div>
 </div>
+
+<form id="requestEditForm" method="POST" action="{% url 'request_edit_booking' 0 %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="reason" id="requestEditReasonInput">
+</form>
+
+<form id="requestCancelForm" method="POST" action="{% url 'request_cancel_booking' 0 %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="reason" id="requestCancelReasonInput">
+</form>
+
+<script>
+    function submitReasonForm(formId, inputId, bookingId, reason) {
+        const form = document.getElementById(formId);
+        const reasonInput = document.getElementById(inputId);
+        if (!form || !reasonInput) return;
+
+        const baseAction = form.getAttribute('action');
+        form.setAttribute('action', baseAction.replace('/0/', `/${bookingId}/`));
+        reasonInput.value = reason;
+        form.submit();
+    }
+
+    function promptReasonModal(title, placeholder, onSubmit) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                input: 'textarea',
+                customClass: {
+                    popup: 'booking-request-popup',
+                    title: 'booking-request-title',
+                    input: 'booking-request-textarea',
+                    confirmButton: 'booking-request-confirm',
+                    cancelButton: 'booking-request-cancel'
+                },
+                buttonsStyling: false,
+                inputPlaceholder: placeholder,
+                inputAttributes: {
+                    'aria-label': placeholder,
+                    maxlength: 500
+                },
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'This field is required.';
+                    }
+                    return null;
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Submit',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#2563eb',
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.trim()) {
+                    onSubmit(result.value.trim());
+                }
+            });
+            return;
+        }
+
+        const reason = window.prompt(placeholder);
+        if (reason && reason.trim()) {
+            onSubmit(reason.trim());
+        }
+    }
+
+    function openRequestEditPrompt(bookingId) {
+        promptReasonModal(
+            'Request Edit',
+            'Please tell us why you want to edit this booking.',
+            function (reason) {
+                submitReasonForm('requestEditForm', 'requestEditReasonInput', bookingId, reason);
+            }
+        );
+    }
+
+    function openRequestCancelPrompt(bookingId) {
+        promptReasonModal(
+            'Request Cancel',
+            'Please tell us why you want to cancel this booking.',
+            function (reason) {
+                submitReasonForm('requestCancelForm', 'requestCancelReasonInput', bookingId, reason);
+            }
+        );
+    }
+</script>
+
+{% endblock %}

@@ -15,11 +15,32 @@
     </div>
 </div>
 
-<div class="page-header title-header">
-    <h1>Packages</h1>
-    <a href="{% url 'admin_package_create' %}" class="action-create">+ Create Package</a>
+<div class="table-container service-charge-card">
+    <form method="POST" action="{% url 'admin_service_charge_update' %}" class="service-charge-form">
+        {% csrf_token %}
+        <h2 class="service-charge-title">Global Service Charge</h2>
+        <div class="service-charge-body">
+            <div class="service-charge-field service-charge-notes-col">
+                <label for="service_charge_notes">Notes (Shown to client)</label>
+                <textarea id="service_charge_notes" name="service_charge_notes" rows="3">{{ service_charge_config.notes|default:'' }}</textarea>
+            </div>
+            <div class="service-charge-side-col">
+                <div class="service-charge-field">
+                <label for="service_charge_amount">Amount (PHP)</label>
+                <input id="service_charge_amount" type="number" step="0.01" min="0" name="service_charge_amount" value="{{ service_charge_config.amount|default:'0' }}">
+                </div>
+                <div class="service-btn-container">
+                    <button type="submit" class="action-create">Save Service Charge</button>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
 
+<div class="page-header title-header">
+    <h1>Packages</h1>
+    <a href="{% url 'admin_package_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Package</a>
+</div>
 
 <!-- ================= PACKAGES ================= -->
 <div class="table-container">
@@ -29,7 +50,6 @@
                 <th>PACKAGE NAME</th>
                 <th>MOST POPULAR</th>
                 <th>PRICE</th>
-                <th>SERVICE CHARGE</th>
                 <th>ACTIONS</th>
             </tr>
         </thead>
@@ -47,20 +67,22 @@
                 </td>
 
                 <td data-label="Price">₱{{ package.price|intcomma }}</td>
-                <td data-label="Service Charge">₱{{ package.service_charge|intcomma }}</td>
 
                 <td data-label="Actions">
                     <div class="action-buttons">
                         <a href="{% url 'admin_package_detail' package.id %}">View</a>
                         <a href="{% url 'admin_package_edit' package.id %}">Edit</a>
                         <a href="{% url 'admin_package_delete' package.id %}"
-                            onclick="return confirm('Delete this package?')">Delete</a>
+                            data-swal-confirm="true"
+                            data-swal-title="Delete package?"
+                            data-swal-text="Delete this package?"
+                            data-swal-confirm-text="Yes, delete package">Delete</a>
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5">No packages found.</td>
+                <td colspan="4">No packages found.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -74,7 +96,7 @@
 <!-- ================= ADD-ONS ================= -->
 <div class="page-header title-header">
     <h1>Add-Ons</h1>
-    <a href="{% url 'admin_addon_create' %}" class="action-create">+ Create Add-On</a>
+    <a href="{% url 'admin_addon_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Add-On</a>
 </div>
 
 
@@ -106,7 +128,10 @@
                         <a href="{% url 'admin_addon_detail' addon.id %}">View</a>
                         <a href="{% url 'admin_addon_edit' addon.id %}">Edit</a>
                         <a href="{% url 'admin_addon_delete' addon.id %}"
-                            onclick="return confirm('Delete this add-on?')">Delete</a>
+                            data-swal-confirm="true"
+                            data-swal-title="Delete add-on?"
+                            data-swal-text="Delete this add-on?"
+                            data-swal-confirm-text="Yes, delete add-on">Delete</a>
                     </div>
                 </td>
             </tr>
@@ -126,7 +151,7 @@
 <!-- ================= ADDITIONAL ================= -->
 <div class="page-header title-header">
     <h1>Additional Only</h1>
-    <a href="{% url 'admin_additional_create' %}" class="action-create">+ Create Additional</a>
+    <a href="{% url 'admin_additional_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Additional</a>
 </div>
 
 
@@ -151,7 +176,10 @@
                         <a href="{% url 'admin_additional_detail' additional.id %}">View</a>
                         <a href="{% url 'admin_additional_edit' additional.id %}">Edit</a>
                         <a href="{% url 'admin_additional_delete' additional.id %}"
-                            onclick="return confirm('Delete this item?')">Delete</a>
+                            data-swal-confirm="true"
+                            data-swal-title="Delete additional item?"
+                            data-swal-text="Delete this item?"
+                            data-swal-confirm-text="Yes, delete item">Delete</a>
                     </div>
                 </td>
             </tr>

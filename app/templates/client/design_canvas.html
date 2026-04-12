@@ -1,4 +1,4 @@
-{% extends 'client/base.html' %}
+﻿{% extends 'client/base.html' %}
 {% load static %}
 
 {% block content %}
@@ -6,288 +6,179 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
+    {% csrf_token %}
     <div class="design-layout">
-        <!-- Left Sidebar: Inventory -->
         <div class="inventory-sidebar">
             <h4 class="sidebar-title">Design Elements</h4>
-            
-            <!-- ====== 1. FRAMES / STRUCTURES ====== -->
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Frames / Structures</span>
-                    <i class="fas fa-chevron-down chevron"></i>
+
+            <div class="sidebar-section">
+                <div class="section-label"><i class="fas fa-palette"></i> COLOR PICKER</div>
+                <div class="color-swatch-grid">
+                    <div class="color-swatch" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
+                    <div class="color-swatch" data-color="#000000" style="background:#000000;" title="Black"></div>
+                    <div class="color-swatch" data-color="#e74c3c" style="background:#e74c3c;" title="Red"></div>
+                    <div class="color-swatch" data-color="#3498db" style="background:#3498db;" title="Blue"></div>
+                    <div class="color-swatch" data-color="#2ecc71" style="background:#2ecc71;" title="Green"></div>
+                    <div class="color-swatch" data-color="#f1c40f" style="background:#f1c40f;" title="Yellow"></div>
+                    <div class="color-swatch" data-color="#e91e8c" style="background:#e91e8c;" title="Hot Pink"></div>
+                    <div class="color-swatch" data-color="#9b59b6" style="background:#9b59b6;" title="Purple"></div>
+                    <div class="color-swatch" data-color="#e67e22" style="background:#e67e22;" title="Orange"></div>
+                    <div class="color-swatch" data-color="#1abc9c" style="background:#1abc9c;" title="Teal"></div>
+                    <div class="color-swatch" data-color="#f8b4c8" style="background:#f8b4c8;" title="Light Pink"></div>
+                    <div class="color-swatch" data-color="#85c1e9" style="background:#85c1e9;" title="Light Blue"></div>
+                    <div class="color-swatch" data-color="#d4ac0d" style="background:#d4ac0d;" title="Gold"></div>
+                    <div class="color-swatch" data-color="#c0c0c0" style="background:#c0c0c0;" title="Silver"></div>
+                    <div class="color-swatch" data-color="#cd6155" style="background:#cd6155;" title="Rose"></div>
                 </div>
-                <!-- Arch Frames -->
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Arch Frames</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/round_arch.svg' label='Round Arch' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/half_arch.svg' label='Half Arch' width='150' height='250' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/spiral_arch.svg' label='Spiral Arch' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/organic_arch.svg' label='Org Arch' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/square_arch.svg' label='Square Arch' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/double_arch.svg' label='Double Arch' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/entrance_arch.svg' label='Entrance' width='200' height='200' %}
+                <div class="custom-color-row">
+                    <span class="custom-label"><i class="fas fa-palette"></i> Custom</span>
+                    <input type="color" id="customCanvasColor" value="#ffffff" title="Pick custom color">
                 </div>
-                <!-- Backdrop Frames -->
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Backdrop Frames</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/round_backdrop.svg' label='Round Drop' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/square_backdrop.svg' label='Square Drop' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/rectangle_backdrop.svg' label='Rect Drop' width='150' height='250' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/hexagon_backdrop.svg' label='Hex Drop' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/triangle_backdrop.svg' label='Tri Drop' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/layered_panel.svg' label='Layered' width='200' height='250' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/wall_backdrop.svg' label='Wall Drop' width='200' height='200' %}
+
+                <div class="section-label" style="margin-top:10px;"><i class="fas fa-expand-arrows-alt"></i> ELEMENT SIZE</div>
+                <div class="element-size-row">
+                    <label>W</label>
+                    <input type="number" id="elemWidthInput" value="0" min="1" max="5000" step="1">
+                    <label>H</label>
+                    <input type="number" id="elemHeightInput" value="0" min="1" max="5000" step="1">
                 </div>
-                <!-- Balloon Wall / Grid -->
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Balloon Walls & Grids</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/grid_frame.svg' label='Grid Frame' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/mesh_frame.svg' label='Mesh Frame' width='200' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/panel_wall.svg' label='Panel Wall' width='200' height='300' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/balloon_wall_frame.svg' label='Wall Frame' width='200' height='200' %}
-                </div>
-                <!-- Stands -->
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Stands</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/balloon_stand_single.svg' label='1 Stand' width='50' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/balloon_stand_multi.svg' label='Multi Stand' width='100' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/table_stand.svg' label='Table Stand' width='150' height='150' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/floor_stand.svg' label='Floor Stand' width='100' height='250' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/ring_stand.svg' label='Ring Stand' width='200' height='250' %}
-                </div>
-                <!-- Numbers and Letters -->
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Numbers & Letters</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_0.svg' label='Frame 0' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_1.svg' label='Frame 1' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_2.svg' label='Frame 2' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_3.svg' label='Frame 3' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_4.svg' label='Frame 4' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_5.svg' label='Frame 5' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_6.svg' label='Frame 6' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_7.svg' label='Frame 7' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_8.svg' label='Frame 8' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/number_9.svg' label='Frame 9' width='150' height='200' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/love_frame.svg' label='LOVE Frame' width='400' height='150' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/baby_frame.svg' label='BABY Frame' width='400' height='150' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/frames/one_frame.svg' label='ONE Frame' width='300' height='150' %}
+
+                <div class="section-label" style="margin-top:10px;"><i class="fas fa-image"></i> BACKGROUND IMAGE</div>
+                <div class="bg-image-actions">
+                    <label class="bg-upload-btn"><i class="fas fa-upload"></i> Upload Image<input type="file" id="bgImageUpload" accept="image/*" hidden></label>
+                    <button class="bg-remove-btn" id="removeBgImage"><i class="fas fa-times"></i> Remove BG Image</button>
                 </div>
             </div>
 
-                                                            <!-- ====== 2. BALLOONS ====== -->
+            {% for cat in canvas_categories %}
             <div class="inventory-category">
                 <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Balloons</span>
+                    <span>{{ cat.name }}</span>
                     <i class="fas fa-chevron-down chevron"></i>
                 </div>
+                {% regroup cat.assets.all by label_ref.name as grouped_assets %}
+                {% for group in grouped_assets %}
                 <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Balloon Shapes</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/standard_blank.svg' label='Normal' width='70' height='110' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/circle_blank.svg' label='Circle' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/star_blank.svg' label='Star' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/heart_blank.svg' label='Heart' width='80' height='80' %}
+                    {% if group.grouper %}
+                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">{{ group.grouper }}</div>
+                    {% else %}
+                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">General</div>
+                    {% endif %}
+                    {% for asset in group.list %}
+                    {% if asset.is_active %}
+                    {% include 'components/canvas_asset_item.html' with asset=asset %}
+                    {% endif %}
+                    {% endfor %}
                 </div>
-                <div class="category-items" style="gap: 5px; max-height: 300px; overflow-y: auto;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Number Balloons (0-9)</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_0_blank.svg' label='Num 0' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_1_blank.svg' label='Num 1' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_2_blank.svg' label='Num 2' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_3_blank.svg' label='Num 3' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_4_blank.svg' label='Num 4' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_5_blank.svg' label='Num 5' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_6_blank.svg' label='Num 6' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_7_blank.svg' label='Num 7' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_8_blank.svg' label='Num 8' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/number_9_blank.svg' label='Num 9' width='80' height='80' %}
+                {% endfor %}
+            </div>
+            {% empty %}
+            <div class="inventory-category">
+                <div class="category-header" onclick="toggleCategory(this)">
+                    <span>No asset categories yet</span>
+                    <i class="fas fa-chevron-down chevron"></i>
                 </div>
-                <div class="category-items" style="gap: 5px; max-height: 300px; overflow-y: auto;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Letter Balloons (A-Z)</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_A_blank.svg' label='Let A' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_B_blank.svg' label='Let B' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_C_blank.svg' label='Let C' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_D_blank.svg' label='Let D' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_E_blank.svg' label='Let E' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_F_blank.svg' label='Let F' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_G_blank.svg' label='Let G' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_H_blank.svg' label='Let H' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_I_blank.svg' label='Let I' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_J_blank.svg' label='Let J' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_K_blank.svg' label='Let K' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_L_blank.svg' label='Let L' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_M_blank.svg' label='Let M' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_N_blank.svg' label='Let N' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_O_blank.svg' label='Let O' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_P_blank.svg' label='Let P' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_Q_blank.svg' label='Let Q' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_R_blank.svg' label='Let R' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_S_blank.svg' label='Let S' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_T_blank.svg' label='Let T' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_U_blank.svg' label='Let U' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_V_blank.svg' label='Let V' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_W_blank.svg' label='Let W' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_X_blank.svg' label='Let X' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_Y_blank.svg' label='Let Y' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/letter_Z_blank.svg' label='Let Z' width='80' height='80' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Bundles</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/balloon_garland.svg' label='Garland' width='200' height='150' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/balloons/balloon_bouquet.svg' label='Bouquet' width='100' height='140' %}
+                <div class="category-items open" style="gap: 5px;">
+                    <div style="width:100%;font-size:0.75rem;color:#888;">Ask admin to add Canvas Categories and Assets in the admin panel.</div>
                 </div>
             </div>
+            {% endfor %}
 
-            <!-- ====== 3. DECORATIONS ====== -->
             <div class="inventory-category">
                 <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Decorations</span>
+                    <span>Text Tools</span>
                     <i class="fas fa-chevron-down chevron"></i>
                 </div>
                 <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Florals</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/flower_pink.svg' label='Pink Flower' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/flower_blue.svg' label='Blue Flower' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/flower_red.svg' label='Red Flower' width='80' height='80' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/greenery_fern.svg' label='Fern' width='70' height='100' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Accents</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/bow_pink.svg' label='Pink Bow' width='100' height='70' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/bow_blue.svg' label='Blue Bow' width='100' height='70' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/bow_gold.svg' label='Gold Bow' width='100' height='70' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/string_lights.svg' label='String Lights' width='150' height='60' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/decorations/teepee_tent.svg' label='Teepee' width='100' height='120' %}
-                </div>
-            </div>
-
-            <!-- ====== 4. FURNITURE ====== -->
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Furniture</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Plinths</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/plinth_white.svg' label='White Plinth' width='60' height='100' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/plinth_pink.svg' label='Pink Plinth' width='60' height='100' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/plinth_gold.svg' label='Gold Plinth' width='60' height='100' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Seating</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/ghost_chair.svg' label='Ghost Chair' width='80' height='100' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/velvet_chair.svg' label='Velvet Chair' width='80' height='100' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/wooden_bench.svg' label='Bench' width='120' height='70' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Shelves & Props</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/wooden_crate.svg' label='Crate' width='90' height='70' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/ladder_shelf.svg' label='Ladder Shelf' width='70' height='120' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/furniture/easel.svg' label='Easel' width='60' height='110' %}
-                </div>
-            </div>
-
-            <!-- ====== 5. PARTY ITEMS ====== -->
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Party Items</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Cakes & Gifts</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/cake.svg' label='Cake' width='90' height='110' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/gift_box.svg' label='Gift Box' width='80' height='80' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Blocks</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/block_A.svg' label='Block A' width='70' height='70' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/block_B.svg' label='Block B' width='70' height='70' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/block_C.svg' label='Block C' width='70' height='70' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Standees</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/standee_lion.svg' label='Lion' width='90' height='110' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/party/standee_giraffe.svg' label='Giraffe' width='85' height='130' %}
-                </div>
-            </div>
-
-            <!-- ====== 6. THEME OBJECTS ====== -->
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Theme Objects</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/themes/teddy_bear.svg' label='Teddy Bear' width='90' height='110' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/themes/rainbow.svg' label='Rainbow' width='120' height='75' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/themes/hot_air_balloon.svg' label='Hot Air Balloon' width='90' height='120' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/themes/street_lamp.svg' label='Street Lamp' width='50' height='130' %}
-                </div>
-            </div>
-
-            <!-- ====== 7. TEXT & SIGNS ====== -->
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Text & Signs</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Neon Signs</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/texts/neon_happy_birthday.svg' label='Happy Bday' width='150' height='60' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/texts/neon_oh_baby.svg' label='Oh Baby' width='150' height='60' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/texts/neon_lets_party.svg' label='Party' width='150' height='60' %}
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Marquee & Boards</div>
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/texts/marquee_1.svg' label='Marquee 1' width='60' height='110' %}
-                    {% include 'components/canvas_item.html' with type='image' src='images/canvas/premium/texts/acrylic_board.svg' label='Acrylic Sign' width='90' height='120' %}
-
-                    <!-- Draggable Interactive Text -->
-                    <div class="draggable-item text-draggable" 
-                         draggable="true" 
-                         data-type="i-text" 
-                         data-text="Happy Birthday!" 
-                         data-font-family="Arial" 
-                         data-color="#333333" 
-                         title="Drag onto canvas to add text">
-                         <div class="icon-label">
-                             <i class="fas fa-font fa-2x" style="color:#007bff; margin-bottom:5px;"></i>
-                             <span class="item-label">Custom Text</span>
-                         </div>
+                    <div style="width:100%;font-size:0.7rem;color:#aaa;margin:4px 0;">Custom Text</div>
+                    <div class="draggable-item text-draggable"
+                        draggable="true"
+                        data-type="i-text"
+                        data-text="Happy Birthday!"
+                        data-font-family="Arial"
+                        data-color="#333333"
+                        title="Drag onto canvas to add text">
+                        <div class="icon-label">
+                            <i class="fas fa-font fa-2x" style="color:#007bff; margin-bottom:5px;"></i>
+                            <span class="item-label">Custom Text</span>
+                        </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="inventory-category">
+                <div class="category-header" onclick="toggleCategory(this)">
+                    <span>Upload Your Own</span>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="category-items" style="gap: 5px;">
+                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Upload Your Own</div>
+                    <div style="width:100%;">
+                        <label class="bg-upload-btn" style="width:100%;text-align:center;">
+                            <i class="fas fa-cloud-upload-alt"></i> Upload Image
+                            <input type="file" id="userUploadInput" accept="image/*" multiple hidden>
+                        </label>
+                        <p style="font-size:0.65rem;color:#555;text-align:center;margin:6px 0 4px;">PNG with transparent background works best.</p>
+                    </div>
+                    <div id="userUploadsGrid" class="user-uploads-grid"></div>
                 </div>
             </div>
 
             <div class="sidebar-tip">
-                <i class="fas fa-info-circle"></i> Drag items onto the canvas. Use handles to resize and rotate.
+                <i class="fas fa-info-circle"></i> Ctrl+Z Undo · Ctrl+Y Redo · Delete Remove · Ctrl+D Clone · Arrow Keys Nudge
             </div>
         </div>
 
-        <!-- Right Area: The Canvas Stage -->
         <div class="canvas-area">
             <div class="canvas-header">
                 <div class="canvas-controls">
+                    <button id="undoBtn" class="ctrl-btn" title="Undo (Ctrl+Z)" disabled>
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button id="redoBtn" class="ctrl-btn" title="Redo (Ctrl+Y)" disabled>
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
+                    <button id="lockBtn" class="ctrl-btn" title="Lock / Unlock" disabled>
+                        <i class="fas fa-lock-open"></i>
+                    </button>
                     <button id="cloneBtn" class="ctrl-btn" title="Clone" disabled>
                         <i class="far fa-copy"></i>
                     </button>
-                    <button id="layerUpBtn" class="ctrl-btn" title="Bring Forward" disabled>
+                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
+                    <button id="layerUpBtn" class="ctrl-btn" title="Forward" disabled>
                         <i class="fas fa-level-up-alt"></i>
                     </button>
-                    <button id="layerDownBtn" class="ctrl-btn" title="Send Back" disabled>
+                    <button id="layerDownBtn" class="ctrl-btn" title="Backward" disabled>
                         <i class="fas fa-level-down-alt"></i>
                     </button>
+                    <button id="toFrontBtn" class="ctrl-btn" title="To Front" disabled>
+                        <i class="fas fa-angle-double-up"></i>
+                    </button>
+                    <button id="toBackBtn" class="ctrl-btn" title="To Back" disabled>
+                        <i class="fas fa-angle-double-down"></i>
+                    </button>
                     <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <div class="color-picker-container" title="Change Item Color" style="display: flex; align-items: center; justify-content: center; height: 32px; width: 32px; border-radius: 4px; background: rgba(255,255,255,0.1); margin: 0 4px;">
-                        <input type="color" id="itemColorPicker" class="ctrl-color-picker" disabled value="#ffffff" style="width: 24px; height: 24px; padding: 0; border: none; cursor: pointer; background: transparent;">
-                    </div>
+                    <button id="flipXBtn" class="ctrl-btn" title="Flip Horizontal" disabled>
+                        <i class="fas fa-arrows-alt-h"></i>
+                    </button>
+                    <button id="flipYBtn" class="ctrl-btn" title="Flip Vertical" disabled>
+                        <i class="fas fa-arrows-alt-v"></i>
+                    </button>
+                    <button id="skewLeftBtn" class="ctrl-btn" title="Skew Left" disabled>
+                        <i class="fas fa-caret-left" style="transform: skewX(-15deg);"></i>
+                    </button>
+                    <button id="skewRightBtn" class="ctrl-btn" title="Skew Right" disabled>
+                        <i class="fas fa-caret-right" style="transform: skewX(15deg);"></i>
+                    </button>
                     <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <button id="deleteBtn" class="ctrl-btn ctrl-btn-danger" title="Delete" disabled>
+                    <button id="deleteBtn" class="ctrl-btn" title="Delete" disabled>
                         <i class="far fa-trash-alt"></i>
                     </button>
-                    <button id="clearBtn" class="ctrl-btn ctrl-btn-warning" title="Clear Canvas" >
+                    <button id="clearBtn" class="ctrl-btn" title="Clear Canvas" disabled>
                         <i class="fas fa-eraser"></i>
                     </button>
                     <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <!-- Zoom Controls -->
                     <button id="zoomOutBtn" class="ctrl-btn" title="Zoom Out (Ctrl+-)">
                         <i class="fas fa-search-minus"></i>
                     </button>
@@ -298,14 +189,13 @@
                     <button id="zoomResetBtn" class="ctrl-btn" title="Fit to View (Ctrl+0)">
                         <i class="fas fa-compress-arrows-alt"></i>
                     </button>
-                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
+                    <div style="width: 1px; height: 20px; background: #555;"></div>
                     <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
-                        <i class="fas fa-download"></i> Save
+                        <i class="fas fa-download" style="margin-top: 4px;"></i> Save
                     </button>
                 </div>
             </div>
-            
-            <!-- The drop zone and fabric canvas -->
+
             <div id="canvasDropZone">
                 <canvas id="designCanvas"></canvas>
                 <div class="drop-hint" id="dropHint">
@@ -313,12 +203,59 @@
                     <p>Drag balloons and decorations here</p>
                 </div>
             </div>
+
+            <div class="canvas-footer">
+                <div class="footer-left">
+                    <span id="canvasSizeDisp">Canvas: 1920 × 1080</span>
+                </div>
+                <div class="footer-right">
+                    <div class="canvas-size-inputs">
+                        <label>W</label>
+                        <input type="number" id="canvasWidthInput" value="1920" min="100" max="5000" step="10">
+                        <label>H</label>
+                        <input type="number" id="canvasHeightInput" value="1080" min="100" max="5000" step="10">
+                        <button id="applySizeBtn" class="ctrl-btn" title="Apply Canvas Size" style="font-size:0.65rem;padding:3px 6px;">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="summary-float-btn active" id="summaryFloatBtn" aria-label="Toggle design summary" title="Design Summary" aria-expanded="true">
+            <i class="fas fa-chevron-left btn-icon"></i>
+        </button>
+        <div class="summary-float-panel open" id="summaryFloatPanel">
+            <div class="cart-header">
+                <span><i class="fas fa-receipt"></i> Design Summary</span>
+            </div>
+            <div class="cart-body" id="cartBody">
+                <div class="cart-base-package">
+                    <strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}Custom Design{% endif %}</span>
+                </div>
+
+                {% if base_package %}
+                <div class="cart-section" id="cartInclusionsArea">
+                    <div class="section-title">Package Inclusions</div>
+                    <ul class="cart-list" id="cartInclusionsList"></ul>
+                </div>
+                {% endif %}
+
+                <div class="cart-section" id="cartAddonsArea">
+                    <div class="section-title">Extra Add-ons</div>
+                    <ul class="cart-list" id="cartAddonsList">
+                        <li class="empty-list">No extra items yet.</li>
+                    </ul>
+                </div>
+
+                <div class="cart-total-area">
+                    <span>Total Est. Add-ons:</span>
+                    <span class="total-price" id="cartTotalPrice">P0.00</span>
+                </div>
+            </div>
         </div>
     </div>
 </section>
 
 <script>
-// Simple toggle for categories
 function toggleCategory(header) {
     const parent = header.parentElement;
     const itemsList = parent.querySelectorAll('.category-items');
@@ -326,6 +263,46 @@ function toggleCategory(header) {
     itemsList.forEach(items => items.classList.toggle('open'));
     chevron.classList.toggle('rotated');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const floatBtn = document.getElementById('summaryFloatBtn');
+    const floatPanel = document.getElementById('summaryFloatPanel');
+    if (!floatBtn || !floatPanel) return;
+
+    const closePanel = () => {
+        floatPanel.classList.remove('open');
+        floatBtn.classList.remove('active');
+        floatBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    floatBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isOpen = floatPanel.classList.toggle('open');
+        floatBtn.classList.toggle('active', isOpen);
+        floatBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closePanel();
+        }
+    });
+});
+</script>
+
+<script>
+    {% if design %}
+        window.currentDesignId = "{{ design.id }}";
+        window.savedCanvasJson = `{{ design.canvas_json|safe }}`;
+    {% else %}
+        window.currentDesignId = null;
+        window.savedCanvasJson = null;
+    {% endif %}
+
+    window.basePackageId = "{{ base_package.id|default:'' }}";
+    window.packageQuotas = JSON.parse('{{ package_quotas|escapejs|default:"{}" }}');
+    window.addonPrices = JSON.parse('{{ addon_prices|escapejs|default:"{}" }}');
 </script>
 <script src="{% static 'js/design_canvas.js' %}"></script>
 {% endblock content %}
+

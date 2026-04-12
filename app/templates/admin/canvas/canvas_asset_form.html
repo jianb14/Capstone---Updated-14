@@ -1,0 +1,420 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+
+<div class="page-header">
+    <h1>{% if canvas_asset %}Edit Canvas Asset{% else %}Add Canvas Asset{% endif %}</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
+        <span class="separator">/</span>
+        <span>{% if canvas_asset %}Edit{% else %}Add{% endif %} Asset</span>
+    </div>
+</div>
+
+<div class="form-container canvas-category-container canvas-asset-container">
+    <div class="form-card canvas-category-card canvas-asset-card">
+        <form method="POST" enctype="multipart/form-data" class="canvas-asset-form" id="canvasAssetForm" data-require-image="{% if canvas_asset and canvas_asset.image or canvas_asset and canvas_asset.static_path %}false{% else %}true{% endif %}" novalidate>
+            {% csrf_token %}
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            {% if scroll_target %}<input type="hidden" name="scroll_target" value="{{ scroll_target }}">{% endif %}
+
+            <div class="form-grid canvas-category-grid canvas-asset-grid">
+                <div class="form-group span-6 custom-select-field">
+                    <label for="category">Category</label>
+                    <div class="custom-filter-dropdown" id="assetCategoryDropdown">
+                        <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                            <span id="assetCategoryDropdownText">
+                                {% if canvas_asset and canvas_asset.category %}
+                                {{ canvas_asset.category.name }}
+                                {% else %}
+                                Select Category
+                                {% endif %}
+                            </span>
+                            <span class="dropdown-caret" aria-hidden="true"></span>
+                        </div>
+                        <ul class="dropdown-options">
+                            {% for cat in categories %}
+                            <li data-value="{{ cat.id }}" {% if canvas_asset and canvas_asset.category.id == cat.id %}class="selected"{% endif %}>{{ cat.name }}</li>
+                            {% endfor %}
+                        </ul>
+                        <select name="category" id="category" class="filter-select" required>
+                            <option value="" disabled hidden {% if not canvas_asset or not canvas_asset.category %}selected{% endif %}>Select Category</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if canvas_asset and canvas_asset.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <p class="field-error" data-error-for="category"></p>
+                </div>
+
+                <div class="form-group span-6">
+                    <label for="label">Asset Name</label>
+                    <input type="text" name="label" id="label" value="{{ canvas_asset.label|default:'' }}" placeholder="e.g. Entrance Arch" required>
+                    <p class="field-error" data-error-for="label"></p>
+                </div>
+
+                <div class="form-group span-6 custom-select-field">
+                    <label for="label_ref">Label Group</label>
+                    <div class="custom-filter-dropdown" id="assetLabelDropdown">
+                        <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                            <span id="assetLabelDropdownText">
+                                {% if canvas_asset and canvas_asset.label_ref %}
+                                {{ canvas_asset.label_ref.category.name }} - {{ canvas_asset.label_ref.name }}
+                                {% else %}
+                                Select Label Group
+                                {% endif %}
+                            </span>
+                            <span class="dropdown-caret" aria-hidden="true"></span>
+                        </div>
+                        <ul class="dropdown-options">
+                            {% for lbl in labels %}
+                            <li data-value="{{ lbl.id }}" data-category-id="{{ lbl.category_id }}" {% if canvas_asset and canvas_asset.label_ref and canvas_asset.label_ref.id == lbl.id %}class="selected"{% endif %}>
+                                {{ lbl.category.name }} - {{ lbl.name }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <select name="label_ref" id="label_ref" class="filter-select" required>
+                            <option value="" disabled hidden {% if not canvas_asset or not canvas_asset.label_ref %}selected{% endif %}>Select Label Group</option>
+                            {% for lbl in labels %}
+                            <option value="{{ lbl.id }}"
+                                    data-category-id="{{ lbl.category_id }}"
+                                    {% if canvas_asset and canvas_asset.label_ref and canvas_asset.label_ref.id == lbl.id %}selected{% endif %}>
+                                {{ lbl.category.name }} - {{ lbl.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <p class="field-error" data-error-for="label_ref"></p>
+                </div>
+
+                <div class="form-group span-6">
+                    <label for="image">Upload Image</label>
+                    <input type="file" name="image" id="image" accept="image/*">
+                    <p class="field-error" data-error-for="image"></p>
+                    {% if canvas_asset and canvas_asset.image %}
+                    <p class="current-upload-text">Current upload: {{ canvas_asset.image.name }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="canvas-asset-size-row span-6">
+                    <div class="form-group">
+                        <label for="width">Default Width</label>
+                        <input type="number" name="width" id="width" value="{{ canvas_asset.width|default:'150' }}" min="1" required>
+                        <p class="field-error" data-error-for="width"></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="height">Default Height</label>
+                        <input type="number" name="height" id="height" value="{{ canvas_asset.height|default:'150' }}" min="1" required>
+                        <p class="field-error" data-error-for="height"></p>
+                    </div>
+                </div>
+
+                <div class="form-group span-6">
+                    <label for="is_active">Status</label>
+                    <label for="is_active" class="active-toggle-box image-active-row">
+                        <input type="checkbox" name="is_active" id="is_active" {% if canvas_asset %}{% if canvas_asset.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+                        <span>Active (visible on design canvas)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'admin_canvas_assets' %}" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-save">{% if canvas_asset %}Update{% else %}Create{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    (function () {
+        const categorySelect = document.getElementById('category');
+        const labelSelect = document.getElementById('label_ref');
+        if (!categorySelect || !labelSelect) return;
+
+        const dropdownInstances = [];
+
+        function closeAllDropdowns() {
+            dropdownInstances.forEach(instance => instance.close());
+        }
+
+        function createDropdown(config) {
+            const dropdown = document.getElementById(config.dropdownId);
+            const trigger = dropdown ? dropdown.querySelector('.dropdown-trigger') : null;
+            const optionsContainer = dropdown ? dropdown.querySelector('.dropdown-options') : null;
+            const textNode = document.getElementById(config.textId);
+            const select = document.getElementById(config.selectId);
+            if (!dropdown || !trigger || !optionsContainer || !textNode || !select) return null;
+
+            function close() {
+                dropdown.classList.remove('open');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+
+            function open() {
+                closeAllDropdowns();
+                dropdown.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+
+            function toggle() {
+                if (dropdown.classList.contains('open')) {
+                    close();
+                } else {
+                    open();
+                }
+            }
+
+            function applySelection(value) {
+                select.value = value;
+                const selectedOption = Array.from(select.options).find(opt => opt.value === value);
+                textNode.textContent = selectedOption ? selectedOption.textContent.trim() : config.placeholder;
+
+                optionsContainer.querySelectorAll('li').forEach(item => {
+                    item.classList.toggle('selected', (item.getAttribute('data-value') || '') === value);
+                });
+            }
+
+            function rebuildFromSelect() {
+                optionsContainer.innerHTML = '';
+                Array.from(select.options).forEach((opt) => {
+                    if (!opt.value) return;
+                    const li = document.createElement('li');
+                    const value = opt.value || '';
+                    li.setAttribute('data-value', value);
+                    if (opt.hasAttribute('data-category-id')) {
+                        li.setAttribute('data-category-id', opt.getAttribute('data-category-id'));
+                    }
+                    li.textContent = opt.textContent.trim();
+                    if (opt.selected) {
+                        li.classList.add('selected');
+                    }
+                    li.addEventListener('click', function () {
+                        applySelection(value);
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                        close();
+                    });
+                    optionsContainer.appendChild(li);
+                });
+                applySelection(select.value || '');
+            }
+
+            trigger.addEventListener('click', toggle);
+            trigger.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle();
+                }
+            });
+
+            select.addEventListener('change', function () {
+                applySelection(select.value || '');
+            });
+
+            const api = { close, rebuildFromSelect };
+            dropdownInstances.push(api);
+            rebuildFromSelect();
+            return api;
+        }
+
+        const categoryDropdown = createDropdown({
+            dropdownId: 'assetCategoryDropdown',
+            textId: 'assetCategoryDropdownText',
+            selectId: 'category',
+            placeholder: 'Select Category'
+        });
+        const labelDropdown = createDropdown({
+            dropdownId: 'assetLabelDropdown',
+            textId: 'assetLabelDropdownText',
+            selectId: 'label_ref',
+            placeholder: 'Select Label Group'
+        });
+
+        const allOptions = Array.from(labelSelect.querySelectorAll('option'));
+        const placeholder = allOptions.find(opt => opt.value === '');
+
+        function filterLabelsByCategory() {
+            const selectedCategory = categorySelect.value;
+            const currentValue = labelSelect.value;
+            labelSelect.innerHTML = '';
+            if (placeholder) {
+                labelSelect.appendChild(placeholder.cloneNode(true));
+            }
+
+            allOptions.forEach(opt => {
+                if (!opt.value) return;
+                if (!selectedCategory || opt.getAttribute('data-category-id') === selectedCategory) {
+                    labelSelect.appendChild(opt.cloneNode(true));
+                }
+            });
+
+            const hasCurrent = Array.from(labelSelect.options).some(opt => opt.value === currentValue);
+            labelSelect.value = hasCurrent ? currentValue : '';
+            if (labelDropdown) labelDropdown.rebuildFromSelect();
+        }
+
+        categorySelect.addEventListener('change', filterLabelsByCategory);
+        document.addEventListener('click', function (e) {
+            const categoryDropdownEl = document.getElementById('assetCategoryDropdown');
+            const labelDropdownEl = document.getElementById('assetLabelDropdown');
+            if (categoryDropdownEl && !categoryDropdownEl.contains(e.target) && categoryDropdown) categoryDropdown.close();
+            if (labelDropdownEl && !labelDropdownEl.contains(e.target) && labelDropdown) labelDropdown.close();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeAllDropdowns();
+        });
+        filterLabelsByCategory();
+
+        const form = document.getElementById('canvasAssetForm');
+        if (!form) return;
+
+        const nameInput = document.getElementById('label');
+        const imageInput = document.getElementById('image');
+        const widthInput = document.getElementById('width');
+        const heightInput = document.getElementById('height');
+        const categoryTriggerEl = document.querySelector('#assetCategoryDropdown .dropdown-trigger');
+        const labelTriggerEl = document.querySelector('#assetLabelDropdown .dropdown-trigger');
+
+        const setFieldError = (fieldName, message) => {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        };
+
+        const clearFieldError = (fieldName) => {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        };
+
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function () {
+                if (categorySelect.value) {
+                    clearFieldError('category');
+                }
+            });
+        }
+
+        if (labelSelect) {
+            labelSelect.addEventListener('change', function () {
+                if (labelSelect.value) {
+                    clearFieldError('label_ref');
+                }
+            });
+        }
+
+        if (nameInput) {
+            nameInput.addEventListener('input', function () {
+                if (nameInput.value.trim()) {
+                    clearFieldError('label');
+                }
+            });
+        }
+
+        if (imageInput) {
+            imageInput.addEventListener('change', function () {
+                if (imageInput.files && imageInput.files.length > 0) {
+                    clearFieldError('image');
+                }
+            });
+        }
+
+        if (widthInput) {
+            widthInput.addEventListener('input', function () {
+                const widthValue = Number(widthInput.value);
+                if (Number.isInteger(widthValue) && widthValue >= 1) {
+                    clearFieldError('width');
+                }
+            });
+        }
+
+        if (heightInput) {
+            heightInput.addEventListener('input', function () {
+                const heightValue = Number(heightInput.value);
+                if (Number.isInteger(heightValue) && heightValue >= 1) {
+                    clearFieldError('height');
+                }
+            });
+        }
+
+        form.addEventListener('submit', function (event) {
+            const requiresImage = form.dataset.requireImage === 'true';
+            let firstInvalidField = null;
+
+            if (!categorySelect.value) {
+                setFieldError('category', 'Category is required*');
+                firstInvalidField = categoryTriggerEl || categorySelect;
+            } else {
+                clearFieldError('category');
+            }
+
+            if (!labelSelect.value) {
+                setFieldError('label_ref', 'Label group is required*');
+                if (!firstInvalidField) {
+                    firstInvalidField = labelTriggerEl || labelSelect;
+                }
+            } else {
+                clearFieldError('label_ref');
+            }
+
+            if (!nameInput || !nameInput.value.trim()) {
+                setFieldError('label', 'Asset name is required*');
+                if (!firstInvalidField) {
+                    firstInvalidField = nameInput;
+                }
+            } else {
+                clearFieldError('label');
+            }
+
+            if (requiresImage && (!imageInput || !imageInput.files || !imageInput.files.length)) {
+                setFieldError('image', 'Image is required*');
+                if (!firstInvalidField) {
+                    firstInvalidField = imageInput;
+                }
+            } else {
+                clearFieldError('image');
+            }
+
+            const widthValue = widthInput ? Number(widthInput.value) : NaN;
+            const heightValue = heightInput ? Number(heightInput.value) : NaN;
+
+            if (!Number.isInteger(widthValue) || widthValue < 1) {
+                setFieldError('width', 'Default width must be a whole number greater than 0.');
+                if (!firstInvalidField) {
+                    firstInvalidField = widthInput;
+                }
+            } else {
+                clearFieldError('width');
+            }
+
+            if (!Number.isInteger(heightValue) || heightValue < 1) {
+                setFieldError('height', 'Default height must be a whole number greater than 0.');
+                if (!firstInvalidField) {
+                    firstInvalidField = heightInput;
+                }
+            } else {
+                clearFieldError('height');
+            }
+
+            if (firstInvalidField) {
+                event.preventDefault();
+                firstInvalidField.focus();
+            }
+        });
+    })();
+</script>
+{% endblock %}
+

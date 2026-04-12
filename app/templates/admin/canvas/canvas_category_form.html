@@ -1,0 +1,115 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+
+<div class="page-header">
+    <h1>{% if category %}Edit Canvas Category{% else %}Create Canvas Category{% endif %}</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
+        <span class="separator">/</span>
+        <span>{% if category %}Edit{% else %}Create{% endif %} Category</span>
+    </div>
+</div>
+
+<div class="form-container canvas-category-container">
+    <div class="form-card canvas-category-card">
+        <form method="POST" id="canvasCategoryForm" novalidate>
+            {% csrf_token %}
+            <div class="form-grid canvas-category-grid">
+                <div class="form-group span-6">
+                    <label for="name">Category Name</label>
+                    <input type="text" name="name" id="name" value="{{ category.name|default:'' }}" placeholder="e.g. Frames / Structures" required>
+                    <p class="field-error" data-error-for="name"></p>
+                </div>
+                <div class="form-group span-6">
+                    <label for="order">Display Order</label>
+                    <input type="number" name="order" id="order" value="{{ category.order|default:'1' }}" min="1" placeholder="1">
+                    <p class="field-error" data-error-for="order"></p>
+                </div>
+                <div class="form-group span-6">
+                    <label for="is_active">Status</label>
+                    <label for="is_active" class="active-toggle-box image-active-row">
+                        <input type="checkbox" name="is_active" id="is_active" {% if category %}{% if category.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+                        <span>Active (visible on design canvas)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'admin_canvas_assets' %}" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-save">{% if category %}Update{% else %}Create{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    (function () {
+        const form = document.getElementById('canvasCategoryForm');
+        if (!form) return;
+
+        const nameInput = document.getElementById('name');
+        const orderInput = document.getElementById('order');
+
+        function setFieldError(fieldName, message) {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        }
+
+        function clearFieldError(fieldName) {
+            const input = document.getElementById(fieldName);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        }
+
+        if (nameInput) {
+            nameInput.addEventListener('input', function () {
+                if (nameInput.value.trim()) {
+                    clearFieldError('name');
+                }
+            });
+        }
+
+        if (orderInput) {
+            orderInput.addEventListener('input', function () {
+                const orderValue = Number(orderInput.value || '0');
+                if (Number.isInteger(orderValue) && orderValue >= 1) {
+                    clearFieldError('order');
+                }
+            });
+        }
+
+        form.addEventListener('submit', function (event) {
+            if (!nameInput || !nameInput.value.trim()) {
+                event.preventDefault();
+                setFieldError('name', 'Category name is required*');
+                if (nameInput) nameInput.focus();
+                return;
+            }
+            clearFieldError('name');
+
+            const orderValue = Number(orderInput ? orderInput.value : '1');
+            if (!Number.isInteger(orderValue) || orderValue < 1) {
+                event.preventDefault();
+                setFieldError('order', 'Display order must be a whole number greater than 0.');
+                if (orderInput) orderInput.focus();
+                return;
+            }
+            clearFieldError('order');
+        });
+    })();
+</script>
+{% endblock %}

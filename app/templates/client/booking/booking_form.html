@@ -1,4 +1,4 @@
-{% extends 'client/base.html' %}
+﻿{% extends 'client/base.html' %}
 {% load humanize %}
 {% load static %}
 
@@ -12,7 +12,7 @@
             <p>Please fill in the details below to schedule your event.</p>
         </div>
 
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
 
             <div class="form-grid">
@@ -46,12 +46,15 @@
                         value="{% if booking.event_type and booking.event_type != 'Birthday' and booking.event_type != 'Wedding' and booking.event_type != 'Anniversary' and booking.event_type != 'Corporate Event' and booking.event_type != 'Christening' and booking.event_type != 'Bridal Shower' and booking.event_type != 'Baby Shower' %}{{ booking.event_type }}{% endif %}"
                         placeholder="Please specify your event type"
                         style="display: {% if booking.event_type and booking.event_type != 'Birthday' and booking.event_type != 'Wedding' and booking.event_type != 'Anniversary' and booking.event_type != 'Corporate Event' and booking.event_type != 'Christening' and booking.event_type != 'Bridal Shower' and booking.event_type != 'Baby Shower' %}block{% else %}none{% endif %}; margin-top: 10px;">
+                    <small class="booking-field-error" id="event_type_error"></small>
+                    <small class="booking-field-error" id="event_type_other_error"></small>
                 </div>
 
                 <div class="form-group full-width">
                     <label>Event Date</label>
                     <input type="date" id="event_date" name="event_date"
                         value="{{ booking.event_date|date:'Y-m-d'|default:'' }}" required>
+                    <small class="booking-field-error" id="event_date_error"></small>
                 </div>
 
                 <div class="form-group full-width">
@@ -61,18 +64,21 @@
                             <small>Start</small>
                             <input type="time" id="start_time" name="start_time"
                                 value="{{ booking.event_time|time:'H:i'|default:'' }}" required>
+                            <small class="booking-field-error" id="start_time_error"></small>
                         </div>
                         <div class="time-field">
                             <small>End</small>
                             <input type="time" id="end_time" name="end_time" required>
+                            <small class="booking-field-error" id="end_time_error"></small>
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group full-width">
                     <label>Location</label>
-                    <input type="text" name="event_location" value="{{ booking.event_location|default:'' }}"
-                        placeholder="Venue Address" required>
+                    <input type="text" id="event_location" name="event_location" value="{{ booking.event_location|default:'' }}"
+                        placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" required>
+                    <small class="booking-field-error" id="event_location_error"></small>
                 </div>
 
                 <!-- Hidden input for Package Type (not editable, set from original booking) -->
@@ -87,17 +93,17 @@
                 <div class="form-group full-width">
                     {% if booking.reference_image %}
                     <div style="margin-bottom: 5px;">
-                        <label>Current Picture: <a href="{{ booking.reference_image.url }}" target="_blank"
+                        <label>Current Reference Picture: <a href="{{ booking.reference_image.url }}" target="_blank"
                                 style="color: #0d6efd; font-size: 0.9rem;">View Here</a></label>
                     </div>
                     {% endif %}
-                    <label>Choose Picture (Optional Reference)</label>
+                    <label>Choose Reference Picture (Optional)</label>
                     <input type="file" name="reference_image" accept="image/*"
                         style="padding: 0.6rem; border: 1px dashed #444; background: transparent; border-radius: 4px;">
                 </div>
 
                 <span class="total-price-label">Total Price:</span>
-                <span class="total-price-value">₱{{ booking.total_price|default:'0.00'|intcomma }}</span>
+                <span class="total-price-value">₱{{ booking.total_price|default:'0.00'|floatformat:"-2"|intcomma }}</span>
             </div>
 
             <button type="submit" class="btn-submit">
@@ -112,6 +118,10 @@
         const dateInput = document.getElementById('event_date');
         const startTimeInput = document.getElementById('start_time');
         const endTimeInput = document.getElementById('end_time');
+        const eventTypeSelect = document.getElementById('event_type_select');
+        const eventTypeOther = document.getElementById('event_type_other');
+        const locationInput = document.getElementById('event_location');
+        let submitAttempted = false;
 
         // 1. Set MIN date to Today
         const now = new Date();
@@ -126,9 +136,9 @@
             const selectedDate = dateInput.value;
 
             // 2. If selected date is TODAY, restrict Start Time to current time
-            if (selectedDate === currentTodayStr) {
-                const hours = String(currentNow.getHours()).padStart(2, '0');
-                const minutes = String(currentNow.getMinutes()).padStart(2, '0');
+            if (selectedDate === todayStr) {
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
                 const currentTimeStr = `${hours}:${minutes}`;
                 startTimeInput.min = currentTimeStr;
             } else {
@@ -143,9 +153,141 @@
             }
         }
 
-        // Event Listeners
+        const form = document.querySelector('form');
+
+        const fieldConfigs = {
+            event_type: {
+                container: eventTypeSelect ? eventTypeSelect.closest('.form-group') : null,
+                input: eventTypeSelect,
+                errorEl: document.getElementById('event_type_error')
+            },
+            event_type_other: {
+                container: eventTypeOther ? eventTypeOther.closest('.form-group') : null,
+                input: eventTypeOther,
+                errorEl: document.getElementById('event_type_other_error')
+            },
+            event_date: {
+                container: dateInput ? dateInput.closest('.form-group') : null,
+                input: dateInput,
+                errorEl: document.getElementById('event_date_error')
+            },
+            start_time: {
+                container: startTimeInput ? startTimeInput.closest('.time-field') : null,
+                input: startTimeInput,
+                errorEl: document.getElementById('start_time_error')
+            },
+            end_time: {
+                container: endTimeInput ? endTimeInput.closest('.time-field') : null,
+                input: endTimeInput,
+                errorEl: document.getElementById('end_time_error')
+            },
+            event_location: {
+                container: locationInput ? locationInput.closest('.form-group') : null,
+                input: locationInput,
+                errorEl: document.getElementById('event_location_error')
+            }
+        };
+
+        function setFieldError(key, message) {
+            const config = fieldConfigs[key];
+            if (!config) return;
+            config.container?.classList.toggle('has-error', !!message);
+            config.input?.classList.toggle('has-error', !!message);
+            if (config.errorEl) config.errorEl.textContent = message || '';
+        }
+
+        function clearFieldErrors() {
+            setFieldError('event_type', '');
+            setFieldError('event_type_other', '');
+            setFieldError('event_date', '');
+            setFieldError('start_time', '');
+            setFieldError('end_time', '');
+            setFieldError('event_location', '');
+        }
+
+        function validateRequiredFields() {
+            clearFieldErrors();
+            let firstInvalidField = null;
+
+            if (!eventTypeSelect.value) {
+                setFieldError('event_type', 'Event Type is required*');
+                firstInvalidField = 'event_type';
+            }
+            if (eventTypeSelect.value === 'Other' && !eventTypeOther.value.trim()) {
+                setFieldError('event_type_other', 'Please specify your event type.');
+                if (!firstInvalidField) firstInvalidField = 'event_type_other';
+            }
+            if (!dateInput.value) {
+                setFieldError('event_date', 'Event Date is required*');
+                if (!firstInvalidField) firstInvalidField = 'event_date';
+            }
+            if (!startTimeInput.value) {
+                setFieldError('start_time', 'Start Time is required*');
+                if (!firstInvalidField) firstInvalidField = 'start_time';
+            }
+            if (!endTimeInput.value) {
+                setFieldError('end_time', 'End Time is required*');
+                if (!firstInvalidField) firstInvalidField = 'end_time';
+            }
+            if (!locationInput.value.trim()) {
+                setFieldError('event_location', 'Event Location is required*');
+                if (!firstInvalidField) firstInvalidField = 'event_location';
+            }
+
+            return firstInvalidField;
+        }
+
+        function focusField(key) {
+            if (key === 'event_type' && eventTypeSelect) return eventTypeSelect.focus();
+            if (key === 'event_type_other' && eventTypeOther) return eventTypeOther.focus();
+            if (key === 'event_date' && dateInput) return dateInput.focus();
+            if (key === 'start_time' && startTimeInput) return startTimeInput.focus();
+            if (key === 'end_time' && endTimeInput) return endTimeInput.focus();
+            if (key === 'event_location' && locationInput) return locationInput.focus();
+        }
+
+        form.addEventListener('submit', function(e) {
+            submitAttempted = true;
+            const firstInvalidField = validateRequiredFields();
+            if (firstInvalidField) {
+                e.preventDefault();
+                focusField(firstInvalidField);
+                return;
+            }
+
+            if (startTimeInput.value && endTimeInput.value) {
+                const startNode = new Date(`1970-01-01T${startTimeInput.value}:00`);
+                let endNode = new Date(`1970-01-01T${endTimeInput.value}:00`);
+                if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
+                
+                const diffMins = (endNode - startNode) / 60000;
+                if (diffMins < 60) {
+                    e.preventDefault();
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: 'Booking must be at least 1 hour.',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true,
+                        background: '#1a1a1a',
+                        color: '#fff',
+                        iconColor: '#ef4444'
+                    });
+                    return;
+                }
+            }
+        });
+
         dateInput.addEventListener('change', updateTimeConstraints);
         startTimeInput.addEventListener('change', validateEndTime);
+        dateInput.addEventListener('input', () => { if (submitAttempted) validateRequiredFields(); });
+        startTimeInput.addEventListener('input', () => { if (submitAttempted) validateRequiredFields(); });
+        endTimeInput.addEventListener('input', () => { if (submitAttempted) validateRequiredFields(); });
+        locationInput.addEventListener('input', () => { if (submitAttempted) validateRequiredFields(); });
+        eventTypeSelect.addEventListener('change', () => { if (submitAttempted) validateRequiredFields(); });
+        eventTypeOther.addEventListener('input', () => { if (submitAttempted) validateRequiredFields(); });
 
         // Run on load (in case of edit or browser cache)
         updateTimeConstraints();
@@ -164,6 +306,7 @@
                 otherInput.removeAttribute('name');
                 selectElement.name = 'event_type';
             }
+            if (submitAttempted) validateRequiredFields();
         };
 
         // Initialize correctly on load
@@ -171,3 +314,5 @@
     });
 </script>
 {% endblock %}
+
+

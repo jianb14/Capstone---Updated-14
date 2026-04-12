@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/auth.css' %}">
@@ -12,48 +12,66 @@
 
         <p class="info-text">Please enter the information.</p>
 
-        {% if errors %}
-        <div class="error-message">
-            <ul class="error-list">
-                {% for error in errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-
-        <form method="post">
+        <form method="post" id="registerForm" novalidate>
         {% csrf_token %}
         
             <!-- Name Fields (Two Column) -->
             <div class="name-row">
-                <input type="text" name="first_name" placeholder="First Name" required>
-                <input type="text" name="last_name" placeholder="Last Name" required>
+                <div class="field-group">
+                    <label class="input-label" for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="Enter your first name" data-label="First Name" required>
+                    <small class="field-error"></small>
+                </div>
+                <div class="field-group">
+                    <label class="input-label" for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" placeholder="Enter your last name" data-label="Last Name" required>
+                    <small class="field-error"></small>
+                </div>
             </div>
 
             <!-- Username -->
-            <input type="text" name="username" placeholder="Username" required>
+            <div class="field-group">
+                <label class="input-label" for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Choose a username (e.g., juan_dc)" data-label="Username" required>
+                <small class="field-error"></small>
+            </div>
             
             <!-- Email -->
-            <input type="email" name="email" placeholder="Email Address" required>
+            <div class="field-group">
+                <label class="input-label" for="email">Gmail Address</label>
+                <input type="email" name="email" id="email" placeholder="Enter your Gmail address (e.g., juan@gmail.com)" data-label="Gmail Address" pattern="[A-Za-z0-9._%+-]+@gmail\.com" title="Please use a valid Gmail address." required>
+                <small class="field-error"></small>
+            </div>
             
             <!-- Phone Number -->
-            <input type="tel" name="phone" placeholder="Phone Number">
+            <div class="field-group">
+                <label class="input-label" for="phone">Phone Number</label>
+                <input type="tel" name="phone" id="phone" placeholder="Enter your phone number (e.g., 09123456789)" data-label="Phone Number" required>
+                <small class="field-error"></small>
+            </div>
             
             <!-- Password with Show/Hide Toggle -->
-            <div class="password-container">
-                <input type="password" class="pass-input" id="password" name="password" placeholder="Password" required>
-                <button type="button" class="password-toggle" onclick="togglePassword('password')">
-                    <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
-                </button>
+            <div class="field-group">
+                <label class="input-label" for="password">Password</label>
+                <div class="password-container">
+                    <input type="password" class="pass-input" id="password" name="password" placeholder="Create a password (at least 8 characters)" data-label="Password" required>
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                        <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
+                    </button>
+                </div>
+                <small class="field-error"></small>
             </div>
 
             <!-- Confirm Password with Show/Hide Toggle -->
-            <div class="password-container">
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
-                <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')">
-                    <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
-                </button>
+            <div class="field-group">
+                <label class="input-label" for="confirm_password">Confirm Password</label>
+                <div class="password-container">
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter your password to confirm" data-label="Confirm Password" required>
+                    <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')">
+                        <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
+                    </button>
+                </div>
+                <small class="field-error"></small>
             </div>
 
             <!-- Register Button -->
@@ -67,7 +85,8 @@
     </div>
 </div>
 
-    <script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
     function togglePassword(fieldId) {
         const passwordField = document.getElementById(fieldId);
         const toggleButton = passwordField.nextElementSibling;
@@ -81,6 +100,137 @@
             icon.src = "{% static 'images/eye-view.png' %}";
         }
     }
-    </script>
 
+    document.addEventListener("DOMContentLoaded", function() {
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 4000,
+            timerProgressBar: true,
+            background: '#1a1a1a',
+            color: '#fff',
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            const requiredInputs = Array.from(registerForm.querySelectorAll('input[required]'));
+            let submitAttempted = false;
+
+            const getFieldGroup = (input) => input.closest('.field-group');
+
+            const setFieldError = (input, message) => {
+                const fieldGroup = getFieldGroup(input);
+                if (!fieldGroup) return;
+
+                const errorElement = fieldGroup.querySelector('.field-error');
+                if (!errorElement) return;
+
+                if (message) {
+                    fieldGroup.classList.add('has-error');
+                    errorElement.textContent = message;
+                } else {
+                    fieldGroup.classList.remove('has-error');
+                    errorElement.textContent = '';
+                }
+            };
+
+            const getValidationMessage = (input) => {
+                if (input.validity.valueMissing) {
+                    return `${input.dataset.label || input.name} is required*`;
+                }
+                if (input.type === 'email' && input.validity.typeMismatch) {
+                    return "Please enter a valid email address (must include '@').";
+                }
+                if (input.type === 'email' && input.validity.patternMismatch) {
+                    return 'Please use a valid Gmail address (example: yourname@gmail.com).';
+                }
+                return '';
+            };
+
+            const validateField = (input) => {
+                if (!input.checkValidity()) {
+                    setFieldError(input, getValidationMessage(input) || input.validationMessage);
+                    return false;
+                }
+                setFieldError(input, '');
+                return true;
+            };
+
+            const resetValidationUI = () => {
+                requiredInputs.forEach((input) => setFieldError(input, ''));
+            };
+
+            resetValidationUI();
+
+            registerForm.addEventListener('submit', function(e) {
+                submitAttempted = true;
+                let isFormValid = true;
+                let firstInvalidInput = null;
+
+                requiredInputs.forEach((input) => {
+                    const valid = validateField(input);
+                    if (!valid && !firstInvalidInput) {
+                        firstInvalidInput = input;
+                    }
+                    isFormValid = isFormValid && valid;
+                });
+
+                const password = document.getElementById('password');
+                const confirm_password = document.getElementById('confirm_password');
+                if (password && confirm_password && password.value !== confirm_password.value) {
+                    isFormValid = false;
+                    setFieldError(confirm_password, 'Passwords do not match.');
+                    if (!firstInvalidInput) firstInvalidInput = confirm_password;
+                } else if (confirm_password && confirm_password.value) {
+                    setFieldError(confirm_password, '');
+                }
+
+                if (!isFormValid) {
+                    e.preventDefault();
+                    if (firstInvalidInput) {
+                        firstInvalidInput.focus();
+                    }
+                }
+            });
+
+            requiredInputs.forEach((input) => {
+                input.addEventListener('blur', () => {
+                    if (submitAttempted) {
+                        validateField(input);
+                    }
+                });
+
+                input.addEventListener('input', () => {
+                    if (submitAttempted) {
+                        validateField(input);
+                    }
+                });
+            });
+        }
+
+        {% if errors %}
+            {% for error in errors %}
+                Toast.fire({
+                    icon: 'error',
+                    title: '{{ error|escapejs }}'
+                });
+            {% endfor %}
+        {% endif %}
+
+        {% if messages %}
+            {% for message in messages %}
+                Toast.fire({
+                    icon: '{{ message.tags|escapejs }}' === 'error' ? 'error' : ('{{ message.tags|escapejs }}' === 'success' ? 'success' : 'info'),
+                    title: '{{ message|escapejs }}'
+                });
+            {% endfor %}
+        {% endif %}
+    });
+</script>
 {% endblock %}
+

@@ -4,13 +4,29 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_package.css' %}">
 
+<div class="page-header detail-page-header">
+    <div>
+        <h1>Additional Item Details</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_package_list' %}">Packages</a>
+            <span class="separator">/</span>
+            <span>{{ additional.name }}</span>
+        </div>
+    </div>
+    <a href="{% url 'admin_package_list' %}" class="btn-top-back">← Back to List</a>
+</div>
+
 <div class="detail-wrapper">
     <div class="detail-card">
         <!-- Left: Image Section -->
         <div class="detail-left">
             {% if additional.image %}
             <div class="detail-image-container">
-                <img src="{{ additional.image.url }}" class="detail-image">
+                <button type="button" class="detail-image-trigger" data-full-src="{{ additional.image.url }}"
+                    aria-label="Open full image">
+                    <img src="{{ additional.image.url }}" class="detail-image">
+                    <span class="detail-image-hint">Click to view full image</span>
+                </button>
             </div>
             {% else %}
             <div class="detail-image-container"
@@ -28,7 +44,7 @@
             </div>
 
             <div class="detail-section">
-                <h4>Features</h4>
+                <h4>Additional Inclusions</h4>
                 <ul class="detail-list">
                     {% for feature in additional.feature_list %}
                     <li>{{ feature }}</li>
@@ -47,9 +63,58 @@
                 <a href="{% url 'admin_package_list' %}" class="btn-view detail">Back</a>
                 <a href="{% url 'admin_additional_edit' additional.id %}" class="btn-edit detail">Edit</a>
                 <a href="{% url 'admin_additional_delete' additional.id %}" class="btn-delete detail"
-                    onclick="return confirm('Delete this additional?')">Delete</a>
+                    data-swal-confirm="true"
+                    data-swal-title="Delete additional item?"
+                    data-swal-text="Delete this additional?"
+                    data-swal-confirm-text="Yes, delete item">Delete</a>
             </div>
         </div>
     </div>
 </div>
+
+<div id="detailImageModal" class="detail-image-modal" aria-hidden="true">
+    <button type="button" class="detail-image-modal-close" id="detailImageModalClose" aria-label="Close image preview">×</button>
+    <img id="detailImageModalImg" src="" alt="Full Preview">
+</div>
+
+<script>
+    (function () {
+        const trigger = document.querySelector('.detail-image-trigger');
+        const modal = document.getElementById('detailImageModal');
+        const modalImg = document.getElementById('detailImageModalImg');
+        const closeBtn = document.getElementById('detailImageModalClose');
+
+        if (!trigger || !modal || !modalImg || !closeBtn) return;
+
+        function openModal(src) {
+            modalImg.src = src;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            modalImg.src = '';
+            document.body.style.overflow = '';
+        }
+
+        trigger.addEventListener('click', function () {
+            const src = this.getAttribute('data-full-src');
+            if (src) openModal(src);
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+    })();
+</script>
 {% endblock %}

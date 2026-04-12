@@ -111,14 +111,19 @@ def create_balloons():
         f'{highlight(78, 35, 10)}')
 
     # ---- Star Balloon ----
-    create_svg(f'{cat}/star_blank.svg', 130, 130,
-        f'<polygon points="65,10 86,37 117,48 98,76 97,110 65,100 33,110 32,76 13,48 44,37" fill="{blank_color}" {OL}/>'
-        f'{highlight(88, 35, 8)}')
+    # Same layered technique as numbers: thick outline + fill + white dashed highlights
+    star_pts = '70,8 88,42 125,50 100,78 105,115 70,98 35,115 40,78 15,50 52,42'
+    create_svg(f'{cat}/star_blank.svg', 140, 120,
+        f'<polygon points="{star_pts}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<polygon points="{star_pts}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
 
     # ---- Heart Balloon ----
-    create_svg(f'{cat}/heart_blank.svg', 130, 130,
-        f'<path d="M 65 115 C 65 115 15 75 15 45 A 25 25 0 0 1 65 30 A 25 25 0 0 1 115 45 C 115 75 65 115 65 115 Z" fill="{blank_color}" {OL}/>'
-        f'{highlight(88, 35, 8)}')
+    heart_d = 'M 70 110 C 70 110 15 70 15 40 A 27.5 27.5 0 0 1 70 25 A 27.5 27.5 0 0 1 125 40 C 125 70 70 110 70 110 Z'
+    create_svg(f'{cat}/heart_blank.svg', 140, 120,
+        f'<path d="{heart_d}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<path d="{heart_d}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
 
     # ---- Number Balloons (0-9) ----
     for i in range(10):
@@ -153,6 +158,83 @@ def create_balloons():
         f'<circle cx="45" cy="105" r="25" fill="{COLORS["pink"]}" {OL}/>'
         f'<circle cx="85" cy="105" r="25" fill="{COLORS["blue"]}" {OL}/>'
         f'<circle cx="65" cy="75" r="28" fill="{COLORS["gold"]}" {OL}/>')
+
+
+
+    # ---- Jumbo & Giant ----
+    create_svg(f'{cat}/jumbo_blank.svg', 140, 200,
+        f'<ellipse cx="70" cy="85" rx="55" ry="70" fill="{blank_color}" {OL}/>'
+        f'<path d="M 60 155 L 80 155 L 75 165 L 65 165 Z" fill="{blank_color}" {OL}/>'
+        f'<path d="M 70 165 Q 55 180 80 195 Q 90 205 70 205" fill="none" {OL}/>'
+    )
+    
+    create_svg(f'{cat}/giant_blank.svg', 180, 260,
+        f'<ellipse cx="90" cy="115" rx="75" ry="95" fill="{blank_color}" {OL}/>'
+        f'<path d="M 75 210 L 105 210 L 95 225 L 85 225 Z" fill="{blank_color}" {OL}/>'
+        f'<path d="M 90 225 Q 70 245 105 260" fill="none" {OL}/>'
+    )
+
+    # ---- Square Foil ----
+    create_svg(f'{cat}/square_blank.svg', 120, 120,
+        f'<rect x="10" y="10" width="100" height="100" rx="15" ry="15" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<rect x="10" y="10" width="100" height="100" rx="15" ry="15" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
+
+    # ---- Flower Balloons ----
+    # Daisy: 6 round petals + center circle, layered like foil
+    daisy = (
+        f'<circle cx="60" cy="25" r="22" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+        f'<circle cx="25" cy="50" r="22" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+        f'<circle cx="95" cy="50" r="22" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+        f'<circle cx="30" cy="85" r="22" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+        f'<circle cx="90" cy="85" r="22" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+        f'<circle cx="60" cy="105" r="22" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+        f'<circle cx="60" cy="62" r="16" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="2"/>'
+    )
+    daisy_hl = (
+        f'<circle cx="60" cy="25" r="22" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="8, 12" opacity="0.6"/>'
+        f'<circle cx="25" cy="50" r="22" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="8, 12" opacity="0.6"/>'
+        f'<circle cx="95" cy="50" r="22" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="8, 12" opacity="0.6"/>'
+        f'<circle cx="90" cy="85" r="22" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="8, 12" opacity="0.6"/>'
+    )
+    create_svg(f'{cat}/flower_daisy_blank.svg', 120, 130, daisy + daisy_hl)
+
+    # Rose: swirly blob
+    rose_d = 'M 60 105 C 10 105 0 55 35 25 C 60 0 110 15 118 48 C 126 78 95 105 60 105 Z'
+    create_svg(f'{cat}/flower_rose_blank.svg', 125, 115,
+        f'<path d="{rose_d}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<path d="M 35 25 Q 70 30 80 60 Q 85 85 60 105" fill="none" stroke="{OUTLINE}" stroke-width="1"/>'
+        f'<path d="M 80 60 Q 55 65 45 45" fill="none" stroke="{OUTLINE}" stroke-width="1"/>'
+        f'<path d="{rose_d}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
+
+    # Tulip
+    tulip_d = 'M 55 110 C 45 60 15 15 15 15 C 35 45 50 55 50 85 C 50 55 65 45 85 15 C 85 15 55 60 95 110 C 75 130 35 130 55 110 Z'
+    create_svg(f'{cat}/flower_tulip_blank.svg', 105, 135,
+        f'<path d="{tulip_d}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<path d="{tulip_d}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
+
+    # ---- Sun Balloon ----
+    sun_pts = '70,5 80,30 105,15 92,40 120,40 98,55 120,70 92,72 105,97 80,82 70,107 60,82 35,97 48,72 20,70 42,55 20,40 48,40 35,15 60,30'
+    create_svg(f'{cat}/sun_blank.svg', 140, 112,
+        f'<polygon points="{sun_pts}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<polygon points="{sun_pts}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
+
+    # ---- Moon Balloon ----
+    moon_d = 'M 75 15 A 50 50 0 0 0 75 115 A 65 65 0 0 1 75 15'
+    create_svg(f'{cat}/moon_blank.svg', 110, 130,
+        f'<path d="{moon_d}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<path d="{moon_d}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
+
+    # ---- Lightning Bolt Balloon ----
+    bolt_pts = '60,5 15,70 42,70 30,125 80,55 55,55'
+    create_svg(f'{cat}/lightning_blank.svg', 95, 130,
+        f'<polygon points="{bolt_pts}" fill="{blank_color}" stroke="{OUTLINE}" stroke-width="3" stroke-linejoin="round"/>'
+        f'<polygon points="{bolt_pts}" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="10, 15" stroke-linejoin="round" opacity="0.6"/>'
+    )
 
 
 # ==========================================
@@ -194,6 +276,15 @@ def create_decorations():
     make_bow('bow_pink', '#ffb3c6')
     make_bow('bow_blue', '#a2d2ff')
     make_bow('bow_gold', '#ffb703')
+
+    # ---- Marquee LED Numbers (0-9) ----
+    for i in range(10):
+        create_svg(f'{cat}/marquee_number_{i}.svg', 100, 140,
+            f'<text x="50" y="125" font-family="Impact, Arial Black, sans-serif" font-size="130" font-weight="900" fill="#f8f9fa" stroke="{OUTLINE}" stroke-width="12" stroke-linejoin="round" text-anchor="middle">{i}</text>'
+            f'<text x="50" y="125" font-family="Impact, Arial Black, sans-serif" font-size="130" font-weight="900" fill="#f8f9fa" stroke="#f8f9fa" stroke-width="4" stroke-linejoin="round" text-anchor="middle">{i}</text>'
+            f'<text x="50" y="125" font-family="Impact, Arial Black, sans-serif" font-size="130" font-weight="900" fill="none" stroke="#ffb703" stroke-width="5" stroke-dasharray="0, 22" stroke-linecap="round" text-anchor="middle">{i}</text>'
+            f'<text x="50" y="125" font-family="Impact, Arial Black, sans-serif" font-size="130" font-weight="900" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="0, 22" stroke-linecap="round" text-anchor="middle">{i}</text>'
+        )
 
     # Globe String Lights
     create_svg(f'{cat}/string_lights.svg', 200, 80,

@@ -1,0 +1,17 @@
+{% load static %}
+{% if asset.image or asset.static_path %}
+<div class="draggable-item" draggable="true"
+     data-type="{{ asset.item_type|default:'image' }}"
+     data-src="{% if asset.image %}{{ asset.image.url }}{% else %}{% static asset.static_path %}{% endif %}"
+     data-width="{{ asset.width|default:'150' }}"
+     data-height="{{ asset.height|default:'150' }}"
+     title="{{ asset.label }}">
+    <div class="item-preview-img-wrapper">
+        <img class="item-preview-img"
+             src="{% if asset.image %}{{ asset.image.url }}{% else %}{% static asset.static_path %}{% endif %}"
+             alt="{{ asset.label }}"
+             loading="lazy">
+    </div>
+    <span class="item-label">{{ asset.label }}</span>
+</div>
+{% endif %}

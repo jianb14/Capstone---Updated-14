@@ -75,6 +75,77 @@
     </script>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- SweetAlert2 & Global Messages Handler -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                background: '#1a1a1a',
+                color: '#fff',
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            });
+
+            {% if messages %}
+                {% for message in messages %}
+                    const messageType = '{{ message.tags|escapejs }}' === 'error' ? 'error' : ('{{ message.tags|escapejs }}' === 'success' ? 'success' : 'info');
+                    const messageText = '{{ message|escapejs }}';
+                    const isLoginSuccess = messageType === 'success' && messageText.toLowerCase().includes('login successful');
+                    Toast.fire({
+                        icon: messageType,
+                        title: messageText,
+                        timer: isLoginSuccess ? 1500 : 4000
+                    });
+                {% endfor %}
+            {% endif %}
+
+            document.addEventListener('click', function (event) {
+                const trigger = event.target.closest('a[data-swal-confirm="true"]');
+                if (!trigger) return;
+
+                event.preventDefault();
+
+                const title = trigger.getAttribute('data-swal-title') || 'Delete this item?';
+                const text = trigger.getAttribute('data-swal-text') || 'This action cannot be undone.';
+                const confirmText = trigger.getAttribute('data-swal-confirm-text') || 'Yes, delete it';
+                const cancelText = trigger.getAttribute('data-swal-cancel-text') || 'Cancel';
+                const href = trigger.getAttribute('href');
+
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: confirmText,
+                    cancelButtonText: cancelText,
+                    reverseButtons: true,
+                    focusCancel: true,
+                    background: '#131313',
+                    color: '#ffffff',
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#374151'
+                }).then((result) => {
+                    if (result.isConfirmed && href) {
+                        window.location.href = href;
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        Toast.fire({
+                            icon: 'info',
+                            title: 'Deletion cancelled',
+                            timer: 1600
+                        });
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>

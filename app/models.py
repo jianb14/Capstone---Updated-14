@@ -14,6 +14,7 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
+    email_verified = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -43,6 +44,10 @@ class Booking(models.Model):
     # ✅ NEW FIELDS
     edit_requested = models.BooleanField(default=False)
     edit_allowed = models.BooleanField(default=False)
+    edit_request_reason = models.TextField(blank=True, null=True)
+    cancel_request_reason = models.TextField(blank=True, null=True)
+    admin_denial_reason = models.TextField(blank=True, null=True)
+    edit_original_snapshot = models.JSONField(blank=True, null=True)
     admin_notified = models.BooleanField(default=False)
     admin_notif_hidden = models.BooleanField(default=False)
 
@@ -56,6 +61,15 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking {self.id} by {self.user.username}"
+
+
+class BookingImage(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='booking_references/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for Booking {self.booking.id}"
 
 
 
@@ -173,13 +187,11 @@ class Package(models.Model):
     image = models.ImageField(upload_to='packages/', blank=True, null=True)
 
     features = models.TextField(help_text="One feature per line")
-    service_features = models.TextField(help_text="One service feature per line", blank=True, null=True)
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     service_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     notes = models.TextField(blank=True, null=True)
-    service_notes = models.TextField(blank=True, null=True)
 
     is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -188,11 +200,6 @@ class Package(models.Model):
 
     def feature_list(self):
         return self.features.splitlines()
-
-    def service_feature_list(self):
-        if self.service_features:
-            return self.service_features.splitlines()
-        return []
 
     def __str__(self):
         return self.name
@@ -237,6 +244,7 @@ class AddOn(models.Model):
     
     price = models.DecimalField(max_digits=10, decimal_places=2)
     solo_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    service_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     features = models.TextField(help_text="One feature per line")
 
     is_active = models.BooleanField(default=True)
@@ -268,6 +276,22 @@ class AdditionalOnly(models.Model):
         return self.name
 
 
+class ServiceChargeConfig(models.Model):
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(
+        blank=True,
+        default="Includes styling fee, toll fees, fuel, crew meals, and ingress/egress logistics.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Service Charge Configuration"
+        verbose_name_plural = "Service Charge Configuration"
+
+    def __str__(self):
+        return f"Service Charge: {self.amount}"
+
+
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='notifications')
@@ -280,3 +304,143 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.message[:30]}..."
+
+
+
+class ConcernTicket(models.Model):
+    CATEGORY_CHOICES = (
+        ('bug', 'Bug Report'),
+        ('account', 'Account Issue'),
+        ('payment', 'Payment Concern'),
+        ('booking', 'Booking Concern'),
+        ('other', 'Other'),
+    )
+
+    STATUS_CHOICES = (
+        ('new', 'New'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='concern_tickets')
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+    subject = models.CharField(max_length=150)
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    admin_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Concern #{self.id} - {self.subject}"
+
+
+# -----------------------------
+# 10?? User Designs (Custom Canvas)
+# -----------------------------
+class UserDesign(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='custom_designs')
+    name = models.CharField(max_length=255, default='Untitled Design')
+    canvas_json = models.TextField(help_text="Fabric.js JSON state of the canvas")
+    thumbnail = models.ImageField(upload_to='user_designs/thumbnails/', blank=True, null=True)
+    base_package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='derived_designs')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.name} by {self.user.username}"
+
+
+# -----------------------------
+# 11️⃣ Gallery
+# -----------------------------
+class GalleryCategory(models.Model):
+    name = models.CharField(max_length=100)
+    order = models.PositiveIntegerField(default=0, help_text="Lower number = shown first")
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name_plural = 'Gallery Categories'
+
+    def __str__(self):
+        return self.name
+
+
+class GalleryImage(models.Model):
+    category = models.ForeignKey(GalleryCategory, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='gallery/')
+    caption = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.caption or 'Image'} ({self.category.name})"
+
+
+class CanvasCategory(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    order = models.PositiveIntegerField(default=1, help_text="Lower number = shown first")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name_plural = 'Canvas Categories'
+
+    def __str__(self):
+        return self.name
+
+
+class CanvasLabel(models.Model):
+    category = models.ForeignKey(CanvasCategory, on_delete=models.CASCADE, related_name='labels')
+    name = models.CharField(max_length=120)
+    order = models.PositiveIntegerField(default=1, help_text="Lower number = shown first")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category__order', 'order', 'name']
+        unique_together = ('category', 'name')
+
+    def __str__(self):
+        return f"{self.name} ({self.category.name})"
+
+
+class CanvasAsset(models.Model):
+    category = models.ForeignKey(CanvasCategory, on_delete=models.CASCADE, related_name='assets')
+    label_ref = models.ForeignKey(CanvasLabel, on_delete=models.SET_NULL, related_name='assets', null=True, blank=True)
+    label = models.CharField(max_length=150)
+    subgroup = models.CharField(max_length=120, blank=True, default='')
+    image = models.ImageField(upload_to='canvas_assets/', blank=True, null=True)
+    static_path = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Optional static path (e.g. images/canvas/premium/frames/round_arch.svg)",
+    )
+    item_type = models.CharField(max_length=20, default='image')
+    width = models.PositiveIntegerField(default=150)
+    height = models.PositiveIntegerField(default=150)
+    sort_order = models.PositiveIntegerField(default=0, help_text="Lower number = shown first")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category__order', 'label_ref__order', 'subgroup', 'sort_order', 'id']
+
+    def __str__(self):
+        return f"{self.label} ({self.category.name})"
+
+

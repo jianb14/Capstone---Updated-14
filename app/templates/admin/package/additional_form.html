@@ -13,51 +13,45 @@
     </div>
 </div>
 
-<div class="form-container">
-    <form method="POST" enctype="multipart/form-data" class="form-card">
+<div class="form-container package-form-container">
+    <form method="POST" enctype="multipart/form-data" class="form-card package-form-card" id="additionalForm" novalidate>
 
         {% csrf_token %}
 
-        {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
         <div class="form-grid">
-            <!-- Row 1: Name, Price, Image -->
+            <!-- Row 1: Name, Price -->
             <div class="form-group span-2">
                 <label>Name</label>
-                <input type="text" name="name" value="{{ additional.name|default:'' }}" required
-                    placeholder="e.g. Extra Photographer">
+                <input type="text" name="name" value="{{ additional.name|default:'' }}"
+                    placeholder="e.g. Extra Photographer" required>
+                <p class="field-error" data-error-for="name"></p>
             </div>
 
             <div class="form-group span-2">
                 <label>Price</label>
-                <input type="number" step="0.01" name="price" value="{{ additional.price|default:'' }}" required
-                    placeholder="0.00">
+                <input type="number" step="0.01" name="price" value="{{ additional.price|default:'' }}"
+                    placeholder="0.00" required>
+                <p class="field-error" data-error-for="price"></p>
             </div>
 
-            <div class="form-group span-2">
-                <label>Image</label>
-                <input type="file" name="image">
-            </div>
-
-            <!-- Row 2: Features, Notes -->
+            <!-- Row 2: Inclusions, Notes -->
             <div class="form-group span-3">
-                <label>Features (One per line)</label>
+                <label>Inclusions (One per line)</label>
                 <textarea name="features" rows="6"
-                    placeholder="List item features here...">{{ additional.features|default:'' }}</textarea>
+                    placeholder="List item inclusions here..." required>{{ additional.features|default:'' }}</textarea>
+                <p class="field-error" data-error-for="features"></p>
             </div>
 
             <div class="form-group span-3">
                 <label>Notes</label>
                 <textarea name="notes" rows="6"
                     placeholder="Any extra info...">{{ additional.notes|default:'' }}</textarea>
+            </div>
+
+            <!-- Row 3: Image (always at bottom) -->
+            <div class="form-group span-6">
+                <label>Image</label>
+                <input type="file" name="image">
             </div>
         </div>
 
@@ -68,4 +62,85 @@
     </form>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("additionalForm");
+        if (!form) return;
+
+        const name = form.querySelector('input[name="name"]');
+        const price = form.querySelector('input[name="price"]');
+        const features = form.querySelector('textarea[name="features"]');
+
+        const setFieldError = (fieldName, message) => {
+            const input = form.querySelector(`[name="${fieldName}"]`);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.add('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = message;
+            }
+        };
+
+        const clearFieldError = (fieldName) => {
+            const input = form.querySelector(`[name="${fieldName}"]`);
+            const group = input ? input.closest('.form-group') : null;
+            if (!group) return;
+            group.classList.remove('has-error');
+            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            if (error) {
+                error.textContent = '';
+            }
+        };
+
+        const requiredFields = [
+            { name: 'name', message: 'Name is required*' },
+            { name: 'price', message: 'Price is required*' },
+            { name: 'features', message: 'Inclusions are required*' }
+        ];
+
+        if (name) {
+            name.addEventListener('input', () => {
+                if (name.value.trim()) clearFieldError('name');
+            });
+        }
+
+        if (price) {
+            price.addEventListener('input', () => {
+                if (price.value.trim() !== '') clearFieldError('price');
+            });
+        }
+
+        if (features) {
+            features.addEventListener('input', () => {
+                if (features.value.trim()) clearFieldError('features');
+            });
+        }
+
+        form.addEventListener("submit", function (event) {
+            let firstInvalidField = null;
+
+            requiredFields.forEach(field => {
+                const input = form.querySelector(`[name="${field.name}"]`);
+                const value = input ? (input.value || '').trim() : '';
+                if (!value) {
+                    setFieldError(field.name, field.message);
+                    if (!firstInvalidField) {
+                        firstInvalidField = input;
+                    }
+                    return;
+                }
+                clearFieldError(field.name);
+            });
+
+            if (firstInvalidField) {
+                event.preventDefault();
+                firstInvalidField.focus();
+            }
+        });
+    });
+</script>
 {% endblock %}

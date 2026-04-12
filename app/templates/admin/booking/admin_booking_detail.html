@@ -1,16 +1,19 @@
-{% extends 'admin/admin_base.html' %}
+﻿{% extends 'admin/admin_base.html' %}
 {% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_booking.css' %}">
 
-<div class="page-header">
-    <h1>Booking Details</h1>
-    <div class="breadcrumb">
-        <a href="{% url 'admin_booking_list' %}">Bookings</a>
-        <span class="separator">/</span>
-        <span>#{{ booking.id }}</span>
+<div class="page-header detail-page-header">
+    <div>
+        <h1>Booking Details</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_booking_list' %}">Bookings</a>
+            <span class="separator">/</span>
+            <span>#{{ booking.id }}</span>
+        </div>
     </div>
+    <a href="{% url 'admin_booking_list' %}" class="btn-top-back">&larr; Back to List</a>
 </div>
 
 <div class="detail-container">
@@ -70,17 +73,54 @@
                 <span class="value">{{ booking.time_range_display|default:"-" }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Location</span>
+                <span class="label">Location (Venue Address)</span>
                 <span class="value">{{ booking.event_location }}</span>
             </div>
             <div class="info-row">
                 <span class="label">Package</span>
                 <span class="value">{{ booking.package_type|default:"-" }}</span>
             </div>
+            {% if price_breakdown.items %}
+            <div class="price-breakdown-block">
+                <h4 class="price-breakdown-title">Price Breakdown</h4>
+                <div class="breakdown-list">
+                    {% for item in price_breakdown.items %}
+                    <div class="breakdown-item">
+                        <span class="breakdown-item-label">{{ item.label }}</span>
+                        <span class="breakdown-item-amount">&#8369;{{ item.amount|floatformat:"-2"|intcomma }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if price_breakdown.service_charge > 0 %}
+                    <div class="breakdown-item breakdown-item-service">
+                        <span class="breakdown-item-label">Service & Logistics Fee</span>
+                        <span class="breakdown-item-amount">&#8369;{{ price_breakdown.service_charge|floatformat:"-2"|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
             <div class="info-row total-price">
                 <span class="label">Total Price</span>
-                <span class="value">₱{{ booking.total_price|intcomma }}</span>
+                <span class="value">&#8369;{{ booking.total_price|intcomma }}</span>
             </div>
+            {% endif %}
+            {% if booking.edit_requested and booking.edit_request_reason %}
+            <div class="info-row">
+                <span class="label">Edit Reason</span>
+                <span class="value">{{ booking.edit_request_reason }}</span>
+            </div>
+            {% endif %}
+            {% if booking.status == 'cancel_requested' and booking.cancel_request_reason %}
+            <div class="info-row">
+                <span class="label">Cancel Reason</span>
+                <span class="value">{{ booking.cancel_request_reason }}</span>
+            </div>
+            {% endif %}
+            {% if booking.admin_denial_reason %}
+            <div class="info-row">
+                <span class="label">Denial Reason</span>
+                <span class="value">{{ booking.admin_denial_reason }}</span>
+            </div>
+            {% endif %}
             {% if booking.reference_image %}
             <div class="info-row">
                 <span class="label">Reference Picture</span>
@@ -90,38 +130,191 @@
             {% endif %}
         </div>
 
+        <!-- Reference Pictures -->
+        {% if booking.images.all or booking.reference_image %}
+        <div class="detail-card full-width">
+            <h3>Reference Pictures</h3>
+            <div class="booking-images-row">
+                {% if booking.images.all %}
+                {% for img in booking.images.all|slice:":4" %}
+                <button type="button" class="booking-thumb-btn" data-full-src="{{ img.image.url }}"
+                    aria-label="Open reference image {{ forloop.counter }}">
+                    <img src="{{ img.image.url }}" alt="Reference Image {{ forloop.counter }}" loading="lazy">
+                </button>
+                {% endfor %}
+                {% elif booking.reference_image %}
+                <button type="button" class="booking-thumb-btn" data-full-src="{{ booking.reference_image.url }}"
+                    aria-label="Open reference image">
+                    <img src="{{ booking.reference_image.url }}" alt="Reference Image" loading="lazy">
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Special Requests -->
         {% if cleaned_requests %}
         <div class="detail-card full-width">
             <h3>Special Requests</h3>
-            <div class="special-request-box">
-                {{ cleaned_requests|linebreaksbr }}
-            </div>
+            <div class="special-request-box">{{ cleaned_requests|linebreaksbr }}</div>
         </div>
         {% endif %}
     </div>
 
     <!-- Actions -->
     <div class="detail-actions">
-        <a href="{% url 'admin_booking_list' %}" class="btn-back">← Back to List</a>
-
         {% if booking.status == 'pending' %}
-        <a href="{% url 'admin_booking_action' booking.id 'confirm' %}" class="btn-action primary">Confirm Booking</a>
-        <a href="{% url 'admin_booking_action' booking.id 'deny' %}" class="btn-action danger">Deny Booking</a>
+        <a href="{% url 'admin_booking_action' booking.id 'confirm' %}" onclick="return confirmAdminDetailAction(this, 'Confirm Booking', 'Are you sure you want to confirm this booking?', 'Yes, Confirm')" class="btn-action primary">Confirm Booking</a>
+        <a href="javascript:void(0)" onclick="openDetailDenyPrompt('{{ booking.id }}')" class="btn-action danger">Deny Booking</a>
 
         {% elif booking.status == 'cancel_requested' %}
-        <a href="{% url 'admin_cancel_action' booking.id 'approve' %}" class="btn-action primary">Approve Cancel</a>
-        <a href="{% url 'admin_cancel_action' booking.id 'deny' %}" class="btn-action danger">Deny Cancel</a>
+        <a href="{% url 'admin_cancel_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Cancel Request', 'Are you sure you want to approve this cancellation request?', 'Yes, Approve')" class="btn-action primary">Approve Cancel</a>
+        <a href="{% url 'admin_cancel_action' booking.id 'deny' %}" onclick="return confirmAdminDetailAction(this, 'Deny Cancel Request', 'Are you sure you want to deny this cancellation request?', 'Yes, Deny')" class="btn-action danger">Deny Cancel</a>
 
         {% elif booking.edit_requested %}
-        <a href="{% url 'admin_edit_action' booking.id 'approve' %}" class="btn-action primary">Approve Edit</a>
-        <a href="{% url 'admin_edit_action' booking.id 'deny' %}" class="btn-action danger">Deny Edit</a>
+        <a href="{% url 'admin_edit_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Edit Request', 'Are you sure you want to approve this edit request?', 'Yes, Approve')" class="btn-action primary">Approve Edit</a>
+        <a href="{% url 'admin_edit_action' booking.id 'deny' %}" onclick="return confirmAdminDetailAction(this, 'Deny Edit Request', 'Are you sure you want to deny this edit request?', 'Yes, Deny')" class="btn-action danger">Deny Edit</a>
 
         {% elif booking.status == 'confirmed' %}
-        <a href="{% url 'admin_booking_action' booking.id 'complete' %}" class="btn-action primary">Mark as
+        <a href="{% url 'admin_booking_action' booking.id 'complete' %}" onclick="return confirmAdminDetailAction(this, 'Mark as Completed', 'Are you sure you want to mark this booking as completed?', 'Yes, Complete')" class="btn-action primary">Mark as
             Completed</a>
         {% endif %}
     </div>
 </div>
 
+<form id="detailDenyBookingForm" method="POST" action="{% url 'admin_booking_action' 0 'deny' %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="deny_reason" id="detailDenyReasonInput">
+</form>
+
+<div id="bookingImageModal" class="booking-image-modal" aria-hidden="true">
+    <button type="button" class="booking-image-modal-close" id="bookingImageModalClose" aria-label="Close image preview">&times;</button>
+    <img id="bookingImageModalImg" src="" alt="Reference Preview">
+</div>
+
+<script>
+    (function () {
+        const modal = document.getElementById('bookingImageModal');
+        const modalImg = document.getElementById('bookingImageModalImg');
+        const closeBtn = document.getElementById('bookingImageModalClose');
+        const thumbButtons = document.querySelectorAll('.booking-thumb-btn');
+
+        if (!modal || !modalImg || !closeBtn || !thumbButtons.length) return;
+
+        function openModal(src) {
+            modalImg.src = src;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            modalImg.src = '';
+            document.body.style.overflow = '';
+        }
+
+        thumbButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const src = this.getAttribute('data-full-src');
+                if (src) openModal(src);
+            });
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+    })();
+
+    function openDetailDenyPrompt(bookingId) {
+        const submit = function (reason) {
+            const form = document.getElementById('detailDenyBookingForm');
+            const input = document.getElementById('detailDenyReasonInput');
+            if (!form || !input) return;
+            const baseAction = form.getAttribute('action');
+            form.setAttribute('action', baseAction.replace('/0/', `/${bookingId}/`));
+            input.value = reason;
+            form.submit();
+        };
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Deny Booking',
+                input: 'textarea',
+                customClass: {
+                    popup: 'booking-request-popup',
+                    title: 'booking-request-title',
+                    input: 'booking-request-textarea',
+                    confirmButton: 'booking-request-confirm',
+                    cancelButton: 'booking-request-cancel'
+                },
+                buttonsStyling: false,
+                inputPlaceholder: 'Enter the reason for denying this booking.',
+                inputAttributes: {
+                    maxlength: 500
+                },
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Denial reason is required*';
+                    }
+                    return null;
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Submit',
+                cancelButtonText: 'Cancel',
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.trim()) {
+                    submit(result.value.trim());
+                }
+            });
+            return;
+        }
+
+        const reason = window.prompt('Enter the reason for denying this booking.');
+        if (reason && reason.trim()) submit(reason.trim());
+    }
+
+    function confirmAdminDetailAction(linkEl, title, text, confirmText) {
+        if (!linkEl || !linkEl.href) return false;
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: confirmText || 'Yes, Continue',
+                cancelButtonText: 'Cancel',
+                customClass: {
+                    popup: 'booking-request-popup',
+                    title: 'booking-request-title',
+                    confirmButton: 'booking-request-confirm',
+                    cancelButton: 'booking-request-cancel'
+                },
+                buttonsStyling: false,
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = linkEl.href;
+                }
+            });
+            return false;
+        }
+
+        return window.confirm(text || 'Are you sure?');
+    }
+</script>
+
 {% endblock %}
+

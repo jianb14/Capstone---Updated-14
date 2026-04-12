@@ -36,14 +36,35 @@ b += items_open(inner)
 inner = sub_label('Number Balloons (0-9)')
 for i in range(10):
     inner += item(f'balloons/number_{i}_blank.svg', f'Num {i}', 80, 80)
-b += f'                <div class="category-items" style="gap: 5px; max-height: 300px; overflow-y: auto;">\n{inner}                </div>\n'
+b += items_open(inner)
 
 # Letters
 inner = sub_label('Letter Balloons (A-Z)')
 for i in range(26):
     letter = chr(65 + i)
     inner += item(f'balloons/letter_{letter}_blank.svg', f'Let {letter}', 80, 80)
-b += f'                <div class="category-items" style="gap: 5px; max-height: 300px; overflow-y: auto;">\n{inner}                </div>\n'
+b += items_open(inner)
+
+# Flower Balloons
+inner = sub_label('Flower Balloons')
+inner += item('balloons/flower_daisy_blank.svg', 'Daisy', 80, 80)
+inner += item('balloons/flower_rose_blank.svg', 'Rose', 80, 80)
+inner += item('balloons/flower_tulip_blank.svg', 'Tulip', 70, 80)
+b += items_open(inner)
+
+# Specialty Balloons
+inner = sub_label('Specialty Balloons')
+inner += item('balloons/jumbo_blank.svg', 'Jumbo', 80, 110)
+inner += item('balloons/giant_blank.svg', 'Giant', 90, 130)
+inner += item('balloons/square_blank.svg', 'Square Foil', 80, 80)
+b += items_open(inner)
+
+# Celestial & Weather
+inner = sub_label('Celestial & Weather')
+inner += item('balloons/sun_blank.svg', 'Sun', 80, 80)
+inner += item('balloons/moon_blank.svg', 'Moon', 70, 80)
+inner += item('balloons/lightning_blank.svg', 'Lightning', 60, 90)
+b += items_open(inner)
 
 # Bundles
 inner = sub_label('Bundles')
@@ -80,6 +101,9 @@ dec = '''            <!-- ====== 3. DECORATIONS ====== -->
                 <div class="category-items" style="gap: 5px;">
                     <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Florals</div>
 ''' + item('decorations/flower_pink.svg', 'Pink Flower', 80, 80) + item('decorations/flower_blue.svg', 'Blue Flower', 80, 80) + item('decorations/flower_red.svg', 'Red Flower', 80, 80) + item('decorations/greenery_fern.svg', 'Fern', 70, 100) + '''                </div>
+                <div class="category-items" style="gap: 5px;">
+                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Marquee LED Numbers</div>
+''' + ''.join([item(f'decorations/marquee_number_{i}.svg', f'Num {i}', 70, 90) for i in range(10)]) + '''                </div>
                 <div class="category-items" style="gap: 5px;">
                     <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Accents</div>
 ''' + item('decorations/bow_pink.svg', 'Pink Bow', 100, 70) + item('decorations/bow_blue.svg', 'Blue Bow', 100, 70) + item('decorations/bow_gold.svg', 'Gold Bow', 100, 70) + item('decorations/string_lights.svg', 'String Lights', 150, 60) + item('decorations/teepee_tent.svg', 'Teepee', 100, 120) + '''                </div>

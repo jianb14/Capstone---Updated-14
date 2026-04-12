@@ -11,37 +11,121 @@
 
         <section class="gallery-section">
             <div class="gallery-filter">
-                <button class="filter-btn active">All Projects</button>
-                <button class="filter-btn">Weddings</button>
-                <button class="filter-btn">Birthdays</button>
-                <button class="filter-btn">Corporate</button>
-                <button class="filter-btn">Special Occasions</button>
+                <button class="filter-btn active" data-category="all">All Projects</button>
+                {% for cat in categories %}
+                <button class="filter-btn" data-category="{{ cat.id }}">{{ cat.name }}</button>
+                {% endfor %}
             </div>
 
             <div class="gallery-grid">
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
-                <div class="gallery-item"></div>
+                {% for img in gallery_images %}
+                <div class="gallery-item" data-category="{{ img.category.id }}">
+                    <img src="{{ img.image.url }}" alt="{{ img.caption|default:'Gallery image' }}" loading="lazy">
+                    {% if img.caption %}
+                    <div class="gallery-caption">{{ img.caption }}</div>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="gallery-empty">
+                    <p>No images yet. Check back soon!</p>
+                </div>
+                {% endfor %}
             </div>
 
-            <div style="text-align: center; margin-top: 4rem; padding: 3rem; background: var(--gray); color: var(--white); border: 1px solid var(--light-gray);">
-                <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--white);">Every detail styled with precision and elegance.</h2>
-                <p style="font-size: 1.1rem; margin-bottom: 2rem; opacity: 0.9;">Ready to create your own unforgettable celebration?</p>
-                <a href="{% url 'create_booking' %}" class="btn btn-secondary">Get Started Today</a>
+            <div class="gallery-cta">
+                <h2 class="gallery-cta-title">Every detail styled with precision and elegance.</h2>
+                <p class="gallery-cta-text">Ready to create your own unforgettable celebration?</p>
+                <a href="{% url 'create_booking' %}" class="btn btn-primary">Get Started Today</a>
             </div>
         </section>
     </div>
+
+    <!-- Lightbox Modal -->
+    <div class="gallery-lightbox" id="galleryLightbox">
+        <button class="lightbox-close" id="lightboxClose">&times;</button>
+        <img class="lightbox-img" id="lightboxImg" src="" alt="">
+        <div class="lightbox-caption" id="lightboxCaption"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const items = document.querySelectorAll('.gallery-item');
+
+            // --- STAGGERED ENTRANCE ANIMATION ---
+            function animateItems(visibleItems) {
+                visibleItems.forEach((item, i) => {
+                    // Disable transition to hide instantly and reset
+                    item.style.transition = 'none';
+                    item.classList.remove('show');
+                    
+                    // Force reflow so the browser applies the instant hide
+                    void item.offsetWidth; // This is necessary!
+                    
+                    // Put transition back so the fade works
+                    item.style.transition = '';
+                    
+                    setTimeout(() => {
+                        item.classList.add('show');
+                    }, 50 + (i * 60)); // Added a tiny 50ms delay for smoothness
+                });
+            }
+
+            // --- FILTER ---
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const cat = btn.dataset.category;
+
+                    const visible = [];
+                    items.forEach(item => {
+                        if (cat === 'all' || item.dataset.category === cat) {
+                            item.style.display = '';
+                            visible.push(item);
+                        } else {
+                            item.classList.remove('show');
+                            item.style.display = 'none';
+                        }
+                    });
+                    animateItems(visible);
+                });
+            });
+
+            // --- INITIAL STAGGERED LOAD ---
+            animateItems([...items]);
+
+            // --- LIGHTBOX ---
+            const lightbox = document.getElementById('galleryLightbox');
+            const lightboxImg = document.getElementById('lightboxImg');
+            const lightboxCaption = document.getElementById('lightboxCaption');
+            const lightboxClose = document.getElementById('lightboxClose');
+
+            items.forEach(item => {
+                item.addEventListener('click', () => {
+                    const img = item.querySelector('img');
+                    const caption = item.querySelector('.gallery-caption');
+                    lightboxImg.src = img.src;
+                    lightboxCaption.textContent = caption ? caption.textContent : '';
+                    lightbox.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                });
+            });
+
+            lightboxClose.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', (e) => {
+                if (e.target === lightbox) closeLightbox();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeLightbox();
+            });
+
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+    </script>
 
 {% endblock content %}

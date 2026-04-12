@@ -1,10 +1,10 @@
-{% extends 'client/base.html' %}
+﻿{% extends 'client/base.html' %}
 {% load static humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}">
 
-<div class="profile-page">
+<div class="profile-page" style="animation: fadeInPage 0.5s ease forwards;">
     <div class="profile-bg"></div>
 
     <div class="profile-container">
@@ -13,13 +13,6 @@
 
             <!-- Top: Identity & Stats -->
             <div class="profile-top">
-                <div class="profile-identity">
-                    <div class="profile-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
-                    <div>
-                        <h2>{{ user.username }}</h2>
-                        <p>Member since {{ user.date_joined|date:"Y" }}</p>
-                    </div>
-                </div>
 
                 <div class="stats-row">
                     <div class="stat-item">
@@ -41,39 +34,72 @@
                 </div>
             </div>
 
-            <!-- Bottom: Info & Actions -->
-            <div class="profile-bottom">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">First Name</span>
-                        <span class="info-value">{{ user.first_name }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Last Name</span>
-                        <span class="info-value">{{ user.last_name }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Email Address</span>
-                        <span class="info-value">{{ user.email }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Phone Number</span>
-                        <span class="info-value">{{ user.phone_number|default:"--" }}</span>
-                    </div>
-                </div>
-
-                <div class="profile-actions">
-                    <a onclick="openPasswordModal()" class="btn-sm btn-outline"><span>Change Password</span></a>
-                    <a href="{% url 'create_booking' %}" class="btn-sm btn-primary"><span>Create Booking</span></a>
-                </div>
-            </div>
         </div>
 
 
         <!-- Your Bookings Table -->
         <div class="bookings-section">
-            <h3>Your Bookings</h3>
-            {% if user_bookings %}
+            <div class="bookings-header">
+                <h3>Your Bookings</h3>
+            </div>
+
+            <form method="GET" action="{% url 'customer_profile' %}" class="filter-form" id="filterForm" onsubmit="event.preventDefault(); return false;">
+                    <input type="text" name="search" placeholder="Search ID or Event..." value="{{ search_query }}" class="filter-input" id="searchFilterInput">
+                    
+                    <div class="custom-filter-dropdown" id="statusDropdown">
+                        <div class="dropdown-trigger">
+                            <span id="statusDropdownText">All Status</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <ul class="dropdown-options">
+                            <li data-value="all" {% if status_filter == 'all' or not status_filter %}class="selected"{% endif %}>All Status</li>
+                            <li data-value="pending" {% if status_filter == 'pending' %}class="selected"{% endif %}>Pending</li>
+                            <li data-value="confirmed" {% if status_filter == 'confirmed' %}class="selected"{% endif %}>Confirmed</li>
+                            <li data-value="completed" {% if status_filter == 'completed' %}class="selected"{% endif %}>Completed</li>
+                            <li data-value="cancelled" {% if status_filter == 'cancelled' %}class="selected"{% endif %}>Cancelled</li>
+                            <li data-value="request_edit" {% if status_filter == 'request_edit' %}class="selected"{% endif %}>Edit Request</li>
+                            <li data-value="request_cancel" {% if status_filter == 'request_cancel' %}class="selected"{% endif %}>Cancel Request</li>
+                            <li data-value="expired" {% if status_filter == 'expired' %}class="selected"{% endif %}>Expired</li>
+                        </ul>
+                        <select name="status" class="filter-select" id="statusFilterSelect">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            <option value="request_edit" {% if status_filter == 'request_edit' %}selected{% endif %}>Edit Request</option>
+                            <option value="request_cancel" {% if status_filter == 'request_cancel' %}selected{% endif %}>Cancel Request</option>
+                            <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+                        </select>
+                    </div>
+
+                    <div class="custom-filter-dropdown" id="sortDropdown">
+                        <div class="dropdown-trigger">
+                            <span id="sortDropdownText">
+                                {% if sort_date == 'id_desc' %}ID (High to Low)
+                                {% elif sort_date == 'id_asc' %}ID (Low to High)
+                                {% elif sort_date == 'oldest' %}Oldest First
+                                {% else %}Newest First{% endif %}
+                            </span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <ul class="dropdown-options">
+                            <li data-value="newest" {% if sort_date == 'newest' or not sort_date %}class="selected"{% endif %}>Newest First</li>
+                            <li data-value="oldest" {% if sort_date == 'oldest' %}class="selected"{% endif %}>Oldest First</li>
+                            <li data-value="id_desc" {% if sort_date == 'id_desc' %}class="selected"{% endif %}>ID (High to Low)</li>
+                            <li data-value="id_asc" {% if sort_date == 'id_asc' %}class="selected"{% endif %}>ID (Low to High)</li>
+                        </ul>
+                        <select name="sort_date" class="filter-select" id="sortFilterSelect">
+                            <option value="newest" {% if sort_date == 'newest' or not sort_date %}selected{% endif %}>Newest First</option>
+                            <option value="oldest" {% if sort_date == 'oldest' %}selected{% endif %}>Oldest First</option>
+                            <option value="id_desc" {% if sort_date == 'id_desc' %}selected{% endif %}>ID (High to Low)</option>
+                            <option value="id_asc" {% if sort_date == 'id_asc' %}selected{% endif %}>ID (Low to High)</option>
+                        </select>
+                    </div>
+                </form>
+
+            <div id="bookings-results" style="transition: opacity 0.2s;">
+            {% if page_obj %}
             <div class="table-container">
                 <table class="bookings-table">
                     <thead>
@@ -86,7 +112,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for b in user_bookings %}
+                        {% for b in page_obj %}
                         <tr>
                             <td data-label="Booking ID">#{{ b.id }}</td>
                             <td data-label="Event Type">{{ b.event_type }}</td>
@@ -105,10 +131,11 @@
                                     <a href="javascript:void(0)" onclick="openDeleteModal('{{ b.id }}')"
                                         class="btn-delete">Delete</a>
                                     {% elif b.status == 'confirmed' and not b.edit_requested and not b.edit_allowed %}
-                                    <a href="{% url 'request_edit_booking' b.id %}" class="btn-edit">Req. Edit</a>
-                                    <a href="{% url 'request_cancel_booking' b.id %}" class="btn-delete">Req. Cancel</a>
+                                    <a href="javascript:void(0)" onclick="openRequestEditPrompt('{{ b.id }}')" class="btn-edit">Req. Edit</a>
+                                    <a href="javascript:void(0)" onclick="openRequestCancelPrompt('{{ b.id }}')" class="btn-delete">Req. Cancel</a>
                                     {% elif b.edit_requested %}
-                                    <span class="status-text">Edit Requested</span>
+                                    <a href="javascript:void(0)" onclick="openEditModal('{{ b.id }}')" class="btn-edit">Edit (Requested)</a>
+                                    <span class="status-text">Waiting approval</span>
                                     {% elif b.edit_allowed %}
                                     <a href="javascript:void(0)" onclick="openEditModal('{{ b.id }}')"
                                         class="btn-edit">Edit Now</a>
@@ -131,10 +158,30 @@
                                     <div class="data-time">{{ b.time_range_display }}</div>
                                     <div class="data-location">{{ b.event_location }}</div>
                                     <div class="data-package">{{ b.package_type|default:"-" }}</div>
-                                    <div class="data-price">₱{{ b.total_price|intcomma }}</div>
+                                    <div class="data-price">₱{{ b.total_price|floatformat:"-2"|intcomma }}</div>
+                                    <div class="data-price-breakdown" style="display:none;">
+                                        {% for item in b.price_breakdown.items %}
+                                        <div class="summary-row">
+                                            <div class="row-info">
+                                                <span class="row-label">{{ item.label }}</span>
+                                            </div>
+                                            <span class="row-value">₱{{ item.amount|floatformat:"-2"|intcomma }}</span>
+                                        </div>
+                                        {% endfor %}
+                                        {% if b.price_breakdown.service_charge > 0 %}
+                                        <div class="summary-row service-charge-summary">
+                                            <div class="row-info">
+                                                <span class="row-label">Service & Logistics Fee</span>
+                                                <p class="row-note">{{ global_service_charge_note|default:"Includes styling fee, toll fees, fuel, crew meals, and ingress/egress logistics." }}</p>
+                                            </div>
+                                            <span class="row-value">₱{{ b.price_breakdown.service_charge|floatformat:"-2"|intcomma }}</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
                                     <div class="data-status">{{ b.get_status_display }}</div>
                                     <div class="data-status-class">status-{{ b.status }}</div>
                                     <div class="data-requests">{{ b.special_requests|default:"" }}</div>
+                                    <div class="data-denial-reason">{{ b.admin_denial_reason|default:"" }}</div>
 
                                     <!-- Raw Data for Editing -->
                                     <div class="raw-type">{{ b.event_type }}</div>
@@ -144,6 +191,12 @@
                                     <div class="raw-package">{{ b.package_type|default:"" }}</div>
                                     <div class="raw-price">{{ b.total_price }}</div>
                                     <div class="raw-requests">{{ b.special_requests|default:"" }}</div>
+                                    <div class="raw-image-url">{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}</div>
+                                    <div class="raw-multi-images">
+                                        {% for img in b.images.all %}
+                                        <span class="multi-img-url" data-id="{{ img.id }}">{{ img.image.url }}</span>
+                                        {% endfor %}
+                                    </div>
                                     <div class="raw-edit-url">{% url 'edit_booking' b.id %}</div>
                                     <div class="raw-delete-url">{% url 'delete_booking' b.id %}</div>
                                 </div>
@@ -153,9 +206,44 @@
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <p style="text-align: center; color: var(--dark-gray); padding: 2rem 0;">You have no bookings yet.</p>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="pagination-container">
+                <div class="pagination">
+                    {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-left"></i></a>
+                    {% else %}
+                    <span class="pagination-btn disabled"><i class="fas fa-chevron-left"></i></span>
+                    {% endif %}
+
+                    {% if page_obj.has_next %}
+                        <span class="pagination-btn active">{{ page_obj.number }}</span>
+                        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn">{{ page_obj.next_page_number }}</a>
+                    {% else %}
+                        {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn">{{ page_obj.previous_page_number }}</a>
+                        {% endif %}
+                        <span class="pagination-btn active">{{ page_obj.number }}</span>
+                    {% endif %}
+
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                    <span class="pagination-btn disabled"><i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+                </div>
+            </div>
             {% endif %}
+
+            {% else %}
+            {% if total_bookings == 0 and not search_query and status_filter == 'all' %}
+            <p style="text-align: center; color: var(--dark-gray); padding: 2rem 0;">You don't have any bookings yet.</p>
+            {% else %}
+            <p style="text-align: center; color: var(--dark-gray); padding: 2rem 0;">No bookings found matching your criteria.</p>
+            {% endif %}
+            {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -176,159 +264,283 @@
         </div>
         <div class="modal-row">
             <span class="modal-label">Date & Time</span>
-            <span class="modal-value"><span id="modalDate"></span> <br> <small style="color:#888"
+            <span class="modal-value"><span id="modalDate"></span> <br> <small style="color: white"
                     id="modalTime"></small></span>
         </div>
         <div class="modal-row">
-            <span class="modal-label">Location</span>
+            <span class="modal-label">Location(Venue Address)</span>
             <span class="modal-value" id="modalLocation"></span>
         </div>
-        <div class="modal-row">
+        <div class="modal-row" id="modalPackageRow">
             <span class="modal-label">Package</span>
             <span class="modal-value" id="modalPackage"></span>
-        </div>
-        <div class="modal-row">
-            <span class="modal-label">Total Price</span>
-            <span class="modal-value" id="modalPrice" style="font-size: 1.1rem;"></span>
         </div>
         <div class="modal-row" style="align-items: center;">
             <span class="modal-label">Status</span>
             <span id="modalStatusBadge" class="status-badge-lg"></span>
         </div>
-
-        <div id="modalRequestsContainer"
-            style="margin-top: 1rem; padding: 1rem; background: #1a1a1a; border-radius: 8px; border: 1px dashed #333; display: none;">
-            <span class="modal-label"
-                style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; text-transform: uppercase;">Special
-                Requests</span>
-            <p id="modalRequests"
-                style="color: #ccc; font-size: 0.9rem; margin: 0; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; word-break: break-all;">
-            </p>
+        <div class="modal-row" id="viewImageRow" style="display: none; flex-direction: column; align-items: flex-start;">
+            <span class="modal-label">Reference Images</span>
+            <div id="viewMultiImageGrid" style="width: 100%; margin-top: 10px;">
+                <!-- Filled via JS -->
+            </div>
+        </div>
+        <div id="modalRequestsBlock" style="display: none;">
+            <span class="modal-label modal-section-label">Special Requests</span>
+            <div id="modalRequestsContainer"
+                style="margin-top: 0.5rem; padding: 1rem; border-radius: 8px; border: 1px dashed #333;">
+                <p id="modalRequests"
+                    style="color: #ccc; font-size: 0.9rem; margin: 0; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; word-break: break-all;">
+                </p>
+            </div>
+        </div>
+        <div id="modalDenialBlock" style="display: none;">
+            <span class="modal-label modal-section-label">Denial Reason</span>
+            <div id="modalDenialContainer"
+                style="margin-top: 0.5rem; padding: 1rem; border-radius: 8px; border: 1px dashed rgba(239,68,68,0.45); background: rgba(239,68,68,0.08);">
+                <p id="modalDenialReason"
+                    style="color: #fca5a5; font-size: 0.9rem; margin: 0; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word;">
+                </p>
+            </div>
+        </div>
+        <div class="booking-summary-container" id="modalSummaryBox" style="display:none;">
+            <h4 class="summary-title">Price Breakdown</h4>
+            <div id="modalPriceBreakdown" class="summary-items"></div>
+            <div class="summary-row total-row">
+                <div class="row-info">
+                    <span class="row-label label-price">Total Price</span>
+                </div>
+                <span class="row-value total-price" id="modalPrice"></span>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- CHANGE PASSWORD MODAL -->
-<div id="passwordModal" class="modal-overlay">
-    <div class="modal-card">
-
-        <div class="modal-header">
-            <h2>Change Password</h2>
-            <button class="modal-close" onclick="closePasswordModal()">&times;</button>
-        </div>
-
-        <div id="passwordMsg" class="form-message"></div>
-
-        <form id="changePasswordForm" action="{% url 'change_password' %}" method="POST">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="id_old_password">Current Password</label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="old_password" id="id_old_password" required>
-                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle password visibility"
-                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_old_password', this)">
-                </div>
-                <div class="field-error" id="error_old_password"></div>
-            </div>
-            <div class="form-group">
-                <label for="id_new_password1">New Password</label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="new_password1" id="id_new_password1" required>
-                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle password visibility"
-                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password1', this)">
-                </div>
-                <div class="field-error" id="error_new_password1"></div>
-            </div>
-            <div class="form-group">
-                <label for="id_new_password2">Confirm New Password</label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="new_password2" id="id_new_password2" required>
-                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle password visibility"
-                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password2', this)">
-                </div>
-                <div class="field-error" id="error_new_password2"></div>
-            </div>
-            <button type="submit" id="btnSavePassword">Update Password</button>
-        </form>
-    </div>
+<div id="customerImageLightbox" class="customer-image-lightbox" style="display:none;">
+    <button type="button" id="customerImageLightboxClose" class="customer-image-lightbox-close" aria-label="Close">&times;</button>
+    <img id="customerImageLightboxImg" class="customer-image-lightbox-img" src="" alt="Reference image preview">
 </div>
+
+
 
 <!-- EDIT BOOKING MODAL -->
 <div id="editBookingModal" class="modal-overlay">
     <div class="booking-modal-box">
-        <div class="modal-header">
-            <h2>Edit Booking</h2>
+        <div class="modal-header stepper-header">
+            <div class="stepper-wrapper">
+                <div class="stepper-progress-line" id="editStepperLine"></div>
+                <div class="stepper-step-icon active" id="edit-step-1-indicator">
+                    <div class="step-circle"></div>
+                    <div class="step-label">Step 1</div>
+                </div>
+                <div class="stepper-step-icon" id="edit-step-2-indicator">
+                    <div class="step-circle"></div>
+                    <div class="step-label">Step 2</div>
+                </div>
+            </div>
             <button class="close-btn" onclick="closeEditModal()">&times;</button>
         </div>
 
-        <form id="editBookingForm" method="POST" action="">
+        <form id="editBookingForm" method="POST" action="" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
-            <div class="form-grid">
-                <div class="form-group full-width">
-                    <label>Event Type</label>
-                    <select id="edit_event_type_select" name="event_type" required
-                        onchange="toggleEditOtherEventType(this)">
-                        <option value="" disabled>Select an Event</option>
-                        <option value="Birthday">Birthday</option>
-                        <option value="Wedding">Wedding</option>
-                        <option value="Anniversary">Anniversary</option>
-                        <option value="Corporate Event">Corporate Event</option>
-                        <option value="Christening">Christening</option>
-                        <option value="Bridal Shower">Bridal Shower</option>
-                        <option value="Baby Shower">Baby Shower</option>
-                        <option value="Other">Other</option>
-                    </select>
-                    <input type="text" id="edit_event_type_other" placeholder="Please specify your event type"
-                        style="display: none; margin-top: 10px;">
-                </div>
 
-                <div class="form-group full-width">
-                    <label>Event Date</label>
-                    <input type="date" id="edit_event_date" name="event_date" required>
-                </div>
+            <!-- STEP 1: PACKAGE SELECTION -->
+            <div class="stepper-step active-step" id="edit-step-1">
+                <h3>Available Packages</h3>
+                <p class="step-desc">Please choose a package for your booking.</p>
 
-                <div class="form-group full-width">
-                    <label>Event Duration</label>
-                    <div class="time-row">
-                        <div class="time-field">
-                            <small>Start</small>
-                            <input type="time" id="edit_start_time" name="start_time" required>
+                <div class="package-cards-grid">
+                    {% for package in packages %}
+                    <div class="package-card edit-package-card" data-package="{{ package.name }}" data-price="{{ package.price }}">
+                        <div class="package-info">
+                            <h4>{{ package.name }}</h4>
+                            <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
+                            <p class="feature-label">Package Inclusions</p>
+                            <ul class="features">
+                                {% for feature in package.feature_list %}
+                                <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
                         </div>
-                        <div class="time-field">
-                            <small>End</small>
-                            <input type="time" id="edit_end_time" name="end_time" required>
+                    </div>
+                    {% empty %}
+                    <p>No packages available.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Add-ons Section -->
+                <h3>Add-ons (Optional)</h3>
+                <p class="step-desc">Enhance your package with these extras.</p>
+                <div class="package-cards-grid addons-selection-grid">
+                    {% for addon in active_addons %}
+                    <div class="package-card edit-addon-selector" data-name="{{ addon.name }}"
+                        data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
+                        <div class="package-info">
+                            <h4>{{ addon.name }}</h4>
+                            <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span></div>
+                            <p class="feature-label">What&apos;s Included</p>
+                            <ul class="features">
+                                {% for feature in addon.feature_list %}
+                                <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="empty-message">No add-ons available.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Additionals Section -->
+                <h3>Additionals (Optional)</h3>
+                <div class="package-cards-grid additionals-selection-grid">
+                    {% for additional in active_additionals %}
+                    <div class="package-card edit-additional-selector" data-name="{{ additional.name }}"
+                        data-price="{{ additional.price }}">
+                        <div class="package-info">
+                            <h4>{{ additional.name }}</h4>
+                            <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
+                            {% if additional.features %}
+                            <p class="feature-label">What&apos;s Included</p>
+                            <ul class="features">
+                                {% for feature in additional.features.splitlines %}
+                                <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                            {% if additional.notes %}
+                            <p class="additional-notes">{{ additional.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="empty-message">No additionals available.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-submit" id="btnNextEditStep" disabled>Next Step</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: BOOKING DETAILS -->
+            <div class="stepper-step" id="edit-step-2" style="display: none;">
+                <h3>Event Details</h3>
+
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <!-- Custom Select UI -->
+                        <div class="custom-select-container" id="editEventTypeCustomSelect">
+                            <label>Event Type</label>
+                            <div class="custom-select-trigger">
+                                <span>Select an Event</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <ul class="custom-select-options">
+                                <li data-value="Birthday">Birthday</li>
+                                <li data-value="Wedding">Wedding</li>
+                                <li data-value="Anniversary">Anniversary</li>
+                                <li data-value="Corporate Event">Corporate Event</li>
+                                <li data-value="Christening">Christening</li>
+                                <li data-value="Bridal Shower">Bridal Shower</li>
+                                <li data-value="Baby Shower">Baby Shower</li>
+                                <li data-value="Other">Other</li>
+                            </ul>
+                            <!-- Hidden input -->
+                            <input type="text" id="edit_event_type_select" name="event_type"
+                                style="opacity: 0; position: absolute; height: 1px; width: 1px; bottom: 0; pointer-events: none;">
+                        </div>
+                        <input type="text" id="edit_event_type_other" placeholder="Please specify your event type" style="display: none; margin-top: 10px;">
+                        <small class="review-field-error" id="edit_event_type_error"></small>
+                        <small class="review-field-error" id="edit_event_type_other_error"></small>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Event Date</label>
+                        <input type="date" id="edit_event_date" name="event_date" required>
+                        <small class="review-field-error" id="edit_event_date_error"></small>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Event Duration</label>
+                        <div class="time-row">
+                            <div class="time-field">
+                                <small>Start</small>
+                                <input type="time" id="edit_start_time" name="start_time" required>
+                                <small class="review-field-error" id="edit_start_time_error"></small>
+                            </div>
+                            <div class="time-field">
+                                <small>End</small>
+                                <input type="time" id="edit_end_time" name="end_time" required>
+                                <small class="review-field-error" id="edit_end_time_error"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Location (Venue Address)</label>
+                        <input type="text" id="edit_event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" required>
+                        <small class="review-field-error" id="edit_event_location_error"></small>
+                    </div>
+
+                    <!-- Hidden inputs for data from Step 1 -->
+                    <input type="hidden" name="package_type" id="edit_package_type_input">
+                    <input type="hidden" name="total_price" id="edit_total_price_input">
+
+                    <!-- Special Requests -->
+                    <div class="form-group full-width">
+                        <label for="edit_special_requests">Special Requests</label>
+                        <textarea id="edit_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
+                    </div>
+
+                    <!-- Unified Images -->
+                    <div class="form-group full-width">
+                        <label for="edit_reference_images_ui">Pictures (Optional)</label>
+                        <input type="file" id="edit_reference_images_ui" accept="image/*" multiple class="file-input">
+                        <!-- Hidden proper input for backend submission -->
+                        <input type="file" id="edit_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
+                        <small style="color: #666; font-size: 0.75rem;">You can select up to 4 images total (new + existing).</small>
+                        <p id="editImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum combined images is 4.</p>
+                        
+                        <!-- Unified Container for Preview Images -->
+                        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                            <div id="editExistingImagesGrid" style="display: contents;"></div>
+                            <div id="editImagePreviewGrid" style="display: contents;"></div>
+                        </div>
+                        
+                        <div id="removeImagesInputs"></div>
+                    </div>
+
+                    <!-- Order Summary Section -->
+                    <div class="booking-summary-container">
+                        <h4 class="summary-title">Order Summary</h4>
+                        <div id="edit-booking-item-list" class="summary-items"></div>
+
+                        <div class="summary-divider"></div>
+
+                        <!-- Service Charge Row -->
+                        <div class="summary-row service-charge-summary" id="editServiceChargeRow" style="display: none;">
+                            <div class="row-info">
+                                <span class="row-label">Service & Logistics Fee</span>
+                                <p class="row-note" id="edit_service_charge_note_text">{{ global_service_charge_note|default:"Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics." }}</p>
+                            </div>
+                            <span class="row-value" id="edit_service_charge_display">₱0.00</span>
+                        </div>
+
+                        <div class="summary-row total-row">
+                            <div class="row-info">
+                                <span class="row-label">Total Price</span>
+                            </div>
+                            <span class="row-value total-price" id="edit_price_display">₱0.00</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group full-width">
-                    <label>Location</label>
-                    <input type="text" id="edit_event_location" name="event_location" required>
+                <div class="modal-actions split-actions">
+                    <button type="button" class="booking-back-btn" id="btnPrevEditStep">Back</button>
+                    <button type="submit" class="btn-submit">Update Booking</button>
                 </div>
-
-                <!-- Removed guests -->
-
-                <div class="form-group full-width">
-                    <label>Package Type</label>
-                    <select id="edit_package_type" name="package_type" required onchange="updateEditPrice(this)">
-                        <option value="" disabled>Select a Package</option>
-                        {% for package in packages %}
-                        <option value="{{ package.name }}" data-price="{{ package.price }}">{{ package.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>Special Requests</label>
-                    <textarea id="edit_special_requests" name="special_requests"></textarea>
-                </div>
-
-                <span class="total-price-label">Total Price:</span>
-                <span class="total-price-value" id="edit_price_display">₱0.00</span>
-                <input type="hidden" id="edit_total_price" name="total_price">
             </div>
-
-            <button type="submit" class="btn-submit">Update Booking</button>
         </form>
     </div>
 </div>
@@ -346,7 +558,7 @@
             {% csrf_token %}
             <div class="delete-actions">
                 <button type="button" class="btn-cancel-modal" onclick="closeDeleteModal()">No, Keep it</button>
-                <button type="submit" class="btn-confirm-delete">Yes, Cancel</button>
+                <button type="submit" class="btn-confirm-delete">Yes, Delete</button>
             </div>
         </form>
     </div>
@@ -368,7 +580,7 @@
             <div class="form-group">
                 <label>Rating</label>
                 <div class="star-rating">
-                    <input type="radio" id="star5" name="rating" value="5" required />
+                    <input type="radio" id="star5" name="rating" value="5" />
                     <label for="star5" title="5 stars">&#9733;</label>
 
                     <input type="radio" id="star4" name="rating" value="4" />
@@ -384,14 +596,15 @@
                     <label for="star1" title="1 star">&#9733;</label>
                 </div>
                 <div id="star-description"
-                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1rem; min-height: 1.2rem;">
+                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; min-height: 1.2rem;">
                     Select a rating</div>
+                <small class="review-field-error" id="review_rating_error"></small>
             </div>
 
             <div class="form-group reviews-group">
                 <label for="review_comment">Your Review</label>
-                <textarea id="review_comment" name="comment" placeholder="Tell us about your experience..."
-                    required></textarea>
+                <textarea id="review_comment" name="comment" placeholder="Tell us about your experience..."></textarea>
+                <small class="review-field-error" id="review_comment_error"></small>
             </div>
 
             <div class="form-group reviews-group">
@@ -405,8 +618,458 @@
     </div>
 </div>
 
-<script>
+<form id="requestEditForm" method="POST" action="{% url 'request_edit_booking' 0 %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="reason" id="requestEditReasonInput">
+</form>
 
+<form id="requestCancelForm" method="POST" action="{% url 'request_cancel_booking' 0 %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="reason" id="requestCancelReasonInput">
+</form>
+
+<script>
+    function submitReasonForm(formId, inputId, bookingId, reason) {
+        const form = document.getElementById(formId);
+        const reasonInput = document.getElementById(inputId);
+        if (!form || !reasonInput) return;
+
+        const baseAction = form.getAttribute('action');
+        form.setAttribute('action', baseAction.replace('/0/', `/${bookingId}/`));
+        reasonInput.value = reason;
+        form.submit();
+    }
+
+    function promptReasonModal(title, placeholder, onSubmit) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                input: 'textarea',
+                customClass: {
+                    popup: 'booking-request-popup',
+                    title: 'booking-request-title',
+                    input: 'booking-request-textarea',
+                    confirmButton: 'booking-request-confirm',
+                    cancelButton: 'booking-request-cancel'
+                },
+                buttonsStyling: false,
+                inputPlaceholder: placeholder,
+                inputAttributes: {
+                    'aria-label': placeholder,
+                    maxlength: 500
+                },
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'This field is required*';
+                    }
+                    return null;
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Submit',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#2563eb',
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.trim()) {
+                    onSubmit(result.value.trim());
+                }
+            });
+            return;
+        }
+
+        const reason = window.prompt(placeholder);
+        if (reason && reason.trim()) {
+            onSubmit(reason.trim());
+        } else if (typeof Toast !== 'undefined') {
+            Toast.fire({
+                icon: 'warning',
+                title: 'This field is required*'
+            });
+        }
+    }
+
+    window.openRequestEditPrompt = function (bookingId) {
+        promptReasonModal(
+            'Request Edit',
+            'Please tell us why you want to edit this booking.',
+            function (reason) {
+                submitReasonForm('requestEditForm', 'requestEditReasonInput', bookingId, reason);
+            }
+        );
+    };
+
+    window.openRequestCancelPrompt = function (bookingId) {
+        promptReasonModal(
+            'Request Cancel',
+            'Please tell us why you want to cancel this booking.',
+            function (reason) {
+                submitReasonForm('requestCancelForm', 'requestCancelReasonInput', bookingId, reason);
+            }
+        );
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- REVIEW FORM INLINE VALIDATION ---
+        const reviewFormObj = document.getElementById('reviewForm');
+        const reviewCommentInput = document.getElementById('review_comment');
+        const reviewRatingErrorEl = document.getElementById('review_rating_error');
+        const reviewCommentErrorEl = document.getElementById('review_comment_error');
+        let reviewSubmitAttempted = false;
+
+        const setReviewFieldError = (field, message) => {
+            if (field === 'rating') {
+                const group = reviewRatingErrorEl ? reviewRatingErrorEl.closest('.form-group') : null;
+                if (group) group.classList.toggle('has-error', !!message);
+                if (reviewRatingErrorEl) reviewRatingErrorEl.textContent = message || '';
+                return;
+            }
+
+            if (field === 'comment') {
+                const group = reviewCommentInput ? reviewCommentInput.closest('.form-group') : null;
+                if (group) group.classList.toggle('has-error', !!message);
+                if (reviewCommentInput) reviewCommentInput.classList.toggle('has-error', !!message);
+                if (reviewCommentErrorEl) reviewCommentErrorEl.textContent = message || '';
+            }
+        };
+
+        const clearReviewFieldErrors = () => {
+            setReviewFieldError('rating', '');
+            setReviewFieldError('comment', '');
+        };
+
+        const validateReviewForm = () => {
+            clearReviewFieldErrors();
+            let firstInvalidField = null;
+            const formData = new FormData(reviewFormObj);
+            const ratingValue = formData.get('rating');
+            const commentValue = reviewCommentInput ? reviewCommentInput.value.trim() : '';
+
+            if (!ratingValue) {
+                setReviewFieldError('rating', 'Rating is required*');
+                firstInvalidField = 'rating';
+            }
+
+            if (!commentValue) {
+                setReviewFieldError('comment', 'Review is required*');
+                if (!firstInvalidField) firstInvalidField = 'comment';
+            }
+
+            return firstInvalidField;
+        };
+
+        if (reviewFormObj) {
+            reviewFormObj.addEventListener('submit', function (e) {
+                reviewSubmitAttempted = true;
+                const firstInvalidField = validateReviewForm();
+                if (firstInvalidField) {
+                    e.preventDefault();
+                    if (firstInvalidField === 'comment' && reviewCommentInput) {
+                        reviewCommentInput.focus();
+                    }
+                }
+            });
+
+            const reviewStars = reviewFormObj.querySelectorAll('input[name="rating"]');
+            reviewStars.forEach((starInput) => {
+                starInput.addEventListener('change', () => {
+                    if (reviewSubmitAttempted) validateReviewForm();
+                });
+            });
+        }
+
+        if (reviewCommentInput) {
+            reviewCommentInput.addEventListener('input', () => {
+                if (reviewSubmitAttempted) validateReviewForm();
+            });
+        }
+
+        // --- EDIT BOOKING FORM INLINE VALIDATION ---
+        const editBookingForm = document.getElementById('editBookingForm');
+        const editEventTypeSelectEl = document.getElementById('edit_event_type_select');
+        const editEventTypeOtherEl = document.getElementById('edit_event_type_other');
+        const editEventDateEl = document.getElementById('edit_event_date');
+        const editStartTimeEl = document.getElementById('edit_start_time');
+        const editEndTimeEl = document.getElementById('edit_end_time');
+        const editEventLocationEl = document.getElementById('edit_event_location');
+        const editEventTypeCustomSelect = document.getElementById('editEventTypeCustomSelect');
+        let editBookingSubmitAttempted = false;
+
+        const setEditBookingFieldError = (key, message) => {
+            const fieldConfigs = {
+                event_type: {
+                    container: editEventTypeCustomSelect,
+                    input: editEventTypeSelectEl,
+                    errorEl: document.getElementById('edit_event_type_error')
+                },
+                event_type_other: {
+                    container: editEventTypeOtherEl ? editEventTypeOtherEl.closest('.form-group') : null,
+                    input: editEventTypeOtherEl,
+                    errorEl: document.getElementById('edit_event_type_other_error')
+                },
+                event_date: {
+                    container: editEventDateEl ? editEventDateEl.closest('.form-group') : null,
+                    input: editEventDateEl,
+                    errorEl: document.getElementById('edit_event_date_error')
+                },
+                start_time: {
+                    container: editStartTimeEl ? editStartTimeEl.closest('.time-field') : null,
+                    input: editStartTimeEl,
+                    errorEl: document.getElementById('edit_start_time_error')
+                },
+                end_time: {
+                    container: editEndTimeEl ? editEndTimeEl.closest('.time-field') : null,
+                    input: editEndTimeEl,
+                    errorEl: document.getElementById('edit_end_time_error')
+                },
+                event_location: {
+                    container: editEventLocationEl ? editEventLocationEl.closest('.form-group') : null,
+                    input: editEventLocationEl,
+                    errorEl: document.getElementById('edit_event_location_error')
+                }
+            };
+
+            const config = fieldConfigs[key];
+            if (!config) return;
+            config.container?.classList.toggle('has-error', !!message);
+            config.input?.classList.toggle('has-error', !!message);
+            if (config.errorEl) config.errorEl.textContent = message || '';
+        };
+
+        const clearEditBookingErrors = () => {
+            setEditBookingFieldError('event_type', '');
+            setEditBookingFieldError('event_type_other', '');
+            setEditBookingFieldError('event_date', '');
+            setEditBookingFieldError('start_time', '');
+            setEditBookingFieldError('end_time', '');
+            setEditBookingFieldError('event_location', '');
+        };
+
+        const validateEditBookingForm = () => {
+            clearEditBookingErrors();
+            let firstInvalidField = null;
+
+            if (!editEventTypeSelectEl || !editEventTypeSelectEl.value) {
+                setEditBookingFieldError('event_type', 'Event Type is required*');
+                firstInvalidField = 'event_type';
+            }
+
+            if (
+                editEventTypeSelectEl &&
+                editEventTypeSelectEl.value === 'Other' &&
+                editEventTypeOtherEl &&
+                !editEventTypeOtherEl.value.trim()
+            ) {
+                setEditBookingFieldError('event_type_other', 'Please specify your event type.');
+                if (!firstInvalidField) firstInvalidField = 'event_type_other';
+            }
+
+            if (!editEventDateEl || !editEventDateEl.value) {
+                setEditBookingFieldError('event_date', 'Event Date is required*');
+                if (!firstInvalidField) firstInvalidField = 'event_date';
+            }
+
+            if (!editStartTimeEl || !editStartTimeEl.value) {
+                setEditBookingFieldError('start_time', 'Start Time is required*');
+                if (!firstInvalidField) firstInvalidField = 'start_time';
+            }
+
+            if (!editEndTimeEl || !editEndTimeEl.value) {
+                setEditBookingFieldError('end_time', 'End Time is required*');
+                if (!firstInvalidField) firstInvalidField = 'end_time';
+            }
+
+            if (!editEventLocationEl || !editEventLocationEl.value.trim()) {
+                setEditBookingFieldError('event_location', 'Event Location is required*');
+                if (!firstInvalidField) firstInvalidField = 'event_location';
+            }
+
+            return firstInvalidField;
+        };
+
+        if (editBookingForm) {
+            editBookingForm.addEventListener('submit', function (e) {
+                editBookingSubmitAttempted = true;
+                const firstInvalidField = validateEditBookingForm();
+                if (firstInvalidField) {
+                    e.preventDefault();
+                    if (firstInvalidField === 'event_type' && editEventTypeCustomSelect) {
+                        const trigger = editEventTypeCustomSelect.querySelector('.custom-select-trigger');
+                        if (trigger) trigger.focus();
+                    } else if (firstInvalidField === 'event_type_other' && editEventTypeOtherEl) {
+                        editEventTypeOtherEl.focus();
+                    } else if (firstInvalidField === 'event_date' && editEventDateEl) {
+                        editEventDateEl.focus();
+                    } else if (firstInvalidField === 'start_time' && editStartTimeEl) {
+                        editStartTimeEl.focus();
+                    } else if (firstInvalidField === 'end_time' && editEndTimeEl) {
+                        editEndTimeEl.focus();
+                    } else if (firstInvalidField === 'event_location' && editEventLocationEl) {
+                        editEventLocationEl.focus();
+                    }
+                }
+            });
+        }
+
+        const editRealtimeFields = [editEventDateEl, editStartTimeEl, editEndTimeEl, editEventLocationEl, editEventTypeOtherEl];
+        editRealtimeFields.forEach((field) => {
+            if (!field) return;
+            field.addEventListener('input', () => {
+                if (editBookingSubmitAttempted) validateEditBookingForm();
+            });
+        });
+
+        if (editEventTypeSelectEl) {
+            editEventTypeSelectEl.addEventListener('change', () => {
+                if (editBookingSubmitAttempted) validateEditBookingForm();
+            });
+        }
+
+        if (editEventTypeCustomSelect) {
+            const options = editEventTypeCustomSelect.querySelectorAll('.custom-select-options li');
+            options.forEach((option) => {
+                option.addEventListener('click', () => {
+                    if (editBookingSubmitAttempted) validateEditBookingForm();
+                });
+            });
+        }
+    });
+
+    // AJAX Filtering & Pagination
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById('searchFilterInput');
+        const statusSelect = document.getElementById('statusFilterSelect');
+        const sortSelect = document.getElementById('sortFilterSelect');
+        const resultsContainer = document.getElementById('bookings-results');
+        let searchTimeout = null;
+
+        if (searchInput && searchInput.value) {
+            let val = searchInput.value;
+            searchInput.value = '';
+            searchInput.value = val;
+        }
+
+        function fetchResults(url) {
+            if (resultsContainer) resultsContainer.style.opacity = '0.5';
+
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    const newContent = doc.getElementById('bookings-results');
+                    if (newContent && resultsContainer) {
+                        resultsContainer.innerHTML = newContent.innerHTML;
+                    }
+                    if (resultsContainer) resultsContainer.style.opacity = '1';
+                    
+                    window.history.pushState({}, '', url);
+                    bindPagination();
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    if (resultsContainer) resultsContainer.style.opacity = '1';
+                });
+        }
+
+        function handleFilterChange() {
+            const form = document.getElementById('filterForm');
+            const url = new URL(form.action, window.location.origin);
+            const formData = new FormData(form);
+            for (const [key, value] of formData.entries()) {
+                if (value) url.searchParams.set(key, value);
+            }
+            fetchResults(url);
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(handleFilterChange, 400); // 400ms delay
+            });
+        }
+
+        if (statusSelect) statusSelect.addEventListener('change', handleFilterChange);
+        if (sortSelect) sortSelect.addEventListener('change', handleFilterChange);
+
+        function bindPagination() {
+            const links = document.querySelectorAll('.pagination-btn');
+            links.forEach(link => {
+                if (link.tagName === 'A' && !link.classList.contains('disabled')) {
+                    link.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const url = new URL(this.href, window.location.origin);
+                        fetchResults(url);
+                    });
+                }
+            });
+        }
+        
+        bindPagination();
+        
+        function setupCustomDropdown(dropdownId, selectId, textId) {
+            const dropdown = document.getElementById(dropdownId);
+            const select = document.getElementById(selectId);
+            const textSpan = document.getElementById(textId);
+            if (!dropdown || !select || !textSpan) return;
+            
+            const optionsList = dropdown.querySelector('.dropdown-options');
+            const options = optionsList.querySelectorAll('li');
+            const icon = dropdown.querySelector('i');
+
+            // Set initial text based on selected option
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption) {
+                textSpan.textContent = selectedOption.text;
+                options.forEach(opt => {
+                    if (opt.dataset.value === select.value) {
+                        opt.classList.add('selected');
+                    } else {
+                        opt.classList.remove('selected');
+                    }
+                });
+            }
+
+            dropdown.addEventListener('click', (e) => {
+                const wasOpen = dropdown.classList.contains('open');
+                // Close all other dropdowns
+                document.querySelectorAll('.custom-filter-dropdown').forEach(d => {
+                    d.classList.remove('open');
+                });
+                
+                if (!wasOpen) {
+                    dropdown.classList.add('open');
+                }
+            });
+
+            options.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Update select
+                    select.value = option.dataset.value;
+                    textSpan.textContent = option.textContent;
+                    options.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    
+                    dropdown.classList.remove('open');
+
+                    // Trigger change properly
+                    const event = new Event('change');
+                    select.dispatchEvent(event);
+                });
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!dropdown.contains(e.target)) {
+                    dropdown.classList.remove('open');
+                }
+            });
+        }
+
+        setupCustomDropdown('statusDropdown', 'statusFilterSelect', 'statusDropdownText');
+        setupCustomDropdown('sortDropdown', 'sortFilterSelect', 'sortDropdownText');
+    });
 
     // --- MODAL FUNCTIONS ---
     function openBookingModal(id) {
@@ -426,6 +1089,11 @@
         document.getElementById('modalLocation').textContent = dataDiv.querySelector('.data-location').textContent;
         document.getElementById('modalPackage').textContent = dataDiv.querySelector('.data-package').textContent;
         document.getElementById('modalPrice').textContent = dataDiv.querySelector('.data-price').textContent;
+        const priceBreakdownHtml = dataDiv.querySelector('.data-price-breakdown')?.innerHTML?.trim() || '';
+        const modalSummaryBox = document.getElementById('modalSummaryBox');
+        const modalBreakdown = document.getElementById('modalPriceBreakdown');
+        modalBreakdown.innerHTML = priceBreakdownHtml;
+        modalSummaryBox.style.display = 'block';
 
         // Status Badge
         const statusText = dataDiv.querySelector('.data-status').textContent;
@@ -433,6 +1101,43 @@
         const badge = document.getElementById('modalStatusBadge');
         badge.textContent = statusText;
         badge.className = 'status-badge-lg ' + statusClass;
+
+        // Reference Images (Multi + Fallback)
+        const singleImageUrl = dataDiv.querySelector('.raw-image-url').textContent.trim();
+        const multiImages = Array.from(dataDiv.querySelectorAll('.multi-img-url'));
+        const viewImageRow = document.getElementById('viewImageRow');
+        const viewGrid = document.getElementById('viewMultiImageGrid');
+        
+        viewGrid.innerHTML = ''; // reset
+        
+        let allImageUrls = [];
+        if (singleImageUrl) allImageUrls.push({ url: singleImageUrl });
+        
+        multiImages.forEach(span => {
+            allImageUrls.push({ url: span.textContent.trim() });
+        });
+        
+        if (allImageUrls.length > 0) {
+            viewImageRow.style.display = 'flex';
+            
+            allImageUrls.forEach(img => {
+                const wrapper = document.createElement('button');
+                wrapper.type = 'button';
+                wrapper.className = 'reference-image-wrapper';
+                wrapper.style.margin = '0';
+                wrapper.setAttribute('data-full-src', img.url);
+                wrapper.addEventListener('click', () => openCustomerImageLightbox(img.url));
+
+                const imgEl = document.createElement('img');
+                imgEl.src = img.url;
+                imgEl.className = 'reference-image-preview';
+                
+                wrapper.appendChild(imgEl);
+                viewGrid.appendChild(wrapper);
+            });
+        } else {
+            viewImageRow.style.display = 'none';
+        }
 
         // Special Requests
         const rawRequests = dataDiv.querySelector('.data-requests').textContent;
@@ -443,12 +1148,23 @@
             displayRequests = rawRequests.replace(endTimeMatch[0], '').trim();
         }
 
-        const reqContainer = document.getElementById('modalRequestsContainer');
+        const reqBlock = document.getElementById('modalRequestsBlock');
         if (displayRequests.trim()) {
             document.getElementById('modalRequests').textContent = displayRequests;
-            reqContainer.style.display = 'block';
+            reqBlock.style.display = 'block';
         } else {
-            reqContainer.style.display = 'none';
+            reqBlock.style.display = 'none';
+        }
+
+        const denialReason = dataDiv.querySelector('.data-denial-reason')?.textContent?.trim() || '';
+        const denialBlock = document.getElementById('modalDenialBlock');
+        const denialText = document.getElementById('modalDenialReason');
+        if (denialReason) {
+            denialText.textContent = denialReason;
+            denialBlock.style.display = 'block';
+        } else {
+            denialText.textContent = '';
+            denialBlock.style.display = 'none';
         }
 
         // Show Modal
@@ -457,14 +1173,439 @@
 
     function closeBookingModal() {
         document.getElementById('bookingModal').classList.remove('show');
+
+        const currentUrl = new URL(window.location.href);
+        const openedBookingId = currentUrl.searchParams.get('booking_id');
+        const fromNotif = currentUrl.searchParams.get('from_notif') === '1';
+        const openedFromNotifFlow = fromNotif || !!openedBookingId;
+
+        if (!openedFromNotifFlow) return;
+
+        const searchInput = document.getElementById('searchFilterInput');
+        if (searchInput) {
+            searchInput.value = '';
+            // Trigger existing debounced fetch flow to refresh the table without the search ID.
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        currentUrl.searchParams.delete('booking_id');
+        currentUrl.searchParams.delete('from_notif');
+
+        const searchParam = currentUrl.searchParams.get('search');
+        if (!searchParam || (openedBookingId && searchParam === openedBookingId)) {
+            currentUrl.searchParams.delete('search');
+        }
+
+        const cleanQuery = currentUrl.searchParams.toString();
+        window.history.replaceState({}, '', cleanQuery ? `${currentUrl.pathname}?${cleanQuery}` : currentUrl.pathname);
     }
 
+    function openCustomerImageLightbox(src) {
+        const lightbox = document.getElementById('customerImageLightbox');
+        const lightboxImg = document.getElementById('customerImageLightboxImg');
+        if (!lightbox || !lightboxImg || !src) return;
+        lightboxImg.src = src;
+        lightbox.style.display = 'flex';
+    }
+
+    function closeCustomerImageLightbox() {
+        const lightbox = document.getElementById('customerImageLightbox');
+        const lightboxImg = document.getElementById('customerImageLightboxImg');
+        if (!lightbox || !lightboxImg) return;
+        lightbox.style.display = 'none';
+        lightboxImg.src = '';
+    }
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closeCustomerImageLightbox();
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const lightboxClose = document.getElementById('customerImageLightboxClose');
+        if (lightboxClose) {
+            lightboxClose.addEventListener('click', closeCustomerImageLightbox);
+        }
+    });
+
+    // Auto-open specific booking modal when redirected from notification.
+    document.addEventListener("DOMContentLoaded", function () {
+        const params = new URLSearchParams(window.location.search);
+        const bookingId = params.get('booking_id');
+        const fromNotif = params.get('from_notif');
+
+        if (!bookingId) return;
+
+        const bookingDataEl = document.getElementById('booking-data-' + bookingId);
+        if (!bookingDataEl) return;
+
+        // Delay slightly to ensure all modal elements are ready.
+        setTimeout(() => {
+            openBookingModal(bookingId);
+            if (fromNotif === '1' && typeof Toast !== 'undefined') {
+                Toast.fire({
+                    icon: 'info',
+                    title: 'Opened from notification'
+                });
+            }
+        }, 120);
+    });
+
+    // Auto-open edit modal right after sending edit request.
+    document.addEventListener("DOMContentLoaded", function () {
+        const params = new URLSearchParams(window.location.search);
+        const editBookingId = params.get('open_edit');
+
+        if (!editBookingId) return;
+
+        const bookingDataEl = document.getElementById('booking-data-' + editBookingId);
+        if (!bookingDataEl) return;
+
+        setTimeout(() => {
+            openEditModal(editBookingId);
+
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('open_edit');
+            window.history.replaceState({}, '', cleanUrl.toString());
+        }, 120);
+    });
+
     // --- EDIT MODAL FUNCTIONS ---
+    const globalServiceCharge = parseFloat("{{ global_service_charge|default:'0' }}");
+    const globalServiceChargeNote = "{{ global_service_charge_note|default:'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.'|escapejs }}";
+    let editSelectedPackageName = null;
+    let editSelectedPackagePrice = 0;
+    let editSelectedServiceCharge = globalServiceCharge;
+    let editSelectedAddonName = null;
+    let editSelectedAddonPrice = 0;
+    let editSoloModeAddon = null;
+    let editSoloModePrice = 0;
+    let editSelectedAdditionalName = null;
+    let editSelectedAdditionalPrice = 0;
+
+    const editStep1Content = document.getElementById('edit-step-1');
+    const editStep2Content = document.getElementById('edit-step-2');
+    const editStep1Indicator = document.getElementById('edit-step-1-indicator');
+    const editStep2Indicator = document.getElementById('edit-step-2-indicator');
+    const editStepperLine = document.getElementById('editStepperLine');
+    const btnNextEditStep = document.getElementById('btnNextEditStep');
+    const btnPrevEditStep = document.getElementById('btnPrevEditStep');
+    const editPackageInput = document.getElementById('edit_package_type_input');
+    const editPriceInput = document.getElementById('edit_total_price_input');
+    const editPriceDisplay = document.getElementById('edit_price_display');
+    const editEventTypeSelect = document.getElementById('edit_event_type_select');
+    const editEventTypeOther = document.getElementById('edit_event_type_other');
+
+    function formatEditPrice(val) {
+        return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function calculateEditTotalPrice() {
+        let total = 0;
+        const hasBaseSelection = editSelectedPackageName !== null || editSoloModeAddon !== null;
+        if (editSoloModeAddon) {
+            total = editSoloModePrice;
+        } else {
+            total = editSelectedPackagePrice;
+            if (editSelectedAddonName) total += editSelectedAddonPrice;
+        }
+        if (editSelectedAdditionalName) total += editSelectedAdditionalPrice;
+        if (hasBaseSelection) total += editSelectedServiceCharge;
+        return total;
+    }
+
+    function buildEditPackageTypeString() {
+        let parts = [];
+        if (editSoloModeAddon) {
+            parts.push(editSoloModeAddon + ' (Solo)');
+        } else {
+            if (editSelectedPackageName) parts.push(editSelectedPackageName);
+            if (editSelectedAddonName) parts.push(editSelectedAddonName);
+        }
+        if (editSelectedAdditionalName) parts.push(editSelectedAdditionalName);
+        return parts.join(' + ');
+    }
+
+    function updateEditUIStates() {
+        const packageOnlyCards = document.querySelectorAll('.edit-package-card');
+        const addonCards = document.querySelectorAll('.edit-addon-selector');
+        const additionalCards = document.querySelectorAll('.edit-additional-selector');
+
+        packageOnlyCards.forEach(card => {
+            const pkgDataName = card.dataset.package.trim();
+            if (editSoloModeAddon) {
+                card.classList.add('disabled');
+                card.classList.remove('selected');
+            } else {
+                card.classList.remove('disabled');
+                if (pkgDataName === editSelectedPackageName) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            }
+        });
+
+        addonCards.forEach(card => {
+            const name = card.dataset.name.trim();
+            const priceEl = card.querySelector('.price');
+            const basePrice = parseFloat(card.dataset.price);
+            const soloPrice = parseFloat(card.dataset.soloPrice);
+
+            if (editSelectedPackageName) {
+                priceEl.innerHTML = `${formatEditPrice(basePrice)} <span class="w-package">w/ Package</span>`;
+                card.classList.remove('disabled');
+                if (name === editSelectedAddonName) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            } else {
+                if (soloPrice > 0) {
+                    priceEl.innerHTML = `${formatEditPrice(soloPrice)}`;
+                    card.classList.remove('disabled');
+                    if (name === editSoloModeAddon) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                } else {
+                    priceEl.innerHTML = `${formatEditPrice(basePrice)} <span class="w-package">w/ Package only</span>`;
+                    card.classList.add('disabled');
+                    card.classList.remove('selected');
+                }
+            }
+        });
+
+        const hasBaseSelection = editSelectedPackageName !== null || editSoloModeAddon !== null;
+
+        if (!hasBaseSelection) {
+            editSelectedAdditionalName = null;
+            editSelectedAdditionalPrice = 0;
+        }
+
+        additionalCards.forEach(card => {
+            const name = card.dataset.name.trim();
+            if (!hasBaseSelection) {
+                card.classList.add('disabled');
+                card.classList.remove('selected');
+            } else {
+                card.classList.remove('disabled');
+                if (name === editSelectedAdditionalName) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            }
+        });
+
+        btnNextEditStep.disabled = !hasBaseSelection;
+        
+        const total = calculateEditTotalPrice();
+        editPriceDisplay.textContent = formatEditPrice(total);
+        editPriceInput.value = total.toFixed(2);
+    }
+
+    // Initialize Event Listeners for Edit Cards safely using event delegation
+    document.addEventListener('click', function(e) {
+        const packageCard = e.target.closest('.edit-package-card');
+        if (packageCard) {
+            if (editSoloModeAddon) return;
+            const pkgName = packageCard.dataset.package.trim();
+            const pkgPrice = parseFloat(packageCard.dataset.price);
+
+            if (editSelectedPackageName === pkgName) {
+                editSelectedPackageName = null;
+                editSelectedPackagePrice = 0;
+                editSelectedAddonName = null;
+                editSelectedAddonPrice = 0;
+            } else {
+                editSelectedPackageName = pkgName;
+                editSelectedPackagePrice = pkgPrice;
+            }
+            updateEditUIStates();
+        }
+
+        const addonCard = e.target.closest('.edit-addon-selector');
+        if (addonCard) {
+            const name = addonCard.dataset.name.trim();
+            const basePrice = parseFloat(addonCard.dataset.price);
+            const soloPrice = parseFloat(addonCard.dataset.soloPrice);
+
+            if (editSelectedPackageName) {
+                if (editSelectedAddonName === name) {
+                    editSelectedAddonName = null;
+                    editSelectedAddonPrice = 0;
+                } else {
+                    editSelectedAddonName = name;
+                    editSelectedAddonPrice = basePrice;
+                }
+            } else {
+                if (soloPrice > 0) {
+                    if (editSoloModeAddon === name) {
+                        editSoloModeAddon = null;
+                        editSoloModePrice = 0;
+                    } else {
+                        editSoloModeAddon = name;
+                        editSoloModePrice = soloPrice;
+                        editSelectedPackageName = null;
+                        editSelectedPackagePrice = 0;
+                        editSelectedAddonName = null;
+                        editSelectedAddonPrice = 0;
+                    }
+                }
+            }
+            updateEditUIStates();
+        }
+
+        const additionalCard = e.target.closest('.edit-additional-selector');
+        if (additionalCard) {
+            const hasBaseSelection = editSelectedPackageName !== null || editSoloModeAddon !== null;
+            if (!hasBaseSelection) return;
+            
+            const name = additionalCard.dataset.name.trim();
+            const price = parseFloat(additionalCard.dataset.price);
+
+            if (editSelectedAdditionalName === name) {
+                editSelectedAdditionalName = null;
+                editSelectedAdditionalPrice = 0;
+            } else {
+                editSelectedAdditionalName = name;
+                editSelectedAdditionalPrice = price;
+            }
+            updateEditUIStates();
+        }
+    });
+
+    if (btnNextEditStep) {
+        btnNextEditStep.addEventListener('click', function () {
+            if (!editSelectedPackageName && !editSoloModeAddon) return;
+
+            editPackageInput.value = buildEditPackageTypeString();
+            const total = calculateEditTotalPrice();
+            editPriceInput.value = total.toFixed(2);
+
+            const itemListContainer = document.getElementById('edit-booking-item-list');
+            if (itemListContainer) {
+                itemListContainer.innerHTML = '';
+
+                if (editSoloModeAddon) {
+                    itemListContainer.innerHTML += `
+                        <div class="summary-row">
+                            <div class="row-info">
+                                <span class="row-label">${editSoloModeAddon} (Solo)</span>
+                            </div>
+                            <span class="row-value">${formatEditPrice(editSoloModePrice)}</span>
+                        </div>`;
+                } else if (editSelectedPackageName) {
+                    itemListContainer.innerHTML += `
+                        <div class="summary-row">
+                            <div class="row-info">
+                                <span class="row-label">${editSelectedPackageName}</span>
+                            </div>
+                            <span class="row-value">${formatEditPrice(editSelectedPackagePrice)}</span>
+                        </div>`;
+                }
+
+                if (!editSoloModeAddon && editSelectedAddonName) {
+                    itemListContainer.innerHTML += `
+                        <div class="summary-row">
+                            <div class="row-info">
+                                <span class="row-label">${editSelectedAddonName} (Add-on)</span>
+                            </div>
+                            <span class="row-value">${formatEditPrice(editSelectedAddonPrice)}</span>
+                        </div>`;
+                }
+
+                if (editSelectedAdditionalName) {
+                    itemListContainer.innerHTML += `
+                        <div class="summary-row">
+                            <div class="row-info">
+                                <span class="row-label">${editSelectedAdditionalName} (Additional)</span>
+                            </div>
+                            <span class="row-value">${formatEditPrice(editSelectedAdditionalPrice)}</span>
+                        </div>`;
+                }
+
+                const svcRow = document.getElementById('editServiceChargeRow');
+                const svcDisplay = document.getElementById('edit_service_charge_display');
+                const svcNote = document.getElementById('edit_service_charge_note_text');
+                const hasBaseSelection = editSelectedPackageName !== null || editSoloModeAddon !== null;
+                if (hasBaseSelection && editSelectedServiceCharge > 0) {
+                    if (svcDisplay) svcDisplay.textContent = formatEditPrice(editSelectedServiceCharge);
+                    if (svcNote) svcNote.textContent = globalServiceChargeNote;
+                    if (svcRow) svcRow.style.display = 'flex';
+                } else {
+                    if (svcRow) svcRow.style.display = 'none';
+                }
+            }
+
+            if (editStep1Content && editStep2Content) {
+                editStep1Content.style.display = 'none';
+                editStep2Content.style.display = 'block';
+
+                if (editStep1Indicator) {
+                    editStep1Indicator.classList.remove('active');
+                    editStep1Indicator.classList.add('completed');
+                }
+                if (editStep2Indicator) editStep2Indicator.classList.add('active');
+                if (editStepperLine) editStepperLine.style.width = '100%';
+
+                document.querySelector('#editBookingModal .booking-modal-box').scrollTop = 0;
+            }
+        });
+    }
+
+    if (btnPrevEditStep) {
+        btnPrevEditStep.addEventListener('click', function () {
+            if (editStep1Content && editStep2Content) {
+                editStep2Content.style.display = 'none';
+                editStep1Content.style.display = 'block';
+
+                if (editStep2Indicator) editStep2Indicator.classList.remove('active');
+                if (editStep1Indicator) {
+                    editStep1Indicator.classList.add('active');
+                    editStep1Indicator.classList.remove('completed');
+                }
+                if (editStepperLine) editStepperLine.style.width = '0%';
+
+                document.querySelector('#editBookingModal .booking-modal-box').scrollTop = 0;
+            }
+        });
+    }
+
+    function resetEditModalSteps() {
+        if (editStep1Content && editStep2Content) {
+            editStep1Content.style.display = 'block';
+            editStep2Content.style.display = 'none';
+        }
+
+        if (editStep1Indicator) {
+            editStep1Indicator.classList.add('active');
+            editStep1Indicator.classList.remove('completed');
+        }
+        if (editStep2Indicator) editStep2Indicator.classList.remove('active');
+        if (editStepperLine) editStepperLine.style.width = '0%';
+        
+        editSelectedPackageName = null;
+        editSelectedPackagePrice = 0;
+        editSelectedServiceCharge = globalServiceCharge;
+        editSelectedAddonName = null;
+        editSelectedAddonPrice = 0;
+        editSoloModeAddon = null;
+        editSoloModePrice = 0;
+        editSelectedAdditionalName = null;
+        editSelectedAdditionalPrice = 0;
+    }
+
     function openEditModal(id) {
         const modal = document.getElementById('editBookingModal');
         const dataDiv = document.getElementById('booking-data-' + id);
 
         if (!dataDiv) return;
+
+        resetEditModalSteps(); 
 
         // Get Raw Data
         const editUrl = dataDiv.querySelector('.raw-edit-url').textContent;
@@ -472,11 +1613,11 @@
         const date = dataDiv.querySelector('.raw-date').textContent;
         const startTime = dataDiv.querySelector('.raw-time').textContent;
         const location = dataDiv.querySelector('.raw-location').textContent;
-        const pkg = dataDiv.querySelector('.raw-package').textContent;
-        const price = dataDiv.querySelector('.raw-price').textContent;
+        const pkgStr = dataDiv.querySelector('.raw-package').textContent; 
+        const priceStr = dataDiv.querySelector('.raw-price').textContent;
         const requests = dataDiv.querySelector('.raw-requests').textContent;
+        const imageUrl = dataDiv.querySelector('.raw-image-url').textContent.trim();
 
-        // Parse End Time from Special Requests (Format: "(End Time: HH:MM)")
         let endTime = '';
         let cleanRequests = requests;
         const endTimeMatch = requests.match(/\(End Time: (\d{2}:\d{2})\)/);
@@ -485,15 +1626,16 @@
             cleanRequests = requests.replace(endTimeMatch[0], '').trim();
         }
 
-        // Populate Form
         document.getElementById('editBookingForm').action = editUrl;
 
         const selectEl = document.getElementById('edit_event_type_select');
         const otherEl = document.getElementById('edit_event_type_other');
+        const customTriggerText = document.querySelector('#editEventTypeCustomSelect .custom-select-trigger span');
         const commonTypes = ['Birthday', 'Wedding', 'Anniversary', 'Corporate Event', 'Christening', 'Bridal Shower', 'Baby Shower'];
 
         if (commonTypes.includes(type)) {
             selectEl.value = type;
+            if (customTriggerText) { customTriggerText.textContent = type; customTriggerText.style.color = '#fff'; }
             otherEl.style.display = 'none';
             otherEl.required = false;
             otherEl.removeAttribute('name');
@@ -501,6 +1643,7 @@
             otherEl.value = '';
         } else {
             selectEl.value = 'Other';
+            if (customTriggerText) { customTriggerText.textContent = 'Other'; customTriggerText.style.color = '#fff'; }
             otherEl.style.display = 'block';
             otherEl.required = true;
             otherEl.name = 'event_type';
@@ -512,26 +1655,308 @@
         document.getElementById('edit_start_time').value = startTime;
         document.getElementById('edit_end_time').value = endTime;
         document.getElementById('edit_event_location').value = location;
-        // Set package select dropdown
-        const pkgSelect = document.getElementById('edit_package_type');
-        pkgSelect.value = pkg;
-        // Trigger price update based on selected package
-        const selectedOption = pkgSelect.options[pkgSelect.selectedIndex];
-        if (selectedOption && selectedOption.dataset.price) {
-            const pkgPrice = selectedOption.dataset.price;
-            document.getElementById('edit_total_price').value = pkgPrice;
-            document.getElementById('edit_price_display').textContent = '₱' + parseFloat(pkgPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        // Match existing package/addon string and click logically
+        const pkgParts = pkgStr ? pkgStr.split(' + ').map(p => p.trim()) : [];
+        if (pkgParts.length > 0) {
+            document.querySelectorAll('.edit-package-card, .edit-addon-selector, .edit-additional-selector').forEach(c => {
+                const itemNameRaw = c.dataset.name || c.dataset.package;
+                const itemName = itemNameRaw ? itemNameRaw.trim() : '';
+                const priceMatch = parseFloat(c.dataset.price) || 0;
+                const soloPrice = parseFloat(c.dataset.soloPrice) || 0;
+                
+                if (pkgParts.includes(`${itemName} (Solo)`)) {
+                    editSoloModeAddon = itemName;
+                    editSoloModePrice = soloPrice;
+                } else if (pkgParts.includes(itemName)) {
+                    if (c.classList.contains('edit-package-card')) {
+                        editSelectedPackageName = itemName;
+                        editSelectedPackagePrice = priceMatch;
+                    } else if (c.classList.contains('edit-addon-selector')) {
+                        editSelectedAddonName = itemName;
+                        editSelectedAddonPrice = priceMatch;
+                    } else if (c.classList.contains('edit-additional-selector')) {
+                        editSelectedAdditionalName = itemName;
+                        editSelectedAdditionalPrice = priceMatch;
+                    }
+                }
+            });
         } else {
-            document.getElementById('edit_total_price').value = price;
-            document.getElementById('edit_price_display').textContent = '₱' + parseFloat(price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            // Unlikely, but fallback
+            editPriceInput.value = priceStr;
+            editPriceDisplay.textContent = formatEditPrice(priceStr);
         }
+        
+        updateEditUIStates();
+        
         document.getElementById('edit_special_requests').value = cleanRequests;
+
+        // ============================
+        // Set Reference Images inside Edit Modal
+        // ============================
+        const multiImagesSpans = Array.from(dataDiv.querySelectorAll('.multi-img-url'));
+        const singleImageUrlFallback = dataDiv.querySelector('.raw-image-url').textContent.trim();
+        
+        const existingImagesGrid = document.getElementById('editExistingImagesGrid');
+        const fileInput = document.getElementById('edit_reference_images');
+        const removeInputsContainer = document.getElementById('removeImagesInputs');
+        const editImagePreviewGrid = document.getElementById('editImagePreviewGrid');
+        const editImageLimitError = document.getElementById('editImageLimitError');
+        
+        existingImagesGrid.innerHTML = '';
+        removeInputsContainer.innerHTML = '';
+        editImagePreviewGrid.innerHTML = '';
+        editImageLimitError.style.display = 'none';
+        if (fileInput) fileInput.value = '';
+        window.editAccumulatedFiles = new DataTransfer();
+
+        window.currentExistingImagesCount = 0;
+        
+        // Single File Fallback (Backward Compatibility logic if single ref img exists)
+        if (singleImageUrlFallback) {
+             window.currentExistingImagesCount += 1;
+             
+             const imgContainer = document.createElement('div');
+             imgContainer.style.position = 'relative';
+             imgContainer.style.display = 'inline-block';
+             
+             const img = document.createElement('img');
+             img.src = singleImageUrlFallback;
+             img.style.width = '120px';
+             img.style.height = '120px';
+             img.style.objectFit = 'cover';
+             img.style.borderRadius = '5px';
+             img.style.border = '1px solid #444';
+             
+             // Overlay for delete
+             const delLabel = document.createElement('label');
+             delLabel.style.position = 'absolute';
+             delLabel.style.top = '-5px';
+             delLabel.style.right = '-5px';
+             delLabel.style.background = 'rgba(0,0,0,0.7)';
+             delLabel.style.color = '#fff';
+             delLabel.style.borderRadius = '50%';
+             delLabel.style.width = '24px';
+             delLabel.style.height = '24px';
+             delLabel.style.display = 'flex';
+             delLabel.style.alignItems = 'center';
+             delLabel.style.justifyContent = 'center';
+             delLabel.style.cursor = 'pointer';
+             delLabel.style.fontSize = '18px';
+             delLabel.style.transition = 'background 0.2s';
+             delLabel.title = "Remove image";
+             delLabel.innerHTML = '&times;';
+             
+             delLabel.onmouseenter = function() {
+                 this.style.background = '#ef4444';
+             };
+             delLabel.onmouseleave = function() {
+                 this.style.background = 'rgba(0,0,0,0.7)';
+             };
+             
+             delLabel.onclick = function(e) {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 
+                 window.currentExistingImagesCount -= 1;
+                 
+                 const input = document.createElement('input');
+                 input.type = 'hidden';
+                 input.name = 'remove_images[]';
+                 input.value = 'legacy';
+                 input.id = 'remove_img_legacy';
+                 removeInputsContainer.appendChild(input);
+                 
+                 imgContainer.remove();
+                 editImageLimitError.style.display = 'none';
+             };
+             
+             imgContainer.appendChild(img);
+             imgContainer.appendChild(delLabel);
+             existingImagesGrid.appendChild(imgContainer);
+        }
+
+        if (multiImagesSpans.length > 0) {
+            multiImagesSpans.forEach(span => {
+                window.currentExistingImagesCount += 1;
+                const imgContainer = document.createElement('div');
+                imgContainer.style.position = 'relative';
+                imgContainer.style.display = 'inline-block';
+                
+                const img = document.createElement('img');
+                img.src = span.textContent.trim();
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '5px';
+                img.style.border = '1px solid #444';
+                
+                // Overlay for delete
+                const delLabel = document.createElement('label');
+                delLabel.style.position = 'absolute';
+                delLabel.style.top = '-5px';
+                delLabel.style.right = '-5px';
+                delLabel.style.background = 'rgba(0,0,0,0.7)';
+                delLabel.style.color = '#fff';
+                delLabel.style.borderRadius = '50%';
+                delLabel.style.width = '24px';
+                delLabel.style.height = '24px';
+                delLabel.style.display = 'flex';
+                delLabel.style.alignItems = 'center';
+                delLabel.style.justifyContent = 'center';
+                delLabel.style.cursor = 'pointer';
+                delLabel.style.fontSize = '18px';
+                delLabel.style.transition = 'background 0.2s';
+                delLabel.title = "Remove image";
+                delLabel.innerHTML = '&times;';
+                
+                delLabel.onmouseenter = function() {
+                    this.style.background = '#ef4444';
+                };
+                delLabel.onmouseleave = function() {
+                    this.style.background = 'rgba(0,0,0,0.7)';
+                };
+                
+                delLabel.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = span.dataset.id;
+                    
+                    window.currentExistingImagesCount -= 1;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'remove_images[]';
+                    input.value = id;
+                    input.id = 'remove_img_' + id;
+                    removeInputsContainer.appendChild(input);
+                    
+                    imgContainer.remove();
+                    editImageLimitError.style.display = 'none';
+                };
+                
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(delLabel);
+                existingImagesGrid.appendChild(imgContainer);
+            });
+        }
 
         modal.classList.add('show');
     }
 
+    // =============================================
+    // EDIT MODAL: MULTI-IMAGE PREVIEW & ACCUMULATION LOGIC
+    // =============================================
+    const editUiFilesInput = document.getElementById('edit_reference_images_ui');
+    const editFilesInput = document.getElementById('edit_reference_images');
+    const editPreviewGrid = document.getElementById('editImagePreviewGrid');
+    const editLimitError = document.getElementById('editImageLimitError');
+    window.editAccumulatedFiles = new DataTransfer();
+
+    if (editUiFilesInput) {
+        editUiFilesInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            editLimitError.style.display = 'none';
+            
+            files.forEach(file => {
+                const totalCount = window.currentExistingImagesCount + window.editAccumulatedFiles.items.length;
+                if (totalCount < 4) {
+                    window.editAccumulatedFiles.items.add(file);
+                } else {
+                    editLimitError.style.display = 'block';
+                }
+            });
+            
+            // Assign to the hidden real input
+            editFilesInput.files = window.editAccumulatedFiles.files;
+            
+            // Clear the UI input so the same file can trigger 'change' again!
+            e.target.value = '';
+            
+            renderEditImagePreviews();
+        });
+    }
+
+    function renderEditImagePreviews() {
+        editPreviewGrid.innerHTML = '';
+        const files = Array.from(window.editAccumulatedFiles.files);
+        
+        files.forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.style.position = 'relative';
+                    imgContainer.style.display = 'inline-block';
+                    
+                    const el = document.createElement('img');
+                    el.src = event.target.result;
+                    el.style.width = '100px';
+                    el.style.height = '100px';
+                    el.style.objectFit = 'cover';
+                    el.style.borderRadius = '5px';
+                    el.style.border = '1px solid #444';
+
+                    const delLabel = document.createElement('label');
+                    delLabel.style.position = 'absolute';
+                    delLabel.style.top = '-5px';
+                    delLabel.style.right = '-5px';
+                    delLabel.style.background = 'rgba(0,0,0,0.7)';
+                    delLabel.style.color = '#fff';
+                    delLabel.style.borderRadius = '50%';
+                    delLabel.style.width = '24px';
+                    delLabel.style.height = '24px';
+                    delLabel.style.display = 'flex';
+                    delLabel.style.alignItems = 'center';
+                    delLabel.style.justifyContent = 'center';
+                    delLabel.style.cursor = 'pointer';
+                    delLabel.style.fontSize = '18px';
+                    delLabel.style.transition = 'background 0.2s';
+                    delLabel.title = "Remove image";
+                    delLabel.innerHTML = '&times;';
+                    
+                    delLabel.onmouseenter = function() {
+                        this.style.background = '#ef4444';
+                    };
+                    delLabel.onmouseleave = function() {
+                        this.style.background = 'rgba(0,0,0,0.7)';
+                    };
+                    
+                    delLabel.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Remove from DataTransfer
+                        const dt = new DataTransfer();
+                        for (let i = 0; i < window.editAccumulatedFiles.items.length; i++) {
+                            if (window.editAccumulatedFiles.items[i].getAsFile() !== file) {
+                                dt.items.add(window.editAccumulatedFiles.items[i].getAsFile());
+                            }
+                        }
+                        window.editAccumulatedFiles = dt;
+                        editFilesInput.files = window.editAccumulatedFiles.files;
+                        
+                        editLimitError.style.display = 'none';
+                        renderEditImagePreviews(); // re-render
+                    };
+                    
+                    imgContainer.appendChild(el);
+                    imgContainer.appendChild(delLabel);
+                    editPreviewGrid.appendChild(imgContainer);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
     function closeEditModal() {
         document.getElementById('editBookingModal').classList.remove('show');
+        document.querySelectorAll('#editBookingForm .review-field-error').forEach((el) => {
+            el.textContent = '';
+        });
+        document.querySelectorAll('#editBookingForm .form-group, #editBookingForm .time-field').forEach((el) => {
+            el.classList.remove('has-error');
+        });
     }
 
     function toggleEditOtherEventType(selectElement) {
@@ -546,16 +1971,6 @@
             otherInput.required = false;
             otherInput.removeAttribute('name');
             selectElement.name = 'event_type';
-        }
-    }
-
-    // Auto-update price when package is changed in edit modal
-    function updateEditPrice(selectElement) {
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
-        if (selectedOption && selectedOption.dataset.price) {
-            const newPrice = selectedOption.dataset.price;
-            document.getElementById('edit_total_price').value = newPrice;
-            document.getElementById('edit_price_display').textContent = '₱' + parseFloat(newPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
     }
 
@@ -575,38 +1990,7 @@
         document.getElementById('deleteBookingModal').classList.remove('show');
     }
 
-    // --- PASSWORD MODAL FUNCTIONS ---
-    function openPasswordModal() {
-        document.getElementById('passwordModal').classList.add('show');
-    }
 
-    function closePasswordModal() {
-        document.getElementById('passwordModal').classList.remove('show');
-        // Reset form on close
-        document.getElementById('changePasswordForm').reset();
-        document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
-        document.getElementById('passwordMsg').style.display = 'none';
-
-        // Reset password fields to password type and eye icon to view
-        ['id_old_password', 'id_new_password1', 'id_new_password2'].forEach(id => {
-            let input = document.getElementById(id);
-            if (input) input.type = 'password';
-        });
-        document.querySelectorAll('.password-toggle-icon').forEach(icon => {
-            icon.src = "{% static 'images/eye-view.png' %}";
-        });
-    }
-
-    function togglePasswordVisibility(inputId, icon) {
-        const input = document.getElementById(inputId);
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.src = "{% static 'images/eye-hide.png' %}";
-        } else {
-            input.type = 'password';
-            icon.src = "{% static 'images/eye-view.png' %}";
-        }
-    }
 
     // --- REVIEW MODAL FUNCTIONS ---
     function openReviewModal(id) {
@@ -621,96 +2005,106 @@
         const modal = document.getElementById('reviewModal');
         modal.classList.remove('show');
         document.getElementById('reviewForm').reset();
-    }
 
-    // --- AJAX PASSWORD SUBMISSION ---
-    document.getElementById('changePasswordForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const form = this;
-        const btn = document.getElementById('btnSavePassword');
-        const msgBox = document.getElementById('passwordMsg');
-
-        // Clear previous errors
-        document.querySelectorAll('.field-error').forEach(el => {
+        document.querySelectorAll('#reviewForm .review-field-error').forEach((el) => {
             el.textContent = '';
-            el.style.display = 'none';
         });
-        msgBox.style.display = 'none';
-        msgBox.className = 'form-message';
-
-        // Loading state
-        btn.disabled = true;
-        btn.textContent = 'Updating...';
-
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                btn.disabled = false;
-                btn.textContent = 'Update Password';
-
-                if (data.success) {
-                    msgBox.textContent = data.message;
-                    msgBox.classList.add('success');
-                    msgBox.style.display = 'block';
-                    form.reset();
-                    // Optional: Close modal after 2 seconds
-                    setTimeout(closePasswordModal, 2000);
-                } else {
-                    // Show field specific errors
-                    if (data.errors) {
-                        for (const [field, errors] of Object.entries(data.errors)) {
-                            const errorDiv = document.getElementById('error_' + field);
-                            if (errorDiv) {
-                                errorDiv.textContent = errors[0]; // Show first error
-                                errorDiv.style.display = 'block';
-                            } else {
-                                // Fallback for non-field errors
-                                msgBox.textContent = errors[0];
-                                msgBox.classList.add('error');
-                                msgBox.style.display = 'block';
-                            }
-                        }
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                btn.disabled = false;
-                btn.textContent = 'Update Password';
-                msgBox.textContent = 'An error occurred. Please try again.';
-                msgBox.classList.add('error');
-                msgBox.style.display = 'block';
-            });
-    });
+        document.querySelectorAll('#reviewForm .form-group').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        document.querySelectorAll('#reviewForm textarea.has-error').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        
+        const starLabels = document.querySelectorAll('#reviewModal .star-rating label');
+        starLabels.forEach(label => label.classList.remove('active'));
+        
+        const starDescription = document.getElementById('star-description');
+        if (starDescription) {
+            starDescription.textContent = "Select a rating";
+        }
+    }
 
     // Close on outside click
     window.onclick = function (event) {
         const bookingModal = document.getElementById('bookingModal');
-        const passwordModal = document.getElementById('passwordModal');
         const editModal = document.getElementById('editBookingModal');
         const deleteModal = document.getElementById('deleteBookingModal');
         const reviewModal = document.getElementById('reviewModal');
+        const imageLightbox = document.getElementById('customerImageLightbox');
 
         if (event.target == bookingModal) {
             closeBookingModal();
-        } else if (event.target == passwordModal) {
-            closePasswordModal();
         } else if (event.target == editModal) {
             closeEditModal();
         } else if (event.target == deleteModal) {
             closeDeleteModal();
         } else if (event.target == reviewModal) {
             closeReviewModal();
+        } else if (event.target == imageLightbox) {
+            closeCustomerImageLightbox();
         }
+    }
+
+    window.toggleEditOtherEventType = function (value) {
+        const otherInput = document.getElementById('edit_event_type_other');
+        const hiddenInput = document.getElementById('edit_event_type_select');
+
+        if (value === 'Other') {
+            otherInput.style.display = 'block';
+            otherInput.required = true;
+            otherInput.name = 'event_type';
+            hiddenInput.removeAttribute('name');
+        } else {
+            otherInput.style.display = 'none';
+            otherInput.required = false;
+            otherInput.removeAttribute('name');
+            hiddenInput.name = 'event_type';
+        }
+    };
+
+    // =============================================
+    // EDIT MODAL: CUSTOM SELECT DROPDOWN LOGIC
+    // =============================================
+    const editCustomSelect = document.getElementById('editEventTypeCustomSelect');
+    if (editCustomSelect) {
+        const trigger = editCustomSelect.querySelector('.custom-select-trigger');
+        const triggerText = trigger.querySelector('span');
+        const options = editCustomSelect.querySelectorAll('.custom-select-options li');
+        const hiddenInput = document.getElementById('edit_event_type_select');
+
+        // Toggle dropdown
+        trigger.addEventListener('click', function () {
+            editCustomSelect.classList.toggle('open');
+        });
+
+        // Handle option click
+        options.forEach(option => {
+            option.addEventListener('click', function () {
+                const value = this.getAttribute('data-value');
+                const text = this.textContent;
+
+                // Update visual trigger
+                triggerText.textContent = text;
+                triggerText.style.color = '#fff';
+
+                // Update hidden input
+                hiddenInput.value = value;
+
+                // Close dropdown
+                editCustomSelect.classList.remove('open');
+
+                // Trigger the 'Other' logic
+                window.toggleEditOtherEventType(value);
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!editCustomSelect.contains(e.target)) {
+                editCustomSelect.classList.remove('open');
+            }
+        });
     }
 
     // --- ENHANCED STAR RATING LOGIC ---
@@ -784,3 +2178,5 @@
 </script>
 
 {% endblock %}
+
+

@@ -1,0 +1,1186 @@
+﻿{% extends 'client/base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/my_reviews.css' %}">
+
+<div class="reviews-page" style="animation: fadeInPage 0.5s ease forwards;">
+    <div class="my-reviews-container">
+        <h2 class="my-reviews-title">My Reviews</h2>
+
+        {% if pending_reviews %}
+        <div class="pending-reviews-section">
+            <div class="pending-reviews-heading">
+                <div>
+                    <h3 class="pending-reviews-title">Awaiting Your Review</h3>
+                    <p class="pending-reviews-desc">These events have been completed. Please share your experience!</p>
+                </div>
+                <span class="pending-review-count">{{ pending_page_obj.paginator.count }} Pending</span>
+            </div>
+            <div class="pending-reviews-list">
+                {% for b in pending_reviews %}
+                <div class="pending-review-card">
+                    <div class="pending-info">
+                        <h4>{{ b.event_type|default:'Event' }}</h4>
+                        <span class="pending-selection">{{ b.package_type|default:'Custom Booking' }}</span>
+                        <span class="pending-date">{{ b.event_date|date:"F d, Y" }}</span>
+                    </div>
+                    <button class="btn-leave-review" onclick="openReviewModal('{{ b.id }}')">
+                        <i class="far fa-star"></i> Leave a Review
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if pending_page_obj.has_other_pages %}
+            <div class="pagination-container">
+                <div class="pagination">
+                    {% if pending_page_obj.has_previous %}
+                    <a href="?page_pending={{ pending_page_obj.previous_page_number }}{% if request.GET.page_published %}&page_published={{ request.GET.page_published }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-left"></i></a>
+                    {% else %}
+                    <span class="pagination-btn disabled"><i class="fas fa-chevron-left"></i></span>
+                    {% endif %}
+
+                    {% for i in pending_page_obj.paginator.page_range %}
+                        {% if pending_page_obj.number == pending_page_obj.paginator.num_pages %}
+                            {% if i == pending_page_obj.number or i == pending_page_obj.number|add:"-1" %}
+                                {% if pending_page_obj.number == i %}
+                                <span class="pagination-btn active">{{ i }}</span>
+                                {% else %}
+                                <a href="?page_pending={{ i }}{% if request.GET.page_published %}&page_published={{ request.GET.page_published }}{% endif %}" class="pagination-btn">{{ i }}</a>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            {% if i == pending_page_obj.number or i == pending_page_obj.number|add:"1" %}
+                                {% if pending_page_obj.number == i %}
+                                <span class="pagination-btn active">{{ i }}</span>
+                                {% else %}
+                                <a href="?page_pending={{ i }}{% if request.GET.page_published %}&page_published={{ request.GET.page_published }}{% endif %}" class="pagination-btn">{{ i }}</a>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pending_page_obj.has_next %}
+                    <a href="?page_pending={{ pending_page_obj.next_page_number }}{% if request.GET.page_published %}&page_published={{ request.GET.page_published }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                    <span class="pagination-btn disabled"><i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+        {% endif %}
+        
+        <div class="reviews-list">
+            <h3 class="my-reviews-title" style="margin-top: 0; color: #fff; font-size: 1.5rem;">Published Reviews</h3>
+            {% if reviews %}
+            {% for review in reviews %}
+            <div class="review-card" data-rating="{{ review.rating }}"
+                data-package="{{ review.booking.package_type|default:'Custom Booking' }}">
+
+                <div class="review-card-header">
+                    <div class="review-avatar">
+                        {{ review.user.first_name|default:review.user.username|slice:":1"|upper }}
+                    </div>
+                    <div class="review-meta">
+                        <span class="review-author">
+                            {% if review.user.first_name %}
+                            {{ review.user.first_name }} {{ review.user.last_name }}
+                            {% else %}
+                            {{ review.user.username }}
+                            {% endif %}
+                        </span>
+                        <span class="review-details">
+                            Event Type: {{ review.booking.event_type }}
+                        </span>
+                        <span class="review-details">
+                            Package Type: {{ review.booking.package_type|default:'Custom Booking' }}
+                        </span>
+                    </div>
+
+                    <div class="review-options">
+                        <button class="options-btn" type="button" onclick="toggleReviewDropdown(event, {{ review.id }})">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div id="dropdown-{{ review.id }}" class="review-dropdown">
+                            <button type="button"
+                                onclick="openEditModal({{ review.id }}, {{ review.rating }}, '{{ review.comment|escapejs }}', '{{ review.images_json|escapejs }}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="delete-opt" onclick="deleteReview({{ review.id }})">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="review-rating-row">
+                    <div class="review-stars">
+                        {% for i in "12345"|make_list %}
+                        {% if forloop.counter <= review.rating %} <span class="star filled">★</span>
+                            {% else %}
+                            <span class="star">☆</span>
+                            {% endif %}
+                            {% endfor %}
+                    </div>
+                    <span class="review-date">{{ review.created_at|timesince }} ago</span>
+                </div>
+
+                {% if review.images.all %}
+                <div class="review-images-row">
+                    {% for img in review.images.all %}
+                    <img src="{{ img.image.url }}" alt="Review image" class="review-uploaded-img">
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="review-content">
+                    "{{ review.comment|linebreaksbr }}"
+                </div>
+
+                <div class="review-actions">
+                    <button class="review-action-btn like-btn {% if review.is_liked_by_user %}liked{% endif %}"
+                        data-id="{{ review.id }}" disabled> <!-- Disable like for own reviews -->
+                        <svg width="18" height="18" viewBox="0 0 24 24"
+                            fill="{% if review.is_liked_by_user %}currentColor{% else %}none{% endif %}"
+                            class="action-icon">
+                            <path
+                                d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <span class="like-count">{{ review.likes.count }}</span>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if published_page_obj.has_other_pages %}
+            <div class="pagination-container">
+                <div class="pagination">
+                    {% if published_page_obj.has_previous %}
+                    <a href="?page_published={{ published_page_obj.previous_page_number }}{% if request.GET.page_pending %}&page_pending={{ request.GET.page_pending }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-left"></i></a>
+                    {% else %}
+                    <span class="pagination-btn disabled"><i class="fas fa-chevron-left"></i></span>
+                    {% endif %}
+
+                    {% for i in published_page_obj.paginator.page_range %}
+                        {% if published_page_obj.number == published_page_obj.paginator.num_pages %}
+                            {% if i == published_page_obj.number or i == published_page_obj.number|add:"-1" %}
+                                {% if published_page_obj.number == i %}
+                                <span class="pagination-btn active">{{ i }}</span>
+                                {% else %}
+                                <a href="?page_published={{ i }}{% if request.GET.page_pending %}&page_pending={{ request.GET.page_pending }}{% endif %}" class="pagination-btn">{{ i }}</a>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            {% if i == published_page_obj.number or i == published_page_obj.number|add:"1" %}
+                                {% if published_page_obj.number == i %}
+                                <span class="pagination-btn active">{{ i }}</span>
+                                {% else %}
+                                <a href="?page_published={{ i }}{% if request.GET.page_pending %}&page_pending={{ request.GET.page_pending }}{% endif %}" class="pagination-btn">{{ i }}</a>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if published_page_obj.has_next %}
+                    <a href="?page_published={{ published_page_obj.next_page_number }}{% if request.GET.page_pending %}&page_pending={{ request.GET.page_pending }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                    <span class="pagination-btn disabled"><i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="no-reviews-custom">
+                <p>You haven't submitted any reviews yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div id="reviewModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Leave a Review</h2>
+            <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+        </div>
+
+        <form id="reviewForm" method="POST" action="" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" id="review_booking_id" name="booking_id">
+
+            <div class="form-group">
+                <label>Rating</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5" />
+                    <label for="star5" title="5 stars">&#9733;</label>
+
+                    <input type="radio" id="star4" name="rating" value="4" />
+                    <label for="star4" title="4 stars">&#9733;</label>
+
+                    <input type="radio" id="star3" name="rating" value="3" />
+                    <label for="star3" title="3 stars">&#9733;</label>
+
+                    <input type="radio" id="star2" name="rating" value="2" />
+                    <label for="star2" title="2 stars">&#9733;</label>
+
+                    <input type="radio" id="star1" name="rating" value="1" />
+                    <label for="star1" title="1 star">&#9733;</label>
+                </div>
+                <div id="star-description"
+                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; min-height: 1.2rem;">
+                    Select a rating</div>
+                <small class="review-field-error" id="review_rating_error"></small>
+            </div>
+
+            <div class="form-group reviews-group">
+                <label for="review_comment">Your Review</label>
+                <textarea id="review_comment" name="comment" placeholder="Tell us about your experience..."></textarea>
+                <small class="review-field-error" id="review_comment_error"></small>
+            </div>
+
+            <div class="form-group reviews-group" style="margin-bottom: 0.5rem;">
+                <label>Upload Pictures (Optional)</label>
+                
+                <div id="create-unified-images-preview" class="image-preview-grid"
+                    style="display: flex; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+                </div>
+
+                <div style="background: #0a0a0a; border: 1px dashed #444; border-radius: 8px; padding: 0.4rem 0.6rem; color: #ccc; width: 100%; box-sizing: border-box; margin-bottom: 2px; display: flex; align-items: center; line-height: 1; margin-top: -0.5rem;">
+                    <label for="review_images_ui" style="background: #222; color: #fff; border: 1px solid #444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; margin: 0 10px 0 0; text-transform: capitalize; display: inline-block; vertical-align: middle; line-height: normal;">
+                        Choose Files
+                    </label>
+                    <span id="createReviewImagesStatus" style="font-size: 0.9rem; font-family: 'Montserrat', sans-serif; vertical-align: middle; line-height: normal; display: inline-block; margin: 0; padding: 0;">No file chosen</span>
+                </div>
+                <small style="color: #666; font-size: 0.75rem; display: block; margin-top: 2px; line-height: 1.2; margin-bottom: 0;">You can select up to 4 images.</small>
+
+                <div id="createImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
+                    You can only have a maximum of 4 images total.
+                </div>
+                
+                <input type="file" id="review_images_ui" multiple accept="image/*" class="file-input" style="display: none;">
+                <input type="file" id="review_images" name="images" multiple style="display: none;">
+            </div>
+
+            <button type="submit" class="btn-submit-review">Submit Review</button>
+        </form>
+    </div>
+</div>
+
+<!-- IMAGE EXPAND MODAL -->
+<div id="imageModal" class="image-modal-overlay">
+    <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="image-modal-content" id="expandedImg">
+</div>
+
+<!-- EDIT REVIEW MODAL -->
+<div id="editReviewModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Edit a Review</h2>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+
+        <form id="editReviewForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" id="edit-review-id">
+
+            <div class="form-group">
+                <label>Rating</label>
+                <div class="star-rating" id="edit-star-rating">
+                    <input type="radio" id="edit-star5" name="rating" value="5" />
+                    <label for="edit-star5" title="5 stars">&#9733;</label>
+
+                    <input type="radio" id="edit-star4" name="rating" value="4" />
+                    <label for="edit-star4" title="4 stars">&#9733;</label>
+
+                    <input type="radio" id="edit-star3" name="rating" value="3" />
+                    <label for="edit-star3" title="3 stars">&#9733;</label>
+
+                    <input type="radio" id="edit-star2" name="rating" value="2" />
+                    <label for="edit-star2" title="2 stars">&#9733;</label>
+
+                    <input type="radio" id="edit-star1" name="rating" value="1" />
+                    <label for="edit-star1" title="1 star">&#9733;</label>
+                </div>
+                <div id="edit-star-description"
+                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1rem; min-height: 1.2rem;">
+                    Select a rating</div>
+                <small class="review-field-error" id="edit_review_rating_error"></small>
+            </div>
+
+            <div class="form-group reviews-group">
+                <label for="edit-comment">Your Review</label>
+                <textarea id="edit-comment" name="comment" placeholder="Tell us about your experience..."></textarea>
+                <small class="review-field-error" id="edit_review_comment_error"></small>
+            </div>
+
+            <!-- Unified Review Images -->
+            <div class="form-group reviews-group" style="margin-bottom: 0.5rem;">
+                <label>Review Pictures (Max 4 total)</label>
+                <div id="edit-unified-images-preview" class="image-preview-grid"
+                    style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <!-- Populated via JS -->
+                </div>
+                
+                <div style="background: #0a0a0a; border: 1px dashed #444; border-radius: 8px; padding: 0.4rem 0.6rem; color: #ccc; width: 100%; box-sizing: border-box; margin-bottom: 2px; display: flex; align-items: center; line-height: 1;">
+                    <label for="edit_images_ui" style="background: #222; color: #fff; border: 1px solid #444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; margin: 0 10px 0 0; text-transform: capitalize; display: inline-block; vertical-align: middle; line-height: normal;">
+                        Choose Files
+                    </label>
+                    <span id="editImagesStatus" style="font-size: 0.9rem; font-family: 'Montserrat', sans-serif; vertical-align: middle; line-height: normal; display: inline-block; margin: 0; padding: 0;">No file chosen</span>
+                </div>
+                <small style="color: #666; font-size: 0.75rem; display: block; margin-top: 2px; line-height: 1.2; margin-bottom: 0;">You can select up to 4 images.</small>
+
+                <div id="editImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
+                    You can only have a maximum of 4 images total.
+                </div>
+                
+                <input type="file" id="edit_images_ui" multiple accept="image/*" class="file-input" style="display: none;">
+                <input type="file" id="edit_images" name="images" multiple style="display: none;">
+                
+                <div id="edit-images-remove-inputs"></div>
+            </div>
+
+            <button type="submit" class="btn-submit-review">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000, // Reduced to 2 seconds for quicker reload
+        timerProgressBar: true,
+        background: '#1a1a1a',
+        color: '#ffffff',
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const reviewFormObj = document.getElementById('reviewForm');
+        const reviewCommentInput = document.getElementById('review_comment');
+        const reviewRatingErrorEl = document.getElementById('review_rating_error');
+        const reviewCommentErrorEl = document.getElementById('review_comment_error');
+        let createReviewSubmitAttempted = false;
+
+        const setCreateReviewFieldError = (field, message) => {
+            if (field === 'rating') {
+                const group = reviewRatingErrorEl ? reviewRatingErrorEl.closest('.form-group') : null;
+                if (group) group.classList.toggle('has-error', !!message);
+                if (reviewRatingErrorEl) reviewRatingErrorEl.textContent = message || '';
+                return;
+            }
+
+            if (field === 'comment') {
+                const group = reviewCommentInput ? reviewCommentInput.closest('.form-group') : null;
+                if (group) group.classList.toggle('has-error', !!message);
+                if (reviewCommentInput) reviewCommentInput.classList.toggle('has-error', !!message);
+                if (reviewCommentErrorEl) reviewCommentErrorEl.textContent = message || '';
+            }
+        };
+
+        const clearCreateReviewErrors = () => {
+            setCreateReviewFieldError('rating', '');
+            setCreateReviewFieldError('comment', '');
+        };
+
+        const validateCreateReviewForm = () => {
+            clearCreateReviewErrors();
+            let firstInvalid = null;
+            const formData = new FormData(reviewFormObj);
+            const ratingValue = formData.get('rating');
+            const commentValue = reviewCommentInput ? reviewCommentInput.value.trim() : '';
+
+            if (!ratingValue) {
+                setCreateReviewFieldError('rating', 'Rating is required*');
+                firstInvalid = 'rating';
+            }
+            if (!commentValue) {
+                setCreateReviewFieldError('comment', 'Review is required*');
+                if (!firstInvalid) firstInvalid = 'comment';
+            }
+            return firstInvalid;
+        };
+
+        if (reviewFormObj) {
+            reviewFormObj.addEventListener('submit', function (e) {
+                createReviewSubmitAttempted = true;
+                const firstInvalid = validateCreateReviewForm();
+                if (firstInvalid) {
+                    e.preventDefault();
+                    if (firstInvalid === 'comment' && reviewCommentInput) {
+                        reviewCommentInput.focus();
+                    }
+                }
+            });
+
+            const createReviewStars = reviewFormObj.querySelectorAll('input[name="rating"]');
+            createReviewStars.forEach((starInput) => {
+                starInput.addEventListener('change', () => {
+                    if (createReviewSubmitAttempted) validateCreateReviewForm();
+                });
+            });
+        }
+
+        if (reviewCommentInput) {
+            reviewCommentInput.addEventListener('input', () => {
+                if (createReviewSubmitAttempted) validateCreateReviewForm();
+            });
+        }
+
+        // --- IMAGE LIGHTBOX LOGIC ---
+        const imageModal = document.getElementById("imageModal");
+        const expandedImg = document.getElementById("expandedImg");
+        const reviewImages = document.querySelectorAll(".review-uploaded-img");
+
+        if (imageModal && expandedImg) {
+            reviewImages.forEach(img => {
+                img.addEventListener('click', function () {
+                    imageModal.style.display = "flex";
+                    expandedImg.src = this.src;
+                    setTimeout(() => {
+                        imageModal.classList.add('show');
+                    }, 10);
+                });
+            });
+
+            imageModal.addEventListener('click', function (e) {
+                if (e.target === imageModal) {
+                    closeImageModal();
+                }
+            });
+        }
+
+        // --- ENHANCED STAR RATING LOGIC (EDIT MODAL) ---
+        const editStarInputs = document.querySelectorAll('#edit-star-rating input');
+        const editStarLabels = document.querySelectorAll('#edit-star-rating label');
+
+        function updateEditStars(hoveredValue) {
+            let checkedValue = 0;
+            const checkedInput = document.querySelector('#edit-star-rating input:checked');
+            if (checkedInput) {
+                checkedValue = parseInt(checkedInput.value);
+            }
+
+            const activeValue = hoveredValue !== null ? hoveredValue : checkedValue;
+            const starDescription = document.getElementById('edit-star-description');
+
+            const descriptions = {
+                1: "1 Star - Poor",
+                2: "2 Stars - Fair",
+                3: "3 Stars - Good",
+                4: "4 Stars - Very Good",
+                5: "5 Stars - Excellent"
+            };
+
+            if (activeValue >= 1 && activeValue <= 5) {
+                starDescription.textContent = descriptions[activeValue];
+            } else {
+                starDescription.textContent = "Select a rating";
+            }
+
+            editStarLabels.forEach(label => {
+                const starVal = parseInt(label.htmlFor.replace('edit-star', ''));
+                if (starVal <= activeValue) {
+                    label.classList.add('active');
+                } else {
+                    label.classList.remove('active');
+                }
+            });
+        }
+
+        editStarLabels.forEach(label => {
+            const starVal = parseInt(label.htmlFor.replace('edit-star', ''));
+            label.addEventListener('mouseenter', () => updateEditStars(starVal));
+            label.addEventListener('mouseleave', () => updateEditStars(null));
+        });
+
+        editStarInputs.forEach(input => {
+            input.addEventListener('change', () => updateEditStars(null));
+        });
+
+        // Close dropdowns when clicking outside
+        window.addEventListener('click', function (e) {
+            if (!e.target.closest('.review-options')) {
+                document.querySelectorAll('.review-dropdown').forEach(d => {
+                    d.classList.remove('show');
+                });
+            }
+        });
+
+        // --- MULTI-IMAGE UNIFIED PREVIEW LOGIC ---
+        window.editReviewAccumulatedFiles = new DataTransfer();
+        window.currentReviewExistingImagesCount = 0;
+
+        const reviewEditUiInput = document.getElementById('edit_images_ui');
+        const reviewEditRealInput = document.getElementById('edit_images');
+        const reviewUnifiedPreview = document.getElementById('edit-unified-images-preview');
+        const reviewLimitError = document.getElementById('editImageLimitError');
+        const reviewStatusText = document.getElementById('editImagesStatus');
+
+        if (reviewEditUiInput) {
+            reviewEditUiInput.addEventListener('change', function(e) {
+                const files = Array.from(e.target.files);
+                reviewLimitError.style.display = 'none';
+                
+                files.forEach(file => {
+                    const totalCount = window.currentReviewExistingImagesCount + window.editReviewAccumulatedFiles.items.length;
+                    if (totalCount < 4) {
+                        window.editReviewAccumulatedFiles.items.add(file);
+                    } else {
+                        reviewLimitError.style.display = 'block';
+                    }
+                });
+                
+                reviewEditRealInput.files = window.editReviewAccumulatedFiles.files;
+                const count = window.editReviewAccumulatedFiles.items.length;
+                reviewStatusText.textContent = count > 0 ? (count + ' file(s) selected') : 'No file chosen';
+                
+                e.target.value = ''; // Reset UI input
+                renderReviewEditImagePreviews();
+            });
+        }
+
+        function renderReviewEditImagePreviews() {
+            const newPreviews = reviewUnifiedPreview.querySelectorAll('.new-review-image');
+            newPreviews.forEach(el => el.remove());
+
+            const files = Array.from(window.editReviewAccumulatedFiles.files);
+            
+            files.forEach((file, index) => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.style.position = 'relative';
+                        imgContainer.style.display = 'inline-block';
+                        imgContainer.className = 'new-review-image';
+                        
+                        const el = document.createElement('img');
+                        el.src = event.target.result;
+                        el.style.width = '80px';
+                        el.style.height = '80px';
+                        el.style.objectFit = 'cover';
+                        el.style.borderRadius = '5px';
+                        el.style.border = '1px solid #444';
+
+                        const delLabel = document.createElement('div');
+                        delLabel.style.position = 'absolute';
+                        delLabel.style.top = '-5px';
+                        delLabel.style.right = '-5px';
+                        delLabel.style.background = 'rgba(0,0,0,0.7)';
+                        delLabel.style.color = '#fff';
+                        delLabel.style.borderRadius = '50%';
+                        delLabel.style.width = '24px';
+                        delLabel.style.height = '24px';
+                        delLabel.style.display = 'flex';
+                        delLabel.style.alignItems = 'center';
+                        delLabel.style.justifyContent = 'center';
+                        delLabel.style.cursor = 'pointer';
+                        delLabel.style.fontSize = '18px';
+                        delLabel.style.transition = 'background 0.2s';
+                        delLabel.innerHTML = '&times;';
+                        delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
+                        delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
+                        
+                        delLabel.onclick = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const dt = new DataTransfer();
+                            for (let i = 0; i < window.editReviewAccumulatedFiles.items.length; i++) {
+                                if (window.editReviewAccumulatedFiles.items[i].getAsFile() !== file) {
+                                    dt.items.add(window.editReviewAccumulatedFiles.items[i].getAsFile());
+                                }
+                            }
+                            window.editReviewAccumulatedFiles = dt;
+                            reviewEditRealInput.files = window.editReviewAccumulatedFiles.files;
+                            
+                            const count = window.editReviewAccumulatedFiles.items.length;
+                            reviewStatusText.textContent = count > 0 ? (count + ' file(s) selected') : 'No file chosen';
+                            reviewLimitError.style.display = 'none';
+                            renderReviewEditImagePreviews(); 
+                        };
+                        
+                        imgContainer.appendChild(el);
+                        imgContainer.appendChild(delLabel);
+                        reviewUnifiedPreview.appendChild(imgContainer);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Edit Form Submission
+        const editForm = document.getElementById('editReviewForm');
+        const editReviewCommentInput = document.getElementById('edit-comment');
+        const editReviewRatingErrorEl = document.getElementById('edit_review_rating_error');
+        const editReviewCommentErrorEl = document.getElementById('edit_review_comment_error');
+        let editReviewSubmitAttempted = false;
+
+        const setEditReviewFieldError = (field, message) => {
+            if (field === 'rating') {
+                const group = editReviewRatingErrorEl ? editReviewRatingErrorEl.closest('.form-group') : null;
+                if (group) group.classList.toggle('has-error', !!message);
+                if (editReviewRatingErrorEl) editReviewRatingErrorEl.textContent = message || '';
+                return;
+            }
+
+            if (field === 'comment') {
+                const group = editReviewCommentInput ? editReviewCommentInput.closest('.form-group') : null;
+                if (group) group.classList.toggle('has-error', !!message);
+                if (editReviewCommentInput) editReviewCommentInput.classList.toggle('has-error', !!message);
+                if (editReviewCommentErrorEl) editReviewCommentErrorEl.textContent = message || '';
+            }
+        };
+
+        const clearEditReviewErrors = () => {
+            setEditReviewFieldError('rating', '');
+            setEditReviewFieldError('comment', '');
+        };
+
+        const validateEditReviewForm = () => {
+            clearEditReviewErrors();
+            let firstInvalid = null;
+            const formData = new FormData(editForm);
+            const ratingValue = formData.get('rating');
+            const commentValue = editReviewCommentInput ? editReviewCommentInput.value.trim() : '';
+
+            if (!ratingValue) {
+                setEditReviewFieldError('rating', 'Rating is required*');
+                firstInvalid = 'rating';
+            }
+            if (!commentValue) {
+                setEditReviewFieldError('comment', 'Review is required*');
+                if (!firstInvalid) firstInvalid = 'comment';
+            }
+            return firstInvalid;
+        };
+
+        if (editForm) {
+            editForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                editReviewSubmitAttempted = true;
+                const firstInvalid = validateEditReviewForm();
+                if (firstInvalid) {
+                    if (firstInvalid === 'comment' && editReviewCommentInput) {
+                        editReviewCommentInput.focus();
+                    }
+                    return;
+                }
+
+                const reviewId = document.getElementById('edit-review-id').value;
+                const formData = new FormData(this);
+                // Get CSRF token from the form's own hidden input
+                const csrfToken = formData.get('csrfmiddlewaretoken') || '';
+
+                try {
+                    const response = await fetch(`/reviews/${reviewId}/edit/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    if (response.ok) {
+                        closeEditModal(); // Close immediately on success
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message || 'Review updated successfully!'
+                        }).then(async () => {
+                            // Smooth reload: Fetch new HTML and replace the review card only
+                            try {
+                                const resp = await fetch(window.location.href);
+                                const html = await resp.text();
+                                const doc = new DOMParser().parseFromString(html, 'text/html');
+                                const newCard = doc.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
+                                const currentCard = document.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
+                                
+                                if (newCard && currentCard) {
+                                    currentCard.outerHTML = newCard.outerHTML;
+                                    // Rebind image click events for the new card
+                                    const updatedCard = document.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
+                                    const imgs = updatedCard.querySelectorAll(".review-uploaded-img");
+                                    const imageModal = document.getElementById("imageModal");
+                                    const expandedImg = document.getElementById("expandedImg");
+                                    imgs.forEach(img => {
+                                        img.addEventListener('click', function () {
+                                            if(imageModal && expandedImg) {
+                                                imageModal.style.display = "flex";
+                                                expandedImg.src = this.src;
+                                                setTimeout(() => imageModal.classList.add('show'), 10);
+                                            }
+                                        });
+                                    });
+                                } else {
+                                    location.reload();
+                                }
+                            } catch (e) {
+                                location.reload();
+                            }
+                        });
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'Update failed'
+                        });
+                    }
+                } catch (err) {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'An error occurred while updating.'
+                    });
+                }
+            });
+
+            const editReviewStars = editForm.querySelectorAll('input[name="rating"]');
+            editReviewStars.forEach((starInput) => {
+                starInput.addEventListener('change', () => {
+                    if (editReviewSubmitAttempted) validateEditReviewForm();
+                });
+            });
+        }
+
+        if (editReviewCommentInput) {
+            editReviewCommentInput.addEventListener('input', () => {
+                if (editReviewSubmitAttempted) validateEditReviewForm();
+            });
+        }
+    });
+
+    function toggleReviewDropdown(e, id) {
+        e.stopPropagation();
+        document.querySelectorAll('.review-dropdown').forEach(d => {
+            if (d.id !== `dropdown-${id}`) d.classList.remove('show');
+        });
+        document.getElementById(`dropdown-${id}`).classList.toggle('show');
+    }
+
+    // Pass images as a JSON string to avoid parsing complex JS arrays in HTML onClick attributes
+    function openEditModal(id, rating, comment, imagesJson) {
+        document.getElementById('edit-review-id').value = id;
+        document.getElementById('edit-comment').value = comment;
+
+        // Setup Radio Stars
+        const starInput = document.getElementById(`edit-star${rating}`);
+        if (starInput) starInput.checked = true;
+
+        // Trigger star visual update manually since we just set it programmatically
+        const editStarLabels = document.querySelectorAll('#edit-star-rating label');
+        editStarLabels.forEach(label => {
+            const starVal = parseInt(label.htmlFor.replace('edit-star', ''));
+            if (starVal <= rating) {
+                label.classList.add('active');
+            } else {
+                label.classList.remove('active');
+            }
+        });
+
+        const descriptions = { 1: "1 Star - Poor", 2: "2 Stars - Fair", 3: "3 Stars - Good", 4: "4 Stars - Very Good", 5: "5 Stars - Excellent" };
+        document.getElementById('edit-star-description').textContent = descriptions[rating] || "Select a rating";
+
+
+
+        // Setup Unified Images Preview
+        window.editReviewAccumulatedFiles = new DataTransfer();
+        document.getElementById('edit_images').files = window.editReviewAccumulatedFiles.files;
+        if (document.getElementById('edit_images_ui')) document.getElementById('edit_images_ui').value = '';
+        if (document.getElementById('editImagesStatus')) document.getElementById('editImagesStatus').textContent = 'No file chosen';
+        const limitError = document.getElementById('editImageLimitError');
+        if (limitError) limitError.style.display = 'none';
+
+        const unifiedPreview = document.getElementById('edit-unified-images-preview');
+        const removeInputsContainer = document.getElementById('edit-images-remove-inputs');
+        if (unifiedPreview) unifiedPreview.innerHTML = '';
+        if (removeInputsContainer) removeInputsContainer.innerHTML = '';
+        window.currentReviewExistingImagesCount = 0;
+
+        try {
+            const images = JSON.parse(imagesJson || '[]');
+            if (images && images.length > 0) {
+                window.currentReviewExistingImagesCount = images.length;
+                images.forEach(img => {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.style.position = 'relative';
+                    imgContainer.style.display = 'inline-block';
+                    imgContainer.className = 'existing-review-image';
+
+                    const el = document.createElement('img');
+                    el.src = img.url;
+                    el.style.width = '80px';
+                    el.style.height = '80px';
+                    el.style.objectFit = 'cover';
+                    el.style.borderRadius = '5px';
+                    el.style.border = '1px solid #444';
+
+                    const delLabel = document.createElement('div');
+                    delLabel.style.position = 'absolute';
+                    delLabel.style.top = '-5px';
+                    delLabel.style.right = '-5px';
+                    delLabel.style.background = 'rgba(0,0,0,0.7)';
+                    delLabel.style.color = '#fff';
+                    delLabel.style.borderRadius = '50%';
+                    delLabel.style.width = '24px';
+                    delLabel.style.height = '24px';
+                    delLabel.style.display = 'flex';
+                    delLabel.style.alignItems = 'center';
+                    delLabel.style.justifyContent = 'center';
+                    delLabel.style.cursor = 'pointer';
+                    delLabel.style.fontSize = '18px';
+                    delLabel.style.transition = 'background 0.2s';
+                    delLabel.title = "Remove image";
+                    delLabel.innerHTML = '&times;';
+                    
+                    delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
+                    delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
+                    
+                    delLabel.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Add hidden input specifying this image ID should be deleted
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'delete_images[]';
+                        input.value = img.id;
+                        removeInputsContainer.appendChild(input);
+                        
+                        imgContainer.remove();
+                        window.currentReviewExistingImagesCount--;
+                        if (limitError) limitError.style.display = 'none';
+                    };
+
+                    imgContainer.appendChild(el);
+                    imgContainer.appendChild(delLabel);
+                    unifiedPreview.appendChild(imgContainer);
+                });
+            }
+        } catch (e) {
+            console.error("Error parsing existing images:", e);
+        }
+
+        const modal = document.getElementById('editReviewModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editReviewModal');
+        modal.classList.remove('show');
+        document.getElementById('editReviewForm').reset();
+        document.querySelectorAll('#editReviewForm .review-field-error').forEach((el) => {
+            el.textContent = '';
+        });
+        document.querySelectorAll('#editReviewForm .form-group').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        document.querySelectorAll('#editReviewForm textarea.has-error').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        setTimeout(() => modal.style.display = 'none', 300);
+    }
+
+    async function deleteReview(id) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            background: '#1a1a1a',
+            color: '#ffffff',
+            showCancelButton: true,
+            confirmButtonColor: '#6e6e6e',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!',
+            scrollbarPadding: false
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const csrfToken = '{{ csrf_token }}';
+                try {
+                    const response = await fetch(`/reviews/${id}/delete/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message || 'Your review has been deleted.',
+                            icon: 'success',
+                            background: '#1a1a1a',
+                            color: '#ffffff',
+                            showConfirmButton: false,
+                            scrollbarPadding: false,
+                            timer: 1500
+                        }).then(() => {
+                            const currentCard = document.querySelector(`.like-btn[data-id="${id}"]`)?.closest('.review-card');
+                            if (currentCard) {
+                                currentCard.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                                currentCard.style.opacity = '0';
+                                currentCard.style.transform = 'scale(0.95)';
+                                setTimeout(() => {
+                                    currentCard.remove();
+                                    // Make sure no-reviews message shows up if empty
+                                    if(document.querySelectorAll('.review-card').length === 0) {
+                                        location.reload(); // Best way to render empty state easily
+                                    }
+                                }, 400);
+                            } else {
+                                location.reload();
+                            }
+                        });
+                    } else {
+                        const data = await response.json();
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'Delete failed'
+                        });
+                    }
+                } catch (err) {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'An error occurred while deleting.'
+                    });
+                }
+            }
+        });
+    }
+
+    function closeImageModal() {
+        const imageModal = document.getElementById("imageModal");
+        imageModal.classList.remove('show');
+        setTimeout(() => {
+            imageModal.style.display = "none";
+        }, 300); // match standard transition
+    }
+
+    // --- ENHANCED STAR RATING LOGIC ---
+    document.addEventListener("DOMContentLoaded", function () {
+        function setupStarRating(containerSelector, nameAttr, defaultDescId) {
+            const container = document.querySelector(containerSelector);
+            if (!container) return;
+            const starInputs = container.querySelectorAll(`input[name="${nameAttr}"]`);
+            const starLabels = container.querySelectorAll('label');
+            const starDescription = document.getElementById(defaultDescId);
+
+            function updateStars(hoveredValue) {
+                let checkedValue = 0;
+                const checkedInput = container.querySelector(`input[name="${nameAttr}"]:checked`);
+                if (checkedInput) {
+                    checkedValue = parseInt(checkedInput.value);
+                }
+
+                const activeValue = hoveredValue !== null ? hoveredValue : checkedValue;
+
+                const descriptions = {
+                    1: "1 Star - Poor",
+                    2: "2 Stars - Fair",
+                    3: "3 Stars - Good",
+                    4: "4 Stars - Very Good",
+                    5: "5 Stars - Excellent"
+                };
+
+                if (activeValue >= 1 && activeValue <= 5) {
+                    starDescription.textContent = descriptions[activeValue];
+                } else {
+                    starDescription.textContent = "Select a rating";
+                }
+
+                starLabels.forEach(label => {
+                    // Extract numbers from htmlFor attribute securely
+                    const match = label.htmlFor.match(/\d+/);
+                    if (match) {
+                        const starVal = parseInt(match[0]);
+                        if (starVal <= activeValue) {
+                            label.classList.add('active'); // Will color through CSS
+                        } else {
+                            label.classList.remove('active');
+                        }
+                    }
+                });
+            }
+
+            starLabels.forEach(label => {
+                const match = label.htmlFor.match(/\d+/);
+                if (match) {
+                    const starVal = parseInt(match[0]);
+                    label.addEventListener('mouseenter', () => updateStars(starVal));
+                    label.addEventListener('mouseleave', () => updateStars(null));
+                }
+            });
+
+            starInputs.forEach(input => {
+                input.addEventListener('change', () => updateStars(null));
+            });
+
+            updateStars(null);
+            
+            // Expose a quick method to reset explicit active stars when resetting Form
+            container.resetStars = () => updateStars(null);
+        }
+
+        setupStarRating('#reviewForm .star-rating', 'rating', 'star-description');
+        setupStarRating('#editReviewForm .star-rating', 'rating', 'edit-star-description');
+    });
+
+    // --- CREATE REVIEW MODAL FUNCTIONS ---
+    function openReviewModal(id) {
+        const modal = document.getElementById('reviewModal');
+        document.getElementById('reviewForm').action = `/booking/${id}/review/`;
+        document.getElementById('review_booking_id').value = id;
+        modal.classList.add('show');
+    }
+
+    function closeReviewModal() {
+        const modal = document.getElementById('reviewModal');
+        modal.classList.remove('show');
+        document.getElementById('reviewForm').reset();
+        document.querySelectorAll('#reviewForm .review-field-error').forEach((el) => {
+            el.textContent = '';
+        });
+        document.querySelectorAll('#reviewForm .form-group').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        document.querySelectorAll('#reviewForm textarea.has-error').forEach((el) => {
+            el.classList.remove('has-error');
+        });
+        document.getElementById('star-description').textContent = "Select a rating";
+        document.querySelectorAll('#reviewForm input[name="rating"]').forEach(r => r.checked = false);
+        
+        const reviewStarContainer = document.querySelector('#reviewForm .star-rating');
+        if(reviewStarContainer && reviewStarContainer.resetStars) {
+            reviewStarContainer.resetStars();
+        }
+        
+        window.createReviewAccumulatedFiles = new DataTransfer();
+        document.getElementById('create-unified-images-preview').innerHTML = '';
+        document.getElementById('createReviewImagesStatus').textContent = 'No file chosen';
+        document.getElementById('createImageLimitError').style.display = 'none';
+        document.getElementById('review_images').files = new DataTransfer().files;
+    }
+
+    // CREATE REVIEW IMAGE ACCUMULATION LOGIC
+    const createUiFilesInput = document.getElementById('review_images_ui');
+    const createFilesInput = document.getElementById('review_images');
+    const createPreviewGrid = document.getElementById('create-unified-images-preview');
+    const createLimitError = document.getElementById('createImageLimitError');
+    const createImagesStatus = document.getElementById('createReviewImagesStatus');
+    window.createReviewAccumulatedFiles = new DataTransfer();
+
+    if (createUiFilesInput) {
+        createUiFilesInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            createLimitError.style.display = 'none';
+            
+            files.forEach(file => {
+                if (window.createReviewAccumulatedFiles.items.length < 4) {
+                    window.createReviewAccumulatedFiles.items.add(file);
+                } else {
+                    createLimitError.style.display = 'block';
+                }
+            });
+            
+            createFilesInput.files = window.createReviewAccumulatedFiles.files;
+            e.target.value = ''; // Reset UI input
+            renderCreateReviewImagePreviews();
+        });
+    }
+
+    function renderCreateReviewImagePreviews() {
+        createPreviewGrid.innerHTML = '';
+        const files = Array.from(window.createReviewAccumulatedFiles.files);
+        
+        createImagesStatus.textContent = files.length > 0 ? (files.length + ' file(s) selected') : 'No file chosen';
+
+        files.forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.style.position = 'relative';
+                    imgContainer.style.display = 'inline-block';
+                    imgContainer.className = 'new-review-image';
+                    
+                    const el = document.createElement('img');
+                    el.src = event.target.result;
+                    el.style.width = '80px';
+                    el.style.height = '80px';
+                    el.style.objectFit = 'cover';
+                    el.style.borderRadius = '5px';
+                    el.style.border = '1px solid #444';
+
+                    const delLabel = document.createElement('div');
+                    delLabel.style.position = 'absolute';
+                    delLabel.style.top = '-5px';
+                    delLabel.style.right = '-5px';
+                    delLabel.style.background = 'rgba(0,0,0,0.7)';
+                    delLabel.style.color = '#fff';
+                    delLabel.style.borderRadius = '50%';
+                    delLabel.style.width = '24px';
+                    delLabel.style.height = '24px';
+                    delLabel.style.display = 'flex';
+                    delLabel.style.alignItems = 'center';
+                    delLabel.style.justifyContent = 'center';
+                    delLabel.style.cursor = 'pointer';
+                    delLabel.style.fontSize = '18px';
+                    delLabel.style.transition = 'background 0.2s';
+                    delLabel.innerHTML = '&times;';
+                    delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
+                    delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
+                    
+                    delLabel.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const dt = new DataTransfer();
+                        for (let i = 0; i < window.createReviewAccumulatedFiles.items.length; i++) {
+                            if (window.createReviewAccumulatedFiles.items[i].getAsFile() !== file) {
+                                dt.items.add(window.createReviewAccumulatedFiles.items[i].getAsFile());
+                            }
+                        }
+                        window.createReviewAccumulatedFiles = dt;
+                        createFilesInput.files = window.createReviewAccumulatedFiles.files;
+                        
+                        createLimitError.style.display = 'none';
+                        renderCreateReviewImagePreviews(); 
+                    };
+                    
+                    imgContainer.appendChild(el);
+                    imgContainer.appendChild(delLabel);
+                    createPreviewGrid.appendChild(imgContainer);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Modal click-outside handler
+    window.onclick = function (event) {
+        const imageModal = document.getElementById('imageModal');
+        const editModal = document.getElementById('editReviewModal');
+        const reviewModal = document.getElementById('reviewModal');
+
+        if (event.target == imageModal) {
+            closeImageModal();
+        } else if (event.target == editModal) {
+            closeEditModal();
+        } else if (event.target == reviewModal) {
+            closeReviewModal();
+        }
+    }
+</script>
+{% endblock %}
+
+

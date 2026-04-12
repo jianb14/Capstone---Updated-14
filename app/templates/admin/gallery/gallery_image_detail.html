@@ -1,0 +1,108 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_gallery.css' %}">
+
+<div class="page-header detail-page-header">
+    <div>
+        <h1>Image Details</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_gallery' %}">Gallery</a>
+            <span class="separator">/</span>
+            <span>Image #{{ gallery_image.id }}</span>
+        </div>
+    </div>
+    <a href="{{ next_url }}" class="btn-top-back">← Back to List</a>
+</div>
+
+<div class="gallery-detail-wrapper">
+    <div class="gallery-detail-card">
+        <div class="gallery-detail-left">
+            <button type="button" class="gallery-detail-image-trigger" id="galleryDetailImageTrigger" aria-label="Open full image">
+                <img src="{{ gallery_image.image.url }}" alt="{{ gallery_image.caption|default:'Gallery image' }}" class="gallery-detail-image">
+                <span class="gallery-detail-image-hint">Click to view full image</span>
+            </button>
+        </div>
+        <div class="gallery-detail-right">
+            <div class="gallery-detail-title-row">
+                <h2>Gallery Image #{{ gallery_image.id }}</h2>
+                <span class="gallery-detail-status {% if gallery_image.is_active %}is-active{% else %}is-hidden{% endif %}">
+                    {% if gallery_image.is_active %}Active{% else %}Hidden{% endif %}
+                </span>
+            </div>
+
+            <div class="gallery-detail-field">
+                <h4>Category</h4>
+                <p>{{ gallery_image.category.name }}</p>
+            </div>
+
+            <div class="gallery-detail-field">
+                <h4>Caption</h4>
+                <p>{{ gallery_image.caption|default:"-" }}</p>
+            </div>
+
+            <div class="gallery-detail-field">
+                <h4>File Name</h4>
+                <p class="gallery-detail-file">{{ gallery_image.image.name }}</p>
+            </div>
+
+            <div class="action-buttons detail-buttons">
+                <a href="{{ next_url }}" class="view-btn detail-action">Back</a>
+                <a href="{% url 'admin_gallery_image_edit' gallery_image.id %}?next={{ next_url|urlencode }}&scroll_target=gallery-images-section" class="edit-btn detail-action">Edit</a>
+                <a href="{% url 'admin_gallery_image_delete' gallery_image.id %}" class="delete-btn detail-action"
+                    data-swal-confirm="true"
+                    data-swal-title="Delete image?"
+                    data-swal-text="Delete this image?"
+                    data-swal-confirm-text="Yes, delete image">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="image-preview-modal" id="galleryDetailImageModal" aria-hidden="true">
+    <div class="image-preview-backdrop" data-close-modal="true"></div>
+    <div class="image-preview-dialog" role="dialog" aria-modal="true" aria-label="Image preview">
+        <button type="button" class="image-preview-close" id="galleryDetailImageModalClose" aria-label="Close image preview">&times;</button>
+        <img src="{{ gallery_image.image.url }}" alt="{{ gallery_image.caption|default:'Gallery image' }}">
+    </div>
+</div>
+
+<script>
+    (function () {
+        const trigger = document.getElementById('galleryDetailImageTrigger');
+        const modal = document.getElementById('galleryDetailImageModal');
+        const closeBtn = document.getElementById('galleryDetailImageModalClose');
+
+        if (!trigger || !modal || !closeBtn) return;
+
+        function openModal() {
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+        }
+
+        trigger.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+
+        modal.addEventListener('click', function (e) {
+            if (e.target.matches('[data-close-modal="true"]')) {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('open')) {
+                closeModal();
+            }
+        });
+    })();
+</script>
+
+{% endblock %}

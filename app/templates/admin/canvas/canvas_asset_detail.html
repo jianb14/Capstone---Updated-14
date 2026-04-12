@@ -1,0 +1,59 @@
+﻿{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+
+<div class="page-header detail-page-header">
+    <div>
+        <h1>Canvas Asset Details</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
+            <span class="separator">/</span>
+            <span>Asset #{{ canvas_asset.id }}</span>
+        </div>
+    </div>
+    <a href="{{ next_url }}" class="btn-top-back">&larr; Back to List</a>
+</div>
+
+<div class="gallery-detail-wrapper">
+    <div class="gallery-detail-card">
+        <div class="gallery-detail-left">
+            {% if canvas_asset.image %}
+            <img src="{{ canvas_asset.image.url }}" alt="{{ canvas_asset.label|default:'Canvas asset' }}" class="gallery-detail-image">
+            {% elif canvas_asset.static_path %}
+            <img src="{% static canvas_asset.static_path %}" alt="{{ canvas_asset.label|default:'Canvas asset' }}" class="gallery-detail-image">
+            {% endif %}
+        </div>
+        <div class="gallery-detail-right">
+            <div class="gallery-detail-title-row">
+                <h2>Canvas Asset #{{ canvas_asset.id }}</h2>
+                <span class="gallery-detail-status {% if canvas_asset.is_active %}is-active{% else %}is-hidden{% endif %}">
+                    {% if canvas_asset.is_active %}Active{% else %}Hidden{% endif %}
+                </span>
+            </div>
+
+            <div class="gallery-detail-field"><h4>Category</h4><p>{{ canvas_asset.category.name }}</p></div>
+            <div class="gallery-detail-field"><h4>Asset Name</h4><p>{{ canvas_asset.label }}</p></div>
+            <div class="gallery-detail-field"><h4>Label Group</h4><p>{% if canvas_asset.label_ref %}{{ canvas_asset.label_ref.name }}{% else %}{{ canvas_asset.subgroup|default:'-' }}{% endif %}</p></div>
+            <div class="gallery-detail-field"><h4>Item Type</h4><p>{{ canvas_asset.item_type }}</p></div>
+            <div class="gallery-detail-field"><h4>Default Size</h4><p>{{ canvas_asset.width }} x {{ canvas_asset.height }}</p></div>
+            <div class="gallery-detail-field"><h4>Sort Order</h4><p>{{ canvas_asset.sort_order }}</p></div>
+            <div class="gallery-detail-field"><h4>Static Path</h4><p class="gallery-detail-file">{{ canvas_asset.static_path|default:'-' }}</p></div>
+            {% if canvas_asset.image %}
+            <div class="gallery-detail-field"><h4>Uploaded File</h4><p class="gallery-detail-file">{{ canvas_asset.image.name }}</p></div>
+            {% endif %}
+
+            <div class="action-buttons detail-buttons">
+                <a href="{{ next_url }}" class="view-btn detail-action">Back</a>
+                <a href="{% url 'admin_canvas_asset_edit' canvas_asset.id %}?next={{ next_url|urlencode }}&scroll_target=canvas-assets-list-section" class="edit-btn detail-action">Edit</a>
+                <a href="{% url 'admin_canvas_asset_delete' canvas_asset.id %}" class="delete-btn detail-action"
+                    data-swal-confirm="true"
+                    data-swal-title="Delete canvas asset?"
+                    data-swal-text="Delete this canvas asset record?"
+                    data-swal-confirm-text="Yes, delete asset">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,15 +1,22 @@
-/* static/css/client_booking.css — Modal & Calendar Reversion */
+﻿/* static/css/client_booking.css — Modal & Calendar Reversion */
 
 .booking-page {
     padding: 6rem 5% 2rem;
     background: var(--black);
     min-height: 100vh;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
+    background-size: 25px 25px;
+}
+
+/* Override SweetAlert z-index to show above the booking modal (z-index: 9999) */
+.swal2-container {
+    z-index: 10000 !important;
 }
 
 .booking-calendar-panel {
     max-width: 900px;
     margin: 0 auto;
-    background: rgba(0, 0, 0, 0.3);
+    background: black;
     border: 1px solid var(--light-gray);
     border-radius: 8px;
     padding: 1.5rem;
@@ -102,6 +109,82 @@
     color: #ffffff;
     letter-spacing: 1px;
     text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    user-select: none;
+}
+
+#booking-calendar .fc .fc-toolbar-title:hover {
+    color: var(--primary-color);
+}
+
+/* Custom Month/Year Picker Modal */
+.month-year-picker {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 100;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+    width: 90%;
+    max-width: 300px;
+}
+
+.myp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--white);
+}
+
+.myp-header button {
+    background: transparent;
+    border: none;
+    color: var(--white);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.myp-header button:hover {
+    background: #333;
+}
+
+.myp-months-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.myp-months-grid button {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--white);
+    padding: 12px 5px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.myp-months-grid button:hover {
+    background: #222;
+}
+
+.myp-months-grid button.active-month {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: bold;
 }
 
 /* Fix missing button design / hover */
@@ -260,6 +343,7 @@
 .fc .fc-toolbar-title {
     font-family: 'Montserrat', sans-serif;
     font-weight: 700;
+    cursor: pointer;
 }
 
 /* Day Headers (Mon, Tue, etc.) */
@@ -320,6 +404,32 @@
     background-color: rgba(255, 255, 255, 0.1);
     cursor: pointer;
     transition: background-color 0.2s ease;
+}
+
+/* Past dates and outside-month dates should look inactive (no highlight/hover). */
+#booking-calendar .fc .fc-daygrid-day.fc-day-past,
+#booking-calendar .fc .fc-daygrid-day.is-past-date,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other {
+    background-color: transparent !important;
+    cursor: default !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day.fc-day-past:hover,
+#booking-calendar .fc .fc-daygrid-day.is-past-date:hover,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other:hover {
+    background-color: transparent !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+    color: rgba(255, 255, 255, 0.25) !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-number {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-number {
+    color: rgba(255, 255, 255, 0.45) !important;
 }
 
 /* Modal Time Inputs Layout */
@@ -405,12 +515,8 @@
 }
 
 .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.2rem;
-    border-bottom: 1px solid #222;
-    padding-bottom: 0.8rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
 }
 
 .modal-header h2 {
@@ -483,6 +589,7 @@
     text-transform: uppercase;
 }
 
+
 /* Bigger inputs with better focus */
 .form-group input,
 .form-group select,
@@ -503,12 +610,108 @@
 .form-group textarea:focus {
     outline: none;
     border-color: #888;
-    /* Brighten border on focus */
     background: #000;
-    /* Darker background on focus */
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
-    /* Subtle ring */
     transform: none;
+}
+
+/* Custom Select UI Styling */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    padding: 0.75rem 1rem;
+    background: #111;
+    border: 1px solid #333;
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.custom-select-trigger span {
+    color: #999;
+    /* Initial gray color for placeholder */
+}
+
+.custom-select-container.open .custom-select-trigger {
+    border-color: #888;
+    background: #000;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.custom-select-container.open .custom-select-trigger i {
+    transform: rotate(180deg);
+}
+
+.custom-select-trigger i {
+    color: #666;
+    transition: transform 0.3s ease;
+}
+
+.custom-select-options {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+/* Scrollbar for options */
+.custom-select-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-select-options::-webkit-scrollbar-track {
+    background: #000;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+}
+
+.custom-select-container.open .custom-select-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.custom-select-options li {
+    padding: 0.5rem 1rem;
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.custom-select-options li:last-child {
+    border-bottom: none;
+}
+
+.custom-select-options li:hover {
+    background: #333;
 }
 
 .form-group input[type="date"],
@@ -542,7 +745,7 @@
 /* Fixed Submit Button Hover (Was 'basag' - likely meant background color/text color combo issue) */
 .booking-modal-box .btn-submit {
     width: 100%;
-    padding: 0.8rem 1rem;
+    padding: 0.6rem 1rem;
     background: var(--white);
     color: var(--black);
     border: 2px solid var(--white);
@@ -556,8 +759,7 @@
 }
 
 .booking-modal-box .btn-submit:hover {
-    background: var(--white);
-    color: var(--black);
+    background: rgba(255, 255, 255, 0.8);
 }
 
 /* RESPONSIVE */
@@ -574,10 +776,6 @@
         grid-template-columns: 1fr;
     }
 }
-
-/* ======================== */
-/* STEPPER & PACKAGE CARDS  */
-/* ======================== */
 
 .stepper-header {
     border-bottom: none;
@@ -601,12 +799,10 @@
     padding-bottom: 1.5rem;
 }
 
-/* Connecting Line Background */
 .stepper-wrapper::before {
     content: '';
     position: absolute;
     top: 22px;
-    /* half of 44px circle */
     left: 10%;
     right: 10%;
     height: 3px;
@@ -614,7 +810,6 @@
     z-index: 1;
 }
 
-/* Blue Progress Line */
 .stepper-progress-line {
     position: absolute;
     top: 22px;
@@ -722,9 +917,21 @@
 /* ======================== */
 .package-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.2rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
     margin-bottom: 4rem;
+}
+
+@media (max-width: 900px) {
+    .package-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .package-cards-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .package-card {
@@ -782,6 +989,51 @@
     color: var(--white);
     text-transform: uppercase;
     letter-spacing: 1px;
+    text-align: left;
+}
+
+.booking-field-error {
+    display: none !important;
+    margin-top: 6px !important;
+    color: #ef4444 !important;
+    font-size: 0.75rem !important;
+    line-height: 1.25 !important;
+    text-transform: none !important;
+}
+
+.form-group.has-error .booking-field-error,
+.time-field.has-error .booking-field-error {
+    display: block !important;
+}
+
+.form-group.has-error input,
+.form-group.has-error textarea,
+.form-group.has-error select,
+.time-field.has-error input {
+    border-color: #ef4444 !important;
+}
+
+.form-group.has-error .custom-select-trigger {
+    border-color: #ef4444 !important;
+}
+
+.form-group input.has-error,
+.form-group textarea.has-error,
+.form-group select.has-error,
+.time-field input.has-error,
+.custom-select-trigger.has-error {
+    border-color: #ef4444 !important;
+}
+
+.card-top-label {
+    display: block;
+    margin: 0 0 0.35rem 0;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.52);
+    text-align: left;
 }
 
 .package-info .price {
@@ -789,6 +1041,21 @@
     font-weight: 800;
     font-size: 1.5rem;
     margin-bottom: 1rem;
+    text-align: left;
+}
+
+.feature-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: #9a9a9a;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0 0 0.7rem 0;
+    text-align: left;
 }
 
 .w-package {
@@ -818,20 +1085,45 @@
     color: #aaa;
     flex-grow: 1;
     text-align: left;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 15px;
+}
+
+/* Scrollbar for features inside cards */
+.package-info .features::-webkit-scrollbar {
+    width: 5px;
+}
+
+.package-info .features::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.package-info .features::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.package-info .features::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
 .package-info .features li {
     margin-bottom: 0.6rem;
     position: relative;
     padding-left: 20px;
+    display: block;
+    line-height: 1.35;
 }
 
 .package-info .features li::before {
-    content: "✔";
+    content: "✓";
     color: white;
     position: absolute;
     left: 0;
     font-size: 0.8rem;
+    font-weight: 700;
 }
 
 /* ======================== */
@@ -934,8 +1226,8 @@
 /* Modal Actions */
 .modal-actions {
     margin-top: 1.5rem;
-    border-top: 1px solid #222;
-    padding-top: 1.5rem;
+    display: flex;
+    align-items: center;
 }
 
 .split-actions {
@@ -945,10 +1237,10 @@
 
 .booking-back-btn {
     flex: 1;
-    padding: 0.8rem 1rem;
+    padding: 0.75rem 1rem;
     background: transparent;
     color: var(--white);
-    border: 1px solid #444;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
     font-size: 0.95rem;
@@ -958,15 +1250,17 @@
 }
 
 .booking-back-btn:hover {
-    background: #222;
-    border-color: #666;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0);
 }
 
 .booking-modal-box .btn-submit {
     flex: 2;
-    /* takes more space in split */
     margin-top: 0;
-    /* remove margin from earlier rule */
+}
+
+.booking-modal-box .btn-submit:hover {
+    transform: none;
 }
 
 .booking-modal-box .btn-submit:disabled {
@@ -1052,29 +1346,26 @@
     white-space: nowrap;
 }
 
-/* ======================== */
-/* ADD-ON CARD: SOLO PRICE  */
-/* ======================== */
-
-/* Divider inside add-on card */
 .addon-card-divider {
-    width: 100%;
+    width: calc(100% + 3rem);
+    margin-left: -1.5rem;
     height: 1px;
-    background: #333;
-    margin: 1rem 0 0.8rem 0;
+    background: #444;
 }
 
 /* Solo Price Button */
 .solo-price-btn {
-    width: 100%;
-    padding: 0.65rem 1rem;
+    width: calc(100% + 3rem);
+    margin-left: -1.5rem;
+    margin-bottom: -1.5rem;
+    padding: 1.2rem 1rem;
     background: transparent;
-    color: #aaa;
-    border: 1px solid #444;
-    border-radius: 6px;
+    color: var(--white);
+    border: none;
+    border-radius: 0 0 12px 12px;
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
@@ -1082,15 +1373,12 @@
 }
 
 .solo-price-btn:hover {
-    border-color: #fff;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .solo-price-btn.active {
-    background: #fff;
-    color: #000;
-    border-color: #fff;
+    background: var(--white);
+    color: var(--black);
     font-weight: 700;
 }
 
@@ -1142,4 +1430,38 @@
     pointer-events: auto;
     opacity: 1;
     filter: none;
+    font-size: 1rem;
 }
+
+/* File Input Matches Edit Booking Design */
+.form-group input[type="file"].file-input {
+    background: #0a0a0a;
+    border: 1px dashed #444;
+    border-radius: 8px;
+    padding: 0.5rem;
+    color: #ccc;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    margin-bottom: 0.2rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input[type="file"].file-input::file-selector-button {
+    background: #222;
+    color: #fff;
+    border: 1px solid #444;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    margin-right: 10px;
+    transition: background 0.2s;
+}
+
+.form-group input[type="file"].file-input::file-selector-button:hover {
+    background: #333;
+}
+
+

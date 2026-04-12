@@ -1,29 +1,20 @@
 {% extends 'admin/admin_base.html' %}
-{% load static humanize %}
+{% load static %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/admin_reports.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="page-container">
-    <!-- Header -->
-    <div class="page-header">
+<div class="reports-wrap">
+    <div class="reports-head">
         <div>
-            <h1>Reports & Analytics</h1>
-            <div class="breadcrumb">
-                <span>Admin</span> <span class="separator">/</span> <span class="active">Reports</span>
-            </div>
-        </div>
-        <div class="report-actions">
-            <button class="btn-export" onclick="window.print()">
-                Print Report
-            </button>
+            <h1>User Concerns</h1>
+            <p class="reports-sub">All customer concern tickets for the selected {{ date_range_days }}-day period.</p>
         </div>
     </div>
 
-    <!-- Filters Section -->
-    <div class="filter-section">
+    <section class="filter-card">
         <form method="GET" action="{% url 'admin_reports' %}" class="filter-form">
             <div class="filter-group">
                 <label for="start_date">Start Date</label>
@@ -33,232 +24,515 @@
                 <label for="end_date">End Date</label>
                 <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
             </div>
-            <button type="submit" class="btn-filter">Apply Filter</button>
+            <button type="submit" class="btn-filter">Apply</button>
             <a href="{% url 'admin_reports' %}" class="btn-reset">Reset</a>
         </form>
-    </div>
+    </section>
 
-    <!-- Summary Cards -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-details">
-                <h3>Total Revenue</h3>
-                <p class="stat-value">₱ {{ total_revenue|floatformat:2|intcomma }}</p>
-                <span class="stat-change positive">From completed bookings</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-details">
-                <h3>Bookings in Period</h3>
-                <p class="stat-value">{{ total_bookings }}</p>
-                <span class="stat-change neutral">Filtered range</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-details">
-                <h3>Total Active Users</h3>
-                <p class="stat-value">{{ active_users }}</p>
-                <span class="stat-change neutral">Platform customers</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-details">
-                <h3>Pending Requests</h3>
-                <p class="stat-value">{{ pending_requests }}</p>
-                <span class="stat-change negative">Awaiting Action</span>
-            </div>
-        </div>
-    </div>
+    <section class="kpi-grid">
+        <article class="kpi-card">
+            <span class="kpi-label">Total Concerns</span>
+            <strong class="kpi-value">{{ total_concerns }}</strong>
+            <small class="kpi-note">All concern items in selected period</small>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">New</span>
+            <strong class="kpi-value">{{ new_concerns }}</strong>
+            <small class="kpi-note">Newly submitted tickets</small>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">In Progress</span>
+            <strong class="kpi-value">{{ in_progress_concerns }}</strong>
+            <small class="kpi-note">Currently under review</small>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">Resolved</span>
+            <strong class="kpi-value">{{ resolved_concerns }}</strong>
+            <small class="kpi-note">Completed concerns</small>
+        </article>
+    </section>
 
-    <!-- Charts Section -->
-    <div class="charts-grid">
-        <div class="chart-card">
-            <h3>Revenue by Event Type</h3>
-            <div class="chart-container">
-                <canvas id="revenueChart"></canvas>
-            </div>
-        </div>
-        <div class="chart-card">
-            <h3>Booking Status Distribution</h3>
-            <div class="chart-container">
-                <canvas id="statusChart"></canvas>
-            </div>
-        </div>
-    </div>
+    <section class="panel">
+        <div class="panel-head">
+            <h2>Concern Queue</h2>
+            <div class="queue-tools">
+                <span id="queueRecordsCount">{{ concern_records_count }} records</span>
+                <form method="GET" action="{% url 'admin_reports' %}" id="queueStatusForm" class="queue-filter-form">
+                    <input type="hidden" name="start_date" value="{{ start_date }}">
+                    <input type="hidden" name="end_date" value="{{ end_date }}">
 
-    <!-- Recent Transactions Table -->
-    <div class="reports-grid">
-        <div class="report-section full-width">
-            <div class="section-header">
-                <h2>Transactions in this Period</h2>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>TRANSACTION ID</th>
-                            <th>USER</th>
-                            <th>SERVICE</th>
-                            <th>DATE</th>
-                            <th>AMOUNT</th>
-                            <th>STATUS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for booking in recent_bookings %}
-                        <tr>
-                            <td data-label="Transaction ID">#TRX-{{ booking.id }}</td>
-                            <td data-label="User">
-                                <div class="user-info">
-                                    <span class="username">{{ booking.user.username }}</span>
-                                    <span class="email">{{ booking.user.email }}</span>
-                                </div>
-                            </td>
-                            <td data-label="Service">{{ booking.event_type }}</td>
-                            <td data-label="Date">{{ booking.created_at|date:"M d, Y" }}</td>
-                            <td data-label="Amount">₱ {{ booking.total_price|floatformat:2|intcomma }}</td>
-                            <td data-label="Status">
-                                {% if booking.status == 'completed' %}
-                                <span class="status-badge-compact completed">Completed</span>
-                                {% elif booking.status == 'pending' %}
-                                <span class="status-badge-compact pending">Pending</span>
-                                {% elif booking.status == 'confirmed' %}
-                                <span class="status-badge-compact confirmed">Confirmed</span>
-                                {% elif booking.status == 'cancelled' or booking.status == 'denied' %}
-                                <span class="status-badge-compact cancelled">Cancelled</span>
-                                {% elif booking.status == 'expired' %}
-                                <span class="status-badge-compact expired">Expired</span>
+                    <div class="custom-filter-dropdown queue-status-dropdown" id="queueStatusDropdown">
+                        <div class="dropdown-trigger">
+                            <span id="queueStatusDropdownText">
+                                {% if concern_status_filter == 'new' %}
+                                New
+                                {% elif concern_status_filter == 'in_progress' %}
+                                In Progress
+                                {% elif concern_status_filter == 'resolved' %}
+                                Resolved
                                 {% else %}
-                                <span class="status-badge-compact">{{ booking.status|title }}</span>
+                                All Status
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" style="text-align:center; padding: 2rem; color: #888;">No transactions found
-                                in this date
-                                range.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </span>
+                            <span class="dropdown-caret" aria-hidden="true"></span>
+                        </div>
+                        <ul class="dropdown-options">
+                            <li data-value="" {% if not concern_status_filter %}class="selected"{% endif %}>All Status</li>
+                            <li data-value="new" {% if concern_status_filter == 'new' %}class="selected"{% endif %}>New</li>
+                            <li data-value="in_progress" {% if concern_status_filter == 'in_progress' %}class="selected"{% endif %}>In Progress</li>
+                            <li data-value="resolved" {% if concern_status_filter == 'resolved' %}class="selected"{% endif %}>Resolved</li>
+                        </ul>
+                        <select name="concern_status" id="queueStatusFilterSelect" class="filter-select">
+                            <option value="" {% if not concern_status_filter %}selected{% endif %}>All Status</option>
+                            <option value="new" {% if concern_status_filter == 'new' %}selected{% endif %}>New</option>
+                            <option value="in_progress" {% if concern_status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="resolved" {% if concern_status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="table-wrap" id="concernQueueTableWrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticket</th>
+                        <th>User</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="concernQueueTableBody">
+                    {% for item in concern_rows %}
+                    <tr>
+                        <td>#CON-{{ item.id }}</td>
+                        <td>
+                            <div class="user-col">
+                                <strong>{{ item.user.username }}</strong>
+                                <small>{{ item.user.email }}</small>
+                            </div>
+                        </td>
+                        <td>{{ item.get_category_display }}</td>
+                        <td>
+                            <span class="status-badge status-{{ item.status }}">{{ item.get_status_display }}</span>
+                        </td>
+                        <td>{{ item.created_at|date:"M d, Y g:i A" }}</td>
+                        <td>
+                            <button type="button" class="btn-view-concern"
+                                data-ticket-id="{{ item.id }}"
+                                data-status-raw="{{ item.status }}"
+                                data-ticket="#CON-{{ item.id }}"
+                                data-username="{{ item.user.username|escape }}"
+                                data-email="{{ item.user.email|escape }}"
+                                data-category="{{ item.get_category_display|escape }}"
+                                data-status="{{ item.get_status_display|escape }}"
+                                data-created="{{ item.created_at|date:'M d, Y g:i A' }}"
+                                data-updated="{{ item.updated_at|date:'M d, Y g:i A' }}"
+                                data-update-url="{% url 'admin_concern_update' item.id %}">
+                                View
+                            </button>
+                            <div class="concern-hidden-texts" hidden>
+                                <p class="full-subject">{{ item.subject }}</p>
+                                <p class="full-message">{{ item.message }}</p>
+                                <p class="full-admin-notes">{{ item.admin_notes|default:"" }}</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty">No user concerns found in this date range.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if concerns_page.has_other_pages %}
+        <div class="pagination reports-pagination" id="reportsQueuePagination">
+            {% if concerns_page.has_previous %}
+            <a href="?page={{ concerns_page.previous_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}{% if concern_status_filter %}&concern_status={{ concern_status_filter }}{% endif %}"
+                class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+            {% else %}
+            <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+            {% endif %}
+
+            <span class="current-page">Page {{ concerns_page.number }} of {{ concerns_page.paginator.num_pages }}</span>
+
+            {% if concerns_page.has_next %}
+            <a href="?page={{ concerns_page.next_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}{% if concern_status_filter %}&concern_status={{ concern_status_filter }}{% endif %}"
+                class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+            {% else %}
+            <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+
+    <div class="concern-modal-overlay admin-concern-modal" id="concernDetailModal" aria-hidden="true">
+        <div class="concern-modal-card admin-concern-modal-card" role="dialog" aria-modal="true" aria-labelledby="concernModalTitle">
+            <div class="concern-modal-head">
+                <div class="concern-modal-title-wrap">
+                    <h3 id="concernModalTitle">Concern Details</h3>
+                    <span class="concern-modal-id" id="modalTicket">ID: -</span>
+                </div>
+                <button type="button" class="concern-modal-close" id="concernModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="concern-modal-body">
+                <div class="detail-grid">
+                    <div class="detail-row"><span>User</span><strong id="modalUser">-</strong></div>
+                    <div class="detail-row"><span>Email</span><strong id="modalEmail">-</strong></div>
+                    <div class="detail-row"><span>Category</span><strong id="modalCategory">-</strong></div>
+                    <div class="detail-row"><span>Status</span><strong id="modalStatus" class="admin-modal-status">-</strong></div>
+                    <div class="detail-row"><span>Created</span><strong id="modalCreated">-</strong></div>
+                    <div class="detail-row"><span>Updated</span><strong id="modalUpdated">-</strong></div>
+                </div>
+
+                <div class="detail-block">
+                    <h4>Subject</h4>
+                    <p id="modalSubject">-</p>
+                </div>
+
+                <div class="detail-block">
+                    <h4>Message</h4>
+                    <p id="modalMessage">-</p>
+                </div>
+
+                <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
+                    <h4>Admin Notes</h4>
+                    <p id="modalAdminNotes">-</p>
+                </div>
+
+                <form method="post" id="concernUpdateForm" class="concern-update-form" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" id="modalNextUrl" value="{{ request.get_full_path }}">
+
+                    <div class="status-field-wrap">
+                        <label for="modalStatusSelect">Update Status</label>
+                        <div class="custom-filter-dropdown report-status-dropdown" id="modalStatusDropdown">
+                            <div class="dropdown-trigger">
+                                <span id="modalStatusDropdownText">New</span>
+                                <span class="dropdown-caret" aria-hidden="true"></span>
+                            </div>
+                            <ul class="dropdown-options">
+                                <li data-value="new" class="selected">New</li>
+                                <li data-value="in_progress">In Progress</li>
+                                <li data-value="resolved">Resolved</li>
+                            </ul>
+                            <select id="modalStatusSelect" name="status" class="filter-select" required>
+                                <option value="new">New</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="resolved">Resolved</option>
+                            </select>
+                        </div>
+                        <p class="field-error" data-error-for="status"></p>
+                    </div>
+
+                    <div id="updateAdminNotesBlock">
+                        <label for="modalAdminNotesInput">Update Admin Notes</label>
+                        <textarea id="modalAdminNotesInput" name="admin_notes" rows="4"
+                            placeholder="Add internal notes for this concern..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-save-concern">Save Changes</button>
+                </form>
             </div>
         </div>
     </div>
+
+    <section class="panel">
+        <div class="panel-head">
+            <h2>Recent Admin Notifications</h2>
+            <span>{{ admin_notifications|length }} items</span>
+        </div>
+        {% if admin_notifications %}
+        <ul class="notif-list">
+            {% for notif in admin_notifications %}
+            <li>
+                <div>
+                    <strong>{% if notif.booking %}#TRX-{{ notif.booking.id }}{% else %}General{% endif %}</strong>
+                    <p>{{ notif.message }}</p>
+                </div>
+                <small>{{ notif.created_at|date:"M d, Y g:i A" }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">No recent admin notifications in selected period.</p>
+        {% endif %}
+    </section>
 </div>
+{% endblock %}
 
-<!-- Data for Charts (Robust Method) -->
-{{ status_distribution|json_script:"status-data" }}
-{{ revenue_by_event|json_script:"revenue-data" }}
-
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-
+{% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Load data from scripts to avoid IDE formatting issues
-        const statusDistribution = JSON.parse(document.getElementById('status-data').textContent);
-        const revenueByEvent = JSON.parse(document.getElementById('revenue-data').textContent);
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('concernDetailModal');
+    const closeBtn = document.getElementById('concernModalClose');
+    const updateForm = document.getElementById('concernUpdateForm');
+    const statusSelect = document.getElementById('modalStatusSelect');
+    const notesInput = document.getElementById('modalAdminNotesInput');
+    const statusDropdown = document.getElementById('modalStatusDropdown');
+    const statusFieldWrap = updateForm ? updateForm.querySelector('.status-field-wrap') : null;
+    const statusDropdownText = document.getElementById('modalStatusDropdownText');
+    const statusTrigger = statusDropdown ? statusDropdown.querySelector('.dropdown-trigger') : null;
+    const statusOptions = statusDropdown ? statusDropdown.querySelectorAll('.dropdown-options li') : [];
+    const adminNotesBlock = document.getElementById('modalAdminNotesBlock');
+    const updateAdminNotesBlock = document.getElementById('updateAdminNotesBlock');
+    const queueStatusDropdown = document.getElementById('queueStatusDropdown');
+    const queueStatusTrigger = queueStatusDropdown ? queueStatusDropdown.querySelector('.dropdown-trigger') : null;
+    const queueStatusOptions = queueStatusDropdown ? queueStatusDropdown.querySelectorAll('.dropdown-options li') : [];
+    const queueStatusText = document.getElementById('queueStatusDropdownText');
+    const queueStatusSelect = document.getElementById('queueStatusFilterSelect');
+    const queueStatusForm = document.getElementById('queueStatusForm');
+    const queueRecordsCount = document.getElementById('queueRecordsCount');
+    const concernQueueTableWrap = document.getElementById('concernQueueTableWrap');
+    const concernQueueTableBody = document.getElementById('concernQueueTableBody');
+    const reportsQueuePagination = document.getElementById('reportsQueuePagination');
 
-        // --- Revenue by Event Type Chart ---
-        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-        const revenueData = {
-            labels: revenueByEvent.map(item => item.event_type),
-            datasets: [{
-                label: 'Revenue (₱)',
-                data: revenueByEvent.map(item => item.total),
-                backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                borderColor: '#3b82f6',
-                borderWidth: 1
-            }]
-        };
+    const modalFields = {
+        ticket: document.getElementById('modalTicket'),
+        user: document.getElementById('modalUser'),
+        email: document.getElementById('modalEmail'),
+        category: document.getElementById('modalCategory'),
+        status: document.getElementById('modalStatus'),
+        created: document.getElementById('modalCreated'),
+        updated: document.getElementById('modalUpdated'),
+        subject: document.getElementById('modalSubject'),
+        message: document.getElementById('modalMessage'),
+        adminNotes: document.getElementById('modalAdminNotes')
+    };
 
-        new Chart(revenueCtx, {
-            type: 'bar',
-            data: revenueData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    datalabels: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: '#222' },
-                        ticks: { color: '#888' }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#888' }
-                    }
-                }
-            }
+    function textOrDash(value) {
+        const clean = (value || '').trim();
+        return clean ? clean : '-';
+    }
+
+    function setStatusError(message) {
+        if (!statusFieldWrap) return;
+        statusFieldWrap.classList.add('has-error');
+        const statusError = statusFieldWrap.querySelector('[data-error-for="status"]');
+        if (statusError) {
+            statusError.textContent = message;
+        }
+    }
+
+    function clearStatusError() {
+        if (!statusFieldWrap) return;
+        statusFieldWrap.classList.remove('has-error');
+        const statusError = statusFieldWrap.querySelector('[data-error-for="status"]');
+        if (statusError) {
+            statusError.textContent = '';
+        }
+    }
+
+    function toggleUpdateAdminNotesField(statusValue) {
+        if (!updateAdminNotesBlock) return;
+        const show = statusValue === 'in_progress' || statusValue === 'resolved';
+        updateAdminNotesBlock.style.display = show ? 'grid' : 'none';
+    }
+
+    function openModal(button) {
+        const row = button.closest('tr');
+        const subjectNode = row ? row.querySelector('.full-subject') : null;
+        const messageNode = row ? row.querySelector('.full-message') : null;
+        const notesNode = row ? row.querySelector('.full-admin-notes') : null;
+
+        modalFields.ticket.textContent = 'ID: ' + textOrDash(button.dataset.ticket);
+        modalFields.user.textContent = textOrDash(button.dataset.username);
+        modalFields.email.textContent = textOrDash(button.dataset.email);
+        modalFields.category.textContent = textOrDash(button.dataset.category);
+        modalFields.status.textContent = textOrDash(button.dataset.status);
+        modalFields.status.className = 'admin-modal-status status-' + (button.dataset.statusRaw || 'new');
+        modalFields.created.textContent = textOrDash(button.dataset.created);
+        modalFields.updated.textContent = textOrDash(button.dataset.updated);
+        modalFields.subject.textContent = textOrDash(subjectNode ? subjectNode.textContent : '');
+        modalFields.message.textContent = textOrDash(messageNode ? messageNode.textContent : '');
+        const adminNotesRaw = notesNode ? notesNode.textContent.trim() : '';
+        modalFields.adminNotes.textContent = textOrDash(adminNotesRaw);
+        if (adminNotesBlock) {
+            adminNotesBlock.style.display = adminNotesRaw ? 'block' : 'none';
+        }
+        if (updateForm) updateForm.action = button.dataset.updateUrl || '';
+        const selectedStatus = button.dataset.statusRaw || 'new';
+        if (statusSelect) statusSelect.value = selectedStatus;
+        if (statusDropdownText && statusSelect && statusSelect.options[statusSelect.selectedIndex]) {
+            statusDropdownText.textContent = statusSelect.options[statusSelect.selectedIndex].text;
+        }
+        statusOptions.forEach(item => item.classList.toggle('selected', item.getAttribute('data-value') === selectedStatus));
+        if (notesInput) notesInput.value = notesNode ? notesNode.textContent.trim() : '';
+        clearStatusError();
+        toggleUpdateAdminNotesField(selectedStatus);
+
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (statusDropdown) statusDropdown.classList.remove('open');
+    }
+
+    function fetchConcernQueue(url) {
+        if (concernQueueTableWrap) concernQueueTableWrap.style.opacity = '0.5';
+
+        return fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                const newTableBody = doc.getElementById('concernQueueTableBody');
+                const newPagination = doc.getElementById('reportsQueuePagination');
+                const newRecordsCount = doc.getElementById('queueRecordsCount');
+
+                if (newTableBody && concernQueueTableBody) concernQueueTableBody.innerHTML = newTableBody.innerHTML;
+                if (newPagination && reportsQueuePagination) reportsQueuePagination.innerHTML = newPagination.innerHTML;
+                if (newRecordsCount && queueRecordsCount) queueRecordsCount.textContent = newRecordsCount.textContent;
+
+                if (concernQueueTableWrap) concernQueueTableWrap.style.opacity = '1';
+            })
+            .catch(() => {
+                if (concernQueueTableWrap) concernQueueTableWrap.style.opacity = '1';
+            });
+    }
+
+    function buildQueueUrl(pageValue) {
+        const url = new URL(window.location.href);
+        if (queueStatusSelect && queueStatusSelect.value) {
+            url.searchParams.set('concern_status', queueStatusSelect.value);
+        } else {
+            url.searchParams.delete('concern_status');
+        }
+        if (pageValue) {
+            url.searchParams.set('page', pageValue);
+        } else {
+            url.searchParams.delete('page');
+        }
+        return url.toString();
+    }
+
+    if (statusTrigger && statusOptions.length && statusSelect) {
+        statusTrigger.addEventListener('click', function () {
+            statusDropdown.classList.toggle('open');
         });
 
-        // --- Status Distribution Chart ---
-        const statusCtx = document.getElementById('statusChart').getContext('2d');
-        const statusCounts = statusDistribution.map(item => item.count);
-        const statusTotal = statusCounts.reduce((a, b) => a + b, 0);
-
-        const statusData = {
-            labels: statusDistribution.map((item, i) => {
-                const pct = statusTotal > 0 ? ((statusCounts[i] / statusTotal) * 100).toFixed(1) : 0;
-                return `${item.label} (${pct}%)`;
-            }),
-            datasets: [{
-                data: statusCounts,
-                backgroundColor: statusDistribution.map(item => item.color),
-                borderWidth: 0
-            }]
-        };
-
-        new Chart(statusCtx, {
-            type: 'doughnut',
-            data: statusData,
-            plugins: [ChartDataLabels],
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            color: '#888',
-                            padding: 20,
-                            usePointStyle: true,
-                            pointStyle: 'rect',
-                            boxWidth: 12,
-                            boxHeight: 12
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                const value = context.parsed;
-                                const pct = statusTotal > 0 ? ((value / statusTotal) * 100).toFixed(1) : 0;
-                                return ` ${context.label}: ${value} (${pct}%)`;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        color: '#fff',
-                        font: {
-                            weight: 'bold',
-                            size: 12
-                        },
-                        formatter: function (value) {
-                            const pct = statusTotal > 0 ? ((value / statusTotal) * 100).toFixed(1) : 0;
-                            if (pct < 5) return ''; // Hide label if slice is too small
-                            return pct + '%';
-                        }
-                    }
-                },
-                cutout: '60%'
-            }
+        statusOptions.forEach(option => {
+            option.addEventListener('click', function () {
+                const value = this.getAttribute('data-value') || 'new';
+                statusSelect.value = value;
+                if (statusDropdownText) statusDropdownText.textContent = this.textContent.trim();
+                statusOptions.forEach(item => item.classList.remove('selected'));
+                this.classList.add('selected');
+                statusDropdown.classList.remove('open');
+                clearStatusError();
+                toggleUpdateAdminNotesField(value);
+            });
         });
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function () {
+            if (statusSelect.value) {
+                clearStatusError();
+            }
+            toggleUpdateAdminNotesField(statusSelect.value);
+        });
+    }
+
+    if (updateForm && statusSelect) {
+        updateForm.addEventListener('submit', function (event) {
+            if (!statusSelect.value) {
+                event.preventDefault();
+                setStatusError('Status is required*');
+                if (statusTrigger) statusTrigger.focus();
+                return;
+            }
+            clearStatusError();
+        });
+    }
+
+    function closeQueueStatusMenu() {
+        if (!queueStatusDropdown) return;
+        queueStatusDropdown.classList.remove('open');
+    }
+
+    if (queueStatusTrigger && queueStatusOptions.length && queueStatusSelect && queueStatusForm) {
+        queueStatusTrigger.addEventListener('click', function () {
+            queueStatusDropdown.classList.toggle('open');
+        });
+
+        queueStatusOptions.forEach(option => {
+            option.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value') || '';
+                queueStatusSelect.value = selectedValue;
+                queueStatusText.textContent = this.textContent.trim();
+                queueStatusOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                closeQueueStatusMenu();
+                const url = buildQueueUrl('1');
+                window.history.pushState({}, '', url);
+                fetchConcernQueue(url);
+            });
+        });
+    }
+
+    if (reportsQueuePagination) {
+        reportsQueuePagination.addEventListener('click', function (event) {
+            const link = event.target.closest('a.page-link');
+            if (!link) return;
+            event.preventDefault();
+            const href = link.getAttribute('href');
+            if (!href) return;
+            const url = new URL(href, window.location.href).toString();
+            window.history.pushState({}, '', url);
+            fetchConcernQueue(url);
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        const viewButton = event.target.closest('.btn-view-concern');
+        if (viewButton) openModal(viewButton);
     });
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeModal();
+    });
+
+    document.addEventListener('click', function (event) {
+        if (statusDropdown && !statusDropdown.contains(event.target)) {
+            statusDropdown.classList.remove('open');
+        }
+        if (queueStatusDropdown && !queueStatusDropdown.contains(event.target)) {
+            closeQueueStatusMenu();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && modal.classList.contains('show')) {
+            closeModal();
+        }
+    });
+
+    window.addEventListener('popstate', function () {
+        const url = new URL(window.location.href);
+        if (queueStatusSelect) queueStatusSelect.value = url.searchParams.get('concern_status') || '';
+        if (queueStatusText) {
+            const selectedOption = queueStatusSelect && queueStatusSelect.options[queueStatusSelect.selectedIndex];
+            queueStatusText.textContent = selectedOption ? selectedOption.text : 'All Status';
+        }
+        if (queueStatusOptions && queueStatusOptions.length) {
+            queueStatusOptions.forEach(opt => {
+                opt.classList.toggle('selected', (opt.getAttribute('data-value') || '') === (queueStatusSelect ? queueStatusSelect.value : ''));
+            });
+        }
+        fetchConcernQueue(url.toString());
+    });
+});
 </script>
 {% endblock %}
