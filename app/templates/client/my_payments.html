@@ -1,0 +1,176 @@
+{% extends "client/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/client_payment.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="cp-shell">
+    <h1 class="cp-title">My Payments</h1>
+    <p class="cp-subtitle">Track your payment receipts and booking balances.</p>
+
+    <div class="cp-stats-grid">
+        <div class="cp-stat-card">
+            <div class="cp-stat-label">Pending</div>
+            <div class="cp-stat-value">{{ pending_count }}</div>
+        </div>
+        <div class="cp-stat-card">
+            <div class="cp-stat-label">Verified</div>
+            <div class="cp-stat-value">{{ verified_count }}</div>
+        </div>
+        <div class="cp-stat-card">
+            <div class="cp-stat-label">Rejected</div>
+            <div class="cp-stat-value">{{ rejected_count }}</div>
+        </div>
+        <div class="cp-stat-card">
+            <div class="cp-stat-label">Total Pending Payments</div>
+            <div class="cp-stat-value">{{ total_pending_payment_count }}</div>
+        </div>
+    </div>
+
+    <div class="cp-panel cp-mb">
+        <div class="cp-panel-head">
+            <h2>Action Required</h2>
+            <p>Bookings requiring initial payment or re-upload. ({{ action_required_total_count }} total)</p>
+        </div>
+        <div class="cp-table-wrap">
+            <table class="cp-table">
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Event</th>
+                        <th>Remaining Balance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in action_required_page_obj %}
+                    <tr>
+                        <td>#{{ b.id }}</td>
+                        <td>
+                            <div>{{ b.event_type|default:"Event" }}</div>
+                            <div class="cp-muted">{{ b.event_date|date:"M d, Y" }}</div>
+                        </td>
+                        <td>&#8369;{{ b.booking_remaining|floatformat:2 }}</td>
+                        <td class="cp-status-warn">Pending Payment</td>
+                        <td>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <a href="{% url 'view_booking' b.id %}?from=my_payments" class="cp-btn-row">View</a>
+                                {% if b.payment_action_disabled %}
+                                <span class="cp-btn-row" style="opacity:0.6; cursor:not-allowed;">{{ b.payment_action_display }}</span>
+                                {% else %}
+                                <a href="{% url 'payment_page' b.id %}" class="cp-btn-row">{{ b.payment_action_display }}</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="cp-empty">No bookings need payment right now.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if action_required_page_obj.has_other_pages %}
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:10px;">
+            {% if action_required_page_obj.has_previous %}
+            <a class="cp-btn-row" href="?ar_page={{ action_required_page_obj.previous_page_number }}">&larr; Prev</a>
+            {% else %}
+            <span class="cp-btn-row" style="opacity:0.5; cursor:not-allowed;">&larr; Prev</span>
+            {% endif %}
+            <span style="color:#9ca3af; font-size:0.85rem;">Page {{ action_required_page_obj.number }} of {{ action_required_page_obj.paginator.num_pages }}</span>
+            {% if action_required_page_obj.has_next %}
+            <a class="cp-btn-row" href="?ar_page={{ action_required_page_obj.next_page_number }}">Next &rarr;</a>
+            {% else %}
+            <span class="cp-btn-row" style="opacity:0.5; cursor:not-allowed;">Next &rarr;</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="cp-panel">
+        <div class="cp-panel-head">
+            <h2>Payment History</h2>
+            <p>Track your past payments and settle any remaining booking balances.</p>
+        </div>
+
+        {% if partial_bookings %}
+        <div class="cp-table-wrap cp-mb" style="border-bottom: 1px solid #374151; padding-bottom: 20px; margin-bottom: 20px;">
+            <h3 style="color: #f3f4f6; margin-bottom: 15px; font-size: 1.1rem; font-weight: 600;">Remaining Balances</h3>
+            <table class="cp-table">
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Event</th>
+                        <th>Remaining Balance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in partial_bookings %}
+                    <tr>
+                        <td>#{{ b.id }}</td>
+                        <td>
+                            <div>{{ b.event_type|default:"Event" }}</div>
+                            <div class="cp-muted">{{ b.event_date|date:"M d, Y" }}</div>
+                        </td>
+                        <td>&#8369;{{ b.booking_remaining|floatformat:2 }}</td>
+                        <td class="cp-status-success">Confirmed</td>
+                        <td>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <a href="{% url 'view_booking' b.id %}?from=my_payments" class="cp-btn-row">View</a>
+                                <a href="{% url 'payment_page' b.id %}" class="cp-btn-row">Pay Balance</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="cp-table-wrap">
+            <table class="cp-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Booking</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Status</th>
+                        <th>View</th>
+                        <th>Receipt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pay in payments_page_obj %}
+                    <tr>
+                        <td>{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                        <td>#{{ pay.booking.id }}</td>
+                        <td>&#8369;{{ pay.amount|floatformat:2 }}</td>
+                        <td>{{ pay.get_payment_method_display }}</td>
+                        <td>{{ pay.get_payment_status_display }}</td>
+                        <td><a href="{% url 'view_booking' pay.booking.id %}?from=my_payments" class="cp-btn-row">View</a></td>
+                        <td>
+                            {% if pay.payment_status == 'verified' %}
+                            <a href="{% url 'download_payment_receipt_pdf' pay.id %}" class="cp-link">Download PDF</a>
+                            {% else %}
+                            <span class="cp-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="cp-empty">No payment records yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

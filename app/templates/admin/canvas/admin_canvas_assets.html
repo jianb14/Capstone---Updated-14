@@ -64,7 +64,7 @@
 <div class="pagination" id="canvasCategoriesPaginationContainer">
     {% if categories_page.has_other_pages %}
         {% if categories_page.has_previous %}
-        <a href="?cat_page={{ categories_page.previous_page_number }}&lbl_page={{ labels_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        <a href="?cat_page={{ categories_page.previous_page_number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
         {% endif %}
@@ -72,77 +72,7 @@
         <span class="current-page">Page {{ categories_page.number }} of {{ categories_page.paginator.num_pages }}</span>
 
         {% if categories_page.has_next %}
-        <a href="?cat_page={{ categories_page.next_page_number }}&lbl_page={{ labels_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
-        {% else %}
-        <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
-        {% endif %}
-    {% endif %}
-</div>
-
-<br><br>
-
-<div class="page-header title-header" id="canvas-assets-list-section">
-    <h1>Canvas Labels</h1>
-    <a href="{% url 'admin_canvas_label_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Label</a>
-</div>
-
-<div class="table-container canvas-labels-container">
-    <table class="gallery-categories-table canvas-label-table">
-        <thead>
-            <tr>
-                <th>CATEGORY</th>
-                <th>LABEL NAME</th>
-                <th>ORDER</th>
-                <th>STATUS</th>
-                <th>ASSETS</th>
-                <th>ACTIONS</th>
-            </tr>
-        </thead>
-        <tbody id="canvasLabelsTableBody">
-            {% for lbl in labels_page %}
-            <tr>
-                <td data-label="Category">{{ lbl.category.name }}</td>
-                <td data-label="Label Name">{{ lbl.name }}</td>
-                <td data-label="Order">{{ lbl.order }}</td>
-                <td data-label="Status">
-                    {% if lbl.is_active %}
-                    <span class="status-badge active">Active</span>
-                    {% else %}
-                    <span class="status-badge inactive">Hidden</span>
-                    {% endif %}
-                </td>
-                <td data-label="Assets">{{ lbl.assets.count }}</td>
-                <td data-label="Actions">
-                    <div class="action-buttons">
-                        <a href="{% url 'admin_canvas_label_edit' lbl.id %}">Edit</a>
-                        <a href="{% url 'admin_canvas_label_delete' lbl.id %}"
-                           data-swal-confirm="true"
-                           data-swal-title="Delete label?"
-                           data-swal-text="Delete this label? Assets under this label will become unlabeled."
-                           data-swal-confirm-text="Yes, delete label">Delete</a>
-                    </div>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6">No labels found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-<div class="pagination" id="canvasLabelsPaginationContainer">
-    {% if labels_page.has_other_pages %}
-        {% if labels_page.has_previous %}
-        <a href="?lbl_page={{ labels_page.previous_page_number }}&cat_page={{ categories_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
-        {% else %}
-        <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
-        {% endif %}
-
-        <span class="current-page">Page {{ labels_page.number }} of {{ labels_page.paginator.num_pages }}</span>
-
-        {% if labels_page.has_next %}
-        <a href="?lbl_page={{ labels_page.next_page_number }}&cat_page={{ categories_page.number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        <a href="?cat_page={{ categories_page.next_page_number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
         {% endif %}
@@ -181,33 +111,6 @@
                     {% endfor %}
                 </select>
             </div>
-
-            <div class="custom-filter-dropdown" id="canvasAssetLabelDropdown">
-                <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
-                    <span id="canvasAssetLabelDropdownText">
-                        {% if selected_asset_label != 'all' and selected_asset_label %}
-                            {% for lbl in labels %}
-                                {% if lbl.id|stringformat:"s" == selected_asset_label|stringformat:"s" %}{{ lbl.name }}{% endif %}
-                            {% endfor %}
-                        {% else %}
-                            All Labels
-                        {% endif %}
-                    </span>
-                    <span class="dropdown-caret" aria-hidden="true"></span>
-                </div>
-                <ul class="dropdown-options" id="canvasAssetLabelDropdownOptions">
-                    <li data-value="all" data-category-id="all" {% if selected_asset_label == 'all' or not selected_asset_label %}class="selected"{% endif %}>All Labels</li>
-                    {% for lbl in labels %}
-                    <li data-value="{{ lbl.id }}" data-category-id="{{ lbl.category_id }}" {% if lbl.id|stringformat:"s" == selected_asset_label|stringformat:"s" %}class="selected"{% endif %}>{{ lbl.name }}</li>
-                    {% endfor %}
-                </ul>
-                <select name="asset_label" id="canvasAssetLabelFilterSelect" class="filter-select">
-                    <option value="all" data-category-id="all" {% if selected_asset_label == 'all' or not selected_asset_label %}selected{% endif %}>All Labels</option>
-                    {% for lbl in labels %}
-                    <option value="{{ lbl.id }}" data-category-id="{{ lbl.category_id }}" {% if lbl.id|stringformat:"s" == selected_asset_label|stringformat:"s" %}selected{% endif %}>{{ lbl.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
         </form>
 
         <a href="{% url 'admin_canvas_asset_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add Asset</a>
@@ -221,7 +124,6 @@
                 <th>PREVIEW</th>
                 <th>ASSET NAME</th>
                 <th>CATEGORY</th>
-                <th>LABEL GROUP</th>
                 <th>SIZE</th>
                 <th>STATUS</th>
                 <th>ACTIONS</th>
@@ -241,7 +143,6 @@
                 </td>
                 <td data-label="Asset Name">{{ asset.label }}</td>
                 <td data-label="Category">{{ asset.category.name }}</td>
-                <td data-label="Label Group">{% if asset.label_ref %}{{ asset.label_ref.name }}{% else %}{{ asset.subgroup|default:"-" }}{% endif %}</td>
                 <td data-label="Size">{{ asset.width }} &times; {{ asset.height }}</td>
                 <td data-label="Status">
                     {% if asset.is_active %}
@@ -264,7 +165,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7">No assets found.</td>
+                <td colspan="6">No assets found.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -274,7 +175,7 @@
 <div class="pagination" id="canvasAssetsPaginationContainer">
     {% if canvas_assets.has_other_pages %}
         {% if canvas_assets.has_previous %}
-        <a href="?page={{ canvas_assets.previous_page_number }}&cat_page={{ categories_page.number }}&lbl_page={{ labels_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        <a href="?page={{ canvas_assets.previous_page_number }}&cat_page={{ categories_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
         {% endif %}
@@ -282,7 +183,7 @@
         <span class="current-page">Page {{ canvas_assets.number }} of {{ canvas_assets.paginator.num_pages }}</span>
 
         {% if canvas_assets.has_next %}
-        <a href="?page={{ canvas_assets.next_page_number }}&cat_page={{ categories_page.number }}&lbl_page={{ labels_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}{% if selected_asset_label and selected_asset_label != 'all' %}&asset_label={{ selected_asset_label }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        <a href="?page={{ canvas_assets.next_page_number }}&cat_page={{ categories_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
         {% endif %}
@@ -295,100 +196,40 @@
         const categoryTrigger = categoryDropdown ? categoryDropdown.querySelector('.dropdown-trigger') : null;
         const categoryText = document.getElementById('canvasAssetCategoryDropdownText');
         const categorySelect = document.getElementById('canvasAssetCategoryFilterSelect');
-        const labelDropdown = document.getElementById('canvasAssetLabelDropdown');
-        const labelTrigger = labelDropdown ? labelDropdown.querySelector('.dropdown-trigger') : null;
-        const labelText = document.getElementById('canvasAssetLabelDropdownText');
-        const labelSelect = document.getElementById('canvasAssetLabelFilterSelect');
         const tableBody = document.getElementById('canvasAssetsTableBody');
         const paginationContainer = document.getElementById('canvasAssetsPaginationContainer');
         const tableContainer = document.getElementById('canvasAssetsTableContainer');
 
-        if (!form || !categoryDropdown || !categoryTrigger || !categoryText || !categorySelect || !labelDropdown || !labelTrigger || !labelText || !labelSelect || !tableBody || !paginationContainer) return;
+        if (!form || !categoryDropdown || !categoryTrigger || !categoryText || !categorySelect || !tableBody || !paginationContainer) return;
 
-        const dropdowns = [categoryDropdown, labelDropdown];
-        let allLabelOptions = [];
-
-        function refreshAllLabelOptions() {
-            allLabelOptions = Array.from(labelSelect.options).map(function (opt) {
-                return {
-                    value: opt.value,
-                    text: opt.textContent.trim(),
-                    categoryId: opt.getAttribute('data-category-id') || 'all'
-                };
-            });
+        function closeDropdown() {
+            categoryDropdown.classList.remove('open');
+            categoryTrigger.setAttribute('aria-expanded', 'false');
         }
 
-        function closeDropdown(dropdown) {
-            const trigger = dropdown.querySelector('.dropdown-trigger');
-            dropdown.classList.remove('open');
-            trigger.setAttribute('aria-expanded', 'false');
-        }
-
-        function closeAllDropdowns() {
-            dropdowns.forEach(closeDropdown);
-        }
-
-        function toggleDropdown(dropdown) {
-            const trigger = dropdown.querySelector('.dropdown-trigger');
-            const willOpen = !dropdown.classList.contains('open');
-            closeAllDropdowns();
+        function toggleDropdown() {
+            const willOpen = !categoryDropdown.classList.contains('open');
+            closeDropdown();
             if (willOpen) {
-                dropdown.classList.add('open');
-                trigger.setAttribute('aria-expanded', 'true');
+                categoryDropdown.classList.add('open');
+                categoryTrigger.setAttribute('aria-expanded', 'true');
             }
         }
 
-        function updateDropdownText(selectEl, textEl, fallbackText) {
-            const selectedOption = selectEl.options[selectEl.selectedIndex];
-            textEl.textContent = selectedOption ? selectedOption.textContent.trim() : fallbackText;
+        function updateDropdownText() {
+            const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+            categoryText.textContent = selectedOption ? selectedOption.textContent.trim() : 'All Categories';
         }
 
         function buildFilterUrl(pageValue) {
             const url = new URL(window.location.href);
             const categoryValue = categorySelect.value || 'all';
-            const labelValue = labelSelect.value || 'all';
 
             if (categoryValue !== 'all') url.searchParams.set('asset_category', categoryValue);
             else url.searchParams.delete('asset_category');
 
-            if (labelValue !== 'all') url.searchParams.set('asset_label', labelValue);
-            else url.searchParams.delete('asset_label');
-
             url.searchParams.set('page', pageValue || '1');
             return url;
-        }
-
-        function filterLabelOptionsByCategory() {
-            const selectedCategory = categorySelect.value || 'all';
-            const currentLabel = labelSelect.value || 'all';
-
-            labelSelect.innerHTML = '';
-            allLabelOptions.forEach(function (opt) {
-                if (opt.value === 'all' || selectedCategory === 'all' || opt.categoryId === selectedCategory) {
-                    const option = document.createElement('option');
-                    option.value = opt.value;
-                    option.textContent = opt.text;
-                    option.setAttribute('data-category-id', opt.categoryId);
-                    labelSelect.appendChild(option);
-                }
-            });
-
-            const hasCurrent = Array.from(labelSelect.options).some(function (opt) { return opt.value === currentLabel; });
-            labelSelect.value = hasCurrent ? currentLabel : 'all';
-
-            const optionsContainer = labelDropdown.querySelector('.dropdown-options');
-            optionsContainer.innerHTML = '';
-            Array.from(labelSelect.options).forEach(function (opt) {
-                const li = document.createElement('li');
-                li.setAttribute('data-value', opt.value);
-                li.setAttribute('data-category-id', opt.getAttribute('data-category-id') || 'all');
-                li.textContent = opt.textContent.trim();
-                if (opt.value === labelSelect.value) li.classList.add('selected');
-                optionsContainer.appendChild(li);
-            });
-
-            bindDropdownOptions(labelDropdown, labelSelect, labelText, 'All Labels');
-            updateDropdownText(labelSelect, labelText, 'All Labels');
         }
 
         function fetchCanvasAssets(urlObj) {
@@ -428,24 +269,18 @@
 
         function syncSectionsFromDoc(doc) {
             const currentCategoryTbody = document.getElementById('canvasCategoriesTableBody');
-            const currentLabelsTbody = document.getElementById('canvasLabelsTableBody');
             const currentAssetsTbody = document.getElementById('canvasAssetsTableBody');
             const currentCategoryPagination = document.getElementById('canvasCategoriesPaginationContainer');
-            const currentLabelPagination = document.getElementById('canvasLabelsPaginationContainer');
             const currentAssetsPagination = document.getElementById('canvasAssetsPaginationContainer');
 
             const newCategoryTbody = doc.getElementById('canvasCategoriesTableBody');
-            const newLabelsTbody = doc.getElementById('canvasLabelsTableBody');
             const newAssetsTbody = doc.getElementById('canvasAssetsTableBody');
             const newCategoryPagination = doc.getElementById('canvasCategoriesPaginationContainer');
-            const newLabelPagination = doc.getElementById('canvasLabelsPaginationContainer');
             const newAssetsPagination = doc.getElementById('canvasAssetsPaginationContainer');
 
             if (currentCategoryTbody && newCategoryTbody) currentCategoryTbody.innerHTML = newCategoryTbody.innerHTML;
-            if (currentLabelsTbody && newLabelsTbody) currentLabelsTbody.innerHTML = newLabelsTbody.innerHTML;
             if (currentAssetsTbody && newAssetsTbody) currentAssetsTbody.innerHTML = newAssetsTbody.innerHTML;
             if (currentCategoryPagination && newCategoryPagination) currentCategoryPagination.innerHTML = newCategoryPagination.innerHTML;
-            if (currentLabelPagination && newLabelPagination) currentLabelPagination.innerHTML = newLabelPagination.innerHTML;
             if (currentAssetsPagination && newAssetsPagination) currentAssetsPagination.innerHTML = newAssetsPagination.innerHTML;
 
             const newCategoryList = doc.querySelector('#canvasAssetCategoryDropdown .dropdown-options');
@@ -455,14 +290,8 @@
             const newCategorySelect = doc.getElementById('canvasAssetCategoryFilterSelect');
             if (newCategorySelect) categorySelect.innerHTML = newCategorySelect.innerHTML;
 
-            const newLabelSelect = doc.getElementById('canvasAssetLabelFilterSelect');
-            if (newLabelSelect) labelSelect.innerHTML = newLabelSelect.innerHTML;
-
-            refreshAllLabelOptions();
-            filterLabelOptionsByCategory();
-            updateDropdownText(categorySelect, categoryText, 'All Categories');
-            updateDropdownText(labelSelect, labelText, 'All Labels');
-            bindDropdownOptions(categoryDropdown, categorySelect, categoryText, 'All Categories');
+            updateDropdownText();
+            bindDropdownOptions();
         }
 
         function refreshCanvasAssetsPage(urlObj) {
@@ -482,49 +311,38 @@
         }
 
         function onFilterChanged(resetPage) {
-            closeAllDropdowns();
-            const url = buildFilterUrl(resetPage ? '1' : (new URL(window.location.href).searchParams.get('page') || '1'));
+            closeDropdown();
+            const currentPage = new URL(window.location.href).searchParams.get('page') || '1';
+            const url = buildFilterUrl(resetPage ? '1' : currentPage);
             window.history.pushState({}, '', url.toString());
             fetchCanvasAssets(url);
         }
 
-        function bindDropdownOptions(dropdown, selectEl, textEl, fallbackText) {
-            const options = dropdown.querySelectorAll('.dropdown-options li');
+        function bindDropdownOptions() {
+            const options = categoryDropdown.querySelectorAll('.dropdown-options li');
             options.forEach(function (option) {
                 option.addEventListener('click', function () {
-                    const selectedValue = this.getAttribute('data-value') || 'all';
-                    selectEl.value = selectedValue;
-                    dropdown.querySelectorAll('.dropdown-options li').forEach(function (opt) {
+                    categorySelect.value = this.getAttribute('data-value') || 'all';
+                    categoryDropdown.querySelectorAll('.dropdown-options li').forEach(function (opt) {
                         opt.classList.remove('selected');
                     });
                     this.classList.add('selected');
-                    updateDropdownText(selectEl, textEl, fallbackText);
-
-                    if (selectEl === categorySelect) {
-                        filterLabelOptionsByCategory();
-                    }
+                    updateDropdownText();
                     onFilterChanged(true);
                 });
             });
         }
 
-        categoryTrigger.addEventListener('click', function () { toggleDropdown(categoryDropdown); });
-        labelTrigger.addEventListener('click', function () { toggleDropdown(labelDropdown); });
-
-        [categoryTrigger, labelTrigger].forEach(function (trigger) {
-            trigger.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    toggleDropdown(trigger.closest('.custom-filter-dropdown'));
-                }
-            });
+        categoryTrigger.addEventListener('click', toggleDropdown);
+        categoryTrigger.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleDropdown();
+            }
         });
 
-        refreshAllLabelOptions();
-        bindDropdownOptions(categoryDropdown, categorySelect, categoryText, 'All Categories');
-        filterLabelOptionsByCategory();
-        updateDropdownText(categorySelect, categoryText, 'All Categories');
-        updateDropdownText(labelSelect, labelText, 'All Labels');
+        bindDropdownOptions();
+        updateDropdownText();
 
         paginationContainer.addEventListener('click', function (e) {
             const link = e.target.closest('a.page-link');
@@ -538,22 +356,19 @@
         });
 
         document.addEventListener('click', function (e) {
-            if (!categoryDropdown.contains(e.target) && !labelDropdown.contains(e.target)) {
-                closeAllDropdowns();
+            if (!categoryDropdown.contains(e.target)) {
+                closeDropdown();
             }
         });
 
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeAllDropdowns();
+            if (e.key === 'Escape') closeDropdown();
         });
 
         window.addEventListener('popstate', function () {
             const url = new URL(window.location.href);
             categorySelect.value = url.searchParams.get('asset_category') || 'all';
-            filterLabelOptionsByCategory();
-            labelSelect.value = url.searchParams.get('asset_label') || 'all';
-            updateDropdownText(categorySelect, categoryText, 'All Categories');
-            updateDropdownText(labelSelect, labelText, 'All Labels');
+            updateDropdownText();
             fetchCanvasAssets(url);
         });
 
@@ -561,7 +376,6 @@
             const deleteLink = e.target.closest('a[data-swal-confirm="true"]');
             if (!deleteLink) return;
             if (!deleteLink.closest('#canvasCategoriesTableBody') &&
-                !deleteLink.closest('#canvasLabelsTableBody') &&
                 !deleteLink.closest('#canvasAssetsTableBody')) return;
 
             e.preventDefault();
@@ -605,4 +419,3 @@
     })();
 </script>
 {% endblock %}
-

@@ -2,6 +2,7 @@
 {% if asset.image or asset.static_path %}
 <div class="draggable-item" draggable="true"
      data-type="{{ asset.item_type|default:'image' }}"
+     data-category="{{ asset.category.name|lower }}"
      data-src="{% if asset.image %}{{ asset.image.url }}{% else %}{% static asset.static_path %}{% endif %}"
      data-width="{{ asset.width|default:'150' }}"
      data-height="{{ asset.height|default:'150' }}"

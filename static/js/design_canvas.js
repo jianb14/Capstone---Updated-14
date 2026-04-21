@@ -1,48 +1,480 @@
-// static/js/design_canvas.js
-
 document.addEventListener('DOMContentLoaded', function() {
-    // ===== CONFIG =====
-    let ARTBOARD_W = 1920;   // Artboard width in px  (landscape 16:9)
-    let ARTBOARD_H = 1080;   // Artboard height in px
+    const byId = (id) => document.getElementById(id);
+
+    const dropZone = byId('canvasDropZone');
+    if (!dropZone || typeof fabric === 'undefined') return;
+
+    const dropHint = byId('dropHint');
+    const selectionToolbar = byId('selectionToolbar');
+    const contextToolbar = byId('objectContextToolbar');
+
+    const undoBtn = byId('undoBtn');
+    const redoBtn = byId('redoBtn');
+    const clearBtn = byId('clearBtn');
+    const saveDesignBtn = byId('saveDesignBtn');
+    const zoomInBtn = byId('zoomInBtn');
+    const zoomOutBtn = byId('zoomOutBtn');
+    const zoomResetBtn = byId('zoomResetBtn');
+    const zoomLabel = byId('zoomLabel');
+    const zoomRange = byId('zoomRange');
+
+    const cloneBtn = byId('cloneBtn');
+    const lockBtn = byId('lockBtn');
+    const layerUpBtn = byId('layerUpBtn');
+    const layerDownBtn = byId('layerDownBtn');
+    const toFrontBtn = byId('toFrontBtn');
+    const toBackBtn = byId('toBackBtn');
+    const flipXBtn = byId('flipXBtn');
+    const flipYBtn = byId('flipYBtn');
+    const skewLeftBtn = byId('skewLeftBtn');
+    const skewRightBtn = byId('skewRightBtn');
+    const deleteBtn = byId('deleteBtn');
+    const itemColorPicker = byId('itemColorPicker');
+
+    const fontFamilySelect = byId('fontFamilySelect');
+    const fontSizeInput = byId('fontSizeInput');
+    const textBoldBtn = byId('textBoldBtn');
+    const textItalicBtn = byId('textItalicBtn');
+    const textUnderlineBtn = byId('textUnderlineBtn');
+    const textAlignLeftBtn = byId('textAlignLeftBtn');
+    const textAlignCenterBtn = byId('textAlignCenterBtn');
+    const textAlignRightBtn = byId('textAlignRightBtn');
+
+    const contextDuplicateBtn = byId('contextDuplicateBtn');
+    const contextLockBtn = byId('contextLockBtn');
+    const contextBringFrontBtn = byId('contextBringFrontBtn');
+    const contextDeleteBtn = byId('contextDeleteBtn');
+
+    const customCanvasColor = byId('customCanvasColor');
+    const bgImageUpload = byId('bgImageUpload');
+    const removeBgImage = byId('removeBgImage');
+
+    const elemWidthInput = byId('elemWidthInput');
+    const elemHeightInput = byId('elemHeightInput');
+    const applySizeBtn = byId('applySizeBtn');
+    const canvasWidthInput = byId('canvasWidthInput');
+    const canvasHeightInput = byId('canvasHeightInput');
+    const canvasSizeDisp = byId('canvasSizeDisp');
+
+    const quickTextInput = byId('quickTextInput');
+    const addTextBtn = byId('addTextBtn');
+    const assetSearchInput = byId('assetSearchInput');
+
+    const userUploadInput = byId('userUploadInput');
+    const userUploadsGrid = byId('userUploadsGrid');
+
+    const drawToolButtons = Array.from(document.querySelectorAll('.draw-tool-btn[data-draw-tool]'));
+    const drawColorInput = byId('drawColorInput');
+    const drawColorLabel = byId('drawColorLabel');
+    const drawSizeInput = byId('drawSizeInput');
+    const drawSizeValue = byId('drawSizeValue');
+    const drawOpacityInput = byId('drawOpacityInput');
+    const drawOpacityValue = byId('drawOpacityValue');
+    const disableDrawBtn = byId('disableDrawBtn');
+
+    const cartInclusionsList = byId('cartInclusionsList');
+    const cartAddonsList = byId('cartAddonsList');
+    const cartTotalPrice = byId('cartTotalPrice');
+
+    let ARTBOARD_W = 1920;
+    let ARTBOARD_H = 1080;
     const MIN_ZOOM = 0.15;
     const MAX_ZOOM = 3;
+    const MAX_UNDO = 40;
 
-    // 1. Initialize Fabric.js Canvas
-    const dropZone = document.getElementById('canvasDropZone');
-    const dropHint = document.getElementById('dropHint');
-    const undoBtn = document.getElementById('undoBtn');
-    const redoBtn = document.getElementById('redoBtn');
-    const customCanvasColor = document.getElementById('customCanvasColor');
-    const bgImageUpload = document.getElementById('bgImageUpload');
-    const removeBgImage = document.getElementById('removeBgImage');
-    const elemWidthInput = document.getElementById('elemWidthInput');
-    const elemHeightInput = document.getElementById('elemHeightInput');
-    const applySizeBtn = document.getElementById('applySizeBtn');
-    const canvasWidthInput = document.getElementById('canvasWidthInput');
-    const canvasHeightInput = document.getElementById('canvasHeightInput');
-    const canvasSizeDisp = document.getElementById('canvasSizeDisp');
-    const cartInclusionsList = document.getElementById('cartInclusionsList');
-    const cartAddonsList = document.getElementById('cartAddonsList');
-    const cartTotalPrice = document.getElementById('cartTotalPrice');
-    
-    const width = dropZone.clientWidth;
-    const height = dropZone.clientHeight;
-    
     const canvas = new fabric.Canvas('designCanvas', {
-        width: width,
-        height: height,
+        width: dropZone.clientWidth,
+        height: dropZone.clientHeight,
         selection: true,
         preserveObjectStacking: true,
-        backgroundColor: 'transparent',  // let the CSS background show through
+        backgroundColor: 'transparent'
     });
 
     const undoStack = [];
     const redoStack = [];
-    const MAX_UNDO = 30;
     let isLoadingState = false;
+    let isPanning = false;
+    let isSpaceDown = false;
+    let lastPanPos = { x: 0, y: 0 };
+    let artboard = null;
+    let currentDrawTool = drawToolButtons.find((btn) => btn.classList.contains('active'))?.dataset.drawTool || 'pen';
+    let lastBalloonColor = null;
+
+    const objectControlStyle = {
+        cornerColor: '#ffffff',
+        cornerStrokeColor: '#111111',
+        borderColor: '#f4f4f4',
+        cornerStyle: 'circle',
+        cornerSize: 10,
+        transparentCorners: false,
+        borderScaleFactor: 2,
+        padding: 6
+    };
+
+    const textActionButtons = [
+        textBoldBtn,
+        textItalicBtn,
+        textUnderlineBtn,
+        textAlignLeftBtn,
+        textAlignCenterBtn,
+        textAlignRightBtn
+    ].filter(Boolean);
+
+    function hexToRgba(hex, alpha) {
+        if (!hex) return `rgba(0, 0, 0, ${alpha})`;
+        const normalized = hex.replace('#', '');
+        const safeHex =
+            normalized.length === 3
+                ? normalized
+                      .split('')
+                      .map((char) => char + char)
+                      .join('')
+                : normalized.padEnd(6, '0').slice(0, 6);
+
+        const r = parseInt(safeHex.slice(0, 2), 16);
+        const g = parseInt(safeHex.slice(2, 4), 16);
+        const b = parseInt(safeHex.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function toHexColor(value, fallback = '#000000') {
+        if (!value) return fallback;
+        try {
+            const hex = new fabric.Color(value).toHex();
+            return hex ? `#${hex}` : fallback;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function applyObjectControlStyle(obj) {
+        if (!obj) return obj;
+        obj.set(objectControlStyle);
+        return obj;
+    }
+
+    function filterAssetsByPackage() {
+        // If no package quotas (e.g., custom design), show all categories
+        if (!window.packageQuotas || Object.keys(window.packageQuotas).length === 0) {
+            document.querySelectorAll('.inventory-category').forEach(cat => cat.style.display = 'block');
+            return;
+        }
+
+        const categories = document.querySelectorAll('.inventory-category');
+        let visibleCount = 0;
+
+        categories.forEach((cat) => {
+            const header = cat.querySelector('.category-header');
+            if (!header) return;
+            
+            const catName = header.innerText.trim().toLowerCase();
+            const normalizedCatName = normalizeCategoryName(catName);
+            
+            // Flexible matching logic for categories
+            const catLower = normalizedCatName;
+            const catSingular = catLower.endsWith('s') ? catLower.slice(0, -1) : catLower;
+            const catPlural = catLower.endsWith('s') ? catLower : catLower + 's';
+            
+            const isInQuotas = Object.keys(window.packageQuotas).some(quotaKey => {
+                const quotaLower = quotaKey.toLowerCase().trim();
+                const quotaSingular = quotaLower.endsWith('s') ? quotaLower.slice(0, -1) : quotaLower;
+                const quotaPlural = quotaLower.endsWith('s') ? quotaLower : quotaLower + 's';
+
+                return catLower === quotaLower || 
+                       catLower === quotaSingular || 
+                       catLower === quotaPlural ||
+                       quotaLower === catSingular || 
+                       quotaLower === catPlural ||
+                       (quotaLower.includes(catSingular) && catSingular.length > 3) ||
+                       (catLower.includes(quotaSingular) && quotaSingular.length > 3) ||
+                       // Specific common synonyms
+                       (quotaLower.includes('panel') && catLower.includes('backdrop')) ||
+                       (quotaLower.includes('backdrop') && catLower.includes('panel')) ||
+                       (quotaLower.includes('flower') && catLower.includes('floral')) ||
+                       (quotaLower.includes('floral') && catLower.includes('flower'));
+            });
+            
+            if (!isInQuotas) {
+                cat.style.display = 'none';
+            } else {
+                cat.style.display = 'block';
+                visibleCount++;
+            }
+        });
+
+        // Update the groups count badge
+        const groupsBadge = document.querySelector('.panel-badge');
+        if (groupsBadge) {
+            groupsBadge.textContent = `${visibleCount} groups`;
+        }
+    }
+
+    // Call it after initializing sidebar panels or accordions
+    filterAssetsByPackage();
+
+    function initSidebarPanels() {
+        const railButtons = document.querySelectorAll('.rail-btn[data-panel-target]');
+        const panels = document.querySelectorAll('.sidebar-panel');
+        if (!railButtons.length || !panels.length) return;
+
+        railButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-panel-target');
+                railButtons.forEach((node) => node.classList.toggle('active', node === btn));
+                panels.forEach((panel) => panel.classList.toggle('active', panel.id === targetId));
+                if (targetId !== 'toolsPanel') disableDrawingMode();
+            });
+        });
+    }
+
+    function initPackageSelection() {
+        const packageCards = document.querySelectorAll('.package-selection-card');
+        const cartBaseName = byId('cartBaseName');
+        const cartInclusionsArea = byId('cartInclusionsArea');
+
+        if (!packageCards.length) return;
+
+        // Pre-select the active package card if editing/re-loading
+        if (window.basePackageId) {
+            packageCards.forEach((card) => {
+                if (card.dataset.packageId === window.basePackageId) {
+                    card.classList.add('selected');
+                }
+            });
+        }
+
+        packageCards.forEach((card) => {
+            card.addEventListener('click', () => {
+                const pkgId = card.dataset.packageId;
+                const pkgName = card.dataset.packageName;
+                const pkgPrice = parseFloat(card.dataset.packagePrice || '0');
+
+                // 1. Update global state
+                window.basePackageId = pkgId;
+                window.basePackagePrice = pkgPrice;
+                if (window.allPackageQuotas && window.allPackageQuotas[pkgId]) {
+                    window.packageQuotas = window.allPackageQuotas[pkgId];
+                } else {
+                    window.packageQuotas = {};
+                }
+
+                // 2. Update UI selection
+                packageCards.forEach((c) => c.classList.remove('selected'));
+                card.classList.add('selected');
+
+                // 3. Update summary panel info
+                if (cartBaseName) cartBaseName.textContent = pkgName;
+                if (cartInclusionsArea) cartInclusionsArea.style.display = 'block';
+
+                // 4. Update asset visibility based on new quotas
+                filterAssetsByPackage();
+
+                // 5. Recalculate cart total
+                updateVisualCart();
+            });
+        });
+    }
+
+    function initCategoryAccordions() {
+        const categories = document.querySelectorAll('.inventory-category');
+        categories.forEach((category, index) => {
+            const header = category.querySelector('.category-header');
+            const lists = category.querySelectorAll('.category-items');
+            if (!header || !lists.length) return;
+
+            const initiallyOpen = category.querySelector('.category-items.open') || index === 0;
+            header.classList.toggle('is-open', !!initiallyOpen);
+            lists.forEach((list) => list.classList.toggle('open', !!initiallyOpen));
+            header.dataset.manualOpen = initiallyOpen ? 'true' : 'false';
+
+            header.addEventListener('click', () => {
+                const willOpen = !header.classList.contains('is-open');
+                header.classList.toggle('is-open', willOpen);
+                header.dataset.manualOpen = willOpen ? 'true' : 'false';
+                lists.forEach((list) => list.classList.toggle('open', willOpen));
+            });
+        });
+    }
+
+    function initAssetSearch() {
+        if (!assetSearchInput) return;
+
+        assetSearchInput.addEventListener('input', () => {
+            const query = assetSearchInput.value.trim().toLowerCase();
+            const categories = document.querySelectorAll('.inventory-category');
+
+            categories.forEach((category) => {
+                const header = category.querySelector('.category-header');
+                const lists = category.querySelectorAll('.category-items');
+                const categoryLabel = header ? header.textContent.toLowerCase() : '';
+                let categoryHasVisibleItems = false;
+
+                lists.forEach((list) => {
+                    const items = list.querySelectorAll('.draggable-item');
+                    let listHasVisibleItems = false;
+
+                    items.forEach((item) => {
+                        const title = item.getAttribute('title') || '';
+                        const text = item.dataset.text || '';
+                        const font = item.dataset.fontFamily || '';
+                        const haystack = `${title} ${text} ${font} ${categoryLabel}`.toLowerCase();
+                        const matches = !query || haystack.includes(query);
+                        item.classList.toggle('is-hidden', !matches);
+                        if (matches) listHasVisibleItems = true;
+                    });
+
+                    if (query) {
+                        list.classList.toggle('open', listHasVisibleItems);
+                    } else if (header) {
+                        list.classList.toggle('open', header.dataset.manualOpen === 'true');
+                    }
+
+                    if (listHasVisibleItems) categoryHasVisibleItems = true;
+                });
+
+                if (header && !query) {
+                    header.classList.toggle('is-open', header.dataset.manualOpen === 'true');
+                } else if (header) {
+                    header.classList.toggle('is-open', categoryHasVisibleItems);
+                }
+
+                category.classList.toggle('is-search-hidden', !categoryHasVisibleItems && !!query);
+            });
+        });
+    }
+
+    function updateDrawLabels() {
+        if (drawSizeInput && drawSizeValue) {
+            drawSizeValue.textContent = `${drawSizeInput.value}px`;
+        }
+        if (drawOpacityInput && drawOpacityValue) {
+            drawOpacityValue.textContent = `${drawOpacityInput.value}%`;
+        }
+        if (drawColorLabel) {
+            drawColorLabel.textContent =
+                currentDrawTool === 'eraser'
+                    ? `Artboard ${toHexColor(artboard?.fill || '#ffffff', '#ffffff').toUpperCase()}`
+                    : (drawColorInput?.value || '#000000').toUpperCase();
+        }
+    }
+
+    function applyDrawSettings() {
+        if (!canvas || !drawSizeInput || !drawOpacityInput) return;
+        if (!canvas.freeDrawingBrush) {
+            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        }
+
+        let width = parseInt(drawSizeInput.value, 10) || 5;
+        let opacity = (parseInt(drawOpacityInput.value, 10) || 100) / 100;
+        let color = drawColorInput?.value || '#000000';
+
+        if (currentDrawTool === 'marker') {
+            width = Math.max(width, 10);
+            opacity = Math.min(opacity, 0.45);
+        } else if (currentDrawTool === 'highlighter') {
+            width = Math.max(width, 18);
+            opacity = Math.min(opacity, 0.24);
+        } else if (currentDrawTool === 'eraser') {
+            width = Math.max(width, 12);
+            opacity = 1;
+            color = toHexColor(artboard?.fill || '#ffffff', '#ffffff');
+        }
+
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        canvas.freeDrawingBrush.width = width;
+        canvas.freeDrawingBrush.color = hexToRgba(color, opacity);
+        updateDrawLabels();
+    }
+
+    function activateDrawTool(toolName) {
+        if (!toolName) return;
+        currentDrawTool = toolName;
+        drawToolButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.drawTool === toolName));
+        canvas.discardActiveObject();
+        canvas.renderAll();
+        canvas.isDrawingMode = true;
+        canvas.selection = false;
+        canvas.defaultCursor = 'crosshair';
+        canvas.setCursor('crosshair');
+        hideContextToolbar();
+        if (selectionToolbar) {
+            selectionToolbar.classList.remove('is-visible');
+            selectionToolbar.setAttribute('aria-hidden', 'true');
+        }
+        applyDrawSettings();
+    }
+
+    function disableDrawingMode() {
+        if (!canvas.isDrawingMode) return;
+        canvas.isDrawingMode = false;
+        canvas.selection = true;
+        canvas.defaultCursor = 'default';
+        canvas.setCursor('default');
+        updateControlsState();
+    }
+
+    initSidebarPanels();
+    initPackageSelection();
+    initCategoryAccordions();
+    initAssetSearch();
+
+    function createArtboard() {
+        const rect = new fabric.Rect({
+            width: ARTBOARD_W,
+            height: ARTBOARD_H,
+            fill: '#ffffff',
+            shadow: new fabric.Shadow({
+                color: 'rgba(0, 0, 0, 0.32)',
+                blur: 28,
+                offsetX: 0,
+                offsetY: 8
+            }),
+            selectable: true,
+            evented: true,
+            hoverCursor: 'move',
+            lockMovementX: false,
+            lockMovementY: false,
+            lockRotation: true,
+            lockScalingX: true,
+            lockScalingY: true,
+            hasControls: false,
+            hasBorders: true,
+            cornerStyle: 'circle'
+        });
+        rect._isArtboard = true;
+        canvas.add(rect);
+        rect.sendToBack();
+        return rect;
+    }
+
+    artboard = createArtboard();
+
+    function syncLockState(obj, shouldLock) {
+        obj._isLocked = shouldLock;
+        obj.set({
+            lockMovementX: shouldLock,
+            lockMovementY: shouldLock,
+            lockRotation: shouldLock,
+            lockScalingX: shouldLock,
+            lockScalingY: shouldLock,
+            hasControls: !shouldLock,
+            hoverCursor: shouldLock ? 'not-allowed' : 'move',
+            opacity: shouldLock ? 0.8 : 1,
+            selectable: true,
+            evented: true
+        });
+    }
 
     function getCurrentState() {
-        return JSON.stringify(canvas.toJSON(['_isArtboard', '_isColorableSVG', '_isLocked', '_packageCategory', '_isBgImage']));
+        return JSON.stringify(
+            canvas.toJSON([
+                '_isArtboard',
+                '_isColorableSVG',
+                '_isLocked',
+                '_packageCategory',
+                '_isBgImage'
+            ])
+        );
     }
 
     function updateUndoRedoBtnState() {
@@ -58,123 +490,125 @@ document.addEventListener('DOMContentLoaded', function() {
         updateUndoRedoBtnState();
     }
 
+    function updateCanvasSizeDisplay() {
+        if (canvasSizeDisp) {
+            canvasSizeDisp.textContent = `Canvas: ${ARTBOARD_W} x ${ARTBOARD_H}`;
+        }
+        if (canvasWidthInput) canvasWidthInput.value = ARTBOARD_W;
+        if (canvasHeightInput) canvasHeightInput.value = ARTBOARD_H;
+    }
+
     function restoreCanvasState(state) {
         isLoadingState = true;
-        canvas.loadFromJSON(state, function() {
-            canvas.getObjects().forEach(obj => {
+
+        canvas.loadFromJSON(state, () => {
+            const loadedArtboard = canvas.getObjects().find((obj) => obj._isArtboard);
+            if (loadedArtboard) {
+                artboard = loadedArtboard;
+                ARTBOARD_W = Math.round(artboard.width || ARTBOARD_W);
+                ARTBOARD_H = Math.round(artboard.height || ARTBOARD_H);
+            } else {
+                artboard = createArtboard();
+            }
+
+            canvas.getObjects().forEach((obj) => {
                 if (obj._isArtboard) {
-                    obj.selectable = false;
-                    obj.evented = false;
-                }
-                if (obj._isLocked) {
                     obj.set({
-                        lockMovementX: true,
-                        lockMovementY: true,
+                        selectable: true,
+                        evented: true,
+                        lockMovementX: false,
+                        lockMovementY: false,
                         lockRotation: true,
                         lockScalingX: true,
                         lockScalingY: true,
                         hasControls: false,
-                        hoverCursor: 'not-allowed',
-                        opacity: 0.75
+                        hasBorders: true,
+                        hoverCursor: 'move'
                     });
+                    obj.sendToBack();
+                }
+                if (obj._isBgImage) {
+                    obj.selectable = false;
+                    obj.evented = false;
+                }
+                if (obj._isLocked) {
+                    syncLockState(obj, true);
                 }
             });
-            canvas.renderAll();
-            isLoadingState = false;
+
+            fitArtboardToView();
+            updateCanvasSizeDisplay();
             updateHintVisibility();
             updateControlsState();
             updateUndoRedoBtnState();
             updateVisualCart();
+            updateDrawLabels();
+
+            isLoadingState = false;
         });
     }
 
-    // ===== ARTBOARD (the white "paper") =====
-    const artboard = new fabric.Rect({
-        width: ARTBOARD_W,
-        height: ARTBOARD_H,
-        fill: '#ffffff',
-        shadow: new fabric.Shadow({
-            color: 'rgba(0,0,0,0.35)',
-            blur: 30,
-            offsetX: 0,
-            offsetY: 5
-        }),
-        selectable: false,
-        evented: false,
-        excludeFromExport: false,
-        hoverCursor: 'default',
-        rx: 0,
-        ry: 0,
-    });
-    // Tag it so we can identify it
-    artboard._isArtboard = true;
-    canvas.add(artboard);
+    function updateZoomLabel() {
+        if (!zoomLabel) return;
+        const zoomPercent = Math.round(canvas.getZoom() * 100);
+        zoomLabel.textContent = `${zoomPercent}%`;
+        if (zoomRange) zoomRange.value = `${zoomPercent}`;
+    }
 
-    // Center the artboard and set initial zoom
+    function clampPan() {
+        const zoom = canvas.getZoom();
+        const vpt = canvas.viewportTransform;
+        const canvasW = canvas.getWidth();
+        const canvasH = canvas.getHeight();
+
+        const abLeft = artboard.left * zoom + vpt[4];
+        const abTop = artboard.top * zoom + vpt[5];
+        const abRight = abLeft + ARTBOARD_W * zoom;
+        const abBottom = abTop + ARTBOARD_H * zoom;
+
+        const margin = 220;
+
+        if (abRight < margin) vpt[4] += margin - abRight;
+        if (abLeft > canvasW - margin) vpt[4] -= abLeft - (canvasW - margin);
+        if (abBottom < margin) vpt[5] += margin - abBottom;
+        if (abTop > canvasH - margin) vpt[5] -= abTop - (canvasH - margin);
+
+        canvas.setViewportTransform(vpt);
+    }
+
     function fitArtboardToView() {
-        // Calculate zoom needed to fit width and height with 5% padding
-        const zoomX = (canvas.getWidth() * 0.95) / ARTBOARD_W;
-        const zoomY = (canvas.getHeight() * 0.95) / ARTBOARD_H;
-        let zoom = Math.min(zoomX, zoomY); 
-        
-        // Clamp zoom so it doesn't get ridiculously small or large
+        const zoomX = (canvas.getWidth() * 0.9) / ARTBOARD_W;
+        const zoomY = (canvas.getHeight() * 0.9) / ARTBOARD_H;
+        let zoom = Math.min(zoomX, zoomY);
         zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
-        
+
         canvas.setZoom(zoom);
-        
-        // Calculate viewport width and height at 1x zoom
-        const vpw = canvas.getWidth();
-        const vph = canvas.getHeight();
-        
-        // Center the artboard within the unzoomed viewport dimensions
-        const abLeft = (vpw - (ARTBOARD_W * zoom)) / 2;
-        const abTop = (vph - (ARTBOARD_H * zoom)) / 2;
-        
-        artboard.set({ 
-            left: abLeft / zoom, 
-            top: abTop / zoom 
+
+        const abLeft = (canvas.getWidth() - ARTBOARD_W * zoom) / 2;
+        const abTop = (canvas.getHeight() - ARTBOARD_H * zoom) / 2;
+
+        artboard.set({
+            left: abLeft / zoom,
+            top: abTop / zoom
         });
-        
-        // Reset pan (vpt[4] and vpt[5]) to 0 when fitting
+
         const vpt = canvas.viewportTransform;
         vpt[4] = 0;
         vpt[5] = 0;
         canvas.setViewportTransform(vpt);
-        
         artboard.setCoords();
         canvas.renderAll();
         updateZoomLabel();
-    }
-    
-    // Run initial fit + load saved state if editing
-    setTimeout(() => {
-        fitArtboardToView();
-        if (window.savedCanvasJson) {
-            try {
-                const jsonStr = typeof window.savedCanvasJson === 'string'
-                    ? window.savedCanvasJson
-                    : JSON.stringify(window.savedCanvasJson);
-                restoreCanvasState(jsonStr);
-            } catch (err) {
-                console.error('Failed to load saved canvas json:', err);
-            }
-        }
-    }, 100);
-
-    // ===== ZOOM CONTROLS =====
-    const zoomLabel = document.getElementById('zoomLabel');
-    
-    function updateZoomLabel() {
-        if (zoomLabel) {
-            zoomLabel.textContent = Math.round(canvas.getZoom() * 100) + '%';
-        }
+        updateContextToolbar();
     }
 
     function zoomToPoint(point, newZoom) {
-        newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-        canvas.zoomToPoint(point, newZoom);
+        const safeZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+        canvas.zoomToPoint(point, safeZoom);
+        clampPan();
         canvas.renderAll();
         updateZoomLabel();
+        updateContextToolbar();
     }
 
     function zoomCenter(newZoom) {
@@ -182,849 +616,980 @@ document.addEventListener('DOMContentLoaded', function() {
         zoomToPoint(center, newZoom);
     }
 
-    // Zoom buttons
-    const zoomInBtn = document.getElementById('zoomInBtn');
-    const zoomOutBtn = document.getElementById('zoomOutBtn');
-    const zoomResetBtn = document.getElementById('zoomResetBtn');
-
-    if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', () => {
-            zoomCenter(canvas.getZoom() * 1.2);
-        });
-    }
-    if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', () => {
-            zoomCenter(canvas.getZoom() / 1.2);
-        });
-    }
-    if (zoomResetBtn) {
-        zoomResetBtn.addEventListener('click', () => {
-            fitArtboardToView();
-        });
+    function hideContextToolbar() {
+        if (!contextToolbar) return;
+        contextToolbar.classList.remove('is-visible');
+        contextToolbar.setAttribute('aria-hidden', 'true');
     }
 
-    // ===== PAN LIMITS — Keep artboard visible =====
-    function clampPan() {
-        const zoom = canvas.getZoom();
-        const vpt = canvas.viewportTransform;
-        const canvasW = canvas.getWidth();
-        const canvasH = canvas.getHeight();
-
-        // Artboard bounds in screen space
-        const abLeft = artboard.left * zoom + vpt[4];
-        const abTop = artboard.top * zoom + vpt[5];
-        const abRight = abLeft + ARTBOARD_W * zoom;
-        const abBottom = abTop + ARTBOARD_H * zoom;
-
-        // Allow some margin (200px) beyond the artboard edges
-        const margin = 200;
-
-        // Clamp: artboard right edge can't go further left than margin
-        if (abRight < margin) {
-            vpt[4] += (margin - abRight);
-        }
-        // Clamp: artboard left edge can't go further right than (canvasW - margin)
-        if (abLeft > canvasW - margin) {
-            vpt[4] -= (abLeft - (canvasW - margin));
-        }
-        // Clamp: artboard bottom edge can't go further up than margin
-        if (abBottom < margin) {
-            vpt[5] += (margin - abBottom);
-        }
-        // Clamp: artboard top edge can't go further down than (canvasH - margin)
-        if (abTop > canvasH - margin) {
-            vpt[5] -= (abTop - (canvasH - margin));
-        }
-
-        canvas.setViewportTransform(vpt);
-    }
-
-    // ===== SCROLL / WHEEL HANDLING (Laptop Trackpad Friendly) =====
-    // Ctrl + scroll = ZOOM
-    // Normal scroll = PAN UP/DOWN
-    // Shift + scroll = PAN LEFT/RIGHT
-    canvas.on('mouse:wheel', function(opt) {
-        const e = opt.e;
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (e.ctrlKey || e.metaKey) {
-            // === ZOOM ===
-            const delta = e.deltaY;
-            let zoom = canvas.getZoom();
-            zoom *= 0.997 ** delta;
-            zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
-            zoomToPoint(new fabric.Point(e.offsetX, e.offsetY), zoom);
-        } else if (e.shiftKey) {
-            // === PAN LEFT / RIGHT ===
-            canvas.relativePan(new fabric.Point(-e.deltaY, 0));
-        } else {
-            // === PAN UP / DOWN ===
-            canvas.relativePan(new fabric.Point(-e.deltaX, -e.deltaY));
-        }
-        clampPan();
-        canvas.renderAll();
-    });
-
-    // Pan with middle mouse button, Alt+drag, or Space+drag
-    let isPanning = false;
-    let isSpaceDown = false;
-    let lastPanPos = { x: 0, y: 0 };
-
-    // Track spacebar for Photoshop/Canva-style panning
-    document.addEventListener('keydown', function(e) {
-        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-            if (canvas.getActiveObject() && canvas.getActiveObject().isEditing) return;
-            e.preventDefault();
-            isSpaceDown = true;
-            canvas.defaultCursor = 'grab';
-            canvas.setCursor('grab');
-            canvas.selection = false;
-        }
-    });
-    document.addEventListener('keyup', function(e) {
-        if (e.code === 'Space') {
-            isSpaceDown = false;
-            canvas.defaultCursor = 'default';
-            canvas.setCursor('default');
-            canvas.selection = true;
-        }
-    });
-
-    canvas.on('mouse:down', function(opt) {
-        if (opt.e.altKey || opt.e.button === 1 || isSpaceDown) {
-            isPanning = true;
-            lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
-            canvas.selection = false;
-            canvas.defaultCursor = 'grabbing';
-            canvas.setCursor('grabbing');
-        }
-    });
-
-    canvas.on('mouse:move', function(opt) {
-        if (isPanning) {
-            const dx = opt.e.clientX - lastPanPos.x;
-            const dy = opt.e.clientY - lastPanPos.y;
-            canvas.relativePan(new fabric.Point(dx, dy));
-            clampPan();
-            lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
-        }
-    });
-
-    canvas.on('mouse:up', function(opt) {
-        if (isPanning) {
-            isPanning = false;
-            if (!isSpaceDown) {
-                canvas.selection = true;
-                canvas.defaultCursor = 'default';
-            } else {
-                canvas.defaultCursor = 'grab';
-                canvas.setCursor('grab');
-            }
-        }
-    });
-
-    // ===== HINT VISIBILITY =====
-    function updateHintVisibility() {
-        // Count non-artboard objects
-        const count = canvas.getObjects().filter(o => !o._isArtboard).length;
-        if (dropHint) {
-            if (count > 0) {
-                dropHint.style.display = 'none';
-            } else {
-                dropHint.style.display = 'block';
-            }
-        }
-        const clrBtn = document.getElementById('clearBtn');
-        if (clrBtn) clrBtn.disabled = count === 0;
-        const saveBtn = document.getElementById('saveDesignBtn');
-        if (saveBtn) saveBtn.disabled = count === 0;
-    }
-
-    // ===== WINDOW RESIZE =====
-    window.addEventListener('resize', () => {
-        canvas.setWidth(dropZone.clientWidth);
-        canvas.setHeight(dropZone.clientHeight);
-        canvas.renderAll();
-    });
-
-    // ===== DRAG AND DROP =====
-    const draggables = document.querySelectorAll('.draggable-item');
-
-    draggables.forEach(draggable => {
-        draggable.addEventListener('dragstart', (e) => {
-            const type = draggable.getAttribute('data-type');
-            const src = draggable.getAttribute('data-src');
-            const color = draggable.getAttribute('data-color');
-            const itemWidth = draggable.getAttribute('data-width');
-            const itemHeight = draggable.getAttribute('data-height');
-            const textContent = draggable.getAttribute('data-text');
-            const fontFamily = draggable.getAttribute('data-font-family');
-            
-            const itemData = {
-                type: type,
-                src: src,
-                fill: color,
-                width: itemWidth ? parseInt(itemWidth) : 0,
-                height: itemHeight ? parseInt(itemHeight) : 0,
-                text: textContent || "Text",
-                fontFamily: fontFamily || "Arial"
-            };
-            
-            e.dataTransfer.setData('text/plain', JSON.stringify(itemData));
-            e.dataTransfer.effectAllowed = 'copy';
-        });
-    });
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-        dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('drag-over');
-
-        // Convert screen coords to canvas coords (account for zoom + pan)
-        const rect = canvas.getElement().getBoundingClientRect();
-        const screenX = e.clientX - rect.left;
-        const screenY = e.clientY - rect.top;
-        
-        // Transform to Fabric.js canvas coordinates
-        const pointer = canvas.restorePointerVpt(new fabric.Point(screenX, screenY));
-
-        const itemDataStr = e.dataTransfer.getData('text/plain');
-        if (!itemDataStr) return;
-
-        try {
-            const itemData = JSON.parse(itemDataStr);
-            addShapeToCanvas(itemData, pointer);
-        } catch (err) {
-            console.error("Error parsing dragged item data:", err);
-        }
-    });
-
-    // ===== ADD SHAPES / IMAGES =====
-    function addShapeToCanvas(data, pointer) {
-        const commonOptions = {
-            left: pointer.x,
-            top: pointer.y,
-            originX: 'center',
-            originY: 'center',
-            transparentCorners: false,
-            cornerColor: '#ffffff',
-            cornerStrokeColor: '#333',
-            borderColor: '#3b82f6',
-            cornerSize: 10,
-            padding: 5,
-            cornerStyle: 'circle',
-        };
-
-        if (data.type === 'image') {
-            fabric.loadSVGFromURL(data.src, function(objects, options) {
-                if (!objects || !objects.length) return;
-                const validObjects = objects.filter(o => o);
-                const svgGroup = fabric.util.groupSVGElements(validObjects, options);
-                
-                if (data.width && data.height) {
-                    const scaleX = data.width / svgGroup.width;
-                    const scaleY = data.height / svgGroup.height;
-                    const scale = Math.min(scaleX, scaleY);
-                    svgGroup.scale(scale);
-                } else {
-                    const maxDim = 150;
-                    const scale = maxDim / Math.max(svgGroup.width, svgGroup.height);
-                    svgGroup.scale(scale);
-                }
-
-                svgGroup.set(commonOptions);
-                svgGroup._isColorableSVG = true;
-                svgGroup._packageCategory = getCategoryFromSrc(data.src);
-                
-                canvas.add(svgGroup);
-                canvas.setActiveObject(svgGroup);
-                canvas.renderAll();
-                updateHintVisibility();
-                updateVisualCart();
-            });
+    function updateContextToolbar() {
+        if (!contextToolbar) return;
+        const active = canvas.getActiveObject();
+        if (!active || active._isArtboard) {
+            hideContextToolbar();
             return;
-        } 
-        
-        let newObj;
-
-        if (data.type === 'i-text') {
-            newObj = new fabric.IText(data.text, {
-                ...commonOptions,
-                fontFamily: data.fontFamily,
-                fill: data.fill || '#333333',
-                fontSize: 40,
-                fontWeight: 'bold',
-                shadow: new fabric.Shadow({
-                    color: 'rgba(0,0,0,0.2)',
-                    blur: 5,
-                    offsetX: 2,
-                    offsetY: 2
-                })
-            });
         }
-        else if (data.type === 'rect') {
-            newObj = new fabric.Rect({
-                ...commonOptions,
-                fill: data.fill,
-                width: data.width || 150,
-                height: data.height || 150,
-                rx: 4,
-                ry: 4,
-                opacity: 0.95
-            });
-        } 
 
-        if (newObj) {
-            newObj._packageCategory = 'custom';
-            canvas.add(newObj);
-            canvas.setActiveObject(newObj);
-            canvas.renderAll();
-            updateHintVisibility();
-            updateVisualCart();
+        const bounds = active.getBoundingRect(true, true);
+        if (!bounds) {
+            hideContextToolbar();
+            return;
         }
+
+        const centerX = bounds.left + bounds.width / 2;
+        const topY = Math.max(18, bounds.top - 10);
+
+        const clampedX = Math.max(18, Math.min(dropZone.clientWidth - 18, centerX));
+        const clampedY = Math.max(18, topY);
+
+        contextToolbar.style.left = `${clampedX}px`;
+        contextToolbar.style.top = `${clampedY}px`;
+        contextToolbar.classList.add('is-visible');
+        contextToolbar.setAttribute('aria-hidden', 'false');
     }
 
-    function getCategoryFromSrc(src) {
-        if (!src) return 'custom';
-        src = src.toLowerCase();
-        if (src.includes('arch')) return 'arch';
-        if (src.includes('backdrop')) return 'backdrop';
-        if (src.includes('plinth')) return 'plinths';
-        if (src.includes('balloon')) return 'balloons';
-        if (src.includes('flower') || src.includes('floral') || src.includes('fern')) return 'florals';
-        if (src.includes('neon')) return 'neon';
-        return 'custom';
+    function updateHintVisibility() {
+        const count = canvas.getObjects().filter((obj) => !obj._isArtboard).length;
+
+        if (dropHint) dropHint.style.display = count > 0 ? 'none' : 'grid';
+        if (clearBtn) clearBtn.disabled = count === 0;
+        if (saveDesignBtn) saveDesignBtn.disabled = count === 0;
     }
 
-    // ===== CANVAS CONTROLS =====
-    const cloneBtn = document.getElementById('cloneBtn');
-    const lockBtn = document.getElementById('lockBtn');
-    const layerUpBtn = document.getElementById('layerUpBtn');
-    const layerDownBtn = document.getElementById('layerDownBtn');
-    const toFrontBtn = document.getElementById('toFrontBtn');
-    const toBackBtn = document.getElementById('toBackBtn');
-    const flipXBtn = document.getElementById('flipXBtn');
-    const flipYBtn = document.getElementById('flipYBtn');
-    const skewLeftBtn = document.getElementById('skewLeftBtn');
-    const skewRightBtn = document.getElementById('skewRightBtn');
-    const deleteBtn = document.getElementById('deleteBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const saveDesignBtn = document.getElementById('saveDesignBtn');
-    const itemColorPicker = document.getElementById('itemColorPicker');
-
-    // Helper to identify outline strokes vs solid fills
     function isOutlineColor(colorStr) {
         if (!colorStr || colorStr === 'none' || colorStr === 'transparent') return false;
-        const c = colorStr.toLowerCase();
-        return (c === '#000000' || c === '#222222' || c === 'black' || c === '#333333' || c === '#111111');
+        const value = colorStr.toLowerCase();
+        return (
+            value === '#000000' ||
+            value === '#111111' ||
+            value === '#222222' ||
+            value === '#333333' ||
+            value === 'black'
+        );
     }
 
-    if (itemColorPicker) {
-        itemColorPicker.addEventListener('input', (e) => {
-            const newColor = e.target.value;
-            const activeObjs = canvas.getActiveObjects();
-            if (activeObjs.length === 0) return;
-            
-            activeObjs.forEach(obj => {
-                if (obj.type === 'i-text' || obj.type === 'rect') {
-                    obj.set('fill', newColor);
-                } else if (obj._isColorableSVG) {
-                    // SVG might be a Group (has _objects) or a single shape
-                    const shapes = obj._objects ? obj._objects : [obj];
-                    shapes.forEach(path => {
-                        if (path.fill && !isOutlineColor(path.fill)) {
-                            path.set('fill', newColor);
-                        }
-                    });
-                    obj.dirty = true;
-                }
-            });
-            canvas.renderAll();
+    function getSelectableActiveObjects() {
+        return canvas.getActiveObjects().filter((obj) => !obj._isArtboard);
+    }
+
+    function getSingleActiveObject() {
+        const active = getSelectableActiveObjects();
+        return active.length === 1 ? active[0] : null;
+    }
+
+    function getActiveTextObjects() {
+        return getSelectableActiveObjects().filter(
+            (obj) => obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox'
+        );
+    }
+
+    function setTextButtonState(btn, active) {
+        if (!btn) return;
+        btn.classList.toggle('is-active', !!active);
+    }
+
+    function updateTextControlsUI() {
+        const textObjects = getActiveTextObjects();
+        const hasTextSelection = textObjects.length > 0;
+
+        textActionButtons.forEach((btn) => {
+            btn.disabled = !hasTextSelection;
         });
+        if (fontFamilySelect) fontFamilySelect.disabled = !hasTextSelection;
+        if (fontSizeInput) fontSizeInput.disabled = !hasTextSelection;
+
+        if (!hasTextSelection) {
+            setTextButtonState(textBoldBtn, false);
+            setTextButtonState(textItalicBtn, false);
+            setTextButtonState(textUnderlineBtn, false);
+            setTextButtonState(textAlignLeftBtn, false);
+            setTextButtonState(textAlignCenterBtn, false);
+            setTextButtonState(textAlignRightBtn, false);
+            return;
+        }
+
+        const first = textObjects[0];
+        if (fontFamilySelect) fontFamilySelect.value = first.fontFamily || '';
+        if (fontSizeInput) fontSizeInput.value = Math.round(first.fontSize || 40);
+
+        setTextButtonState(textBoldBtn, first.fontWeight === 'bold' || Number(first.fontWeight) >= 600);
+        setTextButtonState(textItalicBtn, first.fontStyle === 'italic');
+        setTextButtonState(textUnderlineBtn, !!first.underline);
+        setTextButtonState(textAlignLeftBtn, (first.textAlign || 'left') === 'left');
+        setTextButtonState(textAlignCenterBtn, first.textAlign === 'center');
+        setTextButtonState(textAlignRightBtn, first.textAlign === 'right');
+    }
+
+    function updateElementSizeInputs() {
+        const active = getSingleActiveObject();
+        if (!active) {
+            if (elemWidthInput) elemWidthInput.value = 0;
+            if (elemHeightInput) elemHeightInput.value = 0;
+            return;
+        }
+        if (elemWidthInput) elemWidthInput.value = Math.round(active.getScaledWidth());
+        if (elemHeightInput) elemHeightInput.value = Math.round(active.getScaledHeight());
     }
 
     function updateControlsState() {
-        const activeObjs = canvas.getActiveObjects().filter(o => !o._isArtboard);
+        const activeObjs = getSelectableActiveObjects();
         const hasSelection = activeObjs.length > 0;
         const singleObj = activeObjs.length === 1 ? activeObjs[0] : null;
-        const isLocked = !!(singleObj && singleObj._isLocked);
+        const hasUnlockedSelection = activeObjs.some((obj) => !obj._isLocked);
+        const allLocked = hasSelection && activeObjs.every((obj) => obj._isLocked);
+        const hasTextSelection = getActiveTextObjects().length > 0;
 
-        cloneBtn.disabled = !hasSelection || isLocked;
+        if (selectionToolbar) {
+            selectionToolbar.classList.toggle('is-visible', hasSelection && !canvas.isDrawingMode);
+            selectionToolbar.setAttribute('aria-hidden', hasSelection && !canvas.isDrawingMode ? 'false' : 'true');
+            selectionToolbar.dataset.selectionType = hasTextSelection ? 'text' : hasSelection ? 'object' : 'none';
+        }
+        if (!hasSelection) hideContextToolbar();
+
+        if (cloneBtn) cloneBtn.disabled = !hasSelection || allLocked;
         if (lockBtn) lockBtn.disabled = !hasSelection;
-        layerUpBtn.disabled = !hasSelection || isLocked;
-        layerDownBtn.disabled = !hasSelection || isLocked;
-        if (toFrontBtn) toFrontBtn.disabled = !hasSelection || isLocked;
-        if (toBackBtn) toBackBtn.disabled = !hasSelection || isLocked;
-        if (flipXBtn) flipXBtn.disabled = !hasSelection || isLocked;
-        if (flipYBtn) flipYBtn.disabled = !hasSelection || isLocked;
-        if (skewLeftBtn) skewLeftBtn.disabled = !hasSelection || isLocked;
-        if (skewRightBtn) skewRightBtn.disabled = !hasSelection || isLocked;
-        deleteBtn.disabled = !hasSelection;
+        if (layerUpBtn) layerUpBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (layerDownBtn) layerDownBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (toFrontBtn) toFrontBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (toBackBtn) toBackBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (flipXBtn) flipXBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (flipYBtn) flipYBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (skewLeftBtn) skewLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (skewRightBtn) skewRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (deleteBtn) deleteBtn.disabled = !hasSelection;
 
         if (lockBtn) {
             const lockIcon = lockBtn.querySelector('i');
-            if (lockIcon) {
-                lockIcon.className = isLocked ? 'fas fa-lock' : 'fas fa-lock-open';
-            }
+            if (lockIcon) lockIcon.className = allLocked ? 'fas fa-lock' : 'fas fa-lock-open';
+        }
+        if (contextLockBtn) {
+            const contextIcon = contextLockBtn.querySelector('i');
+            if (contextIcon) contextIcon.className = allLocked ? 'fas fa-lock' : 'fas fa-lock-open';
         }
 
         if (itemColorPicker) {
             itemColorPicker.disabled = !hasSelection;
-            if (activeObjs.length === 1) {
-                const obj = activeObjs[0];
-                if (obj.type === 'i-text' || obj.type === 'rect') {
-                    itemColorPicker.value = obj.fill || '#000000';
-                } else if (obj._isColorableSVG) {
-                    let foundColor = '#ffffff';
-                    const shapes = obj._objects ? obj._objects : [obj];
-                    for (let path of shapes) {
-                        if (path.fill && !isOutlineColor(path.fill) && path.fill !== 'transparent' && path.fill !== 'none') {
+            if (singleObj) {
+                if (singleObj._currentColor) {
+                    itemColorPicker.value = toHexColor(singleObj._currentColor, '#111111');
+                } else if (singleObj.type === 'path') {
+                    itemColorPicker.value = toHexColor(singleObj.stroke || singleObj.fill || '#111111', '#111111');
+                } else if (singleObj.type === 'i-text' || singleObj.type === 'text' || singleObj.type === 'textbox' || singleObj.type === 'rect') {
+                    itemColorPicker.value = toHexColor(singleObj.fill || '#111111', '#111111');
+                } else if (singleObj._isColorableSVG) {
+                    const shapes = singleObj._objects ? singleObj._objects : [singleObj];
+                    let foundColor = '#111111';
+                    for (const shape of shapes) {
+                        if (shape.fill && !isOutlineColor(shape.fill) && shape.fill !== 'none') {
                             try {
-                                const hex = new fabric.Color(path.fill).toHex();
-                                if (hex) foundColor = '#' + hex;
-                            } catch(e) {}
+                                const hex = new fabric.Color(shape.fill).toHex();
+                                if (hex) foundColor = `#${hex}`;
+                            } catch (error) {
+                                foundColor = '#111111';
+                            }
                             break;
                         }
                     }
-                    if (foundColor.length === 4) { // handle #abc
-                        foundColor = '#' + foundColor[1]+foundColor[1] + foundColor[2]+foundColor[2] + foundColor[3]+foundColor[3];
-                    }
-                    if (foundColor.length === 7) {
-                        itemColorPicker.value = foundColor;
-                    }
+                    itemColorPicker.value = foundColor;
                 }
+            }
+        }
+
+        updateElementSizeInputs();
+        updateTextControlsUI();
+        updateContextToolbar();
+    }
+
+    function getArtboardCenterPoint() {
+        return {
+            x: artboard.left + ARTBOARD_W / 2,
+            y: artboard.top + ARTBOARD_H / 2
+        };
+    }
+
+    function getCategoryFromSrc(src) {
+        if (!src) return 'custom';
+        const value = src.toLowerCase();
+        if (value.includes('arch')) return 'arch';
+        if (value.includes('backdrop')) return 'backdrop';
+        if (value.includes('plinth')) return 'plinths';
+        if (value.includes('balloon')) return 'balloons';
+        if (value.includes('flower') || value.includes('floral') || value.includes('fern')) return 'florals';
+        if (value.includes('neon')) return 'neon';
+        return 'custom';
+    }
+
+    function applyColorToObject(obj, color) {
+        if (!obj || !color) return;
+
+        const normalizedCat = normalizeCategoryName(obj._packageCategory);
+        const isBalloon = normalizedCat === 'balloons' || normalizedCat === 'balloon';
+
+        if (isBalloon) {
+            // Check if applying this color would exceed the unique color limit
+            const potentialColors = getUniqueBalloonColors(obj, color);
+            const limit = window.packageQuotas ? (window.packageQuotas.balloon_color_limit || 2) : 2;
+            
+            if (potentialColors.length > limit) {
+                handleColorUpgrade(limit);
+                return; // RESTRICT: Do not apply the color
+            }
+            lastBalloonColor = color; // Track last balloon color
+        }
+
+        obj._currentColor = color;
+
+        if (obj.type === 'path') {
+            obj.set('stroke', color);
+        } else if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox' || obj.type === 'rect') {
+            obj.set('fill', color);
+        } else if (obj._isColorableSVG) {
+            const shapes = obj._objects ? obj._objects : [obj];
+            shapes.forEach((shape) => {
+                if (shape.fill && !isOutlineColor(shape.fill)) {
+                    shape.set('fill', color);
+                }
+            });
+            obj.dirty = true;
+        } else if (obj.type === 'image' || obj instanceof fabric.Image) {
+            // Apply color filter to raster images
+            obj.filters = [
+                new fabric.Image.filters.BlendColor({
+                    color: color,
+                    mode: 'multiply',
+                    alpha: 1
+                })
+            ];
+            obj.applyFilters();
+        } else if (obj.fill && obj.fill !== 'none') {
+            obj.set('fill', color);
+        }
+    }
+
+    function getUniqueBalloonColors(pendingObj = null, pendingColor = null) {
+        const balloons = canvas.getObjects().filter((obj) => {
+            const cat = normalizeCategoryName(obj._packageCategory);
+            return (cat === 'balloons' || cat === 'balloon') && !obj._isArtboard && !obj._isBgImage;
+        });
+        const colors = new Set();
+        balloons.forEach((obj) => {
+            let colorToProcess;
+            if (obj === pendingObj && pendingColor) {
+                colorToProcess = pendingColor;
             } else {
-                itemColorPicker.value = '#ffffff';
+                colorToProcess = obj._currentColor || (typeof obj.fill === 'string' ? obj.fill : null);
+            }
+
+            if (colorToProcess && typeof colorToProcess === 'string') {
+                const fillLower = colorToProcess.toLowerCase();
+                // Ignore the "transparent" placeholder colors
+                if (fillLower !== 'rgba(255, 255, 255, 0.2)' && fillLower !== 'rgba(255, 255, 255, 0.1)' && fillLower !== 'transparent' && fillLower !== 'none' && !fillLower.startsWith('url')) {
+                    colors.add(fillLower);
+                }
+            }
+        });
+        return Array.from(colors);
+    }
+
+    function isSvgSource(src) {
+        if (!src || typeof src !== 'string') return false;
+        const normalized = src.toLowerCase();
+        return (
+            normalized.includes('.svg') ||
+            normalized.startsWith('data:image/svg+xml') ||
+            normalized.includes('image/svg+xml')
+        );
+    }
+
+    function addRasterImage(data, pointer) {
+        fabric.Image.fromURL(
+            data.src,
+            (img) => {
+                if (!img) return;
+                const desiredW = data.width || 180;
+                const desiredH = data.height || 180;
+                const scale = Math.min(desiredW / img.width, desiredH / img.height);
+                applyObjectControlStyle(img).set({
+                    left: pointer.x,
+                    top: pointer.y,
+                    originX: 'center',
+                    originY: 'center',
+                    scaleX: scale,
+                    scaleY: scale
+                });
+                img._packageCategory = data.category || 'custom';
+                if (data.fill) {
+                    applyColorToObject(img, data.fill);
+                }
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                canvas.renderAll();
+                updateHintVisibility();
+                updateVisualCart();
+            },
+            { crossOrigin: 'anonymous' }
+        );
+    }
+
+    function addSvgImage(data, pointer) {
+        fabric.loadSVGFromURL(data.src, (objects, options) => {
+            if (!objects || !objects.length) {
+                addRasterImage(data, pointer);
+                return;
+            }
+
+            const validObjects = objects.filter(Boolean);
+            const grouped = fabric.util.groupSVGElements(validObjects, options);
+            const desiredW = data.width || 180;
+            const desiredH = data.height || 180;
+            const scale = Math.min(desiredW / grouped.width, desiredH / grouped.height);
+
+            applyObjectControlStyle(grouped).set({
+                left: pointer.x,
+                top: pointer.y,
+                originX: 'center',
+                originY: 'center',
+                scaleX: scale,
+                scaleY: scale
+            });
+            grouped._isColorableSVG = true;
+            grouped._packageCategory = data.category || 'custom';
+            if (data.fill) {
+                applyColorToObject(grouped, data.fill);
+            }
+            canvas.add(grouped);
+            canvas.setActiveObject(grouped);
+            canvas.renderAll();
+            updateHintVisibility();
+            updateVisualCart();
+        });
+    }
+
+    function addShapeToCanvas(data, pointer) {
+        const point = pointer || getArtboardCenterPoint();
+
+        // 1. Validation: Check if we are over the limit for package inclusions
+        if (window.packageQuotas) {
+            const category = (data.category || 'custom').toLowerCase();
+            if (!checkQuota(category)) return;
+
+            // Check balloon color limit when adding
+            if (category === 'balloons' || category === 'balloon') {
+                // If the user has already picked a color, use it as the default for new drags
+                if (lastBalloonColor) {
+                    data.fill = lastBalloonColor;
+                } else {
+                    // Otherwise, make it transparent as a placeholder
+                    data.fill = 'rgba(255, 255, 255, 0.2)';
+                }
+            }
+        }
+
+        if (data.type === 'image' && data.src) {
+            if (isSvgSource(data.src)) addSvgImage(data, point);
+            else addRasterImage(data, point);
+            return;
+        }
+
+        const commonOptions = {
+            left: point.x,
+            top: point.y,
+            originX: 'center',
+            originY: 'center',
+            ...objectControlStyle
+        };
+
+        let obj = null;
+        if (data.type === 'i-text') {
+            obj = new fabric.IText(data.text || 'Your text', {
+                ...commonOptions,
+                fill: data.fill || '#111111',
+                fontFamily: data.fontFamily || 'Montserrat',
+                fontSize: data.fontSize || 42,
+                fontWeight: 'bold'
+            });
+        } else if (data.type === 'rect') {
+            obj = new fabric.Rect({
+                ...commonOptions,
+                width: data.width || 160,
+                height: data.height || 160,
+                fill: data.fill || '#202020',
+                rx: 6,
+                ry: 6
+            });
+        }
+
+        if (!obj) return;
+        obj._packageCategory = data.category || 'custom';
+        canvas.add(obj);
+        canvas.setActiveObject(obj);
+        canvas.renderAll();
+        updateHintVisibility();
+        updateVisualCart();
+    }
+
+    function checkQuota(category) {
+        if (!window.packageQuotas) return true;
+        
+        const normalized = normalizeCategoryName(category);
+        if (normalized === 'custom') return true;
+
+        let quotaKey = null;
+        if (window.packageQuotas[normalized]) {
+            quotaKey = normalized;
+        } else {
+            const singular = normalized.endsWith('s') ? normalized.slice(0, -1) : normalized;
+            const plural = normalized.endsWith('s') ? normalized : normalized + 's';
+            
+            if (window.packageQuotas[singular]) quotaKey = singular;
+            else if (window.packageQuotas[plural]) quotaKey = plural;
+        }
+
+        if (quotaKey) {
+            const limit = window.packageQuotas[quotaKey];
+            const currentCount = canvas.getObjects().filter(obj => 
+                (obj._packageCategory === quotaKey || normalizeCategoryName(obj._packageCategory) === quotaKey) 
+                && !obj._isArtboard && !obj._isBgImage
+            ).length;
+
+            if (currentCount >= limit) {
+                // If it's a panel, show upgrade modal
+                if (quotaKey === 'panels' || quotaKey === 'panel' || quotaKey === 'backdrop' || quotaKey === 'backdrops') {
+                    handlePackageUpgrade(quotaKey, limit);
+                } else {
+                    showToast(`Limit reached for ${quotaKey}. You can only have ${limit} ${quotaKey}(s) in this package.`, 'error');
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function handlePackageUpgrade(quotaKey, currentLimit) {
+        const upgradeModal = byId('upgradeModal');
+        const upgradeMessage = byId('upgradeModalMessage');
+        const confirmBtn = byId('confirmUpgradeBtn');
+        const cancelBtn = byId('cancelUpgradeBtn');
+
+        if (!upgradeModal || !upgradeMessage || !confirmBtn || !cancelBtn) return;
+
+        // Find a package that allows more of this quotaKey
+        const currentPrice = window.basePackagePrice || 0;
+        const allPackages = JSON.parse(document.getElementById('allPackagesData').textContent || '[]');
+        
+        // Filter packages that have a higher limit for this quotaKey and are more expensive
+        let nextPackage = null;
+        for (const pkg of allPackages) {
+            const pkgQuotas = window.allPackageQuotas[pkg.id] || {};
+            const pkgLimit = pkgQuotas[quotaKey] || 0;
+            
+            if (pkgLimit > currentLimit && parseFloat(pkg.price) > currentPrice) {
+                if (!nextPackage || parseFloat(pkg.price) < parseFloat(nextPackage.price)) {
+                    nextPackage = pkg;
+                }
+            }
+        }
+
+        if (nextPackage) {
+            upgradeMessage.innerHTML = `You've used all <strong>${currentLimit} ${quotaKey}(s)</strong> included in your current package. <br><br>Upgrade to <strong>${nextPackage.name}</strong> (P${nextPackage.price}) to use up to <strong>${window.allPackageQuotas[nextPackage.id][quotaKey]} ${quotaKey}(s)</strong>?`;
+            
+            upgradeModal.style.display = 'flex';
+
+            const onConfirm = () => {
+                applyPackage(nextPackage.id);
+                upgradeModal.style.display = 'none';
+                showToast(`Upgraded to ${nextPackage.name}!`, 'success');
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            const onCancel = () => {
+                upgradeModal.style.display = 'none';
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+        } else {
+            showToast(`Limit reached for ${quotaKey}. No higher package available.`, 'error');
+        }
+    }
+
+    function handleColorUpgrade(currentLimit) {
+        const upgradeModal = byId('upgradeModal');
+        const upgradeMessage = byId('upgradeModalMessage');
+        const confirmBtn = byId('confirmUpgradeBtn');
+        const cancelBtn = byId('cancelUpgradeBtn');
+
+        if (!upgradeModal || !upgradeMessage || !confirmBtn || !cancelBtn) return;
+
+        const currentPrice = window.basePackagePrice || 0;
+        const allPackages = JSON.parse(document.getElementById('allPackagesData').textContent || '[]');
+        
+        let nextPackage = null;
+        for (const pkg of allPackages) {
+            const pkgQuotas = window.allPackageQuotas[pkg.id] || {};
+            const pkgColorLimit = pkgQuotas.balloon_color_limit || 0;
+            
+            if (pkgColorLimit > currentLimit && parseFloat(pkg.price) > currentPrice) {
+                if (!nextPackage || parseFloat(pkg.price) < parseFloat(nextPackage.price)) {
+                    nextPackage = pkg;
+                }
+            }
+        }
+
+        if (nextPackage) {
+            upgradeMessage.innerHTML = `You've used all <strong>${currentLimit} colors</strong> for balloons included in your current package. <br><br>Upgrade to <strong>${nextPackage.name}</strong> (P${nextPackage.price}) to use up to <strong>${window.allPackageQuotas[nextPackage.id].balloon_color_limit} colors</strong>?`;
+            
+            upgradeModal.style.display = 'flex';
+
+            const onConfirm = () => {
+                applyPackage(nextPackage.id);
+                upgradeModal.style.display = 'none';
+                showToast(`Upgraded to ${nextPackage.name}!`, 'success');
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            const onCancel = () => {
+                upgradeModal.style.display = 'none';
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+        } else {
+            showToast(`Color limit reached. No higher package available with more colors.`, 'error');
+        }
+    }
+
+    function applyPackage(pkgId) {
+        const packageCards = document.querySelectorAll('.package-selection-card');
+        const targetCard = Array.from(packageCards).find(card => card.dataset.packageId == pkgId);
+        
+        if (targetCard) {
+            targetCard.click(); // Use the existing logic
+        } else {
+            // Fallback if card not found (though it should be)
+            const allPackages = JSON.parse(document.getElementById('allPackagesData').textContent || '[]');
+            const pkg = allPackages.find(p => p.id == pkgId);
+            if (pkg) {
+                window.basePackageId = pkg.id;
+                window.basePackagePrice = parseFloat(pkg.price);
+                window.packageQuotas = window.allPackageQuotas[pkg.id] || {};
+                
+                const cartBaseName = byId('cartBaseName');
+                if (cartBaseName) cartBaseName.textContent = pkg.name;
+                
+                filterAssetsByPackage();
+                updateVisualCart();
             }
         }
     }
 
-    canvas.on('selection:created', updateControlsState);
-    canvas.on('selection:updated', updateControlsState);
-    canvas.on('selection:cleared', updateControlsState);
+    function normalizeCategoryName(cat) {
+        if (!cat) return 'custom';
+        return cat.toLowerCase().trim();
+    }
 
-    // Layer Controls
-    layerUpBtn.addEventListener('click', () => {
-        const activeObj = canvas.getActiveObject();
-        if (activeObj && !activeObj._isArtboard) {
+    function showToast(message, type = 'info') {
+        // Simple toast implementation or use existing one if available
+        // Based on the UI, it seems there's no built-in toast, but I can alert for now
+        // or check if there's a toast container.
+        const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }, 100);
+    }
+
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function bindDraggableItem(item) {
+        if (!item) return;
+        item.addEventListener('dragstart', (event) => {
+            const payload = {
+                type: item.getAttribute('data-type') || 'image',
+                category: item.getAttribute('data-category') || 'custom',
+                src: item.getAttribute('data-src') || '',
+                fill: item.getAttribute('data-color') || '',
+                width: parseInt(item.getAttribute('data-width') || '0', 10),
+                height: parseInt(item.getAttribute('data-height') || '0', 10),
+                text: item.getAttribute('data-text') || 'Text',
+                fontFamily: item.getAttribute('data-font-family') || 'Montserrat'
+            };
+
+            event.dataTransfer.setData('text/plain', JSON.stringify(payload));
+            event.dataTransfer.effectAllowed = 'copy';
+        });
+    }
+
+    document.querySelectorAll('.draggable-item').forEach(bindDraggableItem);
+    updateDrawLabels();
+
+    drawToolButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            activateDrawTool(btn.dataset.drawTool || 'pen');
+        });
+    });
+
+    if (disableDrawBtn) {
+        disableDrawBtn.addEventListener('click', () => {
+            disableDrawingMode();
+        });
+    }
+
+    if (drawColorInput) {
+        drawColorInput.addEventListener('input', () => {
+            updateDrawLabels();
+            if (canvas.isDrawingMode && currentDrawTool !== 'eraser') applyDrawSettings();
+        });
+    }
+
+    if (drawSizeInput) {
+        drawSizeInput.addEventListener('input', () => {
+            applyDrawSettings();
+        });
+    }
+
+    if (drawOpacityInput) {
+        drawOpacityInput.addEventListener('input', () => {
+            applyDrawSettings();
+        });
+    }
+
+    dropZone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropZone.classList.add('drag-over');
+        event.dataTransfer.dropEffect = 'copy';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('drag-over');
+
+        const raw = event.dataTransfer.getData('text/plain');
+        if (!raw) return;
+
+        try {
+            const data = JSON.parse(raw);
+            const pointer = canvas.getPointer(event);
+            addShapeToCanvas(data, pointer);
+        } catch (error) {
+            console.error('Error while dropping item:', error);
+        }
+    });
+
+    function deleteSelectedObjects() {
+        const selected = getSelectableActiveObjects();
+        if (!selected.length) return;
+
+        saveState();
+        canvas.discardActiveObject();
+        selected.forEach((obj) => canvas.remove(obj));
+        canvas.renderAll();
+        updateHintVisibility();
+        updateVisualCart();
+        updateControlsState();
+    }
+
+    function toggleLockSelection() {
+        const selected = getSelectableActiveObjects();
+        if (!selected.length) return;
+
+        const shouldLock = selected.some((obj) => !obj._isLocked);
+        saveState();
+        selected.forEach((obj) => syncLockState(obj, shouldLock));
+        canvas.renderAll();
+        updateControlsState();
+    }
+
+    if (layerUpBtn) {
+        layerUpBtn.addEventListener('click', () => {
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
             saveState();
-            activeObj.bringForward();
+            selected.forEach((obj) => obj.bringForward());
             canvas.renderAll();
-        }
-    });
+            updateContextToolbar();
+        });
+    }
 
-    layerDownBtn.addEventListener('click', () => {
-        const activeObj = canvas.getActiveObject();
-        if (activeObj && !activeObj._isArtboard) {
-            // Don't send behind the artboard
-            const idx = canvas.getObjects().indexOf(activeObj);
-            if (idx > 1) {
-                saveState();
-                activeObj.sendBackwards();
-                canvas.renderAll();
-            }
-        }
-    });
+    if (layerDownBtn) {
+        layerDownBtn.addEventListener('click', () => {
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => {
+                const index = canvas.getObjects().indexOf(obj);
+                if (index > 1) obj.sendBackwards();
+            });
+            canvas.renderAll();
+            updateContextToolbar();
+        });
+    }
 
     if (toFrontBtn) {
         toFrontBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (activeObj && !activeObj._isArtboard && !activeObj._isLocked) {
-                saveState();
-                canvas.bringToFront(activeObj);
-                canvas.renderAll();
-            }
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => canvas.bringToFront(obj));
+            canvas.renderAll();
+            updateContextToolbar();
         });
     }
 
     if (toBackBtn) {
         toBackBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (activeObj && !activeObj._isArtboard && !activeObj._isLocked) {
-                saveState();
-                canvas.sendToBack(activeObj);
-                canvas.moveTo(activeObj, 1);
-                canvas.renderAll();
-            }
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => {
+                canvas.sendToBack(obj);
+                canvas.moveTo(obj, 1);
+            });
+            canvas.renderAll();
+            updateContextToolbar();
         });
     }
 
     if (flipXBtn) {
         flipXBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (activeObj && !activeObj._isArtboard && !activeObj._isLocked) {
-                saveState();
-                activeObj.set('flipX', !activeObj.flipX);
-                canvas.renderAll();
-            }
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => obj.set('flipX', !obj.flipX));
+            canvas.renderAll();
         });
     }
 
     if (flipYBtn) {
         flipYBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (activeObj && !activeObj._isArtboard && !activeObj._isLocked) {
-                saveState();
-                activeObj.set('flipY', !activeObj.flipY);
-                canvas.renderAll();
-            }
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => obj.set('flipY', !obj.flipY));
+            canvas.renderAll();
         });
     }
 
     if (skewLeftBtn) {
         skewLeftBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (activeObj && !activeObj._isArtboard && !activeObj._isLocked) {
-                saveState();
-                activeObj.set('skewX', (activeObj.skewX || 0) - 5);
-                canvas.renderAll();
-            }
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => obj.set('skewX', (obj.skewX || 0) - 5));
+            canvas.renderAll();
         });
     }
 
     if (skewRightBtn) {
         skewRightBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (activeObj && !activeObj._isArtboard && !activeObj._isLocked) {
-                saveState();
-                activeObj.set('skewX', (activeObj.skewX || 0) + 5);
-                canvas.renderAll();
-            }
+            const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+            if (!selected.length) return;
+            saveState();
+            selected.forEach((obj) => obj.set('skewX', (obj.skewX || 0) + 5));
+            canvas.renderAll();
         });
     }
 
     if (lockBtn) {
         lockBtn.addEventListener('click', () => {
-            const activeObj = canvas.getActiveObject();
-            if (!activeObj || activeObj._isArtboard) return;
-            saveState();
+            toggleLockSelection();
+        });
+    }
 
-            if (activeObj._isLocked) {
-                activeObj._isLocked = false;
-                activeObj.set({
-                    selectable: true,
-                    evented: true,
-                    lockMovementX: false,
-                    lockMovementY: false,
-                    lockRotation: false,
-                    lockScalingX: false,
-                    lockScalingY: false,
-                    hasControls: true,
-                    hoverCursor: 'move',
-                    opacity: 1
-                });
-            } else {
-                activeObj._isLocked = true;
-                activeObj.set({
-                    lockMovementX: true,
-                    lockMovementY: true,
-                    lockRotation: true,
-                    lockScalingX: true,
-                    lockScalingY: true,
-                    hasControls: false,
-                    hoverCursor: 'not-allowed',
-                    opacity: 0.75
-                });
-            }
+    if (cloneBtn) {
+        cloneBtn.addEventListener('click', () => {
+            const activeObj = getSingleActiveObject();
+            if (!activeObj || activeObj._isLocked) return;
 
-            canvas.renderAll();
-            updateControlsState();
+            // Check quota before cloning
+            if (!checkQuota(activeObj._packageCategory || 'custom')) return;
+
+            activeObj.clone((cloned) => {
+                saveState();
+                canvas.discardActiveObject();
+                cloned.set({
+                    left: activeObj.left + 22,
+                    top: activeObj.top + 22,
+                    evented: true
+                });
+                canvas.add(cloned);
+                canvas.setActiveObject(cloned);
+                canvas.renderAll();
+                updateHintVisibility();
+                updateVisualCart();
+                updateControlsState();
+            });
+        });
+    }
+
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', deleteSelectedObjects);
+    }
+
+    if (contextDuplicateBtn) {
+        contextDuplicateBtn.addEventListener('click', () => {
+            if (cloneBtn && !cloneBtn.disabled) cloneBtn.click();
+        });
+    }
+    if (contextLockBtn) {
+        contextLockBtn.addEventListener('click', () => {
+            if (lockBtn && !lockBtn.disabled) lockBtn.click();
+        });
+    }
+    if (contextBringFrontBtn) {
+        contextBringFrontBtn.addEventListener('click', () => {
+            if (toFrontBtn && !toFrontBtn.disabled) toFrontBtn.click();
+        });
+    }
+    if (contextDeleteBtn) {
+        contextDeleteBtn.addEventListener('click', () => {
+            deleteSelectedObjects();
         });
     }
 
     if (undoBtn) {
         undoBtn.addEventListener('click', () => {
-            if (undoStack.length === 0) return;
+            if (!undoStack.length) return;
             redoStack.push(getCurrentState());
-            const prev = undoStack.pop();
-            restoreCanvasState(prev);
+            const previous = undoStack.pop();
+            restoreCanvasState(previous);
         });
     }
 
     if (redoBtn) {
         redoBtn.addEventListener('click', () => {
-            if (redoStack.length === 0) return;
+            if (!redoStack.length) return;
             undoStack.push(getCurrentState());
             const next = redoStack.pop();
             restoreCanvasState(next);
         });
     }
 
-    // Clone
-    cloneBtn.addEventListener('click', () => {
-        const activeObj = canvas.getActiveObject();
-        if (!activeObj || activeObj._isArtboard) return;
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            const objects = canvas.getObjects().filter((obj) => !obj._isArtboard);
+            if (!objects.length) return;
+            if (!confirm('Clear all objects from the canvas?')) return;
 
-        if (canvas.getActiveObjects().length > 1) {
-            alert("Please clone one item at a time.");
-            return;
-        }
-
-        activeObj.clone((cloned) => {
             saveState();
+            objects.forEach((obj) => canvas.remove(obj));
             canvas.discardActiveObject();
-            cloned.set({
-                left: cloned.left + 20,
-                top: cloned.top + 20,
-                evented: true,
-            });
-            if (cloned.type === 'activeSelection') {
-                cloned.canvas = canvas;
-                cloned.forEachObject((obj) => canvas.add(obj));
-                cloned.setCoords();
-            } else {
-                canvas.add(cloned);
-            }
-            canvas.setActiveObject(cloned);
-            canvas.renderAll();
-        });
-    });
-
-    // Delete
-    function deleteSelectedObjects() {
-        const activeObjects = canvas.getActiveObjects().filter(o => !o._isArtboard);
-        if (activeObjects.length) {
-            saveState();
-            canvas.discardActiveObject();
-            activeObjects.forEach(function(object) {
-                canvas.remove(object);
-            });
             canvas.renderAll();
             updateHintVisibility();
             updateVisualCart();
-        }
+            updateControlsState();
+        });
     }
 
-    deleteBtn.addEventListener('click', deleteSelectedObjects);
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        
-        // Editing text (IText) — don't intercept
-        if (canvas.getActiveObject() && canvas.getActiveObject().isEditing) return;
-        
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-            e.preventDefault();
-            deleteSelectedObjects();
-        }
-        
-        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-            e.preventDefault();
-            cloneBtn.click();
-        }
-
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-            e.preventDefault();
-            if (undoBtn) undoBtn.click();
-        }
-
-        if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-            e.preventDefault();
-            if (redoBtn) redoBtn.click();
-        }
-
-        // Zoom shortcuts
-        if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
-            e.preventDefault();
-            zoomCenter(canvas.getZoom() * 1.2);
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-            e.preventDefault();
-            zoomCenter(canvas.getZoom() / 1.2);
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-            e.preventDefault();
-            fitArtboardToView();
-        }
-    });
-
-    // Clear Canvas
-    clearBtn.addEventListener('click', () => {
-        const nonArtboard = canvas.getObjects().filter(o => !o._isArtboard);
-        if (nonArtboard.length === 0) return;
-        if (confirm("Are you sure you want to clear the entire canvas?")) {
-            saveState();
-            nonArtboard.forEach(obj => canvas.remove(obj));
-            canvas.discardActiveObject();
-            canvas.renderAll();
-            updateHintVisibility();
-            updateVisualCart();
-        }
-    });
-
-    // ===== SAVE DESIGN (backend save + thumbnail) =====
-    saveDesignBtn.addEventListener('click', async () => {
-        const nonArtboard = canvas.getObjects().filter(o => !o._isArtboard);
-        if (nonArtboard.length === 0) {
-            alert("The canvas is empty. Add some elements first!");
-            return;
-        }
-
-        canvas.discardActiveObject();
-        canvas.renderAll();
-
-        const currentVpt = canvas.viewportTransform.slice();
-        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-        canvas.renderAll();
-
-        const dataURL = canvas.toDataURL({
-            format: 'png',
-            quality: 0.8,
-            multiplier: 2,
-            left: artboard.left,
-            top: artboard.top,
-            width: ARTBOARD_W,
-            height: ARTBOARD_H,
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => zoomCenter(canvas.getZoom() * 1.2));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => zoomCenter(canvas.getZoom() / 1.2));
+    if (zoomResetBtn) zoomResetBtn.addEventListener('click', () => fitArtboardToView());
+    if (zoomRange) {
+        zoomRange.addEventListener('input', () => {
+            zoomCenter((parseInt(zoomRange.value, 10) || 100) / 100);
         });
+    }
 
-        canvas.setViewportTransform(currentVpt);
-        canvas.renderAll();
+    if (itemColorPicker) {
+        itemColorPicker.addEventListener('input', (event) => {
+            const selected = getSelectableActiveObjects();
+            if (!selected.length) return;
+            selected.forEach((obj) => applyColorToObject(obj, event.target.value));
+            canvas.renderAll();
+        });
+        itemColorPicker.addEventListener('change', () => saveState());
+    }
 
-        const jsonState = getCurrentState();
-        let designName = 'My Balloon Setup';
-        if (!window.currentDesignId) {
-            const userPrompt = prompt('Enter a name for your design:', 'My Balloon Setup');
-            if (userPrompt === null) return;
-            if (userPrompt.trim() !== '') designName = userPrompt.trim();
-        } else {
-            designName = '';
-        }
-
-        const originalText = saveDesignBtn.innerHTML;
-        saveDesignBtn.innerHTML = '<i class=\"fas fa-spinner fa-spin\"></i> Saving...';
-        saveDesignBtn.disabled = true;
-
-        try {
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ?
-                document.querySelector('[name=csrfmiddlewaretoken]').value : '';
-
-            const payload = {
-                id: window.currentDesignId || null,
-                name: designName,
-                canvas_json: jsonState,
-                thumbnail: dataURL
-            };
-
-            const response = await fetch('/my-designs/save/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-            if (data.status === 'success') {
-                alert('Design saved successfully!');
-                window.location.href = '/my-designs/';
-            } else {
-                alert('Error saving design: ' + data.message);
-                saveDesignBtn.innerHTML = originalText;
-                saveDesignBtn.disabled = false;
-            }
-        } catch (error) {
-            console.error('Save error:', error);
-            alert('Network error. Could not save design.');
-            saveDesignBtn.innerHTML = originalText;
-            saveDesignBtn.disabled = false;
-        }
-    });
-
-    // Save state for undo/redo and keep UI synced
-    canvas.on('object:added', (e) => {
-        if (!isLoadingState && e.target && !e.target._isArtboard) {
-            saveState();
-            updateHintVisibility();
-            updateVisualCart();
-        }
-    });
-
-    canvas.on('object:modified', (e) => {
-        if (!isLoadingState && e.target && !e.target._isArtboard) {
-            saveState();
-            updateVisualCart();
-        }
-    });
-
-    // Sidebar color swatches
-    document.querySelectorAll('.color-swatch').forEach(swatch => {
+    document.querySelectorAll('.color-swatch').forEach((swatch) => {
         swatch.addEventListener('click', () => {
             const color = swatch.dataset.color;
-            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.color-swatch').forEach((node) => node.classList.remove('active'));
             swatch.classList.add('active');
 
-            const active = canvas.getActiveObject();
-            if (active && !active._isArtboard) {
-                if (active._isColorableSVG && active._objects) {
-                    active._objects.forEach(obj => obj.set('fill', color));
-                } else {
-                    active.set('fill', color);
-                }
+            const selected = getSelectableActiveObjects();
+            if (selected.length) {
+                selected.forEach((obj) => applyColorToObject(obj, color));
             } else {
                 artboard.set('fill', color);
             }
             canvas.renderAll();
+            if (canvas.isDrawingMode) applyDrawSettings();
             saveState();
         });
     });
 
     if (customCanvasColor) {
-        customCanvasColor.addEventListener('input', (e) => {
-            const color = e.target.value;
-            const active = canvas.getActiveObject();
-            if (active && !active._isArtboard) {
-                if (active._isColorableSVG && active._objects) {
-                    active._objects.forEach(obj => obj.set('fill', color));
-                } else {
-                    active.set('fill', color);
-                }
+        customCanvasColor.addEventListener('input', (event) => {
+            const color = event.target.value;
+            const selected = getSelectableActiveObjects();
+            if (selected.length) {
+                selected.forEach((obj) => applyColorToObject(obj, color));
             } else {
                 artboard.set('fill', color);
             }
             canvas.renderAll();
+            if (canvas.isDrawingMode) applyDrawSettings();
         });
         customCanvasColor.addEventListener('change', () => saveState());
     }
 
-    // Background image upload/remove
     if (bgImageUpload) {
-        bgImageUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
+        bgImageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
             if (!file) return;
+
             const reader = new FileReader();
-            reader.onload = (ev) => {
-                fabric.Image.fromURL(ev.target.result, (img) => {
-                    const scaleX = ARTBOARD_W / img.width;
-                    const scaleY = ARTBOARD_H / img.height;
-                    const scale = Math.max(scaleX, scaleY);
+            reader.onload = (loadEvent) => {
+                fabric.Image.fromURL(loadEvent.target.result, (img) => {
+                    if (!img) return;
+
+                    const scale = Math.max(ARTBOARD_W / img.width, ARTBOARD_H / img.height);
                     img.set({
                         left: artboard.left,
                         top: artboard.top,
+                        originX: 'left',
+                        originY: 'top',
                         scaleX: scale,
                         scaleY: scale,
                         selectable: false,
                         evented: false,
                         _isBgImage: true
                     });
-                    canvas.getObjects().forEach(o => {
-                        if (o._isBgImage) canvas.remove(o);
+
+                    canvas.getObjects().forEach((obj) => {
+                        if (obj._isBgImage) canvas.remove(obj);
                     });
                     canvas.insertAt(img, 1);
                     canvas.renderAll();
                     saveState();
+                    updateHintVisibility();
                 });
             };
             reader.readAsDataURL(file);
@@ -1034,180 +1599,644 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (removeBgImage) {
         removeBgImage.addEventListener('click', () => {
-            canvas.getObjects().forEach(o => {
-                if (o._isBgImage) canvas.remove(o);
+            const hasBg = canvas.getObjects().some((obj) => obj._isBgImage);
+            if (!hasBg) return;
+            saveState();
+            canvas.getObjects().forEach((obj) => {
+                if (obj._isBgImage) canvas.remove(obj);
             });
             canvas.renderAll();
-            saveState();
+            updateHintVisibility();
         });
     }
 
-    // Element size W/H controls
-    function updateElemSizeInputs() {
-        const active = canvas.getActiveObject();
-        if (active && !active._isArtboard) {
-            if (elemWidthInput) elemWidthInput.value = Math.round(active.getScaledWidth());
-            if (elemHeightInput) elemHeightInput.value = Math.round(active.getScaledHeight());
-        } else {
-            if (elemWidthInput) elemWidthInput.value = 0;
-            if (elemHeightInput) elemHeightInput.value = 0;
-        }
+    function applyElemWidth() {
+        const active = getSingleActiveObject();
+        if (!active || active._isLocked || !elemWidthInput) return;
+        const newWidth = parseInt(elemWidthInput.value, 10) || 1;
+        saveState();
+        active.scaleX = newWidth / active.width;
+        active.setCoords();
+        canvas.renderAll();
+        updateContextToolbar();
     }
-    canvas.on('selection:created', updateElemSizeInputs);
-    canvas.on('selection:updated', updateElemSizeInputs);
-    canvas.on('selection:cleared', updateElemSizeInputs);
-    canvas.on('object:scaling', updateElemSizeInputs);
+
+    function applyElemHeight() {
+        const active = getSingleActiveObject();
+        if (!active || active._isLocked || !elemHeightInput) return;
+        const newHeight = parseInt(elemHeightInput.value, 10) || 1;
+        saveState();
+        active.scaleY = newHeight / active.height;
+        active.setCoords();
+        canvas.renderAll();
+        updateContextToolbar();
+    }
 
     if (elemWidthInput) {
-        const applyElemWidth = () => {
-            const active = canvas.getActiveObject();
-            if (!active || active._isArtboard) return;
-            const newW = parseInt(elemWidthInput.value, 10) || 1;
-            active.scaleX = newW / active.width;
-            active.setCoords();
-            canvas.renderAll();
-            saveState();
-        };
         elemWidthInput.addEventListener('change', applyElemWidth);
-        elemWidthInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyElemWidth(); });
+        elemWidthInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') applyElemWidth();
+        });
     }
 
     if (elemHeightInput) {
-        const applyElemHeight = () => {
-            const active = canvas.getActiveObject();
-            if (!active || active._isArtboard) return;
-            const newH = parseInt(elemHeightInput.value, 10) || 1;
-            active.scaleY = newH / active.height;
-            active.setCoords();
-            canvas.renderAll();
-            saveState();
-        };
         elemHeightInput.addEventListener('change', applyElemHeight);
-        elemHeightInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyElemHeight(); });
-    }
-
-    // Canvas size footer controls
-    if (applySizeBtn && canvasWidthInput && canvasHeightInput) {
-        applySizeBtn.addEventListener('click', () => {
-            const newW = parseInt(canvasWidthInput.value, 10) || ARTBOARD_W;
-            const newH = parseInt(canvasHeightInput.value, 10) || ARTBOARD_H;
-            if (newW < 100 || newH < 100 || newW > 5000 || newH > 5000) {
-                alert('Canvas size must be between 100 and 5000.');
-                return;
-            }
-            ARTBOARD_W = newW;
-            ARTBOARD_H = newH;
-            artboard.set({ width: ARTBOARD_W, height: ARTBOARD_H });
-            artboard.setCoords();
-            if (canvasSizeDisp) canvasSizeDisp.textContent = `Canvas: ${ARTBOARD_W} × ${ARTBOARD_H}`;
-            fitArtboardToView();
-            saveState();
+        elemHeightInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') applyElemHeight();
         });
     }
 
-    // User uploads
-    const userUploadInput = document.getElementById('userUploadInput');
-    const userUploadsGrid = document.getElementById('userUploadsGrid');
+    function applyToActiveTextObjects(mutator) {
+        const textObjects = getActiveTextObjects().filter((obj) => !obj._isLocked);
+        if (!textObjects.length) return;
+        saveState();
+        textObjects.forEach(mutator);
+        canvas.renderAll();
+        updateTextControlsUI();
+    }
+
+    if (fontFamilySelect) {
+        fontFamilySelect.addEventListener('change', () => {
+            const font = fontFamilySelect.value;
+            if (!font) return;
+            applyToActiveTextObjects((obj) => obj.set('fontFamily', font));
+        });
+    }
+
+    if (fontSizeInput) {
+        const applyFontSize = () => {
+            const size = parseInt(fontSizeInput.value, 10);
+            if (!size || size < 8) return;
+            applyToActiveTextObjects((obj) => obj.set('fontSize', size));
+        };
+        fontSizeInput.addEventListener('change', applyFontSize);
+        fontSizeInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') applyFontSize();
+        });
+    }
+
+    if (textBoldBtn) {
+        textBoldBtn.addEventListener('click', () => {
+            applyToActiveTextObjects((obj) => {
+                const isBold = obj.fontWeight === 'bold' || Number(obj.fontWeight) >= 600;
+                obj.set('fontWeight', isBold ? 'normal' : 'bold');
+            });
+        });
+    }
+
+    if (textItalicBtn) {
+        textItalicBtn.addEventListener('click', () => {
+            applyToActiveTextObjects((obj) => obj.set('fontStyle', obj.fontStyle === 'italic' ? 'normal' : 'italic'));
+        });
+    }
+
+    if (textUnderlineBtn) {
+        textUnderlineBtn.addEventListener('click', () => {
+            applyToActiveTextObjects((obj) => obj.set('underline', !obj.underline));
+        });
+    }
+
+    if (textAlignLeftBtn) {
+        textAlignLeftBtn.addEventListener('click', () => {
+            applyToActiveTextObjects((obj) => obj.set('textAlign', 'left'));
+        });
+    }
+    if (textAlignCenterBtn) {
+        textAlignCenterBtn.addEventListener('click', () => {
+            applyToActiveTextObjects((obj) => obj.set('textAlign', 'center'));
+        });
+    }
+    if (textAlignRightBtn) {
+        textAlignRightBtn.addEventListener('click', () => {
+            applyToActiveTextObjects((obj) => obj.set('textAlign', 'right'));
+        });
+    }
+
+    function addQuickTextToCanvas() {
+        const textValue = (quickTextInput && quickTextInput.value ? quickTextInput.value : '').trim() || 'Your text';
+        addShapeToCanvas(
+            {
+                type: 'i-text',
+                text: textValue,
+                fill: '#111111',
+                fontFamily: fontFamilySelect && fontFamilySelect.value ? fontFamilySelect.value : 'Montserrat',
+                fontSize: fontSizeInput ? parseInt(fontSizeInput.value, 10) || 42 : 42
+            },
+            getArtboardCenterPoint()
+        );
+    }
+
+    if (addTextBtn) addTextBtn.addEventListener('click', addQuickTextToCanvas);
+    if (quickTextInput) {
+        quickTextInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addQuickTextToCanvas();
+            }
+        });
+    }
+
+    if (applySizeBtn && canvasWidthInput && canvasHeightInput) {
+        applySizeBtn.addEventListener('click', () => {
+            const nextW = parseInt(canvasWidthInput.value, 10) || ARTBOARD_W;
+            const nextH = parseInt(canvasHeightInput.value, 10) || ARTBOARD_H;
+            if (nextW < 100 || nextH < 100 || nextW > 5000 || nextH > 5000) {
+                alert('Canvas size must be between 100 and 5000 pixels.');
+                return;
+            }
+
+            saveState();
+            ARTBOARD_W = nextW;
+            ARTBOARD_H = nextH;
+
+            artboard.set({
+                width: ARTBOARD_W,
+                height: ARTBOARD_H
+            });
+            artboard.setCoords();
+
+            canvas.getObjects().forEach((obj) => {
+                if (!obj._isBgImage) return;
+                const scale = Math.max(ARTBOARD_W / obj.width, ARTBOARD_H / obj.height);
+                obj.set({
+                    left: artboard.left,
+                    top: artboard.top,
+                    originX: 'left',
+                    originY: 'top',
+                    scaleX: scale,
+                    scaleY: scale
+                });
+            });
+
+            updateCanvasSizeDisplay();
+            fitArtboardToView();
+            canvas.renderAll();
+        });
+    }
+
     if (userUploadInput && userUploadsGrid) {
-        userUploadInput.addEventListener('change', (e) => {
-            Array.from(e.target.files).forEach(file => {
+        userUploadInput.addEventListener('change', (event) => {
+            Array.from(event.target.files).forEach((file) => {
                 if (!file.type.startsWith('image/')) return;
                 const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const dataUrl = ev.target.result;
-                    const div = document.createElement('div');
-                    div.className = 'draggable-item';
-                    div.draggable = true;
-                    div.dataset.type = 'image';
-                    div.dataset.src = dataUrl;
-                    div.dataset.width = '150';
-                    div.dataset.height = '150';
-                    div.title = file.name;
-                    div.innerHTML = `<div class=\"item-preview-img-wrapper\"><img class=\"item-preview-img\" src=\"${dataUrl}\" alt=\"${file.name}\"></div>`;
-                    div.addEventListener('dragstart', (de) => {
-                        de.dataTransfer.setData('text/plain', JSON.stringify({
-                            type: 'image',
-                            src: dataUrl,
-                            width: 150,
-                            height: 150
-                        }));
-                    });
-                    userUploadsGrid.appendChild(div);
+                reader.onload = (loadEvent) => {
+                    const dataUrl = loadEvent.target.result;
+                    const node = document.createElement('div');
+                    node.className = 'draggable-item';
+                    node.draggable = true;
+                    node.dataset.type = 'image';
+                    node.dataset.src = dataUrl;
+                    node.dataset.width = '180';
+                    node.dataset.height = '180';
+                    node.title = file.name;
+                    node.innerHTML = `<div class="item-preview-img-wrapper"><img class="item-preview-img" src="${dataUrl}" alt="${file.name}"></div>`;
+                    bindDraggableItem(node);
+                    userUploadsGrid.prepend(node);
                 };
                 reader.readAsDataURL(file);
             });
+
             userUploadInput.value = '';
         });
     }
 
+    if (saveDesignBtn) {
+        saveDesignBtn.addEventListener('click', async () => {
+            const nonArtboard = canvas.getObjects().filter((obj) => !obj._isArtboard);
+            if (!nonArtboard.length) {
+                alert('The canvas is empty. Add some elements first.');
+                return;
+            }
+
+            canvas.discardActiveObject();
+            canvas.renderAll();
+
+            const originalVpt = canvas.viewportTransform.slice();
+            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            canvas.renderAll();
+
+            const thumbnail = canvas.toDataURL({
+                format: 'png',
+                quality: 0.8,
+                multiplier: 2,
+                left: artboard.left,
+                top: artboard.top,
+                width: ARTBOARD_W,
+                height: ARTBOARD_H
+            });
+
+            canvas.setViewportTransform(originalVpt);
+            canvas.renderAll();
+
+            let designName = 'My Balloon Setup';
+            if (!window.currentDesignId) {
+                const prompted = prompt('Enter a name for your design:', 'My Balloon Setup');
+                if (prompted === null) return;
+                if (prompted.trim()) designName = prompted.trim();
+            } else {
+                designName = '';
+            }
+
+            const originalHtml = saveDesignBtn.innerHTML;
+            saveDesignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveDesignBtn.disabled = true;
+
+            try {
+                const csrfTokenNode = document.querySelector('[name=csrfmiddlewaretoken]');
+                const csrfToken = csrfTokenNode ? csrfTokenNode.value : '';
+
+                const response = await fetch('/my-designs/save/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        id: window.currentDesignId || null,
+                        name: designName,
+                        canvas_json: getCurrentState(),
+                        thumbnail: thumbnail,
+                        base_package_id: window.basePackageId || null
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert('Design saved successfully!');
+                    window.location.href = '/my-designs/';
+                    return;
+                }
+
+                alert(`Error saving design: ${result.message || 'Unknown error'}`);
+            } catch (error) {
+                console.error('Save error:', error);
+                alert('Network error. Could not save design.');
+            } finally {
+                saveDesignBtn.innerHTML = originalHtml;
+                saveDesignBtn.disabled = false;
+            }
+        });
+    }
+
     function getAddonPrice(category) {
-        let matchKey = Object.keys(window.addonPrices || {}).find(k => k.toLowerCase().includes(category));
+        const matchKey = Object.keys(window.addonPrices || {}).find((key) =>
+            key.toLowerCase().includes(category)
+        );
         if (matchKey && window.addonPrices[matchKey]) return parseFloat(window.addonPrices[matchKey]);
-        const fallback = { arch: 1500, backdrop: 2000, plinths: 500, balloons: 15, florals: 800, neon: 1200, custom: 100 };
+
+        const fallback = {
+            arch: 1500,
+            backdrop: 2000,
+            plinths: 500,
+            balloons: 15,
+            florals: 800,
+            neon: 1200,
+            custom: 100
+        };
         return fallback[category] || 100;
     }
 
     function generateCartLabel(category) {
-        const labels = { arch: 'Arch Frame', backdrop: 'Backdrop', plinths: 'Plinth', balloons: 'Balloon', florals: 'Floral', neon: 'Neon Sign' };
-        return labels[category] || 'Custom Item';
+        // Capitalize first letter
+        if (!category) return 'Custom Item';
+        return category.charAt(0).toUpperCase() + category.slice(1);
     }
 
     function updateVisualCart() {
         if (!cartAddonsList || !cartTotalPrice) return;
-        const objects = canvas.getObjects().filter(o => !o._isArtboard && !o._isBgImage);
+
+        const objects = canvas.getObjects().filter((obj) => !obj._isArtboard && !obj._isBgImage);
         const counts = {};
-        objects.forEach(obj => {
-            const cat = obj._packageCategory || 'custom';
-            counts[cat] = (counts[cat] || 0) + 1;
+        objects.forEach((obj) => {
+            const category = normalizeCategoryName(obj._packageCategory || 'custom');
+            counts[category] = (counts[category] || 0) + 1;
         });
 
         if (cartInclusionsList) cartInclusionsList.innerHTML = '';
         cartAddonsList.innerHTML = '';
 
-        let totalAddonPrice = 0;
+        let totalAddonPrice = window.basePackagePrice || 0;
         let hasAddons = false;
+
         if (window.basePackageId && window.packageQuotas) {
-            Object.keys(window.packageQuotas).forEach(cat => {
-                const limit = window.packageQuotas[cat] || 0;
-                const used = counts[cat] || 0;
+            Object.keys(window.packageQuotas).forEach((quotaKey) => {
+                if (quotaKey === 'balloon_color_limit') return; // Skip color limit in the summary list
+                
+                const limit = window.packageQuotas[quotaKey] || 0;
+                
+                // Find count for this quotaKey, considering singular/plural and partial matches
+                let used = 0;
+                const quotaLower = quotaKey.toLowerCase().trim();
+                const quotaSingular = quotaLower.endsWith('s') ? quotaLower.slice(0, -1) : quotaLower;
+                const quotaPlural = quotaLower.endsWith('s') ? quotaLower : quotaLower + 's';
+                
+                Object.keys(counts).forEach(catKey => {
+                    const catLower = catKey.toLowerCase().trim();
+                    const catSingular = catLower.endsWith('s') ? catLower.slice(0, -1) : catLower;
+                    const catPlural = catLower.endsWith('s') ? catLower : catLower + 's';
+
+                    // Flexible matching logic
+                    const isMatch = 
+                        catLower === quotaLower || 
+                        catLower === quotaSingular || 
+                        catLower === quotaPlural ||
+                        quotaLower === catSingular || 
+                        quotaLower === catPlural ||
+                        (quotaLower.includes(catSingular) && catSingular.length > 3) ||
+                        (catLower.includes(quotaSingular) && quotaSingular.length > 3) ||
+                        // Specific common synonyms
+                        (quotaLower.includes('panel') && catLower.includes('backdrop')) ||
+                        (quotaLower.includes('backdrop') && catLower.includes('panel')) ||
+                        (quotaLower.includes('flower') && catLower.includes('floral')) ||
+                        (quotaLower.includes('floral') && catLower.includes('flower'));
+
+                    if (isMatch) {
+                        used += counts[catKey];
+                        delete counts[catKey];
+                    }
+                });
+
                 if (cartInclusionsList) {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<span>${generateCartLabel(cat)}</span> <span>${Math.min(used, limit)} / ${limit}</span>`;
-                    cartInclusionsList.appendChild(li);
+                    const inclusionNode = document.createElement('li');
+                    const isChecked = limit === -1 || used >= limit;
+                    
+                    let statusHtml = '';
+                    if (limit === -1) {
+                        statusHtml = 'Included';
+                    } else {
+                        const displayLimit = limit >= 999 ? '∞' : limit;
+                        const displayUsed = limit >= 999 ? used : Math.min(used, limit);
+                        statusHtml = `${displayUsed} / ${displayLimit}`;
+                    }
+                    
+                    let nameHtml = generateCartLabel(quotaKey);
+                    
+                    // Display non-numeric inclusions more cleanly
+                    if (limit === -1) {
+                        // If it's a long text inclusion, just use it as is or title case it
+                        nameHtml = quotaKey.length > 20 ? quotaKey : generateCartLabel(quotaKey);
+                    }
+
+                    if (quotaKey === 'balloons' || quotaKey === 'balloon') {
+                        const colorLimit = window.packageQuotas.balloon_color_limit || 2;
+                        nameHtml += ` <small style="display:block; font-size:0.7rem; color:var(--editor-text-soft); font-weight:normal;">(Max ${colorLimit} colors)</small>`;
+                    }
+                    
+                    inclusionNode.innerHTML = `
+                        <div class="inclusion-item ${isChecked ? 'checked' : ''}">
+                            <span class="inclusion-name">${nameHtml}</span>
+                            <span class="inclusion-status">${statusHtml}</span>
+                        </div>
+                    `;
+                    cartInclusionsList.appendChild(inclusionNode);
                 }
-                if (used > limit) {
+
+                if (limit !== -1 && used > limit && limit < 999) {
                     const excess = used - limit;
-                    const cost = excess * getAddonPrice(cat);
+                    const cost = excess * getAddonPrice(quotaKey);
                     totalAddonPrice += cost;
                     hasAddons = true;
-                    const addLi = document.createElement('li');
-                    addLi.innerHTML = `<span>Extra ${generateCartLabel(cat)} (x${excess})</span> <span>P${cost.toFixed(2)}</span>`;
-                    cartAddonsList.appendChild(addLi);
+
+                    const addonNode = document.createElement('li');
+                    addonNode.innerHTML = `<span>Extra ${generateCartLabel(quotaKey)} (x${excess})</span> <span>P${cost.toFixed(2)}</span>`;
+                    cartAddonsList.appendChild(addonNode);
                 }
-                delete counts[cat];
             });
         }
 
-        Object.keys(counts).forEach(cat => {
-            const used = counts[cat];
-            if (used <= 0) return;
-            const cost = used * getAddonPrice(cat);
+        Object.keys(counts).forEach((category) => {
+            const used = counts[category];
+            if (used <= 0 || category === 'custom') return;
+
+            const price = getAddonPrice(category);
+            if (price <= 0) return;
+
+            const cost = used * price;
             totalAddonPrice += cost;
             hasAddons = true;
-            const addLi = document.createElement('li');
-            addLi.innerHTML = `<span>${generateCartLabel(cat)} (x${used})</span> <span>P${cost.toFixed(2)}</span>`;
-            cartAddonsList.appendChild(addLi);
+
+            const addonNode = document.createElement('li');
+            addonNode.innerHTML = `<span>${generateCartLabel(category)} (x${used})</span> <span>P${cost.toFixed(2)}</span>`;
+            cartAddonsList.appendChild(addonNode);
         });
 
         if (!hasAddons) {
-            cartAddonsList.innerHTML = '<li class=\"empty-list\" style=\"color:#666;font-style:italic;\">No extra items yet.</li>';
+            cartAddonsList.innerHTML = '<li class="empty-list" style="color:#98a2b3;font-style:italic;">No extra items yet.</li>';
         }
         cartTotalPrice.textContent = `P${totalAddonPrice.toFixed(2)}`;
     }
 
-    // Initial visibility
+    canvas.on('object:added', (event) => {
+        const obj = event.target;
+        if (obj && obj._isArtboard) {
+            obj.sendToBack();
+        } else {
+            // Ensure artboards are always at the back
+            canvas.getObjects().forEach(o => {
+                if (o._isArtboard) o.sendToBack();
+            });
+        }
+
+        if (obj && obj.type === 'path') {
+            obj._packageCategory = 'custom';
+            obj.set({
+                fill: '',
+                strokeLineCap: 'round',
+                strokeLineJoin: 'round'
+            });
+            applyObjectControlStyle(obj);
+        }
+
+        if (!isLoadingState && obj && !obj._isArtboard) {
+            saveState();
+            updateHintVisibility();
+            updateVisualCart();
+            updateControlsState();
+        }
+    });
+
+    canvas.on('mouse:wheel', (opt) => {
+        const event = opt.e;
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Always zoom on wheel scroll, never pan.
+        // This "locks" the view from accidental panning while allowing the user 
+        // to move the artboard manually as an object.
+        let zoom = canvas.getZoom();
+        zoom *= 0.997 ** event.deltaY;
+        zoomToPoint(new fabric.Point(event.offsetX, event.offsetY), zoom);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space' && event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
+            if (canvas.getActiveObject() && canvas.getActiveObject().isEditing) return;
+            event.preventDefault();
+            isSpaceDown = true;
+            canvas.defaultCursor = 'grab';
+            canvas.setCursor('grab');
+            canvas.selection = false;
+        }
+    });
+
+    document.addEventListener('keyup', (event) => {
+        if (event.code === 'Space') {
+            isSpaceDown = false;
+            canvas.defaultCursor = 'default';
+            canvas.setCursor('default');
+            canvas.selection = true;
+        }
+    });
+
+    canvas.on('mouse:down', (opt) => {
+        if (opt.e.altKey || opt.e.button === 1 || isSpaceDown) {
+            isPanning = true;
+            lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
+            canvas.selection = false;
+            canvas.defaultCursor = 'grabbing';
+            canvas.setCursor('grabbing');
+        }
+    });
+
+    canvas.on('mouse:move', (opt) => {
+        if (!isPanning) return;
+        const dx = opt.e.clientX - lastPanPos.x;
+        const dy = opt.e.clientY - lastPanPos.y;
+        canvas.relativePan(new fabric.Point(dx, dy));
+        clampPan();
+        lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
+        updateContextToolbar();
+    });
+
+    canvas.on('mouse:up', () => {
+        if (!isPanning) return;
+        isPanning = false;
+        if (!isSpaceDown) {
+            canvas.selection = true;
+            canvas.defaultCursor = 'default';
+        } else {
+            canvas.defaultCursor = 'grab';
+            canvas.setCursor('grab');
+        }
+    });
+
+    canvas.on('selection:created', updateControlsState);
+    canvas.on('selection:updated', updateControlsState);
+    canvas.on('selection:cleared', updateControlsState);
+
+    canvas.on('object:modified', (event) => {
+        if (!isLoadingState && event.target && !event.target._isArtboard) {
+            saveState();
+            updateVisualCart();
+            updateControlsState();
+        }
+    });
+
+    canvas.on('object:scaling', () => {
+        updateElementSizeInputs();
+        updateContextToolbar();
+    });
+    canvas.on('object:moving', updateContextToolbar);
+    canvas.on('object:rotating', updateContextToolbar);
+
+    document.addEventListener('keydown', (event) => {
+        const tag = (event.target.tagName || '').toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (canvas.getActiveObject() && canvas.getActiveObject().isEditing) return;
+
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+            event.preventDefault();
+            deleteSelectedObjects();
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+            event.preventDefault();
+            if (cloneBtn && !cloneBtn.disabled) cloneBtn.click();
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            if (undoBtn && !undoBtn.disabled) undoBtn.click();
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+            event.preventDefault();
+            if (redoBtn && !redoBtn.disabled) redoBtn.click();
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && (event.key === '=' || event.key === '+')) {
+            event.preventDefault();
+            zoomCenter(canvas.getZoom() * 1.2);
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key === '-') {
+            event.preventDefault();
+            zoomCenter(canvas.getZoom() / 1.2);
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key === '0') {
+            event.preventDefault();
+            fitArtboardToView();
+            return;
+        }
+
+        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        if (!arrowKeys.includes(event.key)) return;
+
+        const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+        if (!selected.length) return;
+        event.preventDefault();
+
+        const step = event.shiftKey ? 10 : 1;
+        saveState();
+
+        selected.forEach((obj) => {
+            if (event.key === 'ArrowUp') obj.top -= step;
+            if (event.key === 'ArrowDown') obj.top += step;
+            if (event.key === 'ArrowLeft') obj.left -= step;
+            if (event.key === 'ArrowRight') obj.left += step;
+            obj.setCoords();
+        });
+
+        canvas.renderAll();
+        updateContextToolbar();
+    });
+
+    window.addEventListener('resize', () => {
+        canvas.setWidth(dropZone.clientWidth);
+        canvas.setHeight(dropZone.clientHeight);
+        fitArtboardToView();
+    });
+
+    setTimeout(() => {
+        fitArtboardToView();
+        updateCanvasSizeDisplay();
+        if (window.savedCanvasJson) {
+            try {
+                const jsonStr =
+                    typeof window.savedCanvasJson === 'string'
+                        ? window.savedCanvasJson
+                        : JSON.stringify(window.savedCanvasJson);
+                restoreCanvasState(jsonStr);
+            } catch (error) {
+                console.error('Failed to load saved canvas json:', error);
+            }
+        } else {
+            updateHintVisibility();
+            updateControlsState();
+            updateVisualCart();
+        }
+    }, 100);
+
     updateUndoRedoBtnState();
-    updateControlsState();
     updateHintVisibility();
+    updateControlsState();
     updateVisualCart();
+    filterAssetsByPackage();
 });

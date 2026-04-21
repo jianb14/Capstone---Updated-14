@@ -1,0 +1,172 @@
+{% extends "client/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/client_payment.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="cp-shell cp-payment-shell">
+    <h1 class="cp-title">Booking #{{ booking.id }} Payment</h1>
+    <p class="cp-subtitle">You will be redirected to secure PayMongo checkout (GCash).</p>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="cp-alert">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {% if is_fully_paid %}
+    <div class="cp-success">This booking is fully paid.</div>
+    {% else %}
+    {% if pending_payment %}
+    <div class="cp-warn cp-mb">You already have a pending payment (Ref: {{ pending_payment.transaction_ref }}). Please wait for admin verification before sending another payment.</div>
+    {% endif %}
+
+    <form method="post" action="{% url 'create_paymongo_checkout' booking.id %}" class="cp-panel cp-form">
+        {% csrf_token %}
+        <input type="hidden" name="payment_method" value="gcash">
+        <input type="hidden" id="js-hidden-amount" name="amount" value="{% if is_initial_payment %}{{ downpayment_due|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}">
+
+        <h3 class="cp-h3">Step 1: Choose Payment Type</h3>
+        {% if is_initial_payment %}
+        <div class="cp-option-grid">
+            <label class="cp-option-card">
+                <input type="radio" name="payment_option" value="downpayment" checked {% if pending_payment %}disabled{% endif %}>
+                <span class="cp-option-title">Downpayment</span>
+                <span class="cp-option-sub">Pay the required minimum first: &#8369;{{ downpayment_due|floatformat:2 }}</span>
+            </label>
+            <label class="cp-option-card">
+                <input type="radio" name="payment_option" value="full" {% if pending_payment %}disabled{% endif %}>
+                <span class="cp-option-title">Full Payment</span>
+                <span class="cp-option-sub">Pay the complete booking amount now: &#8369;{{ total_price|floatformat:2 }}</span>
+            </label>
+        </div>
+        {% else %}
+        <div class="cp-fixed-option">Balance payment only: &#8369;{{ remaining_balance|floatformat:2 }}</div>
+        <input type="hidden" name="payment_option" value="balance">
+        {% endif %}
+
+        <h3 class="cp-h3 cp-mt">Step 2: Review Before Checkout</h3>
+        <div class="cp-review-box">
+            <div class="cp-review-row">
+                <span>Method</span>
+                <strong>GCash via PayMongo</strong>
+            </div>
+            <div class="cp-review-row">
+                <span>Payment Type</span>
+                <strong id="js-selected-type-label-2">{% if is_initial_payment %}Downpayment{% else %}Balance Payment{% endif %}</strong>
+            </div>
+            <div class="cp-review-row">
+                <span>Amount</span>
+                <strong>&#8369;<span id="js-amount-to-pay-2">{% if is_initial_payment %}{{ downpayment_due|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span></strong>
+            </div>
+        </div>
+
+        <label class="cp-refund-check cp-mt-sm">
+            <input type="checkbox" id="js-refund-ack" name="refund_ack" value="1" {% if pending_payment %}disabled{% endif %} required>
+            <span>I understand that once this payment is confirmed, it is non-refundable except in cases required by law.</span>
+        </label>
+
+        <button
+            id="js-checkout-btn"
+            type="submit"
+            {% if pending_payment %}
+            disabled
+            {% else %}
+            disabled
+            {% endif %}
+            class="cp-btn-primary cp-mt-sm">Proceed to PayMongo Checkout</button>
+    </form>
+
+    <div class="cp-panel cp-mt">
+        <div class="cp-panel-head"><h3>Payment History</h3></div>
+        <div class="cp-table-wrap">
+            <table class="cp-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pay in payment_history %}
+                    <tr>
+                        <td>{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                        <td>&#8369;{{ pay.amount|floatformat:2 }}</td>
+                        <td>{{ pay.get_payment_method_display }}</td>
+                        <td>{{ pay.get_payment_type_display }}</td>
+                        <td>{{ pay.get_payment_status_display }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="cp-empty">No payment history yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="cp-mt">
+        <a href="{% url 'my_payments' %}" class="cp-link">Back to My Payments</a>
+    </div>
+</section>
+
+{% if not is_fully_paid and is_initial_payment and not pending_payment %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const downpaymentValue = Number('{{ downpayment_due|floatformat:2 }}');
+    const fullValue = Number('{{ total_price|floatformat:2 }}');
+    const optionInputs = document.querySelectorAll('input[name="payment_option"]');
+    const hiddenAmount = document.getElementById('js-hidden-amount');
+    const amountToPay2 = document.getElementById('js-amount-to-pay-2');
+    const selectedTypeLabel2 = document.getElementById('js-selected-type-label-2');
+
+    function syncSelectedPaymentOption() {
+        const selected = document.querySelector('input[name="payment_option"]:checked');
+        if (!selected) return;
+
+        if (selected.value === 'full') {
+            hiddenAmount.value = fullValue.toFixed(2);
+            amountToPay2.textContent = fullValue.toFixed(2);
+            selectedTypeLabel2.textContent = 'Full Payment';
+            return;
+        }
+
+        hiddenAmount.value = downpaymentValue.toFixed(2);
+        amountToPay2.textContent = downpaymentValue.toFixed(2);
+        selectedTypeLabel2.textContent = 'Downpayment';
+    }
+
+    optionInputs.forEach((input) => {
+        input.addEventListener('change', syncSelectedPaymentOption);
+    });
+
+    syncSelectedPaymentOption();
+});
+</script>
+{% endif %}
+
+{% if not is_fully_paid and not pending_payment %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const refundCheckbox = document.getElementById('js-refund-ack');
+    const checkoutBtn = document.getElementById('js-checkout-btn');
+    if (!refundCheckbox || !checkoutBtn) return;
+
+    function syncCheckoutButtonState() {
+        const isChecked = !!refundCheckbox.checked;
+        checkoutBtn.disabled = !isChecked;
+    }
+
+    refundCheckbox.addEventListener('change', syncCheckoutButtonState);
+    syncCheckoutButtonState();
+});
+</script>
+{% endif %}
+{% endblock %}

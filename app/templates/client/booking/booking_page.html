@@ -1,4 +1,4 @@
-﻿{% extends 'client/base.html' %}
+{% extends 'client/base.html' %}
 {% load static humanize %}
 
 {% block content %}
@@ -16,8 +16,7 @@
         </div>
         <div class="calendar-wrapper">
             <div class="calendar-legend">
-                <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Confirmed)</div>
-                <div class="legend-item"><span class="legend-color pending"></span>Pending (Reserved)</div>
+                <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Approved)</div>
             </div>
             <div id="booking-calendar"></div>
 
@@ -405,6 +404,73 @@
             priceInput.value = total.toFixed(2);
         }
 
+        function updateOrderSummary() {
+            const total = calculateTotalPrice();
+            const itemListContainer = document.getElementById('booking-item-list');
+            if (!itemListContainer) return;
+
+            itemListContainer.innerHTML = ''; // Clear previous
+
+            // 1. Package or Solo Add-on
+            if (soloModeAddon) {
+                itemListContainer.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${soloModeAddon} (Solo)</span>
+                        </div>
+                        <span class="row-value">${formatPrice(soloModePrice)}</span>
+                    </div>`;
+            } else if (selectedPackageName) {
+                itemListContainer.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${selectedPackageName}</span>
+                        </div>
+                        <span class="row-value">${formatPrice(selectedPackagePrice)}</span>
+                    </div>`;
+            }
+
+            // 2. Add-on (Regular with Package)
+            if (!soloModeAddon && selectedAddonName) {
+                itemListContainer.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${selectedAddonName} (Add-on)</span>
+                        </div>
+                        <span class="row-value">${formatPrice(selectedAddonPrice)}</span>
+                    </div>`;
+            }
+
+            // 3. Additional
+            if (selectedAdditionalName) {
+                itemListContainer.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${selectedAdditionalName} (Additional)</span>
+                        </div>
+                        <span class="row-value">${formatPrice(selectedAdditionalPrice)}</span>
+                    </div>`;
+            }
+
+            // 4. Update Service Charge Visibility & Display
+            const svcRow = document.getElementById('serviceChargeRow');
+            const svcDisplay = document.getElementById('service_charge_display');
+            const svcNote = document.getElementById('service_charge_note_text');
+            const finalPriceDisplay = document.getElementById('total_price_display');
+            const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
+
+            if (hasBaseSelection && selectedServiceCharge > 0) {
+                if (svcDisplay) svcDisplay.textContent = formatPrice(selectedServiceCharge);
+                if (svcNote) svcNote.textContent = globalServiceChargeNote;
+                if (svcRow) svcRow.style.display = 'flex';
+            } else {
+                if (svcRow) svcRow.style.display = 'none';
+            }
+
+            // 5. Update Total Price Display
+            if (finalPriceDisplay) finalPriceDisplay.textContent = formatPrice(total);
+        }
+
         function buildPackageTypeString() {
             let parts = [];
             if (soloModeAddon) {
@@ -517,6 +583,54 @@
             const bookingLimitError = document.getElementById('bookingImageLimitError');
             if (bookingLimitError) bookingLimitError.style.display = 'none';
 
+            {% if prefilled_design %}
+            // If we have a pre-filled design, go to Step 2
+            step1Content.style.display = 'none';
+            step2Content.style.display = 'block';
+            step1Indicator.classList.remove('active');
+            step1Indicator.classList.add('completed');
+            step2Indicator.classList.add('active');
+            stepperLine.style.width = '100%';
+
+            selectedPackageName = "{{ prefilled_design.base_package.name|escapejs }}";
+            selectedPackagePrice = parseFloat("{{ prefilled_design.base_package.price|default:0 }}");
+            
+            // Re-add the preview thumbnail
+            {% if prefilled_design.thumbnail %}
+            if (bookingPreviewGrid) {
+                const imgContainer = document.createElement('div');
+                imgContainer.style.position = 'relative';
+                imgContainer.style.display = 'inline-block';
+                imgContainer.style.marginRight = '10px';
+                
+                const el = document.createElement('img');
+                el.src = "{{ prefilled_design.thumbnail.url }}";
+                el.style.width = '120px';
+                el.style.height = '120px';
+                el.style.objectFit = 'cover';
+                el.style.borderRadius = '5px';
+                el.style.border = '1px solid #444';
+                
+                const label = document.createElement('div');
+                label.innerText = "Design Reference";
+                label.style.fontSize = '10px';
+                label.style.textAlign = 'center';
+                label.style.color = '#888';
+                label.style.marginTop = '4px';
+                
+                imgContainer.appendChild(el);
+                imgContainer.appendChild(label);
+                bookingPreviewGrid.appendChild(imgContainer);
+            }
+            {% endif %}
+
+            // Add hidden input for the design ID (re-add after form reset)
+            const designIdInput = document.createElement('input');
+            designIdInput.type = 'hidden';
+            designIdInput.name = 'user_design_id';
+            designIdInput.value = "{{ prefilled_design.id }}";
+            document.getElementById('bookingForm').appendChild(designIdInput);
+            {% else %}
             step1Content.style.display = 'block';
             step2Content.style.display = 'none';
 
@@ -527,6 +641,8 @@
 
             selectedPackageName = null;
             selectedPackagePrice = 0;
+            {% endif %}
+
             selectedServiceCharge = globalServiceCharge;
             selectedAddonName = null;
             selectedAddonPrice = 0;
@@ -549,13 +665,15 @@
                 eventTriggerSpan.textContent = 'Select an Event';
             }
 
-            btnNextStep.disabled = true;
-            packageInput.value = '';
-            priceInput.value = '';
-            priceDisplay.textContent = '₱0.00';
-            document.getElementById('booking-item-list').innerHTML = ''; // Clear summary breakthrough
+            btnNextStep.disabled = selectedPackageName ? false : true;
+            packageInput.value = selectedPackageName || '';
+            priceInput.value = selectedPackagePrice || '';
+            priceDisplay.textContent = selectedPackagePrice ? formatPrice(selectedPackagePrice) : '₱0.00';
+            
+            // Build summary breakthrough
+            updateOrderSummary();
 
-            // Apply correct visual states (add-on cards will be disabled since no package selected)
+            // Apply correct visual states
             updateUIStates();
         }
 
@@ -681,8 +799,12 @@
         // =============================================
         // FULLCALENDAR
         // =============================================
+        // FULLCALENDAR
+        // =============================================
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
+            showNonCurrentDates: false,
+            fixedWeekCount: false,
             headerToolbar: {
                 left: 'prev,next',
                 center: 'title',
@@ -973,67 +1095,7 @@
         priceInput.value = total.toFixed(2);
 
         // --- Build Order Summary Breakdown ---
-        const itemListContainer = document.getElementById('booking-item-list');
-        itemListContainer.innerHTML = ''; // Clear previous
-
-        // 1. Package or Solo Add-on
-        if (soloModeAddon) {
-            itemListContainer.innerHTML += `
-                <div class="summary-row">
-                    <div class="row-info">
-                        <span class="row-label">${soloModeAddon} (Solo)</span>
-                    </div>
-                    <span class="row-value">${formatPrice(soloModePrice)}</span>
-                </div>`;
-        } else if (selectedPackageName) {
-            itemListContainer.innerHTML += `
-                <div class="summary-row">
-                    <div class="row-info">
-                        <span class="row-label">${selectedPackageName}</span>
-                    </div>
-                    <span class="row-value">${formatPrice(selectedPackagePrice)}</span>
-                </div>`;
-        }
-
-        // 2. Add-on (Regular with Package)
-        if (!soloModeAddon && selectedAddonName) {
-            itemListContainer.innerHTML += `
-                <div class="summary-row">
-                    <div class="row-info">
-                        <span class="row-label">${selectedAddonName} (Add-on)</span>
-                    </div>
-                    <span class="row-value">${formatPrice(selectedAddonPrice)}</span>
-                </div>`;
-        }
-
-        // 3. Additional
-        if (selectedAdditionalName) {
-            itemListContainer.innerHTML += `
-                <div class="summary-row">
-                    <div class="row-info">
-                        <span class="row-label">${selectedAdditionalName} (Additional)</span>
-                    </div>
-                    <span class="row-value">${formatPrice(selectedAdditionalPrice)}</span>
-                </div>`;
-        }
-
-        // 4. Update Service Charge Visibility & Display
-        const svcRow = document.getElementById('serviceChargeRow');
-        const svcDisplay = document.getElementById('service_charge_display');
-        const svcNote = document.getElementById('service_charge_note_text');
-        const finalPriceDisplay = document.getElementById('total_price_display');
-        const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
-
-        if (hasBaseSelection && selectedServiceCharge > 0) {
-            svcDisplay.textContent = formatPrice(selectedServiceCharge);
-            if (svcNote) svcNote.textContent = globalServiceChargeNote;
-            svcRow.style.display = 'flex';
-        } else {
-            svcRow.style.display = 'none';
-        }
-
-        // 5. Update Total Price Display
-        finalPriceDisplay.textContent = formatPrice(total);
+        updateOrderSummary();
 
         // UI Transitions
         step1Content.style.display = 'none';
@@ -1264,117 +1326,198 @@
         const startTimeStr = startTimeInput.value;
         const endTimeStr = endTimeInput.value;
 
-        // Validate Minimum 1 Hour Duration (client-side, stays on Step 2)
+        // Validate Minimum 2 Hours Duration (client-side, stays on Step 2)
         if (startTimeStr && endTimeStr) {
             const startNode = new Date(`1970-01-01T${startTimeStr}:00`);
             let endNode = new Date(`1970-01-01T${endTimeStr}:00`);
             if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
 
             const diffMins = (endNode - startNode) / 60000;
-            if (diffMins < 60) {
-                setBookingFieldError('end_time', 'Event duration must be at least 1 hour.');
+            if (diffMins < 120) {
+                setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
                 endTimeInput.focus();
                 return; // Stay on Step 2
             }
         }
 
-        const formData = new FormData(bookingForm);
-        const originalBtnText = btnSubmitBooking.textContent;
-        btnSubmitBooking.disabled = true;
-        btnSubmitBooking.textContent = 'Submitting...';
+        // Validate Time Between 7:00 AM and 6:00 PM
+        if (startTimeStr && endTimeStr) {
+            const startHour = parseInt(startTimeStr.split(':')[0], 10);
+            const startMinute = parseInt(startTimeStr.split(':')[1], 10);
+            const endHour = parseInt(endTimeStr.split(':')[0], 10);
+            const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
-        fetch(bookingForm.action, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-            .then(response => response.json())
-            .then(data => {
-                btnSubmitBooking.disabled = false;
-                btnSubmitBooking.textContent = originalBtnText;
+            if (startHour < 7 || startHour >= 18) {
+                setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
+                startTimeInput.focus();
+                return;
+            }
 
-                if (data.success) {
-                    // === SUCCESS: Close modal, show check, update calendar ===
-                    modalOverlay.classList.remove('show');
+            if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
+                setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
+                endTimeInput.focus();
+                return;
+            }
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Booking Submitted!',
-                        text: data.message,
-                        showConfirmButton: false,
-                        timer: 2500,
-                        timerProgressBar: true,
-                        background: '#1a1a1a',
-                        color: '#fff',
-                        iconColor: '#22c55e'
-                    }).then(() => {
-                        // Add new event to calendar dynamically (yellow bar)
-                        if (data.event_data) {
-                            calendar.addEvent(data.event_data);
-                        }
+            // Check if end time crosses midnight (end <= start) after operating-hours validation
+            const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
+            if (crossesMidnight) {
+                setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                endTimeInput.focus();
+                return;
+            }
+        }
 
-                        // Reset form
-                        bookingForm.reset();
-                        resetModalSteps();
+        const applyServerBookingError = (message) => {
+            const safeMessage = (message || 'Please review the highlighted booking fields.').trim();
+            const normalized = safeMessage.toLowerCase();
 
-                        // Reset custom Event Type dropdown visual
-                        const triggerSpan = document.querySelector('#eventTypeCustomSelect .custom-select-trigger span');
-                        if (triggerSpan) {
-                            triggerSpan.textContent = 'Select an Event';
-                            triggerSpan.style.color = '#999';
-                        }
-                        const eventTypeHidden = document.getElementById('event_type_select');
-                        if (eventTypeHidden) eventTypeHidden.value = '';
+            if (
+                normalized.includes('time slot unavailable') ||
+                normalized.includes('already scheduled') ||
+                normalized.includes('end time') ||
+                normalized.includes('duration')
+            ) {
+                setBookingFieldError('end_time', safeMessage);
+                focusBookingField('end_time');
+                return;
+            }
 
-                        // Reset JS state variables
-                        selectedPackageName = null;
-                        selectedPackagePrice = 0;
-                        selectedServiceCharge = globalServiceCharge;
-                        selectedAddonName = null;
-                        selectedAddonPrice = 0;
-                        soloModeAddon = null;
-                        soloModePrice = 0;
-                        selectedAdditionalName = null;
-                        selectedAdditionalPrice = 0;
+            if (normalized.includes('start time')) {
+                setBookingFieldError('start_time', safeMessage);
+                focusBookingField('start_time');
+                return;
+            }
 
-                        // Deselect all package/addon/additional cards visually
-                        document.querySelectorAll('.package-card, .addon-card, .additional-card').forEach(c => c.classList.remove('selected'));
-                    });
-                } else {
-                    // === ERROR: Show toast, STAY on Step 2 (don't close modal) ===
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'error',
-                        title: data.message,
-                        showConfirmButton: false,
-                        timer: 4000,
-                        timerProgressBar: true,
-                        background: '#1a1a1a',
-                        color: '#fff',
-                        iconColor: '#ef4444'
-                    });
-                }
+            if (normalized.includes('date') || normalized.includes('past')) {
+                setBookingFieldError('event_date', safeMessage);
+                focusBookingField('event_date');
+                return;
+            }
+
+            if (normalized.includes('location')) {
+                setBookingFieldError('event_location', safeMessage);
+                focusBookingField('event_location');
+                return;
+            }
+
+            // Fallback: show on end time field to keep feedback inline (no toast).
+            setBookingFieldError('end_time', safeMessage);
+            focusBookingField('end_time');
+        };
+
+        const executeBookingSubmit = () => {
+            const formData = new FormData(bookingForm);
+            const originalBtnText = btnSubmitBooking.textContent;
+            btnSubmitBooking.disabled = true;
+            btnSubmitBooking.textContent = 'Submitting...';
+
+            fetch(bookingForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
             })
-            .catch(error => {
-                btnSubmitBooking.disabled = false;
-                btnSubmitBooking.textContent = originalBtnText;
-                // Network error toast, stay on Step 2
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'error',
-                    title: 'Please check your connection and try again.',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true,
-                    background: '#1a1a1a',
-                    color: '#fff',
-                    iconColor: '#ef4444'
+                .then(async response => {
+                    const text = await response.text();
+                    console.log('Server response:', response.status, text);
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error(`Server returned non-JSON: ${text}`);
+                    }
+                })
+                .then(data => {
+                    btnSubmitBooking.disabled = false;
+                    btnSubmitBooking.textContent = originalBtnText;
+
+                    if (data.success) {
+                        // === SUCCESS: Close modal, show check, update calendar ===
+                        modalOverlay.classList.remove('show');
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Booking Submitted!',
+                            text: data.message,
+                            showConfirmButton: false,
+                            timer: 2500,
+                            timerProgressBar: true,
+                            background: '#1a1a1a',
+                            color: '#fff',
+                            iconColor: '#22c55e'
+                        }).then(() => {
+                            // Add new event to calendar dynamically (yellow bar)
+                            if (data.event_data) {
+                                calendar.addEvent(data.event_data);
+                            }
+
+                            // Reset form
+                            bookingForm.reset();
+                            resetModalSteps();
+
+                            // Reset custom Event Type dropdown visual
+                            const triggerSpan = document.querySelector('#eventTypeCustomSelect .custom-select-trigger span');
+                            if (triggerSpan) {
+                                triggerSpan.textContent = 'Select an Event';
+                                triggerSpan.style.color = '#999';
+                            }
+                            const eventTypeHidden = document.getElementById('event_type_select');
+                            if (eventTypeHidden) eventTypeHidden.value = '';
+
+                            // Reset JS state variables
+                            selectedPackageName = null;
+                            selectedPackagePrice = 0;
+                            selectedServiceCharge = globalServiceCharge;
+                            selectedAddonName = null;
+                            selectedAddonPrice = 0;
+                            soloModeAddon = null;
+                            soloModePrice = 0;
+                            selectedAdditionalName = null;
+                            selectedAdditionalPrice = 0;
+
+                            // Deselect all package/addon/additional cards visually
+                            document.querySelectorAll('.package-card, .addon-card, .additional-card').forEach(c => c.classList.remove('selected'));
+                        });
+                    } else {
+                        // === ERROR: Show inline field error, STAY on Step 2 (no toast) ===
+                        applyServerBookingError(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Booking error:', error);
+                    btnSubmitBooking.disabled = false;
+                    btnSubmitBooking.textContent = originalBtnText;
+                    // Network/server parsing errors are also shown inline (no toast).
+                    applyServerBookingError('Unable to submit booking right now. Please try again.');
                 });
+        };
+
+        const reminderMessage = 'Once this booking is confirmed, it can no longer be edited or canceled. Continue submitting?';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Submit booking now?',
+                text: reminderMessage,
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Submit',
+                cancelButtonText: 'Review Again',
+                confirmButtonColor: '#2563eb',
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    executeBookingSubmit();
+                }
             });
+            return;
+        }
+
+        if (!window.confirm(reminderMessage)) {
+            return;
+        }
+
+        executeBookingSubmit();
     });
 
     });

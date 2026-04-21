@@ -29,6 +29,8 @@
                     <span id="bookingStatusDropdownText">
                         {% if status_filter == 'pending' %}
                         Pending
+                        {% elif status_filter == 'pending_payment' %}
+                        Pending Payment
                         {% elif status_filter == 'confirmed' %}
                         Confirmed
                         {% elif status_filter == 'cancel_requested' %}
@@ -50,6 +52,7 @@
                 <ul class="dropdown-options">
                     <li data-value="" {% if not status_filter %}class="selected"{% endif %}>All Bookings</li>
                     <li data-value="pending" {% if status_filter == 'pending' %}class="selected"{% endif %}>Pending</li>
+                    <li data-value="pending_payment" {% if status_filter == 'pending_payment' %}class="selected"{% endif %}>Pending Payment</li>
                     <li data-value="confirmed" {% if status_filter == 'confirmed' %}class="selected"{% endif %}>Confirmed</li>
                     <li data-value="cancel_requested" {% if status_filter == 'cancel_requested' %}class="selected"{% endif %}>Cancel Requested</li>
                     <li data-value="cancelled" {% if status_filter == 'cancelled' %}class="selected"{% endif %}>Cancelled</li>
@@ -60,6 +63,7 @@
                 <select name="status" class="filter-select" id="statusFilterSelect">
                     <option value="" {% if not status_filter %}selected{% endif %}>All Bookings</option>
                     <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="pending_payment" {% if status_filter == 'pending_payment' %}selected{% endif %}>Pending Payment</option>
                     <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
                     <option value="cancel_requested" {% if status_filter == 'cancel_requested' %}selected{% endif %}>Cancel Requested</option>
                     <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
@@ -101,7 +105,9 @@
                         <div style="font-size: 0.8rem; color: #888;">{{ b.time_range_display|default:"-" }}</div>
                     </td>
                     <td data-label="Status">
-                        {% if b.status == 'confirmed' or b.status == 'completed' %}
+                        {% if b.status == 'pending_payment' %}
+                        <span class="status-badge pending" style="color: #d97706;">{{ b.get_status_display }}</span>
+                        {% elif b.status == 'confirmed' or b.status == 'completed' %}
                         <span class="status-badge {{ b.status }}">{{ b.get_status_display }}</span>
                         {% elif b.status == 'expired' %}
                         <span class="status-badge expired">{{ b.get_status_display }}</span>
@@ -124,7 +130,7 @@
                             {% endif %}
 
                             {% if b.status == 'pending' %}
-                            <a href="{% url 'admin_booking_action' b.id 'confirm' %}" onclick="return confirmAdminAction(this, 'Confirm Booking', 'Are you sure you want to confirm this booking?', 'Yes, Confirm')">Confirm</a>
+                            <a href="{% url 'admin_booking_action' b.id 'approve' %}" onclick="return confirmAdminAction(this, 'Approve Booking', 'Are you sure you want to approve this booking?', 'Yes, Approve')">Approve</a>
                             <a href="javascript:void(0)" onclick="openDenyReasonPrompt('{{ b.id }}')" class="deny-link">Deny</a>
 
                             {% elif b.status == 'cancel_requested' %}

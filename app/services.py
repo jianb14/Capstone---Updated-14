@@ -1,11 +1,154 @@
+import base64
+import hashlib
+import hmac
+import json
 import re
+import time
 import urllib.parse
+
+import requests
 from django.conf import settings
+from django.urls import reverse
 from .models import Package, AddOn, AdditionalOnly
 try:
     from huggingface_hub import InferenceClient
 except ImportError:
     InferenceClient = None
+
+
+def get_paymongo_headers():
+    """Helper to get PayMongo authentication headers."""
+    if not settings.PAYMONGO_SECRET_KEY:
+        return {}
+
+    credentials = f"{settings.PAYMONGO_SECRET_KEY}:"
+    encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+    return {
+        "Authorization": f"Basic {encoded_credentials}",
+        "Content-Type": "application/json",
+        "accept": "application/json"
+    }
+
+
+def create_paymongo_checkout_session(amount, booking_id, success_url, cancel_url, payment_type="card", description=""):
+    """
+    Create a PayMongo checkout session.
+    Amount should be in PHP cents (e.g., ₱100.00 → 10000).
+    """
+    url = "https://api.paymongo.com/v1/checkout_sessions"
+    headers = get_paymongo_headers()
+    if not headers:
+        return None
+
+    payload = {
+        "data": {
+            "attributes": {
+                "billing": None,
+                "send_email_receipt": True,
+                "show_description": True,
+                "show_line_items": True,
+                "description": description or f"Payment for Booking #{booking_id}",
+                "line_items": [
+                    {
+                        "currency": "PHP",
+                        "amount": amount,
+                        "name": f"Booking #{booking_id}",
+                        "quantity": 1
+                    }
+                ],
+                "payment_method_types": [payment_type],
+                "success_url": success_url,
+                "cancel_url": cancel_url,
+            }
+        }
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"PayMongo Checkout Error: {e}")
+        return None
+
+
+def retrieve_paymongo_payment(payment_id):
+    """Retrieve a PayMongo payment by ID to verify its status."""
+    url = f"https://api.paymongo.com/v1/payments/{payment_id}"
+    headers = get_paymongo_headers()
+    if not headers:
+        return None
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"PayMongo Retrieve Error: {e}")
+        return None
+
+
+def retrieve_paymongo_checkout_session(session_id):
+    """Retrieve a PayMongo checkout session by ID."""
+    url = f"https://api.paymongo.com/v1/checkout_sessions/{session_id}"
+    headers = get_paymongo_headers()
+    if not headers:
+        return None
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"PayMongo Checkout Session Retrieve Error: {e}")
+        return None
+
+
+def verify_paymongo_webhook_signature(payload, signature_header):
+    """Verify PayMongo webhook signature using the webhook secret."""
+    if not settings.PAYMONGO_WEBHOOK_SECRET:
+        return False
+
+    try:
+        if not signature_header:
+            return False
+
+        # PayMongo format:
+        # t=1496734173,te=<test_signature>,li=<live_signature>
+        parsed = {}
+        for part in signature_header.split(","):
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            parsed[key.strip()] = value.strip()
+
+        timestamp = parsed.get("t")
+        test_sig = parsed.get("te", "")
+        live_sig = parsed.get("li", "")
+        if not timestamp:
+            return False
+
+        secret = settings.PAYMONGO_WEBHOOK_SECRET.encode("utf-8")
+        signed_payload = f"{timestamp}.{payload}".encode("utf-8")
+        computed_signature = hmac.new(secret, signed_payload, hashlib.sha256).hexdigest()
+
+        # Basic replay protection (5 minutes)
+        try:
+            ts_int = int(timestamp)
+            if abs(int(time.time()) - ts_int) > 300:
+                return False
+        except (ValueError, TypeError):
+            return False
+
+        secret_key = settings.PAYMONGO_SECRET_KEY or ""
+        expected_signature = live_sig if secret_key.startswith("sk_live_") else test_sig
+        if not expected_signature:
+            return False
+
+        return hmac.compare_digest(computed_signature, expected_signature)
+    except Exception as e:
+        print(f"PayMongo Webhook Verification Error: {e}")
+        return False
 
 
 # Strict profanity filter (English & Tagalog)

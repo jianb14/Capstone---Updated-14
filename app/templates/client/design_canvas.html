@@ -1,4 +1,4 @@
-﻿{% extends 'client/base.html' %}
+{% extends 'client/base.html' %}
 {% load static %}
 
 {% block content %}
@@ -7,263 +7,501 @@
 
 <section class="design-canvas-section">
     {% csrf_token %}
-    <div class="design-layout">
-        <div class="inventory-sidebar">
-            <h4 class="sidebar-title">Design Elements</h4>
 
-            <div class="sidebar-section">
-                <div class="section-label"><i class="fas fa-palette"></i> COLOR PICKER</div>
-                <div class="color-swatch-grid">
-                    <div class="color-swatch" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
-                    <div class="color-swatch" data-color="#000000" style="background:#000000;" title="Black"></div>
-                    <div class="color-swatch" data-color="#e74c3c" style="background:#e74c3c;" title="Red"></div>
-                    <div class="color-swatch" data-color="#3498db" style="background:#3498db;" title="Blue"></div>
-                    <div class="color-swatch" data-color="#2ecc71" style="background:#2ecc71;" title="Green"></div>
-                    <div class="color-swatch" data-color="#f1c40f" style="background:#f1c40f;" title="Yellow"></div>
-                    <div class="color-swatch" data-color="#e91e8c" style="background:#e91e8c;" title="Hot Pink"></div>
-                    <div class="color-swatch" data-color="#9b59b6" style="background:#9b59b6;" title="Purple"></div>
-                    <div class="color-swatch" data-color="#e67e22" style="background:#e67e22;" title="Orange"></div>
-                    <div class="color-swatch" data-color="#1abc9c" style="background:#1abc9c;" title="Teal"></div>
-                    <div class="color-swatch" data-color="#f8b4c8" style="background:#f8b4c8;" title="Light Pink"></div>
-                    <div class="color-swatch" data-color="#85c1e9" style="background:#85c1e9;" title="Light Blue"></div>
-                    <div class="color-swatch" data-color="#d4ac0d" style="background:#d4ac0d;" title="Gold"></div>
-                    <div class="color-swatch" data-color="#c0c0c0" style="background:#c0c0c0;" title="Silver"></div>
-                    <div class="color-swatch" data-color="#cd6155" style="background:#cd6155;" title="Rose"></div>
-                </div>
-                <div class="custom-color-row">
-                    <span class="custom-label"><i class="fas fa-palette"></i> Custom</span>
-                    <input type="color" id="customCanvasColor" value="#ffffff" title="Pick custom color">
-                </div>
+    <div class="canvas-workspace-shell">
+        <div class="design-layout">
+            <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
+                <a class="rail-home-btn" href="{% url 'select_design_type' %}" title="Back to design selection">
+                    <i class="fas fa-house"></i>
+                </a>
+                <button type="button" class="rail-btn active" data-panel-target="elementsPanel" title="Elements">
+                    <i class="fas fa-shapes"></i>
+                    <span>Elements</span>
+                </button>
+                <button type="button" class="rail-btn" data-panel-target="packagesPanel" title="Packages">
+                    <i class="fas fa-box-open"></i>
+                    <span>Packages</span>
+                </button>
+                <button type="button" class="rail-btn" data-panel-target="textPanel" title="Text">
+                    <i class="fas fa-font"></i>
+                    <span>Text</span>
+                </button>
+                <button type="button" class="rail-btn" data-panel-target="uploadsPanel" title="Uploads">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Uploads</span>
+                </button>
+                <button type="button" class="rail-btn" data-panel-target="toolsPanel" title="Tools">
+                    <i class="fas fa-pen-ruler"></i>
+                    <span>Tools</span>
+                </button>
+            </aside>
 
-                <div class="section-label" style="margin-top:10px;"><i class="fas fa-expand-arrows-alt"></i> ELEMENT SIZE</div>
-                <div class="element-size-row">
-                    <label>W</label>
-                    <input type="number" id="elemWidthInput" value="0" min="1" max="5000" step="1">
-                    <label>H</label>
-                    <input type="number" id="elemHeightInput" value="0" min="1" max="5000" step="1">
-                </div>
+            <aside class="inventory-sidebar" id="canvasSidebar">
+                <div class="sidebar-panel active" id="elementsPanel">
+                    <div class="sidebar-panel-header">
+                        <div>
+                            <span class="panel-eyebrow">Workspace</span>
+                            <h4>Elements</h4>
+                            <p>Drag elements into the canvas.</p>
+                        </div>
+                        <span class="panel-badge">{{ canvas_categories|length }} groups</span>
+                    </div>
 
-                <div class="section-label" style="margin-top:10px;"><i class="fas fa-image"></i> BACKGROUND IMAGE</div>
-                <div class="bg-image-actions">
-                    <label class="bg-upload-btn"><i class="fas fa-upload"></i> Upload Image<input type="file" id="bgImageUpload" accept="image/*" hidden></label>
-                    <button class="bg-remove-btn" id="removeBgImage"><i class="fas fa-times"></i> Remove BG Image</button>
-                </div>
-            </div>
+                    <label class="panel-search" for="assetSearchInput">
+                        <i class="fas fa-search"></i>
+                        <input type="search" id="assetSearchInput" placeholder="Search images, icons, decor">
+                    </label>
 
-            {% for cat in canvas_categories %}
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>{{ cat.name }}</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                {% regroup cat.assets.all by label_ref.name as grouped_assets %}
-                {% for group in grouped_assets %}
-                <div class="category-items" style="gap: 5px;">
-                    {% if group.grouper %}
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">{{ group.grouper }}</div>
-                    {% else %}
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">General</div>
-                    {% endif %}
-                    {% for asset in group.list %}
-                    {% if asset.is_active %}
-                    {% include 'components/canvas_asset_item.html' with asset=asset %}
-                    {% endif %}
+                    <div class="sidebar-section compact-section">
+                        <div class="section-label"><i class="fas fa-fill-drip"></i> Canvas / Object Color</div>
+                        <div class="color-swatch-grid">
+                            <div class="color-swatch" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
+                            <div class="color-swatch" data-color="#000000" style="background:#000000;" title="Black"></div>
+                            <div class="color-swatch" data-color="#e74c3c" style="background:#e74c3c;" title="Red"></div>
+                            <div class="color-swatch" data-color="#3498db" style="background:#3498db;" title="Blue"></div>
+                            <div class="color-swatch" data-color="#2ecc71" style="background:#2ecc71;" title="Green"></div>
+                            <div class="color-swatch" data-color="#f1c40f" style="background:#f1c40f;" title="Yellow"></div>
+                            <div class="color-swatch" data-color="#e91e8c" style="background:#e91e8c;" title="Pink"></div>
+                            <div class="color-swatch" data-color="#9b59b6" style="background:#9b59b6;" title="Violet"></div>
+                            <div class="color-swatch" data-color="#e67e22" style="background:#e67e22;" title="Orange"></div>
+                            <div class="color-swatch" data-color="#1abc9c" style="background:#1abc9c;" title="Teal"></div>
+                        </div>
+                        <div class="custom-color-row">
+                            <span class="custom-label">Custom</span>
+                            <input type="color" id="customCanvasColor" value="#ffffff" title="Pick custom color">
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section compact-section">
+                        <div class="section-label"><i class="fas fa-image"></i> Artboard Background</div>
+                        <div class="bg-image-actions">
+                            <label class="bg-upload-btn">
+                                <i class="fas fa-upload"></i> Upload Background
+                                <input type="file" id="bgImageUpload" accept="image/*" hidden>
+                            </label>
+                            <button class="bg-remove-btn" id="removeBgImage">
+                                <i class="fas fa-times"></i> Remove Background
+                            </button>
+                        </div>
+                    </div>
+
+                    {% for cat in canvas_categories %}
+                    <div class="inventory-category">
+                        <button type="button" class="category-header">
+                            <span>{{ cat.name }}</span>
+                            <i class="fas fa-chevron-down chevron"></i>
+                        </button>
+                        <div class="category-items">
+                            {% for asset in cat.assets.all %}
+                            {% if asset.is_active %}
+                            {% include 'components/canvas_asset_item.html' with asset=asset %}
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="inventory-category">
+                        <button type="button" class="category-header">
+                            <span>No asset categories yet</span>
+                            <i class="fas fa-chevron-down chevron"></i>
+                        </button>
+                        <div class="category-items open">
+                            <div class="empty-panel-note">Ask admin to add Canvas Categories and Assets in the admin panel.</div>
+                        </div>
+                    </div>
                     {% endfor %}
                 </div>
-                {% endfor %}
-            </div>
-            {% empty %}
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>No asset categories yet</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                <div class="category-items open" style="gap: 5px;">
-                    <div style="width:100%;font-size:0.75rem;color:#888;">Ask admin to add Canvas Categories and Assets in the admin panel.</div>
-                </div>
-            </div>
-            {% endfor %}
 
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Text Tools</span>
-                    <i class="fas fa-chevron-down chevron"></i>
+                <div class="sidebar-panel" id="packagesPanel">
+                    <div class="sidebar-panel-header">
+                        <div>
+                            <span class="panel-eyebrow">Workspace</span>
+                            <h4>Packages</h4>
+                            <p>Choose a base package for your design.</p>
+                        </div>
+                    </div>
+
+                    <div class="packages-grid">
+                        {% for pkg in all_packages %}
+                        <div class="package-selection-card {% if base_package.id == pkg.id %}selected{% endif %}" 
+                             data-package-id="{{ pkg.id }}" 
+                             data-package-name="{{ pkg.name }}"
+                             data-package-price="{{ pkg.price }}"
+                             title="Select {{ pkg.name }}">
+                            <div class="pkg-card-info">
+                                <span class="pkg-name">{{ pkg.name }}</span>
+                                <span class="pkg-price">P{{ pkg.price }}</span>
+                            </div>
+                            <div class="pkg-card-features">
+                                {% for feature in pkg.feature_list|slice:":3" %}
+                                <div class="pkg-mini-feature"><i class="fas fa-check"></i> {{ feature }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width:100%;font-size:0.7rem;color:#aaa;margin:4px 0;">Custom Text</div>
-                    <div class="draggable-item text-draggable"
-                        draggable="true"
-                        data-type="i-text"
-                        data-text="Happy Birthday!"
-                        data-font-family="Arial"
-                        data-color="#333333"
-                        title="Drag onto canvas to add text">
-                        <div class="icon-label">
-                            <i class="fas fa-font fa-2x" style="color:#007bff; margin-bottom:5px;"></i>
-                            <span class="item-label">Custom Text</span>
+
+                <div class="sidebar-panel" id="uploadsPanel">
+                    <div class="sidebar-panel-header">
+                        <div>
+                            <span class="panel-eyebrow">Workspace</span>
+                            <h4>Uploads</h4>
+                            <p>Import PNG/JPG files and drag them into canvas.</p>
+                        </div>
+                    </div>
+
+                    <label class="upload-dropzone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span>Choose files</span>
+                        <small>Transparent PNG works best.</small>
+                        <input type="file" id="userUploadInput" accept="image/*" multiple hidden>
+                    </label>
+
+                    <div id="userUploadsGrid" class="user-uploads-grid"></div>
+                </div>
+
+                <div class="sidebar-panel" id="textPanel">
+                    <div class="sidebar-panel-header">
+                        <div>
+                            <span class="panel-eyebrow">Workspace</span>
+                            <h4>Text</h4>
+                            <p>Add draggable text presets or create custom text.</p>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section text-add-block">
+                        <div class="section-label"><i class="fas fa-plus-circle"></i> Add Text</div>
+                        <div class="text-add-row stacked">
+                            <input type="text" id="quickTextInput" value="Your paragraph text" maxlength="90">
+                            <button id="addTextBtn" type="button" class="sidebar-primary-btn">
+                                <i class="fas fa-text-width"></i> Add a Text Box
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label"><i class="fas fa-heading"></i> Quick Text</div>
+                        <div class="text-presets-grid">
+                            <div class="draggable-item text-draggable text-preset-card"
+                                 draggable="true"
+                                 data-type="i-text"
+                                 data-text="Add a Heading"
+                                 data-font-family="Poppins"
+                                 data-color="#111111"
+                                 title="Add a Heading">
+                                <div class="icon-label">
+                                    <span>Add a Heading</span>
+                                </div>
+                            </div>
+                            <div class="draggable-item text-draggable text-preset-card"
+                                 draggable="true"
+                                 data-type="i-text"
+                                 data-text="Add a Subheading"
+                                 data-font-family="Montserrat"
+                                 data-color="#111111"
+                                 title="Add a Subheading">
+                                <div class="icon-label">
+                                    <span>Add a Subheading</span>
+                                </div>
+                            </div>
+                            <div class="draggable-item text-draggable text-preset-card"
+                                 draggable="true"
+                                 data-type="i-text"
+                                 data-text="Add a little body text"
+                                 data-font-family="Montserrat"
+                                 data-color="#111111"
+                                 title="Add a little body text">
+                                <div class="icon-label">
+                                    <span>Add a little body text</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label"><i class="fas fa-stars"></i> Presets</div>
+                        <div class="text-presets-grid">
+                        <div class="draggable-item text-draggable"
+                             draggable="true"
+                             data-type="i-text"
+                             data-text="Happy Birthday!"
+                             data-font-family="Poppins"
+                             data-color="#111111"
+                             title="Happy Birthday text">
+                            <div class="icon-label">
+                                <i class="fas fa-font"></i>
+                                <span>Happy Birthday</span>
+                            </div>
+                        </div>
+                        <div class="draggable-item text-draggable"
+                             draggable="true"
+                             data-type="i-text"
+                             data-text="Welcome Baby!"
+                             data-font-family="Satisfy"
+                             data-color="#111111"
+                             title="Welcome Baby text">
+                            <div class="icon-label">
+                                <i class="fas fa-feather-alt"></i>
+                                <span>Script Style</span>
+                            </div>
+                        </div>
+                        <div class="draggable-item text-draggable"
+                             draggable="true"
+                             data-type="i-text"
+                             data-text="Class of 2026"
+                             data-font-family="Montserrat"
+                             data-color="#111111"
+                             title="Class of 2026 text">
+                            <div class="icon-label">
+                                <i class="fas fa-graduation-cap"></i>
+                                <span>Class Theme</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="inventory-category">
-                <div class="category-header" onclick="toggleCategory(this)">
-                    <span>Upload Your Own</span>
-                    <i class="fas fa-chevron-down chevron"></i>
-                </div>
-                <div class="category-items" style="gap: 5px;">
-                    <div style="width: 100%; font-size: 0.7rem; color: #aaa; margin: 4px 0;">Upload Your Own</div>
-                    <div style="width:100%;">
-                        <label class="bg-upload-btn" style="width:100%;text-align:center;">
-                            <i class="fas fa-cloud-upload-alt"></i> Upload Image
-                            <input type="file" id="userUploadInput" accept="image/*" multiple hidden>
-                        </label>
-                        <p style="font-size:0.65rem;color:#555;text-align:center;margin:6px 0 4px;">PNG with transparent background works best.</p>
+                <div class="sidebar-panel" id="toolsPanel">
+                    <div class="sidebar-panel-header">
+                        <div>
+                            <span class="panel-eyebrow">Workspace</span>
+                            <h4>Draw</h4>
+                            <p>Sketch directly on the canvas with black editor tools.</p>
+                        </div>
                     </div>
-                    <div id="userUploadsGrid" class="user-uploads-grid"></div>
-                </div>
-            </div>
 
-            <div class="sidebar-tip">
-                <i class="fas fa-info-circle"></i> Ctrl+Z Undo · Ctrl+Y Redo · Delete Remove · Ctrl+D Clone · Arrow Keys Nudge
-            </div>
-        </div>
+                    <div class="draw-tool-list">
+                        <button type="button" class="draw-tool-btn active" data-draw-tool="pen">
+                            <i class="fas fa-pen"></i>
+                            <span>Pen</span>
+                        </button>
+                        <button type="button" class="draw-tool-btn" data-draw-tool="marker">
+                            <i class="fas fa-marker"></i>
+                            <span>Marker</span>
+                        </button>
+                        <button type="button" class="draw-tool-btn" data-draw-tool="highlighter">
+                            <i class="fas fa-highlighter"></i>
+                            <span>Highlighter</span>
+                        </button>
+                        <button type="button" class="draw-tool-btn" data-draw-tool="eraser">
+                            <i class="fas fa-eraser"></i>
+                            <span>Eraser</span>
+                        </button>
+                    </div>
 
-        <div class="canvas-area">
-            <div class="canvas-header">
-                <div class="canvas-controls">
-                    <button id="undoBtn" class="ctrl-btn" title="Undo (Ctrl+Z)" disabled>
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button id="redoBtn" class="ctrl-btn" title="Redo (Ctrl+Y)" disabled>
-                        <i class="fas fa-redo"></i>
-                    </button>
-                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <button id="lockBtn" class="ctrl-btn" title="Lock / Unlock" disabled>
-                        <i class="fas fa-lock-open"></i>
-                    </button>
-                    <button id="cloneBtn" class="ctrl-btn" title="Clone" disabled>
-                        <i class="far fa-copy"></i>
-                    </button>
-                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <button id="layerUpBtn" class="ctrl-btn" title="Forward" disabled>
-                        <i class="fas fa-level-up-alt"></i>
-                    </button>
-                    <button id="layerDownBtn" class="ctrl-btn" title="Backward" disabled>
-                        <i class="fas fa-level-down-alt"></i>
-                    </button>
-                    <button id="toFrontBtn" class="ctrl-btn" title="To Front" disabled>
-                        <i class="fas fa-angle-double-up"></i>
-                    </button>
-                    <button id="toBackBtn" class="ctrl-btn" title="To Back" disabled>
-                        <i class="fas fa-angle-double-down"></i>
-                    </button>
-                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <button id="flipXBtn" class="ctrl-btn" title="Flip Horizontal" disabled>
-                        <i class="fas fa-arrows-alt-h"></i>
-                    </button>
-                    <button id="flipYBtn" class="ctrl-btn" title="Flip Vertical" disabled>
-                        <i class="fas fa-arrows-alt-v"></i>
-                    </button>
-                    <button id="skewLeftBtn" class="ctrl-btn" title="Skew Left" disabled>
-                        <i class="fas fa-caret-left" style="transform: skewX(-15deg);"></i>
-                    </button>
-                    <button id="skewRightBtn" class="ctrl-btn" title="Skew Right" disabled>
-                        <i class="fas fa-caret-right" style="transform: skewX(15deg);"></i>
-                    </button>
-                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <button id="deleteBtn" class="ctrl-btn" title="Delete" disabled>
-                        <i class="far fa-trash-alt"></i>
-                    </button>
-                    <button id="clearBtn" class="ctrl-btn" title="Clear Canvas" disabled>
-                        <i class="fas fa-eraser"></i>
-                    </button>
-                    <div style="width: 1px; height: 20px; background: #555; margin: 0 4px;"></div>
-                    <button id="zoomOutBtn" class="ctrl-btn" title="Zoom Out (Ctrl+-)">
-                        <i class="fas fa-search-minus"></i>
-                    </button>
-                    <span id="zoomLabel" style="color: #aaa; font-size: 0.8rem; min-width: 40px; text-align: center; line-height: 32px;">100%</span>
-                    <button id="zoomInBtn" class="ctrl-btn" title="Zoom In (Ctrl++)">
-                        <i class="fas fa-search-plus"></i>
-                    </button>
-                    <button id="zoomResetBtn" class="ctrl-btn" title="Fit to View (Ctrl+0)">
-                        <i class="fas fa-compress-arrows-alt"></i>
-                    </button>
-                    <div style="width: 1px; height: 20px; background: #555;"></div>
-                    <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
-                        <i class="fas fa-download" style="margin-top: 4px;"></i> Save
+                    <div class="sidebar-section">
+                        <div class="section-label"><i class="fas fa-droplet"></i> Color</div>
+                        <div class="draw-color-field">
+                            <input type="color" id="drawColorInput" value="#000000">
+                            <span id="drawColorLabel">#000000</span>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label"><i class="fas fa-ruler-horizontal"></i> Size</div>
+                        <div class="draw-range-block">
+                            <input type="range" id="drawSizeInput" min="1" max="64" value="5">
+                            <span id="drawSizeValue">5px</span>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label"><i class="fas fa-circle-half-stroke"></i> Opacity</div>
+                        <div class="draw-range-block">
+                            <input type="range" id="drawOpacityInput" min="5" max="100" step="5" value="100">
+                            <span id="drawOpacityValue">100%</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="sidebar-secondary-btn" id="disableDrawBtn">
+                        <i class="fas fa-circle-stop"></i> Exit Draw Mode 
                     </button>
                 </div>
-            </div>
 
-            <div id="canvasDropZone">
-                <canvas id="designCanvas"></canvas>
-                <div class="drop-hint" id="dropHint">
-                    <i class="fas fa-magic"></i>
-                    <p>Drag balloons and decorations here</p>
+                <div class="sidebar-tip">
+                    Ctrl+Z Undo | Ctrl+Y Redo | Delete Remove | Ctrl+D Clone | Arrow keys Nudge | Space + Drag Pan
                 </div>
-            </div>
+            </aside>
 
-            <div class="canvas-footer">
-                <div class="footer-left">
-                    <span id="canvasSizeDisp">Canvas: 1920 × 1080</span>
-                </div>
-                <div class="footer-right">
-                    <div class="canvas-size-inputs">
-                        <label>W</label>
+            <main class="canvas-area">
+                <div class="canvas-main-toolbar">
+                    <div class="topbar-group">
+                        <button id="undoBtn" class="ctrl-btn icon-only" title="Undo (Ctrl+Z)" disabled>
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button id="redoBtn" class="ctrl-btn icon-only" title="Redo (Ctrl+Y)" disabled>
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button id="zoomResetBtn" class="ctrl-btn icon-only" title="Fit to View (Ctrl+0)">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button id="clearBtn" class="ctrl-btn icon-only" title="Clear Canvas" disabled>
+                            <i class="fas fa-trash-can"></i>
+                        </button>
+                    </div>
+
+                    <div class="topbar-group zoom-toolbar-group">
+                        <button id="zoomOutBtn" class="ctrl-btn icon-only" title="Zoom Out (Ctrl+-)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <input type="range" id="zoomRange" min="15" max="300" value="100" aria-label="Zoom level">
+                        <span id="zoomLabel" class="zoom-pill">100%</span>
+                        <button id="zoomInBtn" class="ctrl-btn icon-only" title="Zoom In (Ctrl++)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="topbar-group dimension-toolbar-group">
+                        <span id="canvasSizeDisp" class="toolbar-status">Canvas: 1920 x 1080</span>
+                        <label for="canvasWidthInput">W</label>
                         <input type="number" id="canvasWidthInput" value="1920" min="100" max="5000" step="10">
-                        <label>H</label>
+                        <label for="canvasHeightInput">H</label>
                         <input type="number" id="canvasHeightInput" value="1080" min="100" max="5000" step="10">
-                        <button id="applySizeBtn" class="ctrl-btn" title="Apply Canvas Size" style="font-size:0.65rem;padding:3px 6px;">Apply</button>
+                        <button id="applySizeBtn" class="ctrl-btn icon-only" title="Apply Canvas Size">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+
+                    <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
+                        <i class="fas fa-floppy-disk"></i> Save
+                    </button>
+                </div>
+
+                <div id="canvasDropZone">
+                    <div class="selection-toolbar" id="selectionToolbar" aria-hidden="true">
+                        <div class="toolbar-group">
+                            <select id="fontFamilySelect" title="Font Family">
+                                <option value="">Font</option>
+                                <option value="Montserrat">Montserrat</option>
+                                <option value="Poppins">Poppins</option>
+                                <option value="Satisfy">Satisfy</option>
+                                <option value="Bebas Neue">Bebas Neue</option>
+                                <option value="Playfair Display">Playfair Display</option>
+                            </select>
+                            <input type="number" id="fontSizeInput" value="42" min="8" max="300" step="1" title="Font Size">
+                            <input type="color" id="itemColorPicker" value="#ffffff" disabled title="Color">
+                            <button type="button" class="ctrl-btn icon-only" id="textBoldBtn" title="Bold"><i class="fas fa-bold"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textItalicBtn" title="Italic"><i class="fas fa-italic"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textUnderlineBtn" title="Underline"><i class="fas fa-underline"></i></button>
+                        </div>
+
+                        <div class="toolbar-group">
+                            <label for="elemWidthInput">W</label>
+                            <input type="number" id="elemWidthInput" value="0" min="1" max="5000" step="1">
+                            <label for="elemHeightInput">H</label>
+                            <input type="number" id="elemHeightInput" value="0" min="1" max="5000" step="1">
+                        </div>
+
+                        <div class="toolbar-group">
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" title="Align Left"><i class="fas fa-align-left"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" title="Align Center"><i class="fas fa-align-center"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" title="Align Right"><i class="fas fa-align-right"></i></button>
+                            <button id="layerUpBtn" class="ctrl-btn icon-only" title="Forward" disabled><i class="fas fa-arrow-up"></i></button>
+                            <button id="layerDownBtn" class="ctrl-btn icon-only" title="Backward" disabled><i class="fas fa-arrow-down"></i></button>
+                            <button id="toFrontBtn" class="ctrl-btn icon-only" title="Bring to Front" disabled><i class="fas fa-angles-up"></i></button>
+                            <button id="toBackBtn" class="ctrl-btn icon-only" title="Send to Back" disabled><i class="fas fa-angles-down"></i></button>
+                        </div>
+
+                        <div class="toolbar-group">
+                            <button id="lockBtn" class="ctrl-btn icon-only" title="Lock / Unlock" disabled><i class="fas fa-lock-open"></i></button>
+                            <button id="cloneBtn" class="ctrl-btn icon-only" title="Duplicate" disabled><i class="far fa-copy"></i></button>
+                            <button id="flipXBtn" class="ctrl-btn icon-only" title="Flip Horizontal" disabled><i class="fas fa-left-right"></i></button>
+                            <button id="flipYBtn" class="ctrl-btn icon-only" title="Flip Vertical" disabled><i class="fas fa-up-down"></i></button>
+                            <button id="skewLeftBtn" class="ctrl-btn icon-only" title="Skew Left" disabled><i class="fas fa-caret-left"></i></button>
+                            <button id="skewRightBtn" class="ctrl-btn icon-only" title="Skew Right" disabled><i class="fas fa-caret-right"></i></button>
+                            <button id="deleteBtn" class="ctrl-btn icon-only danger-btn" title="Delete" disabled><i class="far fa-trash-alt"></i></button>
+                        </div>
+                    </div>
+
+                    <canvas id="designCanvas"></canvas>
+                    <div class="drop-hint" id="dropHint">
+                        <i class="fas fa-magic"></i>
+                        <p>Drop assets here to start building your design.</p>
+                    </div>
+
+                    <div class="object-context-toolbar" id="objectContextToolbar" aria-hidden="true">
+                        <button type="button" class="ctx-btn" id="contextLockBtn" title="Lock / Unlock">
+                            <i class="fas fa-lock-open"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextDuplicateBtn" title="Duplicate">
+                            <i class="far fa-copy"></i>
+                        </button>
+                        <button type="button" class="ctx-btn danger" id="contextDeleteBtn" title="Delete">
+                            <i class="far fa-trash-alt"></i>
+                        </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </main>
 
-        <button type="button" class="summary-float-btn active" id="summaryFloatBtn" aria-label="Toggle design summary" title="Design Summary" aria-expanded="true">
-            <i class="fas fa-chevron-left btn-icon"></i>
-        </button>
-        <div class="summary-float-panel open" id="summaryFloatPanel">
-            <div class="cart-header">
-                <span><i class="fas fa-receipt"></i> Design Summary</span>
-            </div>
-            <div class="cart-body" id="cartBody">
-                <div class="cart-base-package">
-                    <strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}Custom Design{% endif %}</span>
+            <button type="button" class="summary-float-btn active" id="summaryFloatBtn" aria-label="Toggle design summary" title="Design Summary" aria-expanded="true">
+                <i class="fas fa-chevron-left btn-icon"></i>
+            </button>
+            <div class="summary-float-panel open" id="summaryFloatPanel">
+                <div class="cart-header">
+                    <span><i class="fas fa-receipt"></i> Design Summary</span>
                 </div>
+                <div class="cart-body" id="cartBody">
+                    <div class="cart-base-package">
+                        <strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}No Package Selected{% endif %}</span>
+                    </div>
 
-                {% if base_package %}
-                <div class="cart-section" id="cartInclusionsArea">
-                    <div class="section-title">Package Inclusions</div>
-                    <ul class="cart-list" id="cartInclusionsList"></ul>
-                </div>
-                {% endif %}
+                    {% if base_package %}
+                    <div class="cart-section" id="cartInclusionsArea">
+                        <div class="section-title">Package Inclusions</div>
+                        <ul class="cart-list" id="cartInclusionsList"></ul>
+                    </div>
+                    {% endif %}
 
-                <div class="cart-section" id="cartAddonsArea">
-                    <div class="section-title">Extra Add-ons</div>
-                    <ul class="cart-list" id="cartAddonsList">
-                        <li class="empty-list">No extra items yet.</li>
-                    </ul>
-                </div>
+                    <div class="cart-section" id="cartAddonsArea">
+                        <div class="section-title">Extra Add-ons</div>
+                        <ul class="cart-list" id="cartAddonsList">
+                            <li class="empty-list">No extra items yet.</li>
+                        </ul>
+                    </div>
 
-                <div class="cart-total-area">
-                    <span>Total Est. Add-ons:</span>
-                    <span class="total-price" id="cartTotalPrice">P0.00</span>
+                    <div class="cart-total-area">
+                        <span>Total Est. Add-ons:</span>
+                        <span class="total-price" id="cartTotalPrice">P0.00</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+    <script id="allPackagesData" type="application/json">
+        [
+            {% for pkg in all_packages %}
+            {
+                "id": "{{ pkg.id }}",
+                "name": "{{ pkg.name }}",
+                "price": "{{ pkg.price }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    </script>
 </section>
 
-<script>
-function toggleCategory(header) {
-    const parent = header.parentElement;
-    const itemsList = parent.querySelectorAll('.category-items');
-    const chevron = header.querySelector('.chevron');
-    itemsList.forEach(items => items.classList.toggle('open'));
-    chevron.classList.toggle('rotated');
-}
+<!-- Package Upgrade Confirmation Modal -->
+<div id="upgradeModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div class="modal-content" style="background: #1a1a1a; border: 1px solid var(--editor-border-strong); border-radius: 24px; width: 90%; max-width: 450px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center;">
+        <div style="background: rgba(255, 255, 255, 0.05); width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+            <i class="fas fa-arrow-up" style="font-size: 24px; color: var(--accent-primary, #ffffff);"></i>
+        </div>
+        <h3 style="font-size: 1.5rem; margin-bottom: 12px; color: #fff;">Upgrade Package?</h3>
+        <p id="upgradeModalMessage" style="color: #98a2b3; line-height: 1.6; margin-bottom: 32px;">
+            You've reached the limit for this package. Would you like to upgrade to a higher package?
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <button id="cancelUpgradeBtn" style="padding: 12px; border-radius: 12px; border: 1px solid var(--editor-border); background: transparent; color: #fff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                Not Now
+            </button>
+            <button id="confirmUpgradeBtn" style="padding: 12px; border-radius: 12px; border: none; background: #fff; color: #000; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                Upgrade
+            </button>
+        </div>
+    </div>
+</div>
 
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     const floatBtn = document.getElementById('summaryFloatBtn');
     const floatPanel = document.getElementById('summaryFloatPanel');
@@ -283,9 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closePanel();
-        }
+        if (e.key === 'Escape') closePanel();
     });
 });
 </script>
@@ -300,9 +536,10 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 
     window.basePackageId = "{{ base_package.id|default:'' }}";
+    window.basePackagePrice = parseFloat("{{ base_package.price|default:0 }}");
     window.packageQuotas = JSON.parse('{{ package_quotas|escapejs|default:"{}" }}');
+    window.allPackageQuotas = JSON.parse('{{ all_package_quotas|escapejs|default:"{}" }}');
     window.addonPrices = JSON.parse('{{ addon_prices|escapejs|default:"{}" }}');
 </script>
 <script src="{% static 'js/design_canvas.js' %}"></script>
 {% endblock content %}
-

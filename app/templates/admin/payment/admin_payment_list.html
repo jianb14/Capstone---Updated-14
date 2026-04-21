@@ -1,0 +1,352 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Payment Management{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_payment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+    <div>
+        <h1>Payment Management</h1>
+        <div class="breadcrumb">
+            <span>Admin</span>
+            <span class="separator">/</span>
+            <span>Payments</span>
+        </div>
+    </div>
+    <a href="{% url 'admin_gcash_config' %}" style="padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s ease;">Payment Settings</a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+    <div style="background: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 12px; padding: 1rem 1.25rem;">
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Pending</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #d97706;">{{ pending_count }}</div>
+    </div>
+    <div style="background: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 12px; padding: 1rem 1.25rem;">
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Verified</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #10b981;">{{ verified_count }}</div>
+    </div>
+    <div style="background: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 12px; padding: 1rem 1.25rem;">
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Rejected</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #ef4444;">{{ rejected_count }}</div>
+    </div>
+</div>
+
+<div class="search-bar">
+    <form method="GET" action="">
+        <div class="search-controls">
+            <div class="search-input-wrapper">
+                <input type="text" name="search" placeholder="Search txn ref, GCash ref, customer..." value="{{ search_query }}">
+            </div>
+            <div class="custom-filter-dropdown" id="paymentStatusDropdown">
+                <div class="dropdown-trigger">
+                    <span id="paymentStatusDropdownText">
+                        {% if status_filter == 'pending' %}
+                        Pending
+                        {% elif status_filter == 'verified' %}
+                        Verified
+                        {% elif status_filter == 'rejected' %}
+                        Rejected
+                        {% else %}
+                        All Status
+                        {% endif %}
+                    </span>
+                    <span class="dropdown-caret" aria-hidden="true"></span>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="">All Status</li>
+                    <li data-value="pending">Pending</li>
+                    <li data-value="verified">Verified</li>
+                    <li data-value="rejected">Rejected</li>
+                </ul>
+                <select name="status" class="filter-select" id="paymentStatusSelect">
+                    <option value="">All Status</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="verified" {% if status_filter == 'verified' %}selected{% endif %}>Verified</option>
+                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+            <div class="custom-filter-dropdown" id="paymentTypeDropdown">
+                <div class="dropdown-trigger">
+                    <span id="paymentTypeDropdownText">
+                        {% if type_filter == 'downpayment' %}
+                        Downpayment
+                        {% elif type_filter == 'full' %}
+                        Full Payment
+                        {% elif type_filter == 'balance' %}
+                        Balance
+                        {% else %}
+                        All Types
+                        {% endif %}
+                    </span>
+                    <span class="dropdown-caret" aria-hidden="true"></span>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="">All Types</li>
+                    <li data-value="downpayment">Downpayment</li>
+                    <li data-value="full">Full Payment</li>
+                    <li data-value="balance">Balance</li>
+                </ul>
+                <select name="type" class="filter-select" id="paymentTypeSelect">
+                    <option value="">All Types</option>
+                    <option value="downpayment" {% if type_filter == 'downpayment' %}selected{% endif %}>Downpayment</option>
+                    <option value="full" {% if type_filter == 'full' %}selected{% endif %}>Full Payment</option>
+                    <option value="balance" {% if type_filter == 'balance' %}selected{% endif %}>Balance</option>
+                </select>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Booking</th>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in payments %}
+            <tr>
+                <td data-label="Booking">#{{ pay.booking.id }}</td>
+                <td data-label="Customer">
+                    <div style="font-weight: 500; color: #fff;">{{ pay.booking.user.get_full_name|default:pay.booking.user.username }}</div>
+                    <div style="font-size: 0.8rem; color: #888;">@{{ pay.booking.user.username }}</div>
+                </td>
+                <td data-label="Amount">
+                    <div style="font-weight: 500;">PHP {{ pay.amount|floatformat:2 }}</div>
+                </td>
+                <td data-label="Method">GCash</td>
+                <td data-label="Type">{{ pay.get_payment_type_display }}</td>
+                <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                <td data-label="Status">
+                    {% if pay.payment_status == 'verified' %}
+                    <span style="color: #10b981; font-weight: 500; font-size: 0.8rem;">Verified</span>
+                    {% elif pay.payment_status == 'rejected' %}
+                    <span style="color: #ef4444; font-weight: 500; font-size: 0.8rem;">Rejected</span>
+                    {% elif pay.payment_status == 'pending' %}
+                    <span style="color: #d97706; font-weight: 500; font-size: 0.8rem;">Pending</span>
+                    {% else %}
+                    <span style="color: #999; font-weight: 500; font-size: 0.8rem;">{{ pay.get_payment_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_payment_detail' pay.id %}">View</a>
+                        {% if pay.payment_status == 'pending' %}
+                        <form method="post" action="{% url 'admin_payment_action' pay.id 'verify' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" style="padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; text-decoration: none; border: 1px solid rgba(16,185,129,0.3); background: transparent; color: #10b981; cursor: pointer; transition: all 0.2s ease;">Approve</button>
+                        </form>
+                        <button type="button" onclick="openRejectPaymentPrompt('{{ pay.id }}')" style="padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; text-decoration: none; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; cursor: pointer; transition: all 0.2s ease; background: transparent;">Reject</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 2rem; color: #666;">No payment records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if payments.has_other_pages %}
+<div class="pagination">
+    {% if payments.has_previous %}
+    <a href="?page={{ payments.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}&type={{ type_filter }}" class="page-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </a>
+    {% else %}
+    <span class="page-link disabled">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </span>
+    {% endif %}
+    <span class="current-page">Page {{ payments.number }} of {{ payments.paginator.num_pages }}</span>
+    {% if payments.has_next %}
+    <a href="?page={{ payments.next_page_number }}&search={{ search_query }}&status={{ status_filter }}&type={{ type_filter }}" class="page-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </a>
+    {% else %}
+    <span class="page-link disabled">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </span>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="pm-mt">
+    <div class="table-container">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+            <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Bookings With Unpaid Downpayment ({{ bookings_with_balance_count }})</h3>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Booking</th>
+                    <th>Customer</th>
+                    <th>Total Price</th>
+                    <th>Total Paid</th>
+                    <th>Remaining</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in balance_bookings %}
+                <tr>
+                    <td data-label="Booking">#{{ b.booking_id }}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Remaining" style="color: #ef4444; font-weight: 600;">PHP {{ b.remaining_balance|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">All approved/confirmed bookings are fully paid.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if balance_bookings.has_other_pages %}
+    <div class="pagination" style="margin-top: 1rem;">
+        {% if balance_bookings.has_previous %}
+        <a href="?page={{ payments.number }}&balance_page={{ balance_bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <span class="page-link disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </span>
+        {% endif %}
+        <span class="current-page">Page {{ balance_bookings.number }} of {{ balance_bookings.paginator.num_pages }}</span>
+        {% if balance_bookings.has_next %}
+        <a href="?page={{ payments.number }}&balance_page={{ balance_bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <span class="page-link disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </span>
+        {% endif %}
+</div>
+{% endif %}
+</div>
+
+<form id="rejectPaymentForm" method="post" action="{% url 'admin_payment_action' 0 'reject' %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="admin_notes" id="rejectPaymentReasonInput">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function setupDropdown(dropdownId, selectId, textId) {
+        const dropdown = document.getElementById(dropdownId);
+        const trigger = dropdown ? dropdown.querySelector('.dropdown-trigger') : null;
+        const options = dropdown ? dropdown.querySelectorAll('.dropdown-options li') : [];
+        const text = document.getElementById(textId);
+        const select = document.getElementById(selectId);
+        const form = document.querySelector('.search-bar form');
+
+        function closeMenu() {
+            if (dropdown) dropdown.classList.remove('open');
+        }
+
+        if (trigger && options.length && select && form) {
+            trigger.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-filter-dropdown').forEach(d => {
+                    if (d !== dropdown) d.classList.remove('open');
+                });
+                dropdown.classList.toggle('open');
+            });
+
+            options.forEach(option => {
+                option.addEventListener('click', function() {
+                    const selectedValue = this.getAttribute('data-value') || '';
+                    select.value = selectedValue;
+                    text.textContent = this.textContent.trim();
+                    options.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    closeMenu();
+                    form.submit();
+                });
+            });
+        }
+    }
+
+    setupDropdown('paymentStatusDropdown', 'paymentStatusSelect', 'paymentStatusDropdownText');
+    setupDropdown('paymentTypeDropdown', 'paymentTypeSelect', 'paymentTypeDropdownText');
+
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.custom-filter-dropdown').forEach(d => d.classList.remove('open'));
+    });
+
+    window.openRejectPaymentPrompt = function (paymentId) {
+        const form = document.getElementById('rejectPaymentForm');
+        const reasonInput = document.getElementById('rejectPaymentReasonInput');
+        if (!form || !reasonInput) return;
+
+        const submitReject = function (reason) {
+            const baseAction = form.getAttribute('action');
+            form.setAttribute('action', baseAction.replace('/0/', `/${paymentId}/`));
+            reasonInput.value = reason || '';
+            form.submit();
+        };
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Reject payment?',
+                text: 'Add an optional note for the customer.',
+                input: 'textarea',
+                inputPlaceholder: 'Reason for rejection (optional)',
+                showCancelButton: true,
+                confirmButtonText: 'Reject Payment',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#ef4444',
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    submitReject((result.value || '').trim());
+                }
+            });
+            return;
+        }
+
+        const reason = window.prompt('Reason for rejection (optional):') || '';
+        if (window.confirm('Are you sure you want to reject this payment?')) {
+            submitReject(reason.trim());
+        }
+    };
+});
+</script>
+{% endblock %}

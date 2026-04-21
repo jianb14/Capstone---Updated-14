@@ -1,0 +1,77 @@
+# ANALYTICS PDF TEMPLATE - EDITING GUIDE
+# ========================================
+
+## HOW TO CHANGE THE LOGO
+
+### Option 1: Replace the Logo File (EASIEST)
+1. Go to: Project\static\images\
+2. Replace the file: BalloorinaLogoBlack.png
+3. Keep the same filename
+4. Logo will automatically update
+
+### Option 2: Use a Different Logo File
+1. Open: Project\app\views.py
+2. Find line ~4086 (search for "BalloorinaLogoBlack.png")
+3. Change the filename:
+   
+   FROM:
+   logo_path = os.path.join(..., 'BalloorinaLogoBlack.png')
+   
+   TO:
+   logo_path = os.path.join(..., 'YourNewLogo.png')
+
+## HOW TO CHANGE LOGO SIZE
+
+### Edit the CSS File:
+1. Open: Project\static\css\analytics_pdf.css
+2. Find the section: /* LOGO STYLING - EDIT SIZE HERE */
+3. Change these values:
+
+   .logo-img {
+       width: 70px;    /* Change this number */
+       height: 70px;   /* Change this number */
+   }
+
+### Or Edit the HTML Template:
+1. Open: Project\app\templates\admin\analytics_pdf_template.html
+2. Find: .logo-img style (around line 45)
+3. Change width and height values
+
+## HOW TO CHANGE COLORS
+
+### Header Background Color:
+- File: static\css\analytics_pdf.css
+- Find: .header-box
+- Change: background-color: #667eea;
+
+### Border Color:
+- Find: .header-box
+- Change: border-bottom: 4px solid #f6ad55;
+
+### Section Headers:
+- Find: .section-header
+- Change: background-color: #667eea;
+
+## HOW TO CHANGE COMPANY INFO
+
+1. Open: Project\app\templates\admin\analytics_pdf_template.html
+2. Find the section: <!-- HEADER -->
+3. Edit these lines:
+   - Company name
+   - Email
+   - Contact number
+   - Location
+
+## FILE LOCATIONS
+
+- CSS Styles: Project\static\css\analytics_pdf.css
+- HTML Template: Project\app\templates\admin\analytics_pdf_template.html
+- Python Logic: Project\app\views.py (line ~4071)
+- Logo File: Project\static\images\BalloorinaLogoBlack.png
+
+## QUICK EDITS REFERENCE
+
+Logo Size: analytics_pdf.css → .logo-img → width/height
+Logo File: views.py → line 4086 → filename
+Company Name: analytics_pdf_template.html → .company-name
+Colors: analytics_pdf.css → search for color codes (#667eea, etc.)

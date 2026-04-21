@@ -1,0 +1,199 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Payment Detail{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_payment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+    <div>
+        <h1>Payment #{{ payment.id }}</h1>
+        <div class="breadcrumb">
+            <span>Admin</span>
+            <span class="separator">/</span>
+            <span>Payments</span>
+            <span class="separator">/</span>
+            <span>Detail</span>
+        </div>
+    </div>
+    <a href="{% url 'admin_payment_list' %}" style="padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s ease;">Back to Payments</a>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="table-container" style="padding: 1.25rem;">
+        <div style="font-size: 0.875rem; font-weight: 600; color: #fff; margin-bottom: 1rem;">Payment Information</div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Customer</div>
+                <div style="font-weight: 500;">{{ booking.user.get_full_name|default:booking.user.username }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Username</div>
+                <div>@{{ booking.user.username }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Amount</div>
+                <div style="font-weight: 600; font-size: 1.1rem;">PHP {{ payment.amount|floatformat:2 }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Status</div>
+                <div>
+                    {% if payment.payment_status == 'verified' %}
+                    <span style="color: #10b981; font-weight: 500;">Verified</span>
+                    {% elif payment.payment_status == 'rejected' %}
+                    <span style="color: #ef4444; font-weight: 500;">Rejected</span>
+                    {% elif payment.payment_status == 'pending' %}
+                    <span style="color: #d97706; font-weight: 500;">Pending</span>
+                    {% else %}
+                    <span style="color: #999;">{{ payment.get_payment_status_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Method</div>
+                <div>GCash</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Type</div>
+                <div>{{ payment.get_payment_type_display }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Transaction Ref</div>
+                <div>{{ payment.transaction_ref }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Submitted</div>
+                <div>{{ payment.created_at|date:"M d, Y h:i A" }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Verified At</div>
+                <div>{{ payment.paid_at|date:"M d, Y h:i A"|default:"-" }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Verifier</div>
+                <div>
+                    {% if payment.verified_by %}
+                        {{ payment.verified_by.get_full_name|default:payment.verified_by.username }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+            {% if payment.gcash_reference_number %}
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">GCash Ref</div>
+                <div>{{ payment.gcash_reference_number }}</div>
+            </div>
+            {% endif %}
+            {% if payment.gcash_sender_name %}
+            <div>
+                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">GCash Sender</div>
+                <div>{{ payment.gcash_sender_name }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% if payment.notes %}
+        <div style="margin-top: 1.25rem;">
+            <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Notes</div>
+            <div>{{ payment.notes }}</div>
+        </div>
+        {% endif %}
+        {% if payment.receipt_image %}
+        <div style="margin-top: 1.25rem;">
+            <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Receipt Image</div>
+            <a href="{{ payment.receipt_image.url }}" target="_blank">
+                <img src="{{ payment.receipt_image.url }}" alt="Receipt" style="max-width: 400px; width: 100%; border-radius: 8px; border: 1px solid #2a2a2a;">
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="table-container" style="padding: 1.25rem;">
+            <div style="font-size: 0.875rem; font-weight: 600; color: #fff; margin-bottom: 1rem;">Booking Balance</div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #888;">Total Price</span>
+                    <span style="font-weight: 600;">PHP {{ booking.total_price|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #888;">Total Verified Paid</span>
+                    <span style="font-weight: 600;">PHP {{ total_paid|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #888;">Remaining Balance</span>
+                    <span style="font-weight: 600; {% if remaining_balance > 0 %}color: #ef4444;{% else %}color: #10b981;{% endif %}">PHP {{ remaining_balance|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid #2a2a2a;">
+                    <span style="color: #888;">Booking Payment Status</span>
+                    <span style="font-weight: 600;">{{ booking.payment_status|default:"pending" }}</span>
+                </div>
+            </div>
+        </div>
+
+        {% if payment.payment_status == 'pending' %}
+        <form method="post" action="{% url 'admin_payment_action' payment.id 'verify' %}">
+            {% csrf_token %}
+            <button type="submit" style="width: 100%; padding: 0.875rem 1.25rem; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #10b981; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s ease; cursor: pointer;">Verify Payment</button>
+        </form>
+
+        <form method="post" action="{% url 'admin_payment_action' payment.id 'reject' %}">
+            {% csrf_token %}
+            <div class="table-container" style="padding: 1.25rem;">
+                <div style="margin-bottom: 0.75rem;">
+                    <label style="display: block; font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Rejection Notes</label>
+                    <textarea name="admin_notes" rows="4" placeholder="Reason for rejection..." style="width: 100%; padding: 0.75rem; background: #0f0f0f; border: 1px solid #2a2a2a; color: #fff; border-radius: 8px; font-family: inherit; outline: none; resize: vertical;"></textarea>
+                </div>
+                <button type="submit" style="width: 100%; padding: 0.875rem 1.25rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s ease; cursor: pointer;">Reject Payment</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="table-container">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Booking Payment History</h3>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Transaction Ref</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in payment_history %}
+            <tr>
+                <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                <td data-label="Amount">PHP {{ pay.amount|floatformat:2 }}</td>
+                <td data-label="Method">GCash</td>
+                <td data-label="Type">{{ pay.get_payment_type_display }}</td>
+                <td data-label="Status">
+                    {% if pay.payment_status == 'verified' %}
+                    <span style="color: #10b981; font-weight: 500; font-size: 0.8rem;">Verified</span>
+                    {% elif pay.payment_status == 'rejected' %}
+                    <span style="color: #ef4444; font-weight: 500; font-size: 0.8rem;">Rejected</span>
+                    {% elif pay.payment_status == 'pending' %}
+                    <span style="color: #d97706; font-weight: 500; font-size: 0.8rem;">Pending</span>
+                    {% else %}
+                    <span style="color: #999; font-weight: 500; font-size: 0.8rem;">{{ pay.get_payment_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td data-label="Transaction Ref">{{ pay.transaction_ref }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">No payment history available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

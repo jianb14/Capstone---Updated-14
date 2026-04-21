@@ -1,4 +1,4 @@
-﻿{% extends 'admin/admin_base.html' %}
+{% extends 'admin/admin_base.html' %}
 {% load static humanize %}
 
 {% block content %}
@@ -164,7 +164,7 @@
     <!-- Actions -->
     <div class="detail-actions">
         {% if booking.status == 'pending' %}
-        <a href="{% url 'admin_booking_action' booking.id 'confirm' %}" onclick="return confirmAdminDetailAction(this, 'Confirm Booking', 'Are you sure you want to confirm this booking?', 'Yes, Confirm')" class="btn-action primary">Confirm Booking</a>
+        <a href="{% url 'admin_booking_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Booking', 'Are you sure you want to approve this booking?', 'Yes, Approve')" class="btn-action primary">Approve Booking</a>
         <a href="javascript:void(0)" onclick="openDetailDenyPrompt('{{ booking.id }}')" class="btn-action danger">Deny Booking</a>
 
         {% elif booking.status == 'cancel_requested' %}

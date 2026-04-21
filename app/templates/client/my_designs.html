@@ -34,6 +34,9 @@
                             <a href="{% url 'design_canvas' %}?id={{ design.id }}" class="overlay-btn edit-btn">
                                 <i class="fas fa-magic"></i> Edit
                             </a>
+                            <a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
+                                <i class="fas fa-calendar-check"></i> Book Now
+                            </a>
                         </div>
                         
                         <!-- 3-Dots Menu -->
@@ -136,23 +139,10 @@
             <h2>Select Your Starting Point</h2>
             <button type="button" onclick="closeModal('selectPackageModal')" class="pkg-close-btn">&times;</button>
         </div>
-        <p class="pkg-select-subtitle">Choose a base package to customize, or start from scratch with a blank canvas.</p>
+        <p class="pkg-select-subtitle">Choose a base package to customize for your design.</p>
         
         <div class="pkg-cards-grid">
             
-            <!-- Custom Design -->
-            <div class="pkg-card">
-                <div>
-                    <i class="fas fa-paint-brush pkg-card-icon"></i>
-                    <h4 class="pkg-card-title">Custom Design</h4>
-                    <div class="pkg-card-price">Free Design</div>
-                    <p class="pkg-card-desc">Design your own setup without a package — just pick items freely.</p>
-                </div>
-                <a href="{% url 'design_canvas' %}?custom=true" class="pkg-modal-btn">
-                    Start Designing
-                </a>
-            </div>
-
             <!-- Active Packages -->
             {% for package in packages %}
             <div class="pkg-card">

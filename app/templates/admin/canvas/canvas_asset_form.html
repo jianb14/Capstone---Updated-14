@@ -57,40 +57,6 @@
                     <p class="field-error" data-error-for="label"></p>
                 </div>
 
-                <div class="form-group span-6 custom-select-field">
-                    <label for="label_ref">Label Group</label>
-                    <div class="custom-filter-dropdown" id="assetLabelDropdown">
-                        <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
-                            <span id="assetLabelDropdownText">
-                                {% if canvas_asset and canvas_asset.label_ref %}
-                                {{ canvas_asset.label_ref.category.name }} - {{ canvas_asset.label_ref.name }}
-                                {% else %}
-                                Select Label Group
-                                {% endif %}
-                            </span>
-                            <span class="dropdown-caret" aria-hidden="true"></span>
-                        </div>
-                        <ul class="dropdown-options">
-                            {% for lbl in labels %}
-                            <li data-value="{{ lbl.id }}" data-category-id="{{ lbl.category_id }}" {% if canvas_asset and canvas_asset.label_ref and canvas_asset.label_ref.id == lbl.id %}class="selected"{% endif %}>
-                                {{ lbl.category.name }} - {{ lbl.name }}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        <select name="label_ref" id="label_ref" class="filter-select" required>
-                            <option value="" disabled hidden {% if not canvas_asset or not canvas_asset.label_ref %}selected{% endif %}>Select Label Group</option>
-                            {% for lbl in labels %}
-                            <option value="{{ lbl.id }}"
-                                    data-category-id="{{ lbl.category_id }}"
-                                    {% if canvas_asset and canvas_asset.label_ref and canvas_asset.label_ref.id == lbl.id %}selected{% endif %}>
-                                {{ lbl.category.name }} - {{ lbl.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <p class="field-error" data-error-for="label_ref"></p>
-                </div>
-
                 <div class="form-group span-6">
                     <label for="image">Upload Image</label>
                     <input type="file" name="image" id="image" accept="image/*">
@@ -132,13 +98,14 @@
 <script>
     (function () {
         const categorySelect = document.getElementById('category');
-        const labelSelect = document.getElementById('label_ref');
-        if (!categorySelect || !labelSelect) return;
+        if (!categorySelect) return;
 
         const dropdownInstances = [];
 
         function closeAllDropdowns() {
-            dropdownInstances.forEach(instance => instance.close());
+            dropdownInstances.forEach(function (instance) {
+                instance.close();
+            });
         }
 
         function createDropdown(config) {
@@ -170,36 +137,14 @@
 
             function applySelection(value) {
                 select.value = value;
-                const selectedOption = Array.from(select.options).find(opt => opt.value === value);
+                const selectedOption = Array.from(select.options).find(function (opt) {
+                    return opt.value === value;
+                });
                 textNode.textContent = selectedOption ? selectedOption.textContent.trim() : config.placeholder;
 
-                optionsContainer.querySelectorAll('li').forEach(item => {
+                optionsContainer.querySelectorAll('li').forEach(function (item) {
                     item.classList.toggle('selected', (item.getAttribute('data-value') || '') === value);
                 });
-            }
-
-            function rebuildFromSelect() {
-                optionsContainer.innerHTML = '';
-                Array.from(select.options).forEach((opt) => {
-                    if (!opt.value) return;
-                    const li = document.createElement('li');
-                    const value = opt.value || '';
-                    li.setAttribute('data-value', value);
-                    if (opt.hasAttribute('data-category-id')) {
-                        li.setAttribute('data-category-id', opt.getAttribute('data-category-id'));
-                    }
-                    li.textContent = opt.textContent.trim();
-                    if (opt.selected) {
-                        li.classList.add('selected');
-                    }
-                    li.addEventListener('click', function () {
-                        applySelection(value);
-                        select.dispatchEvent(new Event('change', { bubbles: true }));
-                        close();
-                    });
-                    optionsContainer.appendChild(li);
-                });
-                applySelection(select.value || '');
             }
 
             trigger.addEventListener('click', toggle);
@@ -210,13 +155,21 @@
                 }
             });
 
+            optionsContainer.querySelectorAll('li').forEach(function (item) {
+                item.addEventListener('click', function () {
+                    applySelection(item.getAttribute('data-value') || '');
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    close();
+                });
+            });
+
             select.addEventListener('change', function () {
                 applySelection(select.value || '');
             });
 
-            const api = { close, rebuildFromSelect };
+            const api = { close: close };
             dropdownInstances.push(api);
-            rebuildFromSelect();
+            applySelection(select.value || '');
             return api;
         }
 
@@ -226,47 +179,15 @@
             selectId: 'category',
             placeholder: 'Select Category'
         });
-        const labelDropdown = createDropdown({
-            dropdownId: 'assetLabelDropdown',
-            textId: 'assetLabelDropdownText',
-            selectId: 'label_ref',
-            placeholder: 'Select Label Group'
-        });
 
-        const allOptions = Array.from(labelSelect.querySelectorAll('option'));
-        const placeholder = allOptions.find(opt => opt.value === '');
-
-        function filterLabelsByCategory() {
-            const selectedCategory = categorySelect.value;
-            const currentValue = labelSelect.value;
-            labelSelect.innerHTML = '';
-            if (placeholder) {
-                labelSelect.appendChild(placeholder.cloneNode(true));
-            }
-
-            allOptions.forEach(opt => {
-                if (!opt.value) return;
-                if (!selectedCategory || opt.getAttribute('data-category-id') === selectedCategory) {
-                    labelSelect.appendChild(opt.cloneNode(true));
-                }
-            });
-
-            const hasCurrent = Array.from(labelSelect.options).some(opt => opt.value === currentValue);
-            labelSelect.value = hasCurrent ? currentValue : '';
-            if (labelDropdown) labelDropdown.rebuildFromSelect();
-        }
-
-        categorySelect.addEventListener('change', filterLabelsByCategory);
         document.addEventListener('click', function (e) {
             const categoryDropdownEl = document.getElementById('assetCategoryDropdown');
-            const labelDropdownEl = document.getElementById('assetLabelDropdown');
             if (categoryDropdownEl && !categoryDropdownEl.contains(e.target) && categoryDropdown) categoryDropdown.close();
-            if (labelDropdownEl && !labelDropdownEl.contains(e.target) && labelDropdown) labelDropdown.close();
         });
+
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeAllDropdowns();
         });
-        filterLabelsByCategory();
 
         const form = document.getElementById('canvasAssetForm');
         if (!form) return;
@@ -276,45 +197,34 @@
         const widthInput = document.getElementById('width');
         const heightInput = document.getElementById('height');
         const categoryTriggerEl = document.querySelector('#assetCategoryDropdown .dropdown-trigger');
-        const labelTriggerEl = document.querySelector('#assetLabelDropdown .dropdown-trigger');
 
-        const setFieldError = (fieldName, message) => {
+        const setFieldError = function (fieldName, message) {
             const input = document.getElementById(fieldName);
             const group = input ? input.closest('.form-group') : null;
             if (!group) return;
             group.classList.add('has-error');
-            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            const error = group.querySelector('[data-error-for="' + fieldName + '"]');
             if (error) {
                 error.textContent = message;
             }
         };
 
-        const clearFieldError = (fieldName) => {
+        const clearFieldError = function (fieldName) {
             const input = document.getElementById(fieldName);
             const group = input ? input.closest('.form-group') : null;
             if (!group) return;
             group.classList.remove('has-error');
-            const error = group.querySelector(`[data-error-for="${fieldName}"]`);
+            const error = group.querySelector('[data-error-for="' + fieldName + '"]');
             if (error) {
                 error.textContent = '';
             }
         };
 
-        if (categorySelect) {
-            categorySelect.addEventListener('change', function () {
-                if (categorySelect.value) {
-                    clearFieldError('category');
-                }
-            });
-        }
-
-        if (labelSelect) {
-            labelSelect.addEventListener('change', function () {
-                if (labelSelect.value) {
-                    clearFieldError('label_ref');
-                }
-            });
-        }
+        categorySelect.addEventListener('change', function () {
+            if (categorySelect.value) {
+                clearFieldError('category');
+            }
+        });
 
         if (nameInput) {
             nameInput.addEventListener('input', function () {
@@ -359,15 +269,6 @@
                 firstInvalidField = categoryTriggerEl || categorySelect;
             } else {
                 clearFieldError('category');
-            }
-
-            if (!labelSelect.value) {
-                setFieldError('label_ref', 'Label group is required*');
-                if (!firstInvalidField) {
-                    firstInvalidField = labelTriggerEl || labelSelect;
-                }
-            } else {
-                clearFieldError('label_ref');
             }
 
             if (!nameInput || !nameInput.value.trim()) {
@@ -417,4 +318,3 @@
     })();
 </script>
 {% endblock %}
-
