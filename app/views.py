@@ -76,6 +76,7 @@ from .models import (
 )
 from .services import (
     create_paymongo_checkout_session,
+    get_current_ban_status,
     get_chatbot_response,
     retrieve_paymongo_checkout_session,
     retrieve_paymongo_payment,
@@ -3727,16 +3728,6 @@ def chat_api(request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=403)
 
-        # Default receiver for AI bot
-        admin_user = (
-            User.objects.filter(role="admin").first()
-            or User.objects.filter(is_superuser=True).first()
-        )
-        if not admin_user:
-            return JsonResponse(
-                {"error": "System misconfiguration (no admin found)"}, status=500
-            )
-
         # Handle ChatSession
         session = None
         is_new_session = False
@@ -3746,55 +3737,93 @@ def chat_api(request):
             except ChatSession.DoesNotExist:
                 pass  # If passed session_id is invalid, we will just create a new one
 
-        if not session:
-            # Create a new session, extracting a title from the first message
-            title = (
-                user_message[:30] + "..." if len(user_message) > 30 else user_message
-            )
-            session = ChatSession.objects.create(user=request.user, title=title)
-            is_new_session = True
-
         # --- 1. FETCH CONTEXT (HISTORY) FIRST ---
         history = []
-        recent_msgs = ChatMessage.objects.filter(session=session).order_by("-sent_at")[
-            :8
-        ]
+        if session:
+            recent_msgs = ChatMessage.objects.filter(session=session).order_by("-sent_at")[
+                :8
+            ]
 
-        # Reorder to chronological (oldest to newest) for the AI
-        for msg in reversed(recent_msgs):
-            role = "user" if msg.sender == request.user else "assistant"
-            history.append({"role": role, "content": msg.message})
-
-        # --- 2. SAVE USER MESSAGE ---
-        ChatMessage.objects.create(
-            session=session,
-            sender=request.user,
-            receiver=admin_user,
-            message=user_message,
-        )
+            # Reorder to chronological (oldest to newest) for the AI
+            for msg in reversed(recent_msgs):
+                role = "user" if msg.sender == request.user else "assistant"
+                history.append({"role": role, "content": msg.message})
 
         # Get AI Response with History
-        ai_result = get_chatbot_response(user_message, conversation_history=history)
+        ai_result = get_chatbot_response(
+            user_message,
+            conversation_history=history,
+            user=request.user,
+        )
 
-        # ai_result is now a dict: {'text': str, 'is_warning': bool}
+        # ai_result includes moderation metadata and response text.
         ai_text = ai_result.get("text", "")
         is_warning = ai_result.get("is_warning", False)
+        is_banned = ai_result.get("is_banned", False)
+        ban_remaining_seconds = int(ai_result.get("ban_remaining_seconds") or 0)
+        moderation_action = ai_result.get("moderation_action", "")
+        strike_count = int(ai_result.get("strike_count") or 0)
+        should_save = ai_result.get("should_save", not is_warning)
 
-        if not is_warning:
+        if should_save:
+            # Default receiver for AI bot
+            admin_user = (
+                User.objects.filter(role="admin").first()
+                or User.objects.filter(is_superuser=True).first()
+            )
+            if not admin_user:
+                return JsonResponse(
+                    {"error": "System misconfiguration (no admin found)"}, status=500
+                )
+
+            if not session:
+                title = (
+                    user_message[:30] + "..." if len(user_message) > 30 else user_message
+                )
+                session = ChatSession.objects.create(user=request.user, title=title)
+                is_new_session = True
+
+            ChatMessage.objects.create(
+                session=session,
+                sender=request.user,
+                receiver=admin_user,
+                message=user_message,
+                is_flagged=is_warning,
+            )
+
             ChatMessage.objects.create(
                 session=session,
                 sender=admin_user,
                 receiver=request.user,
                 message=ai_text,
             )
+        elif ai_text and session:
+            # Persist moderation/system assistant messages in the active session so
+            # chat history remains consistent after reload.
+            admin_user = (
+                User.objects.filter(role="admin").first()
+                or User.objects.filter(is_superuser=True).first()
+            )
+            if admin_user:
+                ChatMessage.objects.create(
+                    session=session,
+                    sender=admin_user,
+                    receiver=request.user,
+                    message=ai_text,
+                    is_flagged=True,
+                )
 
         return JsonResponse(
             {
                 "response": ai_text,
                 "is_warning": is_warning,
-                "session_id": session.id,
+                "is_banned": is_banned,
+                "ban_remaining_seconds": ban_remaining_seconds,
+                "moderation_action": moderation_action,
+                "strike_count": strike_count,
+                "session_id": session.id if session else None,
                 "is_new_session": is_new_session,
-                "session_title": session.title,
+                "session_title": session.title if session else "",
             }
         )
 
@@ -3819,7 +3848,14 @@ def chat_sessions(request):
                 "updated_at": s.updated_at.strftime("%b %d, %Y"),
             }
         )
-    return JsonResponse({"sessions": sessions_list})
+    ban_status = get_current_ban_status(request.user)
+    return JsonResponse(
+        {
+            "sessions": sessions_list,
+            "is_banned": ban_status["is_banned"],
+            "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
+        }
+    )
 
 
 @login_required
@@ -3830,8 +3866,16 @@ def chat_history(request):
     """
     session_id = request.GET.get("session_id")
 
+    ban_status = get_current_ban_status(request.user)
+
     if not session_id:
-        return JsonResponse({"messages": []})
+        return JsonResponse(
+            {
+                "messages": [],
+                "is_banned": ban_status["is_banned"],
+                "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
+            }
+        )
 
     recent_msgs = ChatMessage.objects.filter(
         session_id=session_id, session__user=request.user
@@ -3848,7 +3892,13 @@ def chat_history(request):
             }
         )
 
-    return JsonResponse({"messages": messages_list})
+    return JsonResponse(
+        {
+            "messages": messages_list,
+            "is_banned": ban_status["is_banned"],
+            "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
+        }
+    )
 
 
 @login_required
@@ -4925,6 +4975,10 @@ def my_payments(request):
         return HttpResponseForbidden("Not allowed")
 
     user = request.user
+    allowed_tabs = {"action_required", "remaining_balances", "payment_history"}
+    active_tab = request.GET.get("tab", "action_required").strip()
+    if active_tab not in allowed_tabs:
+        active_tab = "action_required"
 
     # Payment history filters
     search_query = request.GET.get("search", "").strip()
@@ -4933,6 +4987,7 @@ def my_payments(request):
     payments_qs = (
         Payment.objects.filter(booking__user=user)
         .select_related("booking")
+        .prefetch_related("booking__images", "booking__payments")
         .order_by("-created_at")
     )
 
@@ -4961,22 +5016,36 @@ def my_payments(request):
     payments_page_number = request.GET.get("payments_page", 1)
     payments_page_obj = payments_paginator.get_page(payments_page_number)
 
-    # Attach display helpers to payment bookings for modal
+    # Attach booking/payment summary fields for detailed tables and modal
     for pay in payments_page_obj:
+        booking_payments = list(pay.booking.payments.all())
+        verified_payments = [
+            p for p in booking_payments if p.payment_status == "verified"
+        ]
+        verified_paid = sum(
+            (p.amount for p in verified_payments),
+            Decimal("0.00"),
+        )
+        booking_total = pay.booking.total_price or Decimal("0.00")
+        booking_remaining = booking_total - verified_paid
+        if booking_remaining < Decimal("0.00"):
+            booking_remaining = Decimal("0.00")
+
         pay.booking.time_range_display = get_booking_time_range(pay.booking)
-        verified_paid = pay.booking.payments.filter(payment_status="verified").aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0.00")
-        pay.booking.booking_remaining = (pay.booking.total_price or Decimal("0.00")) - verified_paid
+        pay.booking.total_verified_paid = verified_paid
+        pay.booking.booking_remaining = booking_remaining
+        pay.booking.total_payment_records = len(booking_payments)
         pay.booking.cleaned_special_requests = remove_end_time_tag(pay.booking.special_requests or "")
 
     # Action-required: approved bookings awaiting payment
     ar_search_query = request.GET.get("ar_search", "").strip()
     ar_action_filter = request.GET.get("ar_action", "").strip()
 
-    all_action_bookings = Booking.objects.filter(
-        user=user, status__in=["pending_payment", "confirmed"]
-    ).order_by("-updated_at", "-id")
+    all_action_bookings = (
+        Booking.objects.filter(user=user, status__in=["pending_payment", "confirmed"])
+        .prefetch_related("payments", "images")
+        .order_by("-updated_at", "-id")
+    )
 
     if ar_search_query:
         all_action_bookings = all_action_bookings.filter(
@@ -4988,16 +5057,49 @@ def my_payments(request):
     partial_bookings = []  # Bookings with partial verified payments
     
     for b in all_action_bookings:
-        verified_paid = b.payments.filter(payment_status="verified").aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0.00")
+        booking_payments = list(b.payments.all())
+        verified_payments = [p for p in booking_payments if p.payment_status == "verified"]
+        verified_paid = sum((p.amount for p in verified_payments), Decimal("0.00"))
         remaining = (b.total_price or Decimal("0.00")) - verified_paid
-        
+        if remaining < Decimal("0.00"):
+            remaining = Decimal("0.00")
+
         if remaining > Decimal("0.00"):
             b.time_range_display = get_booking_time_range(b)
             b.booking_remaining = remaining
-            latest_payment = b.payments.order_by("-created_at").first()
-            
+            b.total_verified_paid = verified_paid
+            b.total_payment_records = len(booking_payments)
+
+            latest_payment = max(booking_payments, key=lambda p: p.created_at) if booking_payments else None
+            latest_verified_payment = (
+                max(
+                    verified_payments,
+                    key=lambda p: (p.paid_at or p.updated_at or p.created_at),
+                )
+                if verified_payments
+                else None
+            )
+
+            if latest_verified_payment:
+                b.latest_verified_paid_at = (
+                    latest_verified_payment.paid_at
+                    or latest_verified_payment.updated_at
+                    or latest_verified_payment.created_at
+                )
+                b.latest_verified_paid_amount = latest_verified_payment.amount
+            else:
+                b.latest_verified_paid_at = None
+                b.latest_verified_paid_amount = Decimal("0.00")
+
+            b.last_payment_status_display = (
+                latest_payment.get_payment_status_display()
+                if latest_payment
+                else "No Payment Yet"
+            )
+            b.last_payment_submitted_at = (
+                latest_payment.created_at if latest_payment else None
+            )
+
             # If customer already submitted a payment that is awaiting admin review,
             # this booking should no longer appear under "Action Required".
             if latest_payment and latest_payment.payment_status == "pending":
@@ -5049,6 +5151,7 @@ def my_payments(request):
             "ar_action_filter": ar_action_filter,
             "action_required_page_obj": action_required_page_obj,
             "payments_page_obj": payments_page_obj,
+            "active_tab": active_tab,
         },
     )
 

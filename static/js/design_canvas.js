@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let ARTBOARD_W = 1920;
     let ARTBOARD_H = 1080;
     const MIN_ZOOM = 0.15;
-    const MAX_ZOOM = 3;
+    const MAX_ZOOM = 1.5;
     const MAX_UNDO = 40;
     const ENABLE_VIEWPORT_PAN = false;
 
@@ -500,15 +500,50 @@ document.addEventListener('DOMContentLoaded', function() {
     filterAssetsByPackage();
 
     function initSidebarPanels() {
-        const railButtons = document.querySelectorAll('.rail-btn[data-panel-target]');
-        const panels = document.querySelectorAll('.sidebar-panel');
+        const railButtons = Array.from(document.querySelectorAll('.rail-btn[data-panel-target]'));
+        const panels = Array.from(document.querySelectorAll('.sidebar-panel'));
+        const sidebar = byId('canvasSidebar');
+        const designLayout = document.querySelector('.design-layout');
         if (!railButtons.length || !panels.length) return;
+
+        const syncCanvasAfterSidebarToggle = () => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    canvas.setWidth(dropZone.clientWidth);
+                    canvas.setHeight(dropZone.clientHeight);
+                    zoomCenter(canvas.getZoom());
+                });
+            });
+        };
+
+        const setSidebarState = (targetId) => {
+            const isOpen = !!targetId;
+            railButtons.forEach((node) => {
+                const isActive = isOpen && node.getAttribute('data-panel-target') === targetId;
+                node.classList.toggle('active', isActive);
+                node.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+
+            panels.forEach((panel) => panel.classList.toggle('active', isOpen && panel.id === targetId));
+            if (sidebar) sidebar.classList.toggle('is-collapsed', !isOpen);
+            if (designLayout) designLayout.classList.toggle('sidebar-collapsed', !isOpen);
+            syncCanvasAfterSidebarToggle();
+        };
+
+        setSidebarState(null);
 
         railButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
                 const targetId = btn.getAttribute('data-panel-target');
-                railButtons.forEach((node) => node.classList.toggle('active', node === btn));
-                panels.forEach((panel) => panel.classList.toggle('active', panel.id === targetId));
+                const isAlreadyActive = btn.classList.contains('active');
+
+                if (isAlreadyActive) {
+                    setSidebarState(null);
+                    disableDrawingMode();
+                    return;
+                }
+
+                setSidebarState(targetId);
                 if (targetId !== 'toolsPanel') disableDrawingMode();
             });
         });
@@ -717,14 +752,11 @@ document.addEventListener('DOMContentLoaded', function() {
             width: ARTBOARD_W,
             height: ARTBOARD_H,
             fill: '#ffffff',
-            shadow: new fabric.Shadow({
-                color: 'rgba(0, 0, 0, 0.32)',
-                blur: 28,
-                offsetX: 0,
-                offsetY: 8
-            }),
-            selectable: true,
-            evented: true,
+            stroke: null,
+            strokeWidth: 0,
+            shadow: null,
+            selectable: false,
+            evented: false,
             hoverCursor: 'default',
             moveCursor: 'default',
             lockMovementX: true,
@@ -732,8 +764,8 @@ document.addEventListener('DOMContentLoaded', function() {
             lockRotation: true,
             lockScalingX: false,
             lockScalingY: false,
-            hasControls: true,
-            hasBorders: true,
+            hasControls: false,
+            hasBorders: false,
             cornerStyle: 'circle'
         });
         rect.setControlsVisibility({
@@ -877,15 +909,15 @@ document.addEventListener('DOMContentLoaded', function() {
             canvas.getObjects().forEach((obj) => {
                 if (obj._isArtboard) {
                     obj.set({
-                        selectable: true,
-                        evented: true,
+                        selectable: false,
+                        evented: false,
                         lockMovementX: true,
                         lockMovementY: true,
                         lockRotation: true,
                         lockScalingX: false,
                         lockScalingY: false,
-                        hasControls: true,
-                        hasBorders: true,
+                        hasControls: false,
+                        hasBorders: false,
                         hoverCursor: 'default',
                         moveCursor: 'default'
                     });
@@ -910,7 +942,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: ARTBOARD_W,
                 height: ARTBOARD_H,
                 scaleX: 1,
-                scaleY: 1
+                scaleY: 1,
+                stroke: null,
+                strokeWidth: 0,
+                shadow: null
             });
             artboard.setCoords();
             syncBackgroundToArtboard();
@@ -933,7 +968,9 @@ document.addEventListener('DOMContentLoaded', function() {
         zoomLabel.textContent = `${zoomPercent}%`;
         if (zoomRange) {
             const minZoomPercent = Math.round(getMinAllowedZoom() * 100);
+            const maxZoomPercent = Math.round(MAX_ZOOM * 100);
             zoomRange.min = `${minZoomPercent}`;
+            zoomRange.max = `${maxZoomPercent}`;
             zoomRange.value = `${zoomPercent}`;
         }
     }
@@ -1695,22 +1732,57 @@ document.addEventListener('DOMContentLoaded', function() {
         return container;
     }
 
-    function bindDraggableItem(item) {
-        if (!item) return;
-        item.addEventListener('dragstart', (event) => {
-            const payload = {
-                type: item.getAttribute('data-type') || 'image',
-                category: item.getAttribute('data-category') || 'custom',
-                src: item.getAttribute('data-src') || '',
-                fill: item.getAttribute('data-color') || '',
-                width: parseInt(item.getAttribute('data-width') || '0', 10),
-                height: parseInt(item.getAttribute('data-height') || '0', 10),
-                text: item.getAttribute('data-text') || 'Text',
-                fontFamily: item.getAttribute('data-font-family') || 'Montserrat'
-            };
+    function getDraggableItemPayload(item) {
+        if (!item) return null;
+        return {
+            type: item.getAttribute('data-type') || 'image',
+            category: item.getAttribute('data-category') || 'custom',
+            src: item.getAttribute('data-src') || '',
+            fill: item.getAttribute('data-color') || '',
+            width: parseInt(item.getAttribute('data-width') || '0', 10),
+            height: parseInt(item.getAttribute('data-height') || '0', 10),
+            text: item.getAttribute('data-text') || 'Text',
+            fontFamily: item.getAttribute('data-font-family') || 'Montserrat'
+        };
+    }
 
+    function addDraggableItemToCanvas(item) {
+        const payload = getDraggableItemPayload(item);
+        if (!payload) return;
+        addShapeToCanvas(payload, getArtboardCenterPoint());
+    }
+
+    function bindDraggableItem(item) {
+        if (!item || item.dataset.dragBound === 'true') return;
+        item.dataset.dragBound = 'true';
+
+        if (!item.hasAttribute('tabindex')) item.setAttribute('tabindex', '0');
+        if (!item.hasAttribute('role')) item.setAttribute('role', 'button');
+        if (!item.hasAttribute('aria-label') && item.getAttribute('title')) {
+            item.setAttribute('aria-label', `Add ${item.getAttribute('title')} to canvas`);
+        }
+
+        let lastDragStartedAt = 0;
+
+        item.addEventListener('dragstart', (event) => {
+            const payload = getDraggableItemPayload(item);
+            if (!payload) return;
+            lastDragStartedAt = Date.now();
             event.dataTransfer.setData('text/plain', JSON.stringify(payload));
             event.dataTransfer.effectAllowed = 'copy';
+        });
+
+        item.addEventListener('click', (event) => {
+            if (event.defaultPrevented) return;
+            if (Date.now() - lastDragStartedAt < 250) return;
+            event.preventDefault();
+            addDraggableItemToCanvas(item);
+        });
+
+        item.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            addDraggableItemToCanvas(item);
         });
     }
 

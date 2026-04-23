@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20260422j">
+<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20260423a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
@@ -30,7 +30,7 @@
                     <button id="zoomOutBtn" class="ctrl-btn icon-only" title="Zoom Out (Ctrl+-)">
                         <i class="fas fa-minus"></i>
                     </button>
-                    <input type="range" id="zoomRange" min="15" max="300" value="100" aria-label="Zoom level">
+                    <input type="range" id="zoomRange" min="15" max="150" value="100" aria-label="Zoom level">
                     <span id="zoomLabel" class="zoom-pill">100%</span>
                     <button id="zoomInBtn" class="ctrl-btn icon-only" title="Zoom In (Ctrl++)">
                         <i class="fas fa-plus"></i>
@@ -58,9 +58,9 @@
             </div>
 
             <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
-                <button type="button" class="rail-btn active" data-panel-target="elementsPanel" title="Elements">
+                <button type="button" class="rail-btn" data-panel-target="elementsPanel" title="Elements">
                     <i class="fas fa-shapes"></i>
-                    <span>Elements</span>
+                    <span>Assets</span>
                 </button>
                 <button type="button" class="rail-btn" data-panel-target="textPanel" title="Text">
                     <i class="fas fa-font"></i>
@@ -72,13 +72,12 @@
                 </button>
             </aside>
 
-            <aside class="inventory-sidebar" id="canvasSidebar">
-                <div class="sidebar-panel active" id="elementsPanel">
+            <aside class="inventory-sidebar is-collapsed" id="canvasSidebar">
+                <div class="sidebar-panel" id="elementsPanel">
                     <div class="sidebar-panel-header">
                         <div>
-                            <span class="panel-eyebrow">Workspace</span>
-                            <h4>Elements</h4>
-                            <p>Drag elements into the canvas.</p>
+                            <h4>Assets</h4>
+                            <p>Click or drag elements into the canvas.</p>
                         </div>
                         <span class="panel-badge">{{ canvas_categories|length }} groups</span>
                     </div>
@@ -105,19 +104,6 @@
                         <div class="custom-color-row">
                             <span class="custom-label">Custom</span>
                             <input type="color" id="customCanvasColor" value="#ffffff" title="Pick custom color">
-                        </div>
-                    </div>
-
-                    <div class="sidebar-section compact-section">
-                        <div class="section-label"><i class="fas fa-image"></i> Artboard Background</div>
-                        <div class="bg-image-actions">
-                            <label class="bg-upload-btn">
-                                <i class="fas fa-upload"></i> Upload Background
-                                <input type="file" id="bgImageUpload" accept="image/*" hidden>
-                            </label>
-                            <button class="bg-remove-btn" id="removeBgImage">
-                                <i class="fas fa-times"></i> Remove Background
-                            </button>
                         </div>
                     </div>
 
@@ -151,16 +137,34 @@
                 <div class="sidebar-panel" id="uploadsPanel">
                     <div class="sidebar-panel-header">
                         <div>
-                            <span class="panel-eyebrow">Workspace</span>
+                            <h4>Canvas Background</h4>
+                            <p>Set a full-canvas background image for your layout. You can replace or remove it anytime.</p>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section compact-section">
+                        <div class="bg-image-actions">
+                            <label class="bg-upload-btn">
+                                <i class="fas fa-upload"></i> Upload Background
+                                <input type="file" id="bgImageUpload" accept="image/*" hidden>
+                            </label>
+                            <button class="bg-remove-btn" id="removeBgImage">
+                                <i class="fas fa-times"></i> Remove Background
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-panel-header">
+                        <div>
                             <h4>Uploads</h4>
-                            <p>Import PNG/JPG files and drag them into canvas.</p>
+                            <p>Upload PNG/JPG decor elements, then click each uploaded item to place it on the canvas.</p>
                         </div>
                     </div>
 
                     <label class="upload-dropzone">
                         <i class="fas fa-cloud-upload-alt"></i>
                         <span>Choose files</span>
-                        <small>Transparent PNG works best.</small>
+                        <small>Upload decor elements (PNG/JPG). Click to place after upload.</small>
                         <input type="file" id="userUploadInput" accept="image/*" multiple hidden>
                     </label>
 
@@ -170,7 +174,6 @@
                 <div class="sidebar-panel" id="textPanel">
                     <div class="sidebar-panel-header">
                         <div>
-                            <span class="panel-eyebrow">Workspace</span>
                             <h4>Text</h4>
                             <p>Add draggable text presets or create custom text.</p>
                         </div>
@@ -328,7 +331,7 @@
                     <canvas id="designCanvas"></canvas>
                     <div class="drop-hint" id="dropHint">
                         <i class="fas fa-magic"></i>
-                        <p>Drop assets here to start building your design.</p>
+                        <p>Click an asset or drop it here to start building your design.</p>
                     </div>
 
                     <div class="object-context-toolbar" id="objectContextToolbar" aria-hidden="true">
@@ -482,5 +485,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 </script>
-<script src="{% static 'js/design_canvas.js' %}?v=20260422k"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20260423b"></script>
 {% endblock content %}

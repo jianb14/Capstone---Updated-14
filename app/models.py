@@ -206,9 +206,46 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"Message {self.id} from {self.sender.username} to {self.receiver.username}"
-    
-    
-    
+
+
+class ChatModerationState(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='chat_moderation_state')
+    banned_until = models.DateTimeField(blank=True, null=True, db_index=True)
+    last_ban_ended_at = models.DateTimeField(blank=True, null=True)
+    total_violations = models.PositiveIntegerField(default=0)
+    total_bans = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Chat Moderation State'
+        verbose_name_plural = 'Chat Moderation States'
+
+    def __str__(self):
+        return f"Moderation state for {self.user.username}"
+
+
+class ChatModerationEvent(models.Model):
+    VIOLATION_TYPE_CHOICES = (
+        ('profanity', 'Profanity'),
+        ('toxicity', 'Toxicity'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_moderation_events')
+    violation_type = models.CharField(max_length=20, choices=VIOLATION_TYPE_CHOICES, default='profanity')
+    matched_terms = models.CharField(max_length=255, blank=True, default='')
+    message_excerpt = models.CharField(max_length=255, blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Chat Moderation Event'
+        verbose_name_plural = 'Chat Moderation Events'
+
+    def __str__(self):
+        return f"{self.user.username} {self.violation_type} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
 # -----------------------------
 # 7️⃣ Package
 # -----------------------------

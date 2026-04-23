@@ -469,6 +469,7 @@
             flex-direction: column;
             background-color: var(--black);
             min-width: 0;
+            position: relative;
         }
 
         .ai-chat-header {
@@ -667,9 +668,65 @@
 
         /* Profanity warning bubble */
         .ai-warning-msg {
-            background: rgba(220, 38, 38, 0.15) !important;
-            border: 2px solid #dc2626 !important;
-            color: #fca5a5 !important;
+            background: rgba(245, 158, 11, 0.12) !important;
+            border: 1px solid rgba(245, 158, 11, 0.45) !important;
+            color: #f8d8a0 !important;
+        }
+
+        .ai-ban-overlay {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 54px;
+            bottom: 0;
+            z-index: 30;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(8, 8, 8, 0.72);
+            backdrop-filter: blur(2px);
+            padding: 1rem;
+        }
+
+        .ai-ban-overlay.active {
+            display: flex;
+        }
+
+        .ai-ban-card {
+            width: min(92%, 440px);
+            background: linear-gradient(180deg, #1f1913 0%, #14110d 100%);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            border-radius: 12px;
+            padding: 1rem 1rem 0.9rem;
+            color: #f6e7cb;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .ai-ban-title {
+            margin: 0 0 0.4rem 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f9dfb1;
+        }
+
+        .ai-ban-reason {
+            margin: 0 0 0.7rem 0;
+            font-size: 0.86rem;
+            color: #e6d6b8;
+            line-height: 1.4;
+        }
+
+        .ai-ban-timer {
+            display: inline-block;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+            color: #f9dfb1;
+            background: rgba(245, 158, 11, 0.14);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            border-radius: 8px;
+            padding: 0.3rem 0.55rem;
         }
 
         /* Spin animation for image loading */
@@ -761,6 +818,16 @@
                 </div>
             </div>
 
+            <div class="ai-ban-overlay" id="ai-ban-overlay">
+                <div class="ai-ban-card">
+                    <h4 class="ai-ban-title">Temporarily Banned</h4>
+                    <p class="ai-ban-reason" id="ai-ban-reason">
+                        You are temporarily banned due to repeated violations.
+                    </p>
+                    <div class="ai-ban-timer" id="ai-ban-timer">00:00:00</div>
+                </div>
+            </div>
+
             <div class="ai-input-area">
                 <textarea id="ai-widget-input" placeholder="Type an idea or question..." rows="1"></textarea>
                 <button id="ai-widget-send">Send</button>
@@ -778,10 +845,128 @@
             const chatInput = document.getElementById('ai-widget-input');
             const sendBtn = document.getElementById('ai-widget-send');
             const typingIndicator = document.getElementById('ai-typing');
+            const banOverlay = document.getElementById('ai-ban-overlay');
+            const banOverlayReason = document.getElementById('ai-ban-reason');
+            const banOverlayTimer = document.getElementById('ai-ban-timer');
+            const CHAT_SESSION_STORAGE_KEY = 'balloorina_ai_session_id';
 
             let currentSessionId = null;
             let historyLoadedForSession = {};
             let isGenerating = false;
+            let activeBanUntilMs = null;
+            let banUiInterval = null;
+
+            function loadStoredSessionId() {
+                const raw = localStorage.getItem(CHAT_SESSION_STORAGE_KEY);
+                if (!raw) return null;
+                const parsed = Number(raw);
+                return Number.isFinite(parsed) ? parsed : null;
+            }
+
+            function storeSessionId(sessionId) {
+                if (!sessionId) {
+                    localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
+                    return;
+                }
+                localStorage.setItem(CHAT_SESSION_STORAGE_KEY, String(sessionId));
+            }
+
+            function formatCountdownClock(totalSeconds) {
+                const safe = Math.max(0, Number(totalSeconds) || 0);
+                const hrs = Math.floor(safe / 3600);
+                const mins = Math.floor((safe % 3600) / 60);
+                const secs = safe % 60;
+                return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+            }
+
+            function getBanRemainingSeconds() {
+                if (!activeBanUntilMs) return 0;
+                return Math.max(0, Math.ceil((activeBanUntilMs - Date.now()) / 1000));
+            }
+
+            function setSendButtonDisabled(disabled) {
+                sendBtn.disabled = !!disabled;
+                sendBtn.style.opacity = disabled ? '0.5' : '1';
+                sendBtn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+            }
+
+            function stopBanUiInterval() {
+                if (!banUiInterval) return;
+                clearInterval(banUiInterval);
+                banUiInterval = null;
+            }
+
+            function applyBanUiState(isBanned, remainingSeconds) {
+                const remaining = Math.max(0, Number(remainingSeconds) || 0);
+                if (!isBanned || remaining <= 0) {
+                    activeBanUntilMs = null;
+                    stopBanUiInterval();
+                    chatInput.disabled = false;
+                    chatInput.placeholder = 'Type an idea or question...';
+                    if (!isGenerating) {
+                        setSendButtonDisabled(false);
+                    }
+                    if (banOverlay) {
+                        banOverlay.classList.remove('active');
+                    }
+                    return;
+                }
+
+                activeBanUntilMs = Date.now() + (remaining * 1000);
+                chatInput.disabled = true;
+                setSendButtonDisabled(true);
+
+                const updatePlaceholder = () => {
+                    const left = getBanRemainingSeconds();
+                    if (left <= 0) {
+                        applyBanUiState(false, 0);
+                        return;
+                    }
+                    chatInput.placeholder = `You are temporarily banned. Try again in ${formatCountdownClock(left)}.`;
+                    if (banOverlayTimer) {
+                        banOverlayTimer.textContent = formatCountdownClock(left);
+                    }
+                };
+
+                if (banOverlayReason) {
+                    banOverlayReason.textContent = 'You are temporarily banned due to repeated violations. Please wait until the timer ends before sending another message.';
+                }
+                if (banOverlay) {
+                    banOverlay.classList.add('active');
+                }
+                updatePlaceholder();
+                stopBanUiInterval();
+                banUiInterval = setInterval(updatePlaceholder, 1000);
+            }
+
+            function bindBanCountdowns(container) {
+                if (!container) return;
+                const countdownNodes = container.querySelectorAll('.ai-ban-countdown[data-ban-seconds]');
+                const activeBanSeconds = getBanRemainingSeconds();
+                countdownNodes.forEach(node => {
+                    if (node.dataset.boundCountdown === '1') return;
+                    node.dataset.boundCountdown = '1';
+
+                    const rawRemaining = Math.max(0, parseInt(node.dataset.banSeconds || '0', 10) || 0);
+                    let remaining = activeBanSeconds > 0 ? Math.min(rawRemaining, activeBanSeconds) : 0;
+                    let timerId = null;
+                    const tick = () => {
+                        if (!document.body.contains(node)) {
+                            clearInterval(timerId);
+                            return;
+                        }
+                        node.textContent = formatCountdownClock(remaining);
+                        if (remaining <= 0) {
+                            clearInterval(timerId);
+                            return;
+                        }
+                        remaining -= 1;
+                    };
+
+                    tick();
+                    timerId = setInterval(tick, 1000);
+                });
+            }
 
             // ---- Markdown-to-HTML Formatter ----
             function formatMarkdown(text) {
@@ -928,6 +1113,11 @@
                         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
                     });
                     const data = await response.json();
+                    if (data.is_banned) {
+                        applyBanUiState(true, data.ban_remaining_seconds || 0);
+                    } else {
+                        applyBanUiState(false, 0);
+                    }
 
                     const recentChatList = document.getElementById('ai-recent-chat-list');
                     if (!recentChatList) return;
@@ -1005,15 +1195,26 @@
                                 li.classList.add('active');
 
                                 currentSessionId = session.id;
+                                storeSessionId(currentSessionId);
                                 loadChatHistory(session.id);
                             };
                             recentChatList.appendChild(li);
                         });
 
-                        // If no session selected, select the first one
+                        const storedSessionId = loadStoredSessionId();
+                        if ((!currentSessionId || !data.sessions.some(s => s.id === currentSessionId)) && storedSessionId && data.sessions.some(s => s.id === storedSessionId)) {
+                            currentSessionId = storedSessionId;
+                        }
+
                         if (!currentSessionId && data.sessions.length > 0) {
                             currentSessionId = data.sessions[0].id;
-                            recentChatList.firstChild.classList.add('active');
+                        }
+
+                        if (currentSessionId) {
+                            const activeEl = Array.from(recentChatList.querySelectorAll('.ai-recent-chat-item'))
+                                .find(el => Number(el.dataset.sessionId) === Number(currentSessionId));
+                            if (activeEl) activeEl.classList.add('active');
+                            storeSessionId(currentSessionId);
                             loadChatHistory(currentSessionId);
                         }
                     }
@@ -1032,6 +1233,11 @@
                         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
                     });
                     const data = await response.json();
+                    if (data.is_banned) {
+                        applyBanUiState(true, data.ban_remaining_seconds || 0);
+                    } else {
+                        applyBanUiState(false, 0);
+                    }
 
                     // Clear existing messages
                     const msgs = chatBox.querySelectorAll('.ai-message-bubble');
@@ -1046,6 +1252,7 @@
                             } else {
                                 div.className = 'ai-message-bubble ai-bot-msg ai-history-msg';
                                 div.innerHTML = formatMarkdown(msg.content);
+                                bindBanCountdowns(div);
                             }
                             chatBox.insertBefore(div, typingIndicator);
                         });
@@ -1078,6 +1285,11 @@
                 const message = chatInput.value.trim();
                 if (!message) return;
                 if (isGenerating) return; // Prevent double-send while generating
+                const activeBanSeconds = getBanRemainingSeconds();
+                if (activeBanSeconds > 0) {
+                    applyBanUiState(true, activeBanSeconds);
+                    return;
+                }
 
                 // User Message UI
                 typingIndicator.style.display = 'none';
@@ -1097,9 +1309,7 @@
 
                 // Disable send button & mark as generating
                 isGenerating = true;
-                sendBtn.disabled = true;
-                sendBtn.style.opacity = '0.5';
-                sendBtn.style.cursor = 'not-allowed';
+                setSendButtonDisabled(true);
 
                 try {
                     const payload = { message: message };
@@ -1123,6 +1333,7 @@
                     if (data.session_id) {
                         if (data.is_new_session || !currentSessionId) {
                             currentSessionId = data.session_id;
+                            storeSessionId(currentSessionId);
                             // Reload sidebar to show the new session
                             loadSessions();
                         }
@@ -1141,8 +1352,15 @@
                         if (data.is_warning) {
                             botDiv.classList.add('ai-warning-msg');
                         }
+
+                        if (data.is_banned) {
+                            applyBanUiState(true, data.ban_remaining_seconds || 0);
+                        } else if (getBanRemainingSeconds() <= 0) {
+                            applyBanUiState(false, 0);
+                        }
                     }
 
+                    bindBanCountdowns(botDiv);
                     chatBox.insertBefore(botDiv, typingIndicator);
 
                     // If widget was closed during generation, auto-scroll when it reopens
@@ -1162,9 +1380,11 @@
 
                 // Re-enable send button
                 isGenerating = false;
-                sendBtn.disabled = false;
-                sendBtn.style.opacity = '1';
-                sendBtn.style.cursor = 'pointer';
+                if (getBanRemainingSeconds() > 0) {
+                    applyBanUiState(true, getBanRemainingSeconds());
+                } else {
+                    setSendButtonDisabled(false);
+                }
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
 
@@ -1185,6 +1405,7 @@
             // ---- Start New Chat Function ----
             function startNewChat() {
                 currentSessionId = null;
+                storeSessionId(null);
 
                 // Clear active state in sidebar
                 document.querySelectorAll('.ai-recent-chat-item').forEach(el => el.classList.remove('active'));

@@ -125,7 +125,36 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
-load_dotenv()
+# Always load the project-local .env and let it override stale process values.
+# This helps when keys are rotated during local development.
+load_dotenv(BASE_DIR / ".env", override=True)
+
+
+def sanitize_dead_local_proxy_env():
+    """
+    Remove broken local proxy values (e.g. 127.0.0.1:9) that can block
+    outbound API calls for HuggingFace, SMTP checks, pip, and other requests.
+    """
+    proxy_keys = [
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "GIT_HTTP_PROXY",
+        "GIT_HTTPS_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "git_http_proxy",
+        "git_https_proxy",
+    ]
+
+    for key in proxy_keys:
+        value = os.environ.get(key, "")
+        if "127.0.0.1:9" in value or "localhost:9" in value:
+            os.environ.pop(key, None)
+
+
+sanitize_dead_local_proxy_env()
 
 
 def env_bool(name, default=False):

@@ -2,316 +2,192 @@
 {% load static %}
 
 {% block content %}
-<div class="dash-wrap">
-    <div class="dash-head">
-        <div>
-            <h1>Manage About Page</h1>
-            <p class="dash-sub">Update the hero section, our story, mission, and core values.</p>
-        </div>
-    </div>
+<link rel="stylesheet" href="{% static 'css/admin_content.css' %}">
 
-    <form method="POST" enctype="multipart/form-data" class="content-form">
-        {% csrf_token %}
-        
-        <!-- Hero Section -->
-        <div class="form-section">
-            <h3 class="section-title">Hero Section</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="hero_title">Hero Title</label>
-                    <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="hero_subtitle">Hero Subtitle</label>
-                    <textarea name="hero_subtitle" id="hero_subtitle" rows="3" class="form-control">{{ content.hero_subtitle }}</textarea>
-                </div>
-            </div>
-        </div>
-
-        <!-- Our Story Section -->
-        <div class="form-section">
-            <h3 class="section-title">Our Story Section</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="story_label">Story Label (Small text above title)</label>
-                    <input type="text" name="story_label" id="story_label" value="{{ content.story_label }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="story_title">Story Title</label>
-                    <input type="text" name="story_title" id="story_title" value="{{ content.story_title }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="story_paragraph_1">Story Paragraph 1</label>
-                    <textarea name="story_paragraph_1" id="story_paragraph_1" rows="3" class="form-control">{{ content.story_paragraph_1 }}</textarea>
-                </div>
-                <div class="form-group">
-                    <label for="story_paragraph_2">Story Paragraph 2</label>
-                    <textarea name="story_paragraph_2" id="story_paragraph_2" rows="3" class="form-control">{{ content.story_paragraph_2 }}</textarea>
-                </div>
-            </div>
-            
-            <div class="form-grid mt-4">
-                <div class="form-group">
-                    <label for="story_image">Story Image</label>
-                    {% if content.story_image %}
-                        <div class="current-img">
-                            <img src="{{ content.story_image.url }}" alt="Story" style="max-width: 150px; border-radius: 8px; margin-bottom: 10px;">
-                        </div>
-                    {% endif %}
-                    <input type="file" name="story_image" id="story_image" class="form-control">
-                </div>
-            </div>
-
-            <h4 class="section-subtitle mt-4">Story Statistics</h4>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="stat_events_styled">Events Styled (e.g. 500+)</label>
-                    <input type="text" name="stat_events_styled" id="stat_events_styled" value="{{ content.stat_events_styled }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="stat_year_founded">Year Founded (e.g. 2020)</label>
-                    <input type="text" name="stat_year_founded" id="stat_year_founded" value="{{ content.stat_year_founded }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="stat_satisfaction">Satisfaction Rate (e.g. 100%)</label>
-                    <input type="text" name="stat_satisfaction" id="stat_satisfaction" value="{{ content.stat_satisfaction }}" class="form-control">
-                </div>
-            </div>
-        </div>
-
-        <!-- Our Mission Section -->
-        <div class="form-section">
-            <h3 class="section-title">What Drives Us (Mission) Section</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="mission_label">Mission Label</label>
-                    <input type="text" name="mission_label" id="mission_label" value="{{ content.mission_label }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="mission_title">Mission Title</label>
-                    <input type="text" name="mission_title" id="mission_title" value="{{ content.mission_title }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="mission_paragraph_1">Mission Paragraph 1</label>
-                    <textarea name="mission_paragraph_1" id="mission_paragraph_1" rows="3" class="form-control">{{ content.mission_paragraph_1 }}</textarea>
-                </div>
-                <div class="form-group">
-                    <label for="mission_paragraph_2">Mission Paragraph 2</label>
-                    <textarea name="mission_paragraph_2" id="mission_paragraph_2" rows="3" class="form-control">{{ content.mission_paragraph_2 }}</textarea>
-                </div>
-            </div>
-            
-            <div class="form-grid mt-4">
-                <div class="form-group">
-                    <label for="mission_image">Mission Image</label>
-                    {% if content.mission_image %}
-                        <div class="current-img">
-                            <img src="{{ content.mission_image.url }}" alt="Mission" style="max-width: 150px; border-radius: 8px; margin-bottom: 10px;">
-                        </div>
-                    {% endif %}
-                    <input type="file" name="mission_image" id="mission_image" class="form-control">
-                </div>
-            </div>
-        </div>
-
-        <!-- Core Values Header -->
-        <div class="form-section">
-            <h3 class="section-title">Core Values Header</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="values_title">Values Section Title</label>
-                    <input type="text" name="values_title" id="values_title" value="{{ content.values_title }}" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="values_subtitle">Values Section Subtitle</label>
-                    <textarea name="values_subtitle" id="values_subtitle" rows="2" class="form-control">{{ content.values_subtitle }}</textarea>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" class="btn-save">Save About Content</button>
-        </div>
-    </form>
-
-    <!-- Core Value Cards -->
-    <div class="features-section mt-5">
-        <div class="section-header-flex">
-            <h3 class="section-title">Core Value Cards</h3>
-            <a href="{% url 'admin_about_value_create' %}" class="btn-add-feature">
-                Add New Value
-            </a>
-        </div>
-
-        <div class="feature-list">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Order</th>
-                        <th>Icon</th>
-                        <th>Title</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for value in values %}
-                    <tr>
-                        <td>{{ value.display_order }}</td>
-                        <td><i class="{{ value.icon_class }}"></i></td>
-                        <td>{{ value.title }}</td>
-                        <td>{{ value.description|truncatechars:50 }}</td>
-                        <td>
-                            {% if value.is_active %}
-                                <span class="badge badge-success">Active</span>
-                            {% else %}
-                                <span class="badge badge-secondary">Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td class="action-cell">
-                            <a href="{% url 'admin_about_value_edit' value.id %}" class="btn-edit-sm">Edit</a>
-                            <a href="{% url 'admin_about_value_delete' value.id %}" class="btn-delete-sm" onclick="return confirm('Are you sure you want to delete this value?')">Delete</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">No core values added yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Manage About Page</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <span>About Page</span>
     </div>
 </div>
 
-<style>
-    .form-section {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 24px;
-    }
-    .section-title {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 20px;
-        color: #fff;
-        border-left: 4px solid #f8bbd0;
-        padding-left: 12px;
-    }
-    .section-subtitle {
-        font-size: 1rem;
-        font-weight: 500;
-        color: #f8bbd0;
-        margin-bottom: 15px;
-    }
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-    }
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .form-group label {
-        font-size: 0.9rem;
-        color: #ccc;
-    }
-    .form-control {
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        padding: 10px 14px;
-        color: #fff;
-        font-size: 0.95rem;
-        transition: all 0.2s ease;
-    }
-    .form-control:focus {
-        border-color: #f8bbd0;
-        outline: none;
-        background: rgba(0, 0, 0, 0.3);
-    }
-    .btn-save {
-        background: #f8bbd0;
-        color: #000;
-        border: none;
-        padding: 12px 30px;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .btn-save:hover {
-        background: #f48fb1;
-        transform: translateY(-2px);
-    }
-    .section-header-flex {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-    .btn-add-feature {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
-        text-decoration: none;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        transition: all 0.2s ease;
-    }
-    .btn-add-feature:hover {
-        background: rgba(255, 255, 255, 0.2);
-    }
-    .admin-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    .admin-table th, .admin-table td {
-        padding: 15px;
-        text-align: left;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .admin-table th {
-        background: rgba(0, 0, 0, 0.2);
-        color: #888;
-        font-weight: 500;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .admin-table td {
-        color: #ddd;
-    }
-    .badge {
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    .badge-success { background: rgba(76, 175, 80, 0.2); color: #81c784; }
-    .badge-secondary { background: rgba(158, 158, 158, 0.2); color: #bdbdbd; }
+<form method="POST" enctype="multipart/form-data" class="content-form">
+    {% csrf_token %}
     
-    .btn-edit-sm, .btn-delete-sm {
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        text-decoration: none;
-    }
-    .btn-edit-sm { background: rgba(33, 150, 243, 0.2); color: #64b5f6; }
-    .btn-delete-sm { background: rgba(244, 67, 54, 0.2); color: #e57373; }
+    <!-- Hero Section -->
+    <div class="form-section">
+        <h3 class="section-title">Hero Section</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="hero_title">Hero Title</label>
+                <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="hero_subtitle">Hero Subtitle</label>
+                <textarea name="hero_subtitle" id="hero_subtitle" rows="3" class="form-control">{{ content.hero_subtitle }}</textarea>
+            </div>
+        </div>
+    </div>
 
-    .action-cell {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-    }
-</style>
+    <!-- Our Story Section -->
+    <div class="form-section">
+        <h3 class="section-title">Our Story Section</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="story_label">Story Label (Small text above title)</label>
+                <input type="text" name="story_label" id="story_label" value="{{ content.story_label }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="story_title">Story Title</label>
+                <input type="text" name="story_title" id="story_title" value="{{ content.story_title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="story_paragraph_1">Story Paragraph 1</label>
+                <textarea name="story_paragraph_1" id="story_paragraph_1" rows="3" class="form-control">{{ content.story_paragraph_1 }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="story_paragraph_2">Story Paragraph 2</label>
+                <textarea name="story_paragraph_2" id="story_paragraph_2" rows="3" class="form-control">{{ content.story_paragraph_2 }}</textarea>
+            </div>
+        </div>
+        
+        <div class="form-grid mt-4">
+            <div class="form-group">
+                <label for="story_image">Story Image</label>
+                {% if content.story_image %}
+                    <div class="current-img">
+                        <img src="{{ content.story_image.url }}" alt="Story">
+                    </div>
+                {% endif %}
+                <input type="file" name="story_image" id="story_image" class="form-control">
+            </div>
+        </div>
+
+        <h4 class="section-subtitle mt-4">Story Statistics</h4>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="stat_events_styled">Events Styled (e.g. 500+)</label>
+                <input type="text" name="stat_events_styled" id="stat_events_styled" value="{{ content.stat_events_styled }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="stat_year_founded">Year Founded (e.g. 2020)</label>
+                <input type="text" name="stat_year_founded" id="stat_year_founded" value="{{ content.stat_year_founded }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="stat_satisfaction">Satisfaction Rate (e.g. 100%)</label>
+                <input type="text" name="stat_satisfaction" id="stat_satisfaction" value="{{ content.stat_satisfaction }}" class="form-control">
+            </div>
+        </div>
+    </div>
+
+    <!-- Our Mission Section -->
+    <div class="form-section">
+        <h3 class="section-title">What Drives Us (Mission) Section</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="mission_label">Mission Label</label>
+                <input type="text" name="mission_label" id="mission_label" value="{{ content.mission_label }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="mission_title">Mission Title</label>
+                <input type="text" name="mission_title" id="mission_title" value="{{ content.mission_title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="mission_paragraph_1">Mission Paragraph 1</label>
+                <textarea name="mission_paragraph_1" id="mission_paragraph_1" rows="3" class="form-control">{{ content.mission_paragraph_1 }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="mission_paragraph_2">Mission Paragraph 2</label>
+                <textarea name="mission_paragraph_2" id="mission_paragraph_2" rows="3" class="form-control">{{ content.mission_paragraph_2 }}</textarea>
+            </div>
+        </div>
+        
+        <div class="form-grid mt-4">
+            <div class="form-group">
+                <label for="mission_image">Mission Image</label>
+                {% if content.mission_image %}
+                    <div class="current-img">
+                        <img src="{{ content.mission_image.url }}" alt="Mission">
+                    </div>
+                {% endif %}
+                <input type="file" name="mission_image" id="mission_image" class="form-control">
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Values Header -->
+    <div class="form-section">
+        <h3 class="section-title">Core Values Header</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="values_title">Values Section Title</label>
+                <input type="text" name="values_title" id="values_title" value="{{ content.values_title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="values_subtitle">Values Section Subtitle</label>
+                <textarea name="values_subtitle" id="values_subtitle" rows="2" class="form-control">{{ content.values_subtitle }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn-save">Save About Content</button>
+    </div>
+</form>
+
+<br><br>
+
+<!-- Core Value Cards Section -->
+<div class="page-header title-header">
+    <h1>Core Value Cards</h1>
+    <a href="{% url 'admin_about_value_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add New Value</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ORDER</th>
+                <th>TITLE</th>
+                <th>DESCRIPTION</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for value in values %}
+            <tr>
+                <td data-label="Order">{{ value.display_order }}</td>
+                <td data-label="Title"><i class="{{ value.icon_class }}"></i> {{ value.title }}</td>
+                <td data-label="Description">{{ value.description|truncatechars:50 }}</td>
+                <td data-label="Status">
+                    {% if value.is_active %}
+                        <span class="status-badge active">Active</span>
+                    {% else %}
+                        <span class="status-badge inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_about_value_edit' value.id %}">Edit</a>
+                        <a href="{% url 'admin_about_value_delete' value.id %}"
+                            data-swal-confirm="true"
+                            data-swal-title="Delete value?"
+                            data-swal-text="Delete this core value?"
+                            data-swal-confirm-text="Yes, delete value">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No core values added yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 {% endblock %}
