@@ -121,8 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const contextDuplicateBtn = byId('contextDuplicateBtn');
     const contextLockBtn = byId('contextLockBtn');
     const contextBringFrontBtn = byId('contextBringFrontBtn');
-    const contextRotateLeftBtn = byId('contextRotateLeftBtn');
-    const contextRotateRightBtn = byId('contextRotateRightBtn');
     const contextMoveUpBtn = byId('contextMoveUpBtn');
     const contextMoveDownBtn = byId('contextMoveDownBtn');
     const contextMoveLeftBtn = byId('contextMoveLeftBtn');
@@ -166,6 +164,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const MAX_ZOOM = 1.5;
     const MAX_UNDO = 40;
     const ENABLE_VIEWPORT_PAN = false;
+    const DRAFT_STORAGE_PREFIX = 'designCanvasDraft:v1';
+    const DRAFT_SAVE_DEBOUNCE_MS = 260;
+    const urlParams = new URLSearchParams(window.location.search || '');
+    const draftPackageId = urlParams.get('package_id') || window.basePackageId || 'none';
+    const draftDesignId = window.currentDesignId || 'new';
+    const isFreshCanvasRequest = !window.currentDesignId && urlParams.get('fresh') === '1';
+    const DRAFT_STORAGE_KEY = `${DRAFT_STORAGE_PREFIX}:design-${draftDesignId}:pkg-${draftPackageId}`;
 
     const canvas = new fabric.Canvas('designCanvas', {
         width: dropZone.clientWidth,
@@ -180,7 +185,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let isLoadingState = false;
     let isPanning = false;
     let isSpaceDown = false;
+    let isObjectTransforming = false;
     let lastPanPos = { x: 0, y: 0 };
+    let draftSaveTimer = null;
     let artboard = null;
     let currentDrawTool = drawToolButtons.find((btn) => btn.classList.contains('active'))?.dataset.drawTool || 'pen';
     let lastBalloonColor = null;
@@ -197,6 +204,192 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     const rotateCursorSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='%23ffffff' d='M12 4a8 8 0 1 1-7.3 4.7h2.2A6 6 0 1 0 12 6v2.2l4-3.7-4-3.7z'/><path fill='%23000000' d='M12 5.2a6.8 6.8 0 1 1-6.2 4h.7a6 6 0 1 0 5.5-3.2V7.9l2.7-2.5L12 2.9z' opacity='.35'/></svg>`;
     const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(rotateCursorSvg)}") 12 12, crosshair`;
+    const MOVE_CONTROL_KEY = 'moveCtl';
+    const ROTATE_CONTROL_KEY = 'rotateCtl';
+    const HANDLE_RADIUS = 13;
+
+    function renderHandleBase(ctx, left, top) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(left, top, HANDLE_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16, 16, 16, 0.96)';
+        ctx.fill();
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.62)';
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function renderMoveHandle(ctx, left, top) {
+        renderHandleBase(ctx, left, top);
+        ctx.save();
+        ctx.translate(left, top);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.fillStyle = '#f8fafc';
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Crosshair body
+        ctx.beginPath();
+        ctx.moveTo(-4.2, 0);
+        ctx.lineTo(4.2, 0);
+        ctx.moveTo(0, -4.2);
+        ctx.lineTo(0, 4.2);
+        ctx.stroke();
+
+        // Arrowheads
+        ctx.beginPath();
+        ctx.moveTo(5.9, 0);
+        ctx.lineTo(3.9, -1.6);
+        ctx.lineTo(3.9, 1.6);
+        ctx.closePath();
+
+        ctx.moveTo(-5.9, 0);
+        ctx.lineTo(-3.9, -1.6);
+        ctx.lineTo(-3.9, 1.6);
+        ctx.closePath();
+
+        ctx.moveTo(0, -5.9);
+        ctx.lineTo(-1.6, -3.9);
+        ctx.lineTo(1.6, -3.9);
+        ctx.closePath();
+
+        ctx.moveTo(0, 5.9);
+        ctx.lineTo(-1.6, 3.9);
+        ctx.lineTo(1.6, 3.9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(0, 0, 1.05, 0, Math.PI * 2);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fill();
+        ctx.strokeStyle = '#0b1220';
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function renderRotateHandle(ctx, left, top) {
+        renderHandleBase(ctx, left, top);
+        ctx.save();
+        ctx.translate(left, top);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.fillStyle = '#f8fafc';
+        ctx.lineWidth = 1.9;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const start = -Math.PI * 0.05;
+        const end = Math.PI * 1.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, 5.2, start, end, false);
+        ctx.stroke();
+
+        const tipX = 5.2 * Math.cos(end);
+        const tipY = 5.2 * Math.sin(end);
+        const headAngle = end + Math.PI * 0.5;
+        const h1 = {
+            x: tipX + Math.cos(headAngle + 0.55) * 2.9,
+            y: tipY + Math.sin(headAngle + 0.55) * 2.9
+        };
+        const h2 = {
+            x: tipX + Math.cos(headAngle - 0.55) * 2.9,
+            y: tipY + Math.sin(headAngle - 0.55) * 2.9
+        };
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(h1.x, h1.y);
+        ctx.lineTo(h2.x, h2.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    const moveHandleAction =
+        fabric.controlsUtils?.dragHandler ||
+        ((eventData, transform) => {
+            const target = transform?.target;
+            const targetCanvas = target?.canvas;
+            if (!target || !targetCanvas) return false;
+            const pointer = targetCanvas.getPointer(eventData);
+            target.set({
+                left: pointer.x,
+                top: pointer.y
+            });
+            target.setCoords();
+            return true;
+        });
+
+    const rotateHandleAction =
+        fabric.controlsUtils?.rotationWithSnapping ||
+        ((eventData, transform) => {
+            const target = transform?.target;
+            if (!target || !target.canvas) return false;
+            const pointer = target.canvas.getPointer(eventData);
+            const center = target.getCenterPoint();
+            const radians = Math.atan2(pointer.y - center.y, pointer.x - center.x);
+            target.rotate((radians * 180) / Math.PI + 90);
+            target.setCoords();
+            return true;
+        });
+
+    function getFixedBottomHandlePosition(offsetX = 0, offsetY = 0) {
+        return (_dim, _finalMatrix, fabricObject) => {
+            if (!fabricObject) return new fabric.Point(0, 0);
+
+            // Use viewport corner coordinates so custom controls stay visible
+            // and pinned below the selection even during rotate/zoom.
+            const corners = [fabricObject.oCoords?.tl, fabricObject.oCoords?.tr, fabricObject.oCoords?.br, fabricObject.oCoords?.bl]
+                .filter((pt) => pt && Number.isFinite(pt.x) && Number.isFinite(pt.y));
+
+            let desiredX;
+            let desiredY;
+            if (corners.length) {
+                const minX = Math.min(...corners.map((pt) => pt.x));
+                const maxX = Math.max(...corners.map((pt) => pt.x));
+                const maxY = Math.max(...corners.map((pt) => pt.y));
+                desiredX = (minX + maxX) / 2 + offsetX;
+                desiredY = maxY + offsetY;
+            } else {
+                const rect = fabricObject.getBoundingRect(false, true);
+                desiredX = rect.left + rect.width / 2 + offsetX;
+                desiredY = rect.top + rect.height + offsetY;
+            }
+
+            return new fabric.Point(desiredX, desiredY);
+        };
+    }
+
+    const moveHandleControl = new fabric.Control({
+        x: 0,
+        y: 0,
+        positionHandler: getFixedBottomHandlePosition(-20, 20),
+        cursorStyle: 'move',
+        actionName: 'drag',
+        actionHandler: moveHandleAction,
+        withConnection: false,
+        render: renderMoveHandle
+    });
+
+    const rotateHandleControl = new fabric.Control({
+        x: 0,
+        y: 0,
+        positionHandler: getFixedBottomHandlePosition(20, 20),
+        cursorStyleHandler: () => ROTATE_CURSOR,
+        actionName: 'rotate',
+        actionHandler: rotateHandleAction,
+        withConnection: false,
+        render: renderRotateHandle
+    });
+
+    function ensureHandleControls(obj) {
+        if (!obj || !obj.controls || obj._isArtboard || obj._isBgImage) return;
+        obj.controls[MOVE_CONTROL_KEY] = moveHandleControl;
+        obj.controls[ROTATE_CONTROL_KEY] = rotateHandleControl;
+    }
 
     const textActionButtons = [
         textBoldBtn,
@@ -206,6 +399,8 @@ document.addEventListener('DOMContentLoaded', function() {
         textAlignCenterBtn,
         textAlignRightBtn
     ].filter(Boolean);
+    const textToolbarGroups = Array.from(document.querySelectorAll('.toolbar-group[data-toolbar-group="text"]'));
+    const textRestrictedToolbarButtons = [flipXBtn, flipYBtn, skewLeftBtn, skewRightBtn, deleteBtn].filter(Boolean);
 
     function hexToRgba(hex, alpha) {
         if (!hex) return `rgba(0, 0, 0, ${alpha})`;
@@ -245,24 +440,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!obj || obj._isArtboard) return obj;
 
         const isTextObject = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox';
+        ensureHandleControls(obj);
         if (!obj._isLocked) {
             obj.set({
                 hasControls: true,
-                hasRotatingPoint: true,
+                hasRotatingPoint: false,
                 lockRotation: false,
                 moveCursor: 'move',
                 hoverCursor: isTextObject ? 'move' : 'move'
             });
             if (typeof obj.setControlsVisibility === 'function') {
                 obj.setControlsVisibility({
-                    mtr: true
+                    mtr: false,
+                    [MOVE_CONTROL_KEY]: true,
+                    [ROTATE_CONTROL_KEY]: true
                 });
             }
-            obj.rotatingPointOffset = 28;
-        }
-
-        if (obj.controls?.mtr) {
-            obj.controls.mtr.cursorStyleHandler = () => ROTATE_CURSOR;
         }
 
         return obj;
@@ -769,7 +962,9 @@ document.addEventListener('DOMContentLoaded', function() {
             cornerStyle: 'circle'
         });
         rect.setControlsVisibility({
-            mtr: false
+            mtr: false,
+            [MOVE_CONTROL_KEY]: false,
+            [ROTATE_CONTROL_KEY]: false
         });
         rect._isArtboard = true;
         canvas.add(rect);
@@ -780,6 +975,7 @@ document.addEventListener('DOMContentLoaded', function() {
     artboard = createArtboard();
 
     function syncLockState(obj, shouldLock) {
+        ensureHandleControls(obj);
         obj._isLocked = shouldLock;
         obj.set({
             lockMovementX: shouldLock,
@@ -795,7 +991,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         if (typeof obj.setControlsVisibility === 'function') {
             obj.setControlsVisibility({
-                mtr: !shouldLock
+                mtr: false,
+                [MOVE_CONTROL_KEY]: !shouldLock,
+                [ROTATE_CONTROL_KEY]: !shouldLock
             });
         }
         if (!shouldLock) {
@@ -815,6 +1013,51 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
 
+    function getDraftCanvasJson() {
+        try {
+            const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (!raw) return null;
+            const payload = JSON.parse(raw);
+            if (!payload || typeof payload.canvas_json !== 'string') return null;
+            return payload.canvas_json;
+        } catch (error) {
+            console.warn('Failed to read canvas draft:', error);
+            return null;
+        }
+    }
+
+    function clearDraftState() {
+        try {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (error) {
+            console.warn('Failed to clear canvas draft:', error);
+        }
+    }
+
+    function persistDraftNow() {
+        if (isLoadingState) return;
+        try {
+            const payload = {
+                canvas_json: getCurrentState(),
+                saved_at: Date.now(),
+                base_package_id: window.basePackageId || null
+            };
+            localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            // Quota may be exceeded when large images are present; keep editor usable.
+            console.warn('Failed to persist canvas draft:', error);
+        }
+    }
+
+    function scheduleDraftPersist() {
+        if (isLoadingState) return;
+        if (draftSaveTimer) clearTimeout(draftSaveTimer);
+        draftSaveTimer = setTimeout(() => {
+            draftSaveTimer = null;
+            persistDraftNow();
+        }, DRAFT_SAVE_DEBOUNCE_MS);
+    }
+
     function updateUndoRedoBtnState() {
         if (undoBtn) undoBtn.disabled = undoStack.length === 0;
         if (redoBtn) redoBtn.disabled = redoStack.length === 0;
@@ -826,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (undoStack.length > MAX_UNDO) undoStack.shift();
         redoStack.length = 0;
         updateUndoRedoBtnState();
+        scheduleDraftPersist();
     }
 
     function updateCanvasSizeDisplay() {
@@ -922,7 +1166,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         moveCursor: 'default'
                     });
                     obj.setControlsVisibility({
-                        mtr: false
+                        mtr: false,
+                        [MOVE_CONTROL_KEY]: false,
+                        [ROTATE_CONTROL_KEY]: false
                     });
                     obj.sendToBack();
                 }
@@ -985,15 +1231,34 @@ document.addEventListener('DOMContentLoaded', function() {
         return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, getFitZoom()));
     }
 
+    function shiftObjectsWithArtboard(deltaX, deltaY) {
+        if (!deltaX && !deltaY) return;
+        canvas.getObjects().forEach((obj) => {
+            if (obj._isArtboard || obj._isBgImage) return;
+            obj.set({
+                left: (obj.left || 0) + deltaX,
+                top: (obj.top || 0) + deltaY
+            });
+            obj.setCoords();
+        });
+    }
+
     function centerArtboardAtCurrentZoom() {
         const zoom = canvas.getZoom();
         const abLeft = (canvas.getWidth() - ARTBOARD_W * zoom) / 2;
         const abTop = (canvas.getHeight() - ARTBOARD_H * zoom) / 2;
+        const prevLeft = artboard.left || 0;
+        const prevTop = artboard.top || 0;
+        const nextLeft = abLeft / zoom;
+        const nextTop = abTop / zoom;
+        const deltaX = nextLeft - prevLeft;
+        const deltaY = nextTop - prevTop;
 
         artboard.set({
-            left: abLeft / zoom,
-            top: abTop / zoom
+            left: nextLeft,
+            top: nextTop
         });
+        shiftObjectsWithArtboard(deltaX, deltaY);
 
         const vpt = canvas.viewportTransform;
         vpt[4] = 0;
@@ -1062,6 +1327,34 @@ document.addEventListener('DOMContentLoaded', function() {
         contextToolbar.setAttribute('aria-hidden', 'true');
     }
 
+    function setObjectHandlesVisibility(obj, visible) {
+        if (!obj || obj._isArtboard || obj._isBgImage) return;
+        ensureHandleControls(obj);
+        if (typeof obj.setControlsVisibility === 'function') {
+            obj.setControlsVisibility({
+                mtr: false,
+                [MOVE_CONTROL_KEY]: !!visible && !obj._isLocked,
+                [ROTATE_CONTROL_KEY]: !!visible && !obj._isLocked
+            });
+        }
+    }
+
+    function setSelectionHandlesVisibility(visible, explicitTarget) {
+        const targets = explicitTarget ? [explicitTarget] : getSelectableActiveObjects();
+        targets.forEach((obj) => setObjectHandlesVisibility(obj, visible));
+    }
+
+    function setTransformingVisualState(isTransforming, explicitTarget) {
+        isObjectTransforming = !!isTransforming;
+        setSelectionHandlesVisibility(!isObjectTransforming, explicitTarget);
+        if (isObjectTransforming) {
+            hideContextToolbar();
+        } else {
+            updateContextToolbar();
+        }
+        canvas.requestRenderAll();
+    }
+
     function updateSelectionToolbarPosition() {
         if (!selectionToolbar || !selectionToolbar.classList.contains('is-visible')) return;
         const zoom = canvas.getZoom();
@@ -1071,9 +1364,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const artboardWidth = ARTBOARD_W * zoom;
 
         const centerX = artboardLeft + artboardWidth / 2;
-        const topY = artboardTop + 12;
+        const topY = artboardTop;
         const clampedX = Math.max(12, Math.min(dropZone.clientWidth - 12, centerX));
-        const clampedY = Math.max(12, Math.min(dropZone.clientHeight - 12, topY));
+        const clampedY = Math.max(0, Math.min(dropZone.clientHeight, topY));
 
         selectionToolbar.style.left = `${clampedX}px`;
         selectionToolbar.style.top = `${clampedY}px`;
@@ -1081,6 +1374,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateContextToolbar() {
         if (!contextToolbar) return;
+        if (isObjectTransforming) {
+            hideContextToolbar();
+            return;
+        }
         const active = canvas.getActiveObject();
         if (!active || active._isArtboard) {
             hideContextToolbar();
@@ -1169,14 +1466,20 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
 
+    function isTextObject(obj) {
+        if (!obj) return false;
+        return obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox';
+    }
+
     function setTextButtonState(btn, active) {
         if (!btn) return;
         btn.classList.toggle('is-active', !!active);
     }
 
     function updateTextControlsUI() {
-        const textObjects = getActiveTextObjects();
-        const hasTextSelection = textObjects.length > 0;
+        const activeObjects = getSelectableActiveObjects();
+        const hasTextSelection = activeObjects.length > 0 && activeObjects.every((obj) => isTextObject(obj));
+        const textObjects = hasTextSelection ? activeObjects : [];
 
         textActionButtons.forEach((btn) => {
             btn.disabled = !hasTextSelection;
@@ -1223,17 +1526,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const singleObj = activeObjs.length === 1 ? activeObjs[0] : null;
         const hasUnlockedSelection = activeObjs.some((obj) => !obj._isLocked);
         const allLocked = hasSelection && activeObjs.every((obj) => obj._isLocked);
-        const hasTextSelection = getActiveTextObjects().length > 0;
+        const hasTextSelection = hasSelection && activeObjs.every((obj) => isTextObject(obj));
 
         if (selectionToolbar) {
             selectionToolbar.classList.toggle('is-visible', hasSelection && !canvas.isDrawingMode);
             selectionToolbar.setAttribute('aria-hidden', hasSelection && !canvas.isDrawingMode ? 'false' : 'true');
             selectionToolbar.dataset.selectionType = hasTextSelection ? 'text' : hasSelection ? 'object' : 'none';
+            textToolbarGroups.forEach((group) => {
+                group.classList.toggle('is-hidden', !hasTextSelection);
+            });
+            textRestrictedToolbarButtons.forEach((btn) => {
+                btn.classList.toggle('is-hidden', hasTextSelection);
+            });
             if (hasSelection && !canvas.isDrawingMode) {
                 requestAnimationFrame(updateSelectionToolbarPosition);
             }
         }
         if (!hasSelection) hideContextToolbar();
+        activeObjs.forEach((obj) => setObjectHandlesVisibility(obj, !isObjectTransforming));
 
         if (cloneBtn) cloneBtn.disabled = !hasSelection || allLocked;
         if (lockBtn) lockBtn.disabled = !hasSelection;
@@ -1252,12 +1562,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (moveLeftBtn) moveLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (moveRightBtn) moveRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (deleteBtn) deleteBtn.disabled = !hasSelection;
-        if (contextRotateLeftBtn) contextRotateLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
-        if (contextRotateRightBtn) contextRotateRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextDuplicateBtn) contextDuplicateBtn.disabled = !singleObj || !!singleObj._isLocked;
+        if (contextLockBtn) contextLockBtn.disabled = !hasSelection;
         if (contextMoveUpBtn) contextMoveUpBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (contextMoveDownBtn) contextMoveDownBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (contextMoveLeftBtn) contextMoveLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (contextMoveRightBtn) contextMoveRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextDeleteBtn) contextDeleteBtn.disabled = !hasSelection;
 
         if (lockBtn) {
             const lockIcon = lockBtn.querySelector('i');
@@ -1299,7 +1610,11 @@ document.addEventListener('DOMContentLoaded', function() {
         updateElementSizeInputs();
         updateTextControlsUI();
         updateSelectionToolbarPosition();
-        updateContextToolbar();
+        if (isObjectTransforming) {
+            hideContextToolbar();
+        } else {
+            updateContextToolbar();
+        }
     }
 
     function getArtboardCenterPoint() {
@@ -1859,6 +2174,29 @@ document.addEventListener('DOMContentLoaded', function() {
         updateControlsState();
     }
 
+    function duplicateSingleSelectedObject() {
+        const activeObj = getSingleActiveObject();
+        if (!activeObj || activeObj._isLocked) return;
+
+        if (!checkQuota(activeObj._packageCategory || 'custom')) return;
+
+        activeObj.clone((cloned) => {
+            saveState();
+            canvas.discardActiveObject();
+            cloned.set({
+                left: activeObj.left + 22,
+                top: activeObj.top + 22,
+                evented: true
+            });
+            canvas.add(cloned);
+            canvas.setActiveObject(cloned);
+            canvas.renderAll();
+            updateHintVisibility();
+            updateVisualCart();
+            updateControlsState();
+        });
+    }
+
     function toggleLockSelection() {
         const selected = getSelectableActiveObjects();
         if (!selected.length) return;
@@ -2004,27 +2342,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (cloneBtn) {
         cloneBtn.addEventListener('click', () => {
-            const activeObj = getSingleActiveObject();
-            if (!activeObj || activeObj._isLocked) return;
-
-            // Check quota before cloning
-            if (!checkQuota(activeObj._packageCategory || 'custom')) return;
-
-            activeObj.clone((cloned) => {
-                saveState();
-                canvas.discardActiveObject();
-                cloned.set({
-                    left: activeObj.left + 22,
-                    top: activeObj.top + 22,
-                    evented: true
-                });
-                canvas.add(cloned);
-                canvas.setActiveObject(cloned);
-                canvas.renderAll();
-                updateHintVisibility();
-                updateVisualCart();
-                updateControlsState();
-            });
+            duplicateSingleSelectedObject();
         });
     }
 
@@ -2034,12 +2352,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (contextDuplicateBtn) {
         contextDuplicateBtn.addEventListener('click', () => {
-            if (cloneBtn && !cloneBtn.disabled) cloneBtn.click();
+            if (contextDuplicateBtn.disabled) return;
+            duplicateSingleSelectedObject();
         });
     }
     if (contextLockBtn) {
         contextLockBtn.addEventListener('click', () => {
-            if (lockBtn && !lockBtn.disabled) lockBtn.click();
+            if (contextLockBtn.disabled) return;
+            toggleLockSelection();
         });
     }
     if (contextBringFrontBtn) {
@@ -2047,38 +2367,33 @@ document.addEventListener('DOMContentLoaded', function() {
             if (toFrontBtn && !toFrontBtn.disabled) toFrontBtn.click();
         });
     }
-    if (contextRotateLeftBtn) {
-        contextRotateLeftBtn.addEventListener('click', () => {
-            if (rotateLeftBtn && !rotateLeftBtn.disabled) rotateLeftBtn.click();
-        });
-    }
-    if (contextRotateRightBtn) {
-        contextRotateRightBtn.addEventListener('click', () => {
-            if (rotateRightBtn && !rotateRightBtn.disabled) rotateRightBtn.click();
-        });
-    }
     if (contextMoveUpBtn) {
         contextMoveUpBtn.addEventListener('click', () => {
-            if (moveUpBtn && !moveUpBtn.disabled) moveUpBtn.click();
+            if (contextMoveUpBtn.disabled) return;
+            nudgeSelectedObjects(0, -5);
         });
     }
     if (contextMoveDownBtn) {
         contextMoveDownBtn.addEventListener('click', () => {
-            if (moveDownBtn && !moveDownBtn.disabled) moveDownBtn.click();
+            if (contextMoveDownBtn.disabled) return;
+            nudgeSelectedObjects(0, 5);
         });
     }
     if (contextMoveLeftBtn) {
         contextMoveLeftBtn.addEventListener('click', () => {
-            if (moveLeftBtn && !moveLeftBtn.disabled) moveLeftBtn.click();
+            if (contextMoveLeftBtn.disabled) return;
+            nudgeSelectedObjects(-5, 0);
         });
     }
     if (contextMoveRightBtn) {
         contextMoveRightBtn.addEventListener('click', () => {
-            if (moveRightBtn && !moveRightBtn.disabled) moveRightBtn.click();
+            if (contextMoveRightBtn.disabled) return;
+            nudgeSelectedObjects(5, 0);
         });
     }
     if (contextDeleteBtn) {
         contextDeleteBtn.addEventListener('click', () => {
+            if (contextDeleteBtn.disabled) return;
             deleteSelectedObjects();
         });
     }
@@ -2456,6 +2771,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const result = await response.json();
                 if (result.status === 'success') {
+                    clearDraftState();
                     alert('Design saved successfully!');
                     window.location.href = '/my-designs/';
                     return;
@@ -2713,6 +3029,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     canvas.on('mouse:up', () => {
+        if (isObjectTransforming) {
+            setTransformingVisualState(false);
+            updateControlsState();
+        }
         if (!ENABLE_VIEWPORT_PAN) return;
         if (!isPanning) return;
         isPanning = false;
@@ -2728,6 +3048,10 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas.on('selection:created', updateControlsState);
     canvas.on('selection:updated', updateControlsState);
     canvas.on('selection:cleared', updateControlsState);
+    canvas.on('object:added', () => scheduleDraftPersist());
+    canvas.on('object:removed', () => scheduleDraftPersist());
+    canvas.on('path:created', () => scheduleDraftPersist());
+    canvas.on('text:changed', () => scheduleDraftPersist());
 
     canvas.on('object:modified', (event) => {
         if (event.target && event.target._isArtboard) {
@@ -2743,6 +3067,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     canvas.on('object:scaling', () => {
+        setTransformingVisualState(true);
         if (artboard === canvas.getActiveObject()) {
             const scaledW = Math.round((artboard.width || ARTBOARD_W) * (artboard.scaleX || 1));
             const scaledH = Math.round((artboard.height || ARTBOARD_H) * (artboard.scaleY || 1));
@@ -2751,10 +3076,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (canvasSizeDisp) canvasSizeDisp.textContent = `Canvas: ${scaledW} x ${scaledH}`;
         }
         updateElementSizeInputs();
-        updateContextToolbar();
+        hideContextToolbar();
     });
-    canvas.on('object:moving', updateContextToolbar);
-    canvas.on('object:rotating', updateContextToolbar);
+    canvas.on('object:moving', (event) => {
+        setTransformingVisualState(true, event.target);
+    });
+    canvas.on('object:rotating', (event) => {
+        setTransformingVisualState(true, event.target);
+    });
 
     document.addEventListener('keydown', (event) => {
         const tag = (event.target.tagName || '').toUpperCase();
@@ -2769,7 +3098,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
             event.preventDefault();
-            if (cloneBtn && !cloneBtn.disabled) cloneBtn.click();
+            duplicateSingleSelectedObject();
             return;
         }
 
@@ -2831,10 +3160,35 @@ document.addEventListener('DOMContentLoaded', function() {
         fitArtboardToView();
     });
 
+    window.addEventListener('beforeunload', () => {
+        if (draftSaveTimer) {
+            clearTimeout(draftSaveTimer);
+            draftSaveTimer = null;
+        }
+        persistDraftNow();
+    });
+
+    if (isFreshCanvasRequest) {
+        clearDraftState();
+        if (urlParams.has('fresh')) {
+            urlParams.delete('fresh');
+            const query = urlParams.toString();
+            const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+            window.history.replaceState({}, '', nextUrl);
+        }
+    }
+
     setTimeout(() => {
         fitArtboardToView();
         updateCanvasSizeDisplay();
-        if (window.savedCanvasJson) {
+        const draftCanvasJson = isFreshCanvasRequest ? null : getDraftCanvasJson();
+        if (draftCanvasJson) {
+            try {
+                restoreCanvasState(draftCanvasJson);
+            } catch (error) {
+                console.error('Failed to load canvas draft:', error);
+            }
+        } else if (window.savedCanvasJson) {
             try {
                 const jsonStr =
                     typeof window.savedCanvasJson === 'string'

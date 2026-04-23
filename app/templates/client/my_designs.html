@@ -9,7 +9,10 @@
     <div class="container my-designs-container">
         
         <div class="designs-header">
-            <h2>My Designs</h2>
+            <div class="designs-header-copy">
+                <h2>My Designs</h2>
+                <p>Review your saved layouts, continue editing, or book your chosen setup&nbsp;anytime.</p>
+            </div>
             <a href="#" class="create-new-btn" onclick="openModal('selectPackageModal'); return false;">
                 <i class="fas fa-plus"></i> Create New Design
             </a>
@@ -28,17 +31,7 @@
                                 <span>No Preview</span>
                             </div>
                         {% endif %}
-                        
-                        <!-- Overlay Options -->
-                        <div class="design-overlay">
-                            <a href="{% url 'design_canvas' %}?id={{ design.id }}" class="overlay-btn edit-btn">
-                                <i class="fas fa-magic"></i> Edit
-                            </a>
-                            <a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
-                                <i class="fas fa-calendar-check"></i> Book Now
-                            </a>
-                        </div>
-                        
+
                         <!-- 3-Dots Menu -->
                         <div class="design-menu-wrapper">
                             <button class="menu-dots-btn" onclick="toggleMenu('menu-{{ design.id }}', event)">
@@ -63,6 +56,14 @@
                     <div class="design-info">
                         <h4 class="design-title" id="title-{{ design.id }}">{{ design.name }}</h4>
                         <p class="design-date">Updated {{ design.updated_at|date:"M d, Y" }}</p>
+                        <div class="design-actions">
+                            <a href="{% url 'design_canvas' %}?id={{ design.id }}" class="overlay-btn edit-btn">
+                                <i class="fas fa-magic"></i> Edit
+                            </a>
+                            <a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
+                                <i class="fas fa-calendar-check"></i> Book Now
+                            </a>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -153,7 +154,7 @@
                         <i class="fas fa-list"></i> View Inclusions
                     </button>
                 </div>
-                <a href="{% url 'design_canvas' %}?package_id={{ package.id }}" class="pkg-modal-btn">
+                <a href="{% url 'design_canvas' %}?package_id={{ package.id }}&fresh=1" class="pkg-modal-btn">
                     Select Design
                 </a>
             </div>
@@ -178,7 +179,7 @@
             </li>
             {% endfor %}
         </ul>
-        <a href="{% url 'design_canvas' %}?package_id={{ package.id }}" class="feature-modal-btn">Start with this Package</a>
+        <a href="{% url 'design_canvas' %}?package_id={{ package.id }}&fresh=1" class="feature-modal-btn">Start with this Package</a>
     </div>
 </div>
 {% endfor %}

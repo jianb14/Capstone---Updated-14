@@ -23,13 +23,22 @@
     align-items: center;
     margin-bottom: 10px;
     padding-bottom: 12px;
+    gap: 20px;
 }
 
 .designs-header h2 {
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     color: var(--white);
     font-weight: 700;
     letter-spacing: -0.5px;
+    margin: 0;
+}
+
+.designs-header-copy p {
+    margin: 4px 0 0 0;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.7);
+    max-width: 540px;
 }
 
 .create-new-btn {
@@ -53,7 +62,7 @@
 /* Grid Layout */
 .designs-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
 }
 
@@ -108,44 +117,17 @@
     color: #333;
 }
 
-/* Hover Overlay */
-.design-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.65);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-    backdrop-filter: blur(3px);
-}
-
-.design-card:hover .design-overlay {
-    opacity: 1;
-}
-
-.design-card:hover .overlay-btn {
-    transform: translateY(0);
-}
-
 .overlay-btn {
-    width: 130px;
+    width: 100%;
     text-align: center;
     background: var(--white);
     color: var(--black);
-    padding: 8px 16px;
+    padding: 6px 16px;
     border-radius: 6px;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.8rem;
-    transform: translateY(10px);
-    transition: all 0.25s ease;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -153,21 +135,23 @@
 }
 
 .overlay-btn.book-btn {
-    background: var(--primary-color, #0d6efd);
+    background: transparent;
     color: #fff;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 .overlay-btn.book-btn:hover {
-    background: #0b5ed7;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0);
 }
 
 .overlay-btn.edit-btn {
-    background: #ffffff;
     color: #000000;
+    background: #e5e5e5;
 }
 
 .overlay-btn.edit-btn:hover {
-    background: #e5e5e5;
+    background: #ffffff;
 }
 
 /* 3-Dots Menu */
@@ -250,6 +234,7 @@
 
 .design-dropdown-menu .delete-action:hover {
     background: rgba(239, 68, 68, 0.1);
+    color: #ef4444 !important;
 }
 
 /* Info section */
@@ -272,6 +257,13 @@
     margin: 0;
     font-size: 0.7rem;
     color: #666;
+}
+
+.design-actions {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
 }
 
 /* Empty State */

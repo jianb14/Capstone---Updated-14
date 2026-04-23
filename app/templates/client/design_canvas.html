@@ -278,7 +278,7 @@
             <main class="canvas-area">
                 <div id="canvasDropZone">
                     <div class="selection-toolbar" id="selectionToolbar" aria-hidden="true">
-                        <div class="toolbar-group">
+                        <div class="toolbar-group" data-toolbar-group="text">
                             <select id="fontFamilySelect" title="Font Family">
                                 <option value="">Font</option>
                                 <option value="Montserrat">Montserrat</option>
@@ -288,43 +288,34 @@
                                 <option value="Playfair Display">Playfair Display</option>
                             </select>
                             <input type="number" id="fontSizeInput" value="42" min="8" max="300" step="1" title="Font Size">
-                            <input type="color" id="itemColorPicker" value="#ffffff" disabled title="Color">
                             <button type="button" class="ctrl-btn icon-only" id="textBoldBtn" title="Bold"><i class="fas fa-bold"></i></button>
                             <button type="button" class="ctrl-btn icon-only" id="textItalicBtn" title="Italic"><i class="fas fa-italic"></i></button>
                             <button type="button" class="ctrl-btn icon-only" id="textUnderlineBtn" title="Underline"><i class="fas fa-underline"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" title="Align Left"><i class="fas fa-align-left"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" title="Align Center"><i class="fas fa-align-center"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" title="Align Right"><i class="fas fa-align-right"></i></button>
                         </div>
 
-                        <div class="toolbar-group">
+                        <div class="toolbar-group" data-toolbar-group="appearance">
+                            <input type="color" id="itemColorPicker" value="#ffffff" disabled title="Color">
                             <label for="elemWidthInput">W</label>
                             <input type="number" id="elemWidthInput" value="0" min="1" max="5000" step="1">
                             <label for="elemHeightInput">H</label>
                             <input type="number" id="elemHeightInput" value="0" min="1" max="5000" step="1">
                         </div>
 
-                        <div class="toolbar-group">
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" title="Align Left"><i class="fas fa-align-left"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" title="Align Center"><i class="fas fa-align-center"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" title="Align Right"><i class="fas fa-align-right"></i></button>
+                        <div class="toolbar-group" data-toolbar-group="arrange">
                             <button id="layerUpBtn" class="ctrl-btn icon-only" title="Forward" disabled><i class="fas fa-arrow-up"></i></button>
                             <button id="layerDownBtn" class="ctrl-btn icon-only" title="Backward" disabled><i class="fas fa-arrow-down"></i></button>
                             <button id="toFrontBtn" class="ctrl-btn icon-only" title="Bring to Front" disabled><i class="fas fa-angles-up"></i></button>
                             <button id="toBackBtn" class="ctrl-btn icon-only" title="Send to Back" disabled><i class="fas fa-angles-down"></i></button>
                         </div>
 
-                        <div class="toolbar-group">
-                            <button id="lockBtn" class="ctrl-btn icon-only" title="Lock / Unlock" disabled><i class="fas fa-lock-open"></i></button>
-                            <button id="cloneBtn" class="ctrl-btn icon-only" title="Duplicate" disabled><i class="far fa-copy"></i></button>
-                            <button id="rotateLeftBtn" class="ctrl-btn icon-only" title="Rotate Left" disabled><i class="fas fa-rotate-left"></i></button>
-                            <button id="rotateRightBtn" class="ctrl-btn icon-only" title="Rotate Right" disabled><i class="fas fa-rotate-right"></i></button>
-                            <button id="moveUpBtn" class="ctrl-btn icon-only" title="Move Up" disabled><i class="fas fa-arrow-up"></i></button>
-                            <button id="moveDownBtn" class="ctrl-btn icon-only" title="Move Down" disabled><i class="fas fa-arrow-down"></i></button>
-                            <button id="moveLeftBtn" class="ctrl-btn icon-only" title="Move Left" disabled><i class="fas fa-arrow-left"></i></button>
-                            <button id="moveRightBtn" class="ctrl-btn icon-only" title="Move Right" disabled><i class="fas fa-arrow-right"></i></button>
+                        <div class="toolbar-group" data-toolbar-group="transform">
                             <button id="flipXBtn" class="ctrl-btn icon-only" title="Flip Horizontal" disabled><i class="fas fa-left-right"></i></button>
                             <button id="flipYBtn" class="ctrl-btn icon-only" title="Flip Vertical" disabled><i class="fas fa-up-down"></i></button>
                             <button id="skewLeftBtn" class="ctrl-btn icon-only" title="Skew Left" disabled><i class="fas fa-caret-left"></i></button>
                             <button id="skewRightBtn" class="ctrl-btn icon-only" title="Skew Right" disabled><i class="fas fa-caret-right"></i></button>
-                            <button id="deleteBtn" class="ctrl-btn icon-only danger-btn" title="Delete" disabled><i class="far fa-trash-alt"></i></button>
                         </div>
                     </div>
 
@@ -337,12 +328,6 @@
                     <div class="object-context-toolbar" id="objectContextToolbar" aria-hidden="true">
                         <button type="button" class="ctx-btn" id="contextLockBtn" title="Lock / Unlock">
                             <i class="fas fa-lock-open"></i>
-                        </button>
-                        <button type="button" class="ctx-btn" id="contextRotateLeftBtn" title="Rotate Left">
-                            <i class="fas fa-rotate-left"></i>
-                        </button>
-                        <button type="button" class="ctx-btn" id="contextRotateRightBtn" title="Rotate Right">
-                            <i class="fas fa-rotate-right"></i>
                         </button>
                         <button type="button" class="ctx-btn" id="contextMoveUpBtn" title="Move Up">
                             <i class="fas fa-arrow-up"></i>
@@ -485,5 +470,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 </script>
-<script src="{% static 'js/design_canvas.js' %}?v=20260423b"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20260424a"></script>
 {% endblock content %}

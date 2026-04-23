@@ -3940,7 +3940,7 @@ def my_designs_page(request):
     # Order by updated_at descending so newest are first
     designs_list = UserDesign.objects.filter(user=request.user).order_by("-updated_at")
 
-    paginator = Paginator(designs_list, 10)  # Show 10 designs per page
+    paginator = Paginator(designs_list, 8)  # Show 8 designs per page
     page_number = request.GET.get("page")
     designs = paginator.get_page(page_number)
 
