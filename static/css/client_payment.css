@@ -1,12 +1,219 @@
+/* Modal Styles */
+.cp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s ease;
+}
+
+.cp-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.cp-modal {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 650px;
+    max-height: 85vh;
+    overflow-y: auto;
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.25s ease;
+}
+
+.cp-modal-overlay.active .cp-modal {
+    transform: translateY(0) scale(1);
+}
+
+.cp-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.cp-modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.cp-modal-close {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.cp-modal-close:hover {
+    color: #fff;
+}
+
+.cp-modal-body {
+    padding: 20px 24px;
+}
+
+.cp-modal-section {
+    margin-bottom: 20px;
+}
+
+.cp-modal-section:last-child {
+    margin-bottom: 0;
+}
+
+.cp-modal-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+.cp-modal-section-title svg {
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+}
+
+.cp-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+}
+
+.cp-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-self: start;
+}
+
+.cp-modal-field-full {
+    grid-column: 1 / -1;
+}
+
+.cp-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cp-modal::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+.cp-modal::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+}
+
+.cp-modal::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.cp-modal-images {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.cp-modal-ref-img {
+    width: calc(25% - 5px);
+    height: 90px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+}
+
+.cp-modal-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.cp-modal-value {
+    font-size: 14px;
+    color: #e5e7eb;
+    word-break: break-word;
+}
+
+.cp-modal-highlight {
+    color: #f97316;
+    font-weight: 600;
+}
+
+.cp-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid #2a2a2a;
+}
+
+.cp-modal-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.cp-modal-btn-secondary {
+    background: #1f1f1f;
+    color: #9ca3af;
+    border: 1px solid #2a2a2a;
+}
+
+.cp-modal-btn-secondary:hover {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.cp-modal-btn-primary {
+    background: #fff;
+    color: #000;
+}
+
+.cp-modal-btn-primary:hover {
+    background: #e5e7eb;
+}
+
 .cp-shell {
-    max-width: 1200px;
-    margin: 40px auto;
+    max-width: 1100px;
+    margin: 90px auto;
     padding: 0 16px;
     color: #fff;
 }
 
 .cp-title {
-    margin: 0 0 8px;
     font-size: 42px;
 }
 
@@ -37,7 +244,6 @@
 
 .cp-panel-head {
     padding-bottom: 10px;
-    border-bottom: 1px solid #1f1f1f;
     margin-bottom: 10px;
 }
 
@@ -88,25 +294,74 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(180px, 1fr));
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 40px;
 }
 
 .cp-stat-card {
     border: 1px solid #2b2b2b;
     border-radius: 12px;
-    padding: 14px;
+    padding: 16px 18px;
     background: #111;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+}
+
+.cp-stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cp-stat-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.cp-icon-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.cp-icon-verified {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.cp-icon-rejected {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.cp-icon-total {
+    background: rgba(147, 197, 253, 0.15);
+    color: #93c5fd;
+}
+
+.cp-stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .cp-stat-label {
     opacity: 0.7;
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .cp-stat-value {
-    font-size: 32px;
+    font-size: 26px;
     font-weight: 700;
+    line-height: 1;
 }
 
 .cp-summary-grid {
@@ -252,6 +507,15 @@
     cursor: not-allowed;
 }
 
+/* Table Container - matching admin canvas assets style */
+.cp-table-container {
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    overflow-x: auto;
+    transition: opacity 0.2s ease;
+}
+
 .cp-table-wrap {
     overflow: auto;
 }
@@ -262,16 +526,29 @@
     min-width: 740px;
 }
 
+.cp-table thead {
+    background: #141414;
+}
+
 .cp-table th {
-    text-align: left;
-    color: #bbb;
-    border-bottom: 1px solid #222;
-    padding: 10px 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #888;
+    text-transform: uppercase;
+    text-align: left !important;
+}
+
+.cp-table tbody tr {
+    border-bottom: 1px solid #171717;
 }
 
 .cp-table td {
-    border-bottom: 1px solid #1a1a1a;
-    padding: 10px 8px;
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #ccc;
+    border-bottom: 1px solid #171717;
 }
 
 .cp-empty {
@@ -279,21 +556,541 @@
     opacity: 0.7;
 }
 
+/* Action buttons - matching admin style */
 .cp-btn-row {
-    display: inline-block;
-    padding: 7px 12px;
-    border: 1px solid #3a3a3a;
-    border-radius: 8px;
-    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid;
     text-decoration: none;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.cp-btn-row:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.cp-btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.cp-btn-download:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.cp-btn-download svg {
+    width: 14px;
+    height: 14px;
+}
+
+.cp-btn-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e5e7eb;
+}
+
+.cp-btn-view:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.cp-btn-view svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Status badges - matching admin style */
+.cp-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
 .cp-status-warn {
     color: #fbbf24;
 }
 
+.cp-status-success {
+    color: #10b981;
+}
+
+.cp-status-pending {
+    color: #fbbf24;
+}
+
+.cp-status-verified {
+    color: #10b981;
+}
+
+.cp-status-rejected {
+    color: #ef4444;
+}
+
 .cp-link {
     color: #93c5fd;
+}
+
+/* Pagination - matching admin style */
+.cp-pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.cp-page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.cp-page-link:hover:not(.disabled) {
+    background: #2a2a2a;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.cp-page-link.disabled {
+    opacity: 0.5;
+    cursor: default;
+    border-color: #2a2a2a;
+}
+
+.cp-current-page {
+    font-size: 0.9rem;
+    color: #888;
+    padding: 0 0.5rem;
+}
+
+.cp-page-link img {
+    width: 20px;
+    height: 20px;
+}
+
+/* Payment Page - Improved Design */
+.cp-payment-header-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.cp-back-link a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    color: #9ca3af;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    background: #0f0f0f;
+}
+
+.cp-back-link a:hover {
+    color: #fff;
+    border-color: #fff;
+    background: #1a1a1a;
+}
+
+.cp-back-link svg {
+    width: 18px;
+    height: 18px;
+}
+
+.cp-payment-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.cp-header-badge {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border: 1px solid #3a3a3a;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cp-header-badge svg {
+    width: 28px;
+    height: 28px;
+    color: #fff;
+}
+
+.cp-header-text .cp-title {
+    font-size: 32px;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.cp-header-text .cp-subtitle {
+    margin: 4px 0 0;
+    color: #9ca3af;
+    font-size: 15px;
+}
+
+/* Step indicators */
+.cp-step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.cp-step-number {
+    width: 32px;
+    height: 32px;
+    background: #fff;
+    color: #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.cp-step-header .cp-h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Improved option cards */
+.cp-option-card {
+    position: relative;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 0;
+    background: #0f0f0f;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.cp-option-card:hover {
+    border-color: #3a3a3a;
+    background: #141414;
+}
+
+.cp-option-card:has(input:checked),
+.cp-option-card.cp-option-card--active {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cp-option-card:has(input:checked) .cp-option-check,
+.cp-option-card.cp-option-card--active .cp-option-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.cp-option-card input {
+    position: absolute;
+    opacity: 0;
+}
+
+.cp-option-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.cp-option-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cp-icon-downpayment {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.cp-icon-full {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.cp-option-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.cp-option-text {
+    flex: 1;
+}
+
+.cp-option-title {
+    display: block;
+    font-weight: 700;
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.cp-option-sub {
+    display: block;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.cp-option-sub strong {
+    color: #fff;
+}
+
+.cp-option-check {
+    width: 28px;
+    height: 28px;
+    background: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s ease;
+}
+
+.cp-option-check svg {
+    width: 16px;
+    height: 16px;
+    color: #000;
+}
+
+/* Improved review box */
+.cp-review-box {
+    background: #0a0a0a;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.cp-review-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #1a1a1a;
+    gap: 16px;
+}
+
+.cp-review-item:last-child {
+    border-bottom: none;
+}
+
+.cp-review-item--highlight {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cp-review-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.cp-review-label svg {
+    width: 18px;
+    height: 18px;
+    color: #6b7280;
+}
+
+.cp-review-value {
+    font-weight: 600;
+    color: #fff;
+    font-size: 15px;
+}
+
+.cp-review-amount {
+    font-size: 22px;
+    color: #fff;
+}
+
+/* Terms checkbox */
+.cp-terms-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.cp-terms-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cp-terms-header svg {
+    width: 18px;
+    height: 18px;
+    color: #fff;
+}
+
+.cp-terms-header span {
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+}
+
+.cp-refund-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    padding: 16px;
+}
+
+.cp-terms-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cp-terms-main {
+    color: #fff;
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.cp-terms-main strong {
+    font-weight: 700;
+}
+
+.cp-terms-sub {
+    color: #9ca3af;
+    font-size: 13px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.cp-checkbox-wrapper {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.cp-checkbox-wrapper input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.cp-checkmark {
+    width: 22px;
+    height: 22px;
+    border: 2px solid #4b5563;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.cp-checkmark:after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.2s ease;
+}
+
+.cp-checkbox-wrapper input:checked + .cp-checkmark {
+    background: #fff;
+    border-color: #fff;
+}
+
+.cp-checkbox-wrapper input:checked + .cp-checkmark:after {
+    transform: rotate(45deg) scale(1);
+}
+
+/* Checkout button */
+.cp-btn-checkout {
+    width: 100%;
+    padding: 16px 24px;
+    border: 1px solid #fff;
+    border-radius: 12px;
+    background: #fff;
+    color: #000;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.cp-btn-checkout:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.cp-btn-checkout:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #333;
+    border-color: #444;
+    color: #666;
+    box-shadow: none;
+}
+
+.cp-btn-checkout svg {
+    width: 20px;
+    height: 20px;
+    color: #000;
 }
 
 @media (max-width: 1024px) {

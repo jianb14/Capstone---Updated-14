@@ -8,8 +8,8 @@
     <section class="hero">
         <div class="hero-content">
             <div class="hero-text">
-                <h1>Turning Moments Into Elegant Celebrations.</h1>
-                <p class="hero-subheadline">Balloon styling and event decoration for birthdays, weddings, corporate events, and special occasions in Metro Manila.</p>
+                <h1>{{ home_content.hero_title|default:"Turning Moments Into Elegant Celebrations." }}</h1>
+                <p class="hero-subheadline">{{ home_content.hero_subheadline|default:"Balloon styling and event decoration for birthdays, weddings, corporate events, and special occasions in Metro Manila." }}</p>
                 <div class="cta-buttons">
                     <a href="{% url 'create_booking' %}" class="btn btn-primary">Book Your Event Now</a>
                     <a href="{% url 'package' %}" class="btn btn-secondary">View Our Packages</a>
@@ -18,7 +18,11 @@
             <div class="hero-showcase">
                 <!-- Main card -->
                 <div class="showcase-main-card">
-                    <img src="{% static 'images/hero_birthday.png' %}" alt="Birthday balloon decoration">
+                    {% if home_content.hero_main_image %}
+                        <img src="{{ home_content.hero_main_image.url }}" alt="Hero Main Image">
+                    {% else %}
+                        <img src="{% static 'images/hero_birthday.png' %}" alt="Birthday balloon decoration">
+                    {% endif %}
                     <div class="showcase-main-label">
                         <strong>Birthday Celebration Setup</strong>
                         <span>Custom balloon arch and styling for your special day.</span>
@@ -27,7 +31,11 @@
                 </div>
                 <!-- Floating card bottom-right -->
                 <div class="showcase-float-card showcase-float-bottom">
-                    <img src="{% static 'images/hero_wedding.png' %}" alt="Wedding balloon decor">
+                    {% if home_content.hero_float_bottom_image %}
+                        <img src="{{ home_content.hero_float_bottom_image.url }}" alt="Hero Float Bottom">
+                    {% else %}
+                        <img src="{% static 'images/hero_wedding.png' %}" alt="Wedding balloon decor">
+                    {% endif %}
                     <div class="showcase-float-info">
                         <div class="showcase-float-stats">
                             <div><strong>Weddings</strong><span>Elegant</span></div>
@@ -37,7 +45,11 @@
                 </div>
                 <!-- Small floating card top-right -->
                 <div class="showcase-float-card showcase-float-top">
-                    <img src="{% static 'images/hero_corporate.png' %}" alt="Corporate event decor">
+                    {% if home_content.hero_float_top_image %}
+                        <img src="{{ home_content.hero_float_top_image.url }}" alt="Hero Float Top">
+                    {% else %}
+                        <img src="{% static 'images/hero_corporate.png' %}" alt="Corporate event decor">
+                    {% endif %}
                     <span class="showcase-live-badge">● Available</span>
                 </div>
             </div>
@@ -48,22 +60,22 @@
     <section class="stats-section">
         <div class="stats-card">
             <div class="stat-item">
-                <h3>500+</h3>
+                <h3>{{ home_content.stat_events_styled|default:"500" }}+</h3>
                 <p>Events Styled</p>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-                <h3>5★</h3>
+                <h3>{{ home_content.stat_rating|default:"5" }}★</h3>
                 <p>Average Rating</p>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-                <h3>100%</h3>
+                <h3>{{ home_content.stat_satisfaction|default:"100" }}%</h3>
                 <p>Satisfaction Rate</p>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-                <h3>24HR</h3>
+                <h3>{{ home_content.stat_response_time|default:"24" }}HR</h3>
                 <p>Response Time</p>
             </div>
         </div>
@@ -72,10 +84,18 @@
     <!-- Why Choose Us -->
     <section class="why-choose">
         <div class="section-header">
-            <h2>Why Choose Balloorina.ph?</h2>
-            <p>We style events based on your theme, budget, and venue. Our goal is simple: make your celebration look beautiful and feel special.</p>
+            <h2>{{ home_content.why_choose_title|default:"Why Choose Balloorina.ph?" }}</h2>
+            <p>{{ home_content.why_choose_subtitle|default:"We style events based on your theme, budget, and venue. Our goal is simple: make your celebration look beautiful and feel special." }}</p>
         </div>
         <div class="features-grid">
+            {% for feature in home_features %}
+            <div class="feature-card">
+                <div class="tape"></div>
+                <div class="feature-icon-wrap"><i class="{{ feature.icon_class|default:'fas fa-star' }}"></i></div>
+                <h3>{{ feature.title }}</h3>
+                <p>{{ feature.description }}</p>
+            </div>
+            {% empty %}
             <div class="feature-card">
                 <div class="tape"></div>
                 <div class="feature-icon-wrap"><i class="fas fa-gem"></i></div>
@@ -112,6 +132,7 @@
                 <h3>Eco-Friendly</h3>
                 <p>We use biodegradable balloons and responsible practices whenever possible.</p>
             </div>
+            {% endfor %}
         </div>
     </section>
 

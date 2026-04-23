@@ -2,20 +2,20 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_reports.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_concerns.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="reports-wrap">
-    <div class="reports-head">
+<div class="concerns-wrap">
+    <div class="concerns-head">
         <div>
             <h1>User Concerns</h1>
-            <p class="reports-sub">All customer concern tickets for the selected {{ date_range_days }}-day period.</p>
+            <p class="concerns-sub">All customer concern tickets for the selected {{ date_range_days }}-day period.</p>
         </div>
     </div>
 
     <section class="filter-card">
-        <form method="GET" action="{% url 'admin_reports' %}" class="filter-form">
+        <form method="GET" action="{% url 'admin_concerns' %}" class="filter-form">
             <div class="filter-group">
                 <label for="start_date">Start Date</label>
                 <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
@@ -25,7 +25,7 @@
                 <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
             </div>
             <button type="submit" class="btn-filter">Apply</button>
-            <a href="{% url 'admin_reports' %}" class="btn-reset">Reset</a>
+            <a href="{% url 'admin_concerns' %}" class="btn-reset">Reset</a>
         </form>
     </section>
 
@@ -57,7 +57,7 @@
             <h2>Concern Queue</h2>
             <div class="queue-tools">
                 <span id="queueRecordsCount">{{ concern_records_count }} records</span>
-                <form method="GET" action="{% url 'admin_reports' %}" id="queueStatusForm" class="queue-filter-form">
+                <form method="GET" action="{% url 'admin_concerns' %}" id="queueStatusForm" class="queue-filter-form">
                     <input type="hidden" name="start_date" value="{{ start_date }}">
                     <input type="hidden" name="end_date" value="{{ end_date }}">
 
@@ -150,7 +150,7 @@
         </div>
 
         {% if concerns_page.has_other_pages %}
-        <div class="pagination reports-pagination" id="reportsQueuePagination">
+        <div class="pagination concerns-pagination" id="concernsQueuePagination">
             {% if concerns_page.has_previous %}
             <a href="?page={{ concerns_page.previous_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}{% if concern_status_filter %}&concern_status={{ concern_status_filter }}{% endif %}"
                 class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
@@ -210,7 +210,7 @@
 
                     <div class="status-field-wrap">
                         <label for="modalStatusSelect">Update Status</label>
-                        <div class="custom-filter-dropdown report-status-dropdown" id="modalStatusDropdown">
+                        <div class="custom-filter-dropdown concern-status-dropdown" id="modalStatusDropdown">
                             <div class="dropdown-trigger">
                                 <span id="modalStatusDropdownText">New</span>
                                 <span class="dropdown-caret" aria-hidden="true"></span>
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const queueRecordsCount = document.getElementById('queueRecordsCount');
     const concernQueueTableWrap = document.getElementById('concernQueueTableWrap');
     const concernQueueTableBody = document.getElementById('concernQueueTableBody');
-    const reportsQueuePagination = document.getElementById('reportsQueuePagination');
+    const concernsQueuePagination = document.getElementById('concernsQueuePagination');
 
     const modalFields = {
         ticket: document.getElementById('modalTicket'),
@@ -387,11 +387,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const doc = parser.parseFromString(html, 'text/html');
 
                 const newTableBody = doc.getElementById('concernQueueTableBody');
-                const newPagination = doc.getElementById('reportsQueuePagination');
+                const newPagination = doc.getElementById('concernsQueuePagination');
                 const newRecordsCount = doc.getElementById('queueRecordsCount');
 
                 if (newTableBody && concernQueueTableBody) concernQueueTableBody.innerHTML = newTableBody.innerHTML;
-                if (newPagination && reportsQueuePagination) reportsQueuePagination.innerHTML = newPagination.innerHTML;
+                if (newPagination && concernsQueuePagination) concernsQueuePagination.innerHTML = newPagination.innerHTML;
                 if (newRecordsCount && queueRecordsCount) queueRecordsCount.textContent = newRecordsCount.textContent;
 
                 if (concernQueueTableWrap) concernQueueTableWrap.style.opacity = '1';
@@ -481,8 +481,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (reportsQueuePagination) {
-        reportsQueuePagination.addEventListener('click', function (event) {
+    if (concernsQueuePagination) {
+        concernsQueuePagination.addEventListener('click', function (event) {
             const link = event.target.closest('a.page-link');
             if (!link) return;
             event.preventDefault();

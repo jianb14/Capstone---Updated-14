@@ -6,43 +6,183 @@
 {% endblock %}
 
 {% block content %}
+
+<!-- Booking Detail Modal -->
+<div class="cp-modal-overlay" id="bookingModal">
+    <div class="cp-modal">
+        <div class="cp-modal-header">
+            <h3>Booking Details</h3>
+            <button class="cp-modal-close" onclick="closeBookingModal()">&times;</button>
+        </div>
+        <div class="cp-modal-body">
+            <div class="cp-modal-section">
+                <div class="cp-modal-section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    Booking Information
+                </div>
+                <div class="cp-modal-grid">
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Booking ID</span>
+                        <span class="cp-modal-value" id="modal-booking-id">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Status</span>
+                        <span class="cp-modal-value" id="modal-status">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Event Type</span>
+                        <span class="cp-modal-value" id="modal-event-type">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Event Date</span>
+                        <span class="cp-modal-value" id="modal-event-date">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Event Time</span>
+                        <span class="cp-modal-value" id="modal-event-time">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Location</span>
+                        <span class="cp-modal-value" id="modal-location">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Package</span>
+                        <span class="cp-modal-value" id="modal-package">-</span>
+                    </div>
+                    <div class="cp-modal-field cp-modal-field-full" id="modal-requests-field">
+                        <span class="cp-modal-label">Special Requests</span>
+                        <span class="cp-modal-value" id="modal-requests">-</span>
+                    </div>
+                    <div class="cp-modal-field cp-modal-field-full" id="modal-ref-image-field">
+                        <span class="cp-modal-label">Reference Images</span>
+                        <div id="modal-ref-images" class="cp-modal-images"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cp-modal-section" id="modal-payment-summary-section">
+                <div class="cp-modal-section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                    Payment Summary
+                </div>
+                <div class="cp-modal-grid">
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Total Price</span>
+                        <span class="cp-modal-value" id="modal-total-price">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Amount Paid</span>
+                        <span class="cp-modal-value" id="modal-amount-paid">-</span>
+                    </div>
+                    <div class="cp-modal-field" id="modal-remaining-field">
+                        <span class="cp-modal-label">Remaining Balance</span>
+                        <span class="cp-modal-value cp-modal-highlight" id="modal-remaining">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Payment Status</span>
+                        <span class="cp-modal-value" id="modal-payment-status">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cp-modal-section" id="modal-payment-detail-section" style="display:none;">
+                <div class="cp-modal-section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    Payment Details
+                </div>
+                <div class="cp-modal-grid">
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Amount Paid</span>
+                        <span class="cp-modal-value" id="modal-pay-amount">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Payment Type</span>
+                        <span class="cp-modal-value" id="modal-pay-type">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Method</span>
+                        <span class="cp-modal-value" id="modal-pay-method">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Status</span>
+                        <span class="cp-modal-value" id="modal-pay-status">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Date Paid</span>
+                        <span class="cp-modal-value" id="modal-pay-date">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Transaction Ref</span>
+                        <span class="cp-modal-value" id="modal-pay-ref">-</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="cp-modal-footer">
+            <button class="cp-modal-btn cp-modal-btn-secondary" onclick="closeBookingModal()">Close</button>
+            <a class="cp-modal-btn cp-modal-btn-primary" id="modal-action-btn" href="#">Proceed to Payment</a>
+        </div>
+    </div>
+</div>
+
 <section class="cp-shell">
     <h1 class="cp-title">My Payments</h1>
     <p class="cp-subtitle">Track your payment receipts and booking balances.</p>
 
     <div class="cp-stats-grid">
         <div class="cp-stat-card">
-            <div class="cp-stat-label">Pending</div>
-            <div class="cp-stat-value">{{ pending_count }}</div>
+            <div class="cp-stat-icon cp-icon-pending">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="cp-stat-content">
+                <div class="cp-stat-label">Pending</div>
+                <div class="cp-stat-value">{{ pending_count }}</div>
+            </div>
         </div>
         <div class="cp-stat-card">
-            <div class="cp-stat-label">Verified</div>
-            <div class="cp-stat-value">{{ verified_count }}</div>
+            <div class="cp-stat-icon cp-icon-verified">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="cp-stat-content">
+                <div class="cp-stat-label">Verified</div>
+                <div class="cp-stat-value">{{ verified_count }}</div>
+            </div>
         </div>
         <div class="cp-stat-card">
-            <div class="cp-stat-label">Rejected</div>
-            <div class="cp-stat-value">{{ rejected_count }}</div>
+            <div class="cp-stat-icon cp-icon-rejected">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            </div>
+            <div class="cp-stat-content">
+                <div class="cp-stat-label">Rejected</div>
+                <div class="cp-stat-value">{{ rejected_count }}</div>
+            </div>
         </div>
         <div class="cp-stat-card">
-            <div class="cp-stat-label">Total Pending Payments</div>
-            <div class="cp-stat-value">{{ total_pending_payment_count }}</div>
+            <div class="cp-stat-icon cp-icon-total">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+            </div>
+            <div class="cp-stat-content">
+                <div class="cp-stat-label">Total Pending Payments</div>
+                <div class="cp-stat-value">{{ total_pending_payment_count }}</div>
+            </div>
         </div>
     </div>
 
-    <div class="cp-panel cp-mb">
-        <div class="cp-panel-head">
+    <div class="cp-mb">
+        <div class="cp-panel-head" style="margin-bottom: 1rem;">
             <h2>Action Required</h2>
             <p>Bookings requiring initial payment or re-upload. ({{ action_required_total_count }} total)</p>
         </div>
-        <div class="cp-table-wrap">
+        <div class="cp-table-container">
             <table class="cp-table">
                 <thead>
                     <tr>
-                        <th>Booking ID</th>
-                        <th>Event</th>
-                        <th>Remaining Balance</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>BOOKING ID</th>
+                        <th>EVENT</th>
+                        <th>REMAINING BALANCE</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,10 +194,29 @@
                             <div class="cp-muted">{{ b.event_date|date:"M d, Y" }}</div>
                         </td>
                         <td>&#8369;{{ b.booking_remaining|floatformat:2 }}</td>
-                        <td class="cp-status-warn">Pending Payment</td>
+                        <td><span class="cp-status-badge cp-status-pending">Pending Payment</span></td>
                         <td>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                <a href="{% url 'view_booking' b.id %}?from=my_payments" class="cp-btn-row">View</a>
+                                <button type="button" class="cp-btn-row cp-btn-view"
+                                    data-booking-id="{{ b.id }}"
+                                    data-event-type="{{ b.event_type|default:'' }}"
+                                    data-event-date="{{ b.event_date|date:'M d, Y' }}"
+                                    data-event-time="{{ b.time_range_display|default:'' }}"
+                                    data-event-location="{{ b.event_location }}"
+                                    data-total-price="{{ b.total_price|floatformat:2 }}"
+                                    data-booking-remaining="{{ b.booking_remaining|floatformat:2 }}"
+                                    data-payment-status="{{ b.get_payment_status_display }}"
+                                    data-status="{{ b.get_status_display }}"
+                                    data-package-type="{{ b.package_type|default:'None' }}"
+                                    data-special-requests="{{ b.cleaned_special_requests|default:'None' }}"
+                                    data-action-url="{% url 'payment_page' b.id %}"
+                                    data-action-label="{{ b.payment_action_display }}"
+                                    data-action-disabled="{{ b.payment_action_disabled|lower }}"
+                                    data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}"
+                                    onclick="openBookingModal(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    View
+                                </button>
                                 {% if b.payment_action_disabled %}
                                 <span class="cp-btn-row" style="opacity:0.6; cursor:not-allowed;">{{ b.payment_action_display }}</span>
                                 {% else %}
@@ -75,43 +234,40 @@
             </table>
         </div>
         {% if action_required_page_obj.has_other_pages %}
-        <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:10px;">
+        <div class="cp-pagination">
             {% if action_required_page_obj.has_previous %}
-            <a class="cp-btn-row" href="?ar_page={{ action_required_page_obj.previous_page_number }}">&larr; Prev</a>
+            <a class="cp-page-link" href="?ar_page={{ action_required_page_obj.previous_page_number }}"><img src="{% static 'images/left-white.png' %}" alt=""></a>
             {% else %}
-            <span class="cp-btn-row" style="opacity:0.5; cursor:not-allowed;">&larr; Prev</span>
+            <span class="cp-page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
             {% endif %}
-            <span style="color:#9ca3af; font-size:0.85rem;">Page {{ action_required_page_obj.number }} of {{ action_required_page_obj.paginator.num_pages }}</span>
+            <span class="cp-current-page">Page {{ action_required_page_obj.number }} of {{ action_required_page_obj.paginator.num_pages }}</span>
             {% if action_required_page_obj.has_next %}
-            <a class="cp-btn-row" href="?ar_page={{ action_required_page_obj.next_page_number }}">Next &rarr;</a>
+            <a class="cp-page-link" href="?ar_page={{ action_required_page_obj.next_page_number }}"><img src="{% static 'images/next-white.png' %}" alt=""></a>
             {% else %}
-            <span class="cp-btn-row" style="opacity:0.5; cursor:not-allowed;">Next &rarr;</span>
+            <span class="cp-page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
             {% endif %}
         </div>
         {% endif %}
     </div>
 
-    <div class="cp-panel">
-        <div class="cp-panel-head">
-            <h2>Payment History</h2>
-            <p>Track your past payments and settle any remaining booking balances.</p>
-        </div>
-
-        {% if partial_bookings %}
-        <div class="cp-table-wrap cp-mb" style="border-bottom: 1px solid #374151; padding-bottom: 20px; margin-bottom: 20px;">
-            <h3 style="color: #f3f4f6; margin-bottom: 15px; font-size: 1.1rem; font-weight: 600;">Remaining Balances</h3>
+    <div>
+        {% if partial_page_obj %}
+        <div class="cp-mb" style="margin-top: 40px;">
+            <h2 style="font-size: 1.5rem; font-weight: 600;">Remaining Balances</h3>
+            <p style="font-size: 1rem; margin-bottom: 30px;">Bookings with unpaid balances that require settlement.</p>
+            <div class="cp-table-container">
             <table class="cp-table">
                 <thead>
                     <tr>
-                        <th>Booking ID</th>
-                        <th>Event</th>
-                        <th>Remaining Balance</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>BOOKING ID</th>
+                        <th>EVENT</th>
+                        <th>REMAINING BALANCE</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for b in partial_bookings %}
+                    {% for b in partial_page_obj %}
                     <tr>
                         <td>#{{ b.id }}</td>
                         <td>
@@ -119,10 +275,29 @@
                             <div class="cp-muted">{{ b.event_date|date:"M d, Y" }}</div>
                         </td>
                         <td>&#8369;{{ b.booking_remaining|floatformat:2 }}</td>
-                        <td class="cp-status-success">Confirmed</td>
+                        <td><span class="cp-status-badge cp-status-success">Confirmed</span></td>
                         <td>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                <a href="{% url 'view_booking' b.id %}?from=my_payments" class="cp-btn-row">View</a>
+                                <button type="button" class="cp-btn-row cp-btn-view"
+                                    data-booking-id="{{ b.id }}"
+                                    data-event-type="{{ b.event_type|default:'' }}"
+                                    data-event-date="{{ b.event_date|date:'M d, Y' }}"
+                                    data-event-time="{{ b.time_range_display|default:'' }}"
+                                    data-event-location="{{ b.event_location }}"
+                                    data-total-price="{{ b.total_price|floatformat:2 }}"
+                                    data-booking-remaining="{{ b.booking_remaining|floatformat:2 }}"
+                                    data-payment-status="{{ b.get_payment_status_display }}"
+                                    data-status="{{ b.get_status_display }}"
+                                    data-package-type="{{ b.package_type|default:'None' }}"
+                                    data-special-requests="{{ b.cleaned_special_requests|default:'None' }}"
+                                    data-action-url="{% url 'payment_page' b.id %}"
+                                    data-action-label="Pay Balance"
+                                    data-action-disabled="false"
+                                    data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}"
+                                    onclick="openBookingModal(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    View
+                                </button>
                                 <a href="{% url 'payment_page' b.id %}" class="cp-btn-row">Pay Balance</a>
                             </div>
                         </td>
@@ -130,20 +305,41 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+            {% if partial_page_obj.has_other_pages %}
+            <div class="cp-pagination">
+                {% if partial_page_obj.has_previous %}
+                <a class="cp-page-link" href="?partial_page={{ partial_page_obj.previous_page_number }}"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+                {% else %}
+                <span class="cp-page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+                {% endif %}
+                <span class="cp-current-page">Page {{ partial_page_obj.number }} of {{ partial_page_obj.paginator.num_pages }}</span>
+                {% if partial_page_obj.has_next %}
+                <a class="cp-page-link" href="?partial_page={{ partial_page_obj.next_page_number }}"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+                {% else %}
+                <span class="cp-page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
         {% endif %}
+        
+        <div class="cp-panel-head" style="margin-bottom: 1rem;">
+            <h2>Payment History</h2>
+            <p>Track your past payments and settle any remaining booking balances.</p>
+        </div>
 
-        <div class="cp-table-wrap">
+        <div class="cp-table-container">
             <table class="cp-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Booking</th>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>Status</th>
-                        <th>View</th>
-                        <th>Receipt</th>
+                        <th>DATE</th>
+                        <th>BOOKING</th>
+                        <th>AMOUNT</th>
+                        <th>METHOD</th>
+                        <th>STATUS</th>
+                        <th>VIEW</th>
+                        <th>RECEIPT</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -153,11 +349,45 @@
                         <td>#{{ pay.booking.id }}</td>
                         <td>&#8369;{{ pay.amount|floatformat:2 }}</td>
                         <td>{{ pay.get_payment_method_display }}</td>
-                        <td>{{ pay.get_payment_status_display }}</td>
-                        <td><a href="{% url 'view_booking' pay.booking.id %}?from=my_payments" class="cp-btn-row">View</a></td>
                         <td>
                             {% if pay.payment_status == 'verified' %}
-                            <a href="{% url 'download_payment_receipt_pdf' pay.id %}" class="cp-link">Download PDF</a>
+                            <span class="cp-status-badge cp-status-verified">{{ pay.get_payment_status_display }}</span>
+                            {% elif pay.payment_status == 'rejected' %}
+                            <span class="cp-status-badge cp-status-rejected">{{ pay.get_payment_status_display }}</span>
+                            {% else %}
+                            <span class="cp-status-badge cp-status-pending">{{ pay.get_payment_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td><button type="button" class="cp-btn-row cp-btn-view"
+                                data-booking-id="{{ pay.booking.id }}"
+                                data-event-type="{{ pay.booking.event_type|default:'' }}"
+                                data-event-date="{{ pay.booking.event_date|date:'M d, Y' }}"
+                                data-event-time="{{ pay.booking.time_range_display|default:'' }}"
+                                data-event-location="{{ pay.booking.event_location }}"
+                                data-total-price="{{ pay.booking.total_price|floatformat:2 }}"
+                                data-booking-remaining="{{ pay.booking.booking_remaining|floatformat:2 }}"
+                                data-payment-status="{{ pay.booking.get_payment_status_display }}"
+                                data-status="{{ pay.booking.get_status_display }}"
+                                data-package-type="{{ pay.booking.package_type|default:'None' }}"
+                                data-special-requests="{{ pay.booking.cleaned_special_requests|default:'None' }}"
+                                data-reference-images="{% if pay.booking.reference_image %}{{ pay.booking.reference_image.url }}{% endif %}{% for img in pay.booking.images.all %}{% if pay.booking.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}"
+                                data-pay-amount="{{ pay.amount|floatformat:2 }}"
+                                data-pay-type="{{ pay.get_payment_type_display }}"
+                                data-pay-method="{{ pay.get_payment_method_display }}"
+                                data-pay-status="{{ pay.get_payment_status_display }}"
+                                data-pay-date="{{ pay.created_at|date:'M d, Y h:i A' }}"
+                                data-pay-ref="{{ pay.transaction_ref }}"
+                                data-source="history"
+                                onclick="openBookingModal(this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                View
+                            </button></td>
+                        <td>
+                            {% if pay.payment_status == 'verified' %}
+                            <a href="{% url 'download_payment_receipt_pdf' pay.id %}" class="cp-btn-row cp-btn-download">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Receipt
+                            </a>
                             {% else %}
                             <span class="cp-muted">-</span>
                             {% endif %}
@@ -171,6 +401,121 @@
                 </tbody>
             </table>
         </div>
+        {% if payments_page_obj.has_other_pages %}
+        <div class="cp-pagination">
+            {% if payments_page_obj.has_previous %}
+            <a class="cp-page-link" href="?payments_page={{ payments_page_obj.previous_page_number }}"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+            {% else %}
+            <span class="cp-page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
+            {% endif %}
+            <span class="cp-current-page">Page {{ payments_page_obj.number }} of {{ payments_page_obj.paginator.num_pages }}</span>
+            {% if payments_page_obj.has_next %}
+            <a class="cp-page-link" href="?payments_page={{ payments_page_obj.next_page_number }}"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+            {% else %}
+            <span class="cp-page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </section>
+
+<script>
+function openBookingModal(btn) {
+    const d = btn.dataset;
+    const isHistory = d.source === 'history';
+
+    // Booking info (shared)
+    document.getElementById('modal-booking-id').textContent = '#' + d.bookingId;
+    document.getElementById('modal-status').textContent = d.status || '-';
+    document.getElementById('modal-event-type').textContent = d.eventType || '-';
+    document.getElementById('modal-event-date').textContent = d.eventDate || '-';
+    document.getElementById('modal-event-time').textContent = d.eventTime || '-';
+    document.getElementById('modal-location').textContent = d.eventLocation || '-';
+    document.getElementById('modal-package').textContent = d.packageType || '-';
+
+    // Special Requests: hide if empty/None
+    const reqField = document.getElementById('modal-requests-field');
+    const reqVal = d.specialRequests || '';
+    if (reqVal && reqVal !== 'None' && reqVal.trim() !== '') {
+        document.getElementById('modal-requests').textContent = reqVal;
+        reqField.style.display = '';
+    } else {
+        reqField.style.display = 'none';
+    }
+
+    // Reference Images: show only if exists
+    const refField = document.getElementById('modal-ref-image-field');
+    const refContainer = document.getElementById('modal-ref-images');
+    const imgStr = d.referenceImages || '';
+    if (imgStr.trim()) {
+        const urls = imgStr.split(',').filter(u => u.trim());
+        refContainer.innerHTML = '';
+        urls.forEach(url => {
+            const img = document.createElement('img');
+            img.src = url.trim();
+            img.alt = 'Reference';
+            img.className = 'cp-modal-ref-img';
+            refContainer.appendChild(img);
+        });
+        refField.style.display = '';
+    } else {
+        refContainer.innerHTML = '';
+        refField.style.display = 'none';
+    }
+
+    // Toggle between Payment Summary (Action Required/Remaining) and Payment Details (History)
+    const summarySection = document.getElementById('modal-payment-summary-section');
+    const detailSection = document.getElementById('modal-payment-detail-section');
+    const remainingField = document.getElementById('modal-remaining-field');
+
+    if (isHistory) {
+        summarySection.style.display = 'none';
+        detailSection.style.display = '';
+        document.getElementById('modal-pay-amount').textContent = '₱' + (d.payAmount || '0.00');
+        document.getElementById('modal-pay-type').textContent = d.payType || '-';
+        document.getElementById('modal-pay-method').textContent = d.payMethod || '-';
+        document.getElementById('modal-pay-status').textContent = d.payStatus || '-';
+        document.getElementById('modal-pay-date').textContent = d.payDate || '-';
+        document.getElementById('modal-pay-ref').textContent = d.payRef || '-';
+    } else {
+        summarySection.style.display = '';
+        detailSection.style.display = 'none';
+        const remaining = parseFloat(d.bookingRemaining || 0);
+        const total = parseFloat(d.totalPrice || 0);
+        const amountPaid = total - remaining;
+        document.getElementById('modal-total-price').textContent = '₱' + total.toFixed(2);
+        document.getElementById('modal-amount-paid').textContent = '₱' + amountPaid.toFixed(2);
+        document.getElementById('modal-remaining').textContent = '₱' + remaining.toFixed(2);
+        document.getElementById('modal-payment-status').textContent = d.paymentStatus || '-';
+        // Hide remaining balance if zero
+        remainingField.style.display = remaining > 0 ? '' : 'none';
+    }
+
+    // Action button
+    const actionBtn = document.getElementById('modal-action-btn');
+    if (!isHistory && d.actionUrl && d.actionDisabled === 'false') {
+        actionBtn.href = d.actionUrl;
+        actionBtn.textContent = d.actionLabel || 'Proceed to Payment';
+        actionBtn.style.display = '';
+    } else {
+        actionBtn.style.display = 'none';
+    }
+
+    document.getElementById('bookingModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBookingModal() {
+    document.getElementById('bookingModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.getElementById('bookingModal').addEventListener('click', function(e) {
+    if (e.target === this) closeBookingModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeBookingModal();
+});
+</script>
 {% endblock %}

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.4;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #4F46E5;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #4F46E5;
+            margin: 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 5px 0 0;
+            color: #666;
+            font-size: 12px;
+        }
+        .report-info {
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        .summary-grid {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .summary-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            text-align: center;
+        }
+        .summary-box .label {
+            display: block;
+            font-size: 10px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .summary-box .value {
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        h2 {
+            font-size: 16px;
+            color: #1e293b;
+            border-left: 4px solid #4F46E5;
+            padding-left: 10px;
+            margin: 25px 0 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 10px;
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        td {
+            padding: 8px;
+            font-size: 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .text-right { text-align: right; }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 8px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Analytics Report</h1>
+        <p>Generated on {{ timezone.now|date:"F d, Y H:i" }}</p>
+    </div>
+
+    <div class="report-info">
+        <strong>Period:</strong> {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}<br>
+        <strong>Event Type:</strong> {{ selected_event_type|title }}
+    </div>
+
+    <table class="summary-grid">
+        <tr>
+            <td class="summary-box">
+                <span class="label">Total Bookings</span>
+                <span class="value">{{ total_bookings }}</span>
+            </td>
+            <td class="summary-box">
+                <span class="label">Total Revenue</span>
+                <span class="value">PHP {{ total_revenue|floatformat:2 }}</span>
+            </td>
+            <td class="summary-box">
+                <span class="label">Completion Rate</span>
+                <span class="value">{{ completion_rate|floatformat:1 }}%</span>
+            </td>
+        </tr>
+    </table>
+
+    <h2>Revenue by Event Type</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Event Type</th>
+                <th class="text-right">Bookings</th>
+                <th class="text-right">Revenue (PHP)</th>
+                <th class="text-right">Avg. Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in revenue_by_event %}
+            <tr>
+                <td>{{ item.event_type|title }}</td>
+                <td class="text-right">{{ item.count }}</td>
+                <td class="text-right">PHP {{ item.revenue|floatformat:2 }}</td>
+                <td class="text-right">PHP {{ item.avg_value|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">No data available for this period.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Top Packages</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Package Name</th>
+                <th class="text-right">Bookings</th>
+                <th class="text-right">Revenue (PHP)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in package_rows %}
+            <tr>
+                <td>{{ item.package_name }}</td>
+                <td class="text-right">{{ item.count }}</td>
+                <td class="text-right">PHP {{ item.revenue|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center;">No data available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Top Customers</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Customer Name</th>
+                <th class="text-right">Bookings</th>
+                <th class="text-right">Total Spent (PHP)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in top_customers %}
+            <tr>
+                <td>{{ customer.name }}</td>
+                <td class="text-right">{{ customer.booking_count }}</td>
+                <td class="text-right">PHP {{ customer.total_spent|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center;">No data available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Customer Retention</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Customer Type</th>
+                <th class="text-right">Count</th>
+                <th class="text-right">Percentage</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>New Customers</td>
+                <td class="text-right">{{ new_customers_count }}</td>
+                <td class="text-right">{{ new_customers_pct }}%</td>
+            </tr>
+            <tr>
+                <td>Returning Customers</td>
+                <td class="text-right">{{ returning_customers_count }}</td>
+                <td class="text-right">{{ returning_customers_pct }}%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Confidential Analytics Report - For Administrative Use Only
+    </div>
+</body>
+</html>

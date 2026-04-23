@@ -1,18 +1,21 @@
 {% load static %}
-{% if asset.image or asset.static_path %}
 <div class="draggable-item" draggable="true"
      data-type="{{ asset.item_type|default:'image' }}"
      data-category="{{ asset.category.name|lower }}"
-     data-src="{% if asset.image %}{{ asset.image.url }}{% else %}{% static asset.static_path %}{% endif %}"
+     data-src="{% if asset.image %}{{ asset.image.url }}{% elif asset.static_path %}{% static asset.static_path %}{% endif %}"
      data-width="{{ asset.width|default:'150' }}"
      data-height="{{ asset.height|default:'150' }}"
      title="{{ asset.label }}">
     <div class="item-preview-img-wrapper">
+        {% if asset.image or asset.static_path %}
         <img class="item-preview-img"
-             src="{% if asset.image %}{{ asset.image.url }}{% else %}{% static asset.static_path %}{% endif %}"
+             src="{% if asset.image %}{{ asset.image.url }}{% elif asset.static_path %}{% static asset.static_path %}{% endif %}"
              alt="{{ asset.label }}"
+             onerror="if(!this.dataset.fallbackApplied){this.dataset.fallbackApplied='1';const wrapper=this.closest('.item-preview-img-wrapper');if(wrapper && !wrapper.querySelector('.empty-panel-note')){const note=document.createElement('span');note.className='empty-panel-note';note.textContent='Image unavailable';wrapper.appendChild(note);}}this.remove();"
              loading="lazy">
+        {% else %}
+        <span class="empty-panel-note">No image</span>
+        {% endif %}
     </div>
     <span class="item-label">{{ asset.label }}</span>
 </div>
-{% endif %}

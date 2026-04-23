@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from .views import (
     AboutPageView,
@@ -64,15 +65,13 @@ from .views import (
     admin_payment_detail,
     admin_payment_list,
     admin_profile,
-    admin_reports,
     admin_review_toggle_testimonial,
     admin_reviews,
     admin_service_charge_update,
-    admin_service_create,
-    admin_service_delete,
-    admin_service_detail,
-    admin_service_edit,
-    admin_service_list,
+    admin_service_content,
+    admin_service_item_create,
+    admin_service_item_edit,
+    admin_service_item_delete,
     admin_user_delete,
     admin_user_edit,
     admin_user_list,
@@ -230,8 +229,11 @@ urlpatterns = [
         admin_review_toggle_testimonial,
         name="admin_review_toggle_testimonial",
     ),
-    # Concerns and Reports Analytics
-    path("staff/reports/", admin_reports, name="admin_reports"),
+    # Concerns and Analytics
+    path(
+        "staff/reports/",
+        RedirectView.as_view(pattern_name="admin_concerns", permanent=True),
+    ),
     path("staff/concerns/", admin_concerns, name="admin_concerns"),
     path("staff/analytics/", admin_analytics, name="admin_analytics"),
     path(
@@ -261,22 +263,7 @@ urlpatterns = [
         hide_notification,
         name="hide_notification",
     ),
-    # Admin Package Management
-    path("staff/services/", admin_service_list, name="admin_service_list"),
-    path("staff/services/create/", admin_service_create, name="admin_service_create"),
-    path(
-        "staff/services/<int:id>/view/",
-        admin_service_detail,
-        name="admin_service_detail",
-    ),
-    path(
-        "staff/services/<int:id>/edit/", admin_service_edit, name="admin_service_edit"
-    ),
-    path(
-        "staff/services/<int:id>/delete/",
-        admin_service_delete,
-        name="admin_service_delete",
-    ),
+    # Content Management
     path("staff/content/home/", admin_home_content, name="admin_home_content"),
     path(
         "staff/content/home/features/create/",
@@ -293,6 +280,7 @@ urlpatterns = [
         admin_home_feature_delete,
         name="admin_home_feature_delete",
     ),
+
     path("staff/content/about/", admin_about_content, name="admin_about_content"),
     path(
         "staff/content/about/values/create/",
@@ -308,6 +296,23 @@ urlpatterns = [
         "staff/content/about/values/<int:id>/delete/",
         admin_about_value_delete,
         name="admin_about_value_delete",
+    ),
+
+    path("staff/content/services/", admin_service_content, name="admin_service_content"),
+    path(
+        "staff/content/services/items/create/",
+        admin_service_item_create,
+        name="admin_service_item_create",
+    ),
+    path(
+        "staff/content/services/items/<int:id>/edit/",
+        admin_service_item_edit,
+        name="admin_service_item_edit",
+    ),
+    path(
+        "staff/content/services/items/<int:id>/delete/",
+        admin_service_item_delete,
+        name="admin_service_item_delete",
     ),
     # Admin Package Management
     path("staff/packages/", admin_package_list, name="admin_package_list"),

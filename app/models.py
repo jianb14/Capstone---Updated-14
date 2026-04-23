@@ -477,8 +477,6 @@ class CanvasAsset(models.Model):
 class HomeContent(models.Model):
     hero_title = models.CharField(max_length=255, blank=True, default='')
     hero_subheadline = models.TextField(blank=True, default='')
-    hero_primary_cta_text = models.CharField(max_length=100, blank=True, default='')
-    hero_secondary_cta_text = models.CharField(max_length=100, blank=True, default='')
     hero_main_image = models.ImageField(upload_to='home_content/', blank=True, null=True)
     hero_float_top_image = models.ImageField(upload_to='home_content/', blank=True, null=True)
     hero_float_bottom_image = models.ImageField(upload_to='home_content/', blank=True, null=True)
@@ -512,6 +510,21 @@ class HomeFeatureItem(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# -----------------------------
+# 13️⃣ Service Page Content
+# -----------------------------
+class ServiceContent(models.Model):
+    hero_title = models.CharField(max_length=255, blank=True, default='')
+    hero_subtitle = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = 'Service Content'
+
+    def __str__(self):
+        return 'Service Page Content'
 
 
 class AboutContent(models.Model):
@@ -577,18 +590,14 @@ class GCashConfig(models.Model):
 class Service(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
-    features = models.TextField(blank=True, default='')
-    image = models.ImageField(upload_to='services/', blank=True, null=True)
+    image = models.ImageField(upload_to="services/", blank=True, null=True)
     display_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['display_order', 'id']
-
-    def feature_list(self):
-        return self.features.splitlines()
+        ordering = ["display_order", "id"]
 
     def __str__(self):
         return self.title

@@ -35,6 +35,10 @@
                 <label for="end_date">To</label>
                 <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
             </div>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn-apply">Apply</button>
+                <a href="{% url 'dashboard' %}" class="btn-reset">Reset</a>
+            </div>
         </div>
         <div class="filter-actions">
             <!-- Quick Presets -->
@@ -42,8 +46,6 @@
             <button type="button" class="btn-preset" data-preset="7days">7 Days</button>
             <button type="button" class="btn-preset" data-preset="month">This Month</button>
             <button type="button" class="btn-preset" data-preset="all">All Time</button>
-            <button type="submit" class="btn-apply" style="margin-left: 12px;">Apply</button>
-            <a href="{% url 'dashboard' %}" class="btn-reset">Reset</a>
         </div>
     </form>
 
@@ -69,48 +71,40 @@
     <div class="data-modules">
         <div class="data-mod">
             <div class="mod-header">
-                <span class="mod-title">Total Bookings</span>
+                <div class="mod-title-wrap">
+                    <span class="mod-title">Total Bookings</span>
+                </div>
                 <span class="mod-badge">Current Range</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
-                <div class="mod-viz">
-                    <svg class="ring-chart" viewBox="0 0 44 44">
-                        <circle class="ring-bg" cx="22" cy="22" r="18"/>
-                        <circle class="ring-fill blue" cx="22" cy="22" r="18" stroke-dasharray="113" stroke-dashoffset="113" id="ring-bookings"/>
-                    </svg>
-                </div>
             </div>
             <div class="mod-footer">Bookings in selected range</div>
         </div>
 
         <div class="data-mod">
             <div class="mod-header">
-                <span class="mod-title">Total Revenue</span>
+                <div class="mod-title-wrap">
+                    <span class="mod-title">Total Revenue</span>
+                </div>
                 <span class="mod-badge">Current Range</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ total_revenue }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ total_revenue|floatformat:"-2"|intcomma }}</div>
-                <div class="mod-viz">
-                    <canvas id="sparkline-revenue" class="sparkline-canvas"></canvas>
-                </div>
             </div>
             <div class="mod-footer">Completed bookings in range</div>
         </div>
 
         <div class="data-mod">
             <div class="mod-header">
-                <span class="mod-title">Action Queue</span>
+                <div class="mod-title-wrap">
+                    <span class="mod-title">Action Queue</span>
+                </div>
                 <span class="mod-badge">Current Range</span>
             </div>
-                <div class="mod-body">
-                    <div class="mod-value" data-count="{{ action_queue_total }}">{{ action_queue_total }}</div>
-                    <div class="mod-viz">
-                        <div class="stacked-bar-wrap">
-                            <div class="stacked-bar" id="queue-bar"></div>
-                        </div>
-                    </div>
-                </div>
+            <div class="mod-body">
+                <div class="mod-value" data-count="{{ action_queue_total }}">{{ action_queue_total }}</div>
+            </div>
             <div class="mod-footer action-queue-footer">
                 <span class="aq-pending">{{ pending_approvals }} pending</span>,
                 <span class="aq-edit">{{ edit_requests }} edit</span>,
@@ -120,28 +114,13 @@
 
         <div class="data-mod">
             <div class="mod-header">
-                <span class="mod-title">Period Trend</span>
+                <div class="mod-title-wrap">
+                    <span class="mod-title">Period Trend</span>
+                </div>
                 <span class="mod-badge">Trend</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
-                <div class="mod-viz">
-                    <div class="trend-arrow">
-                        {% if period_delta >= 0 %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                            <polyline points="17 6 23 6 23 12"></polyline>
-                        </svg>
-                        <span class="trend-delta pos">+{{ period_delta }}</span>
-                        {% else %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
-                            <polyline points="17 18 23 18 23 12"></polyline>
-                        </svg>
-                        <span class="trend-delta neg">{{ period_delta }}</span>
-                        {% endif %}
-                    </div>
-                </div>
             </div>
             <div class="mod-footer">
                 <span class="{% if period_delta >= 0 %}pos{% else %}neg{% endif %}">
@@ -156,12 +135,19 @@
         <div class="glass-panel">
             <div class="panel-head">
                 <h2>{{ trend_title }}</h2>
-                <select class="seg-select" id="trend-segment">
-                    <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
-                    {% for event_type in event_type_options %}
-                    <option value="{{ event_type }}" {% if selected_event_type == event_type %}selected{% endif %}>{{ event_type }}</option>
-                    {% endfor %}
-                </select>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <select class="seg-select" id="trend-category">
+                        <option value="all_metrics" selected>All Metrics</option>
+                        <option value="bookings">Bookings</option>
+                        <option value="revenue">Revenue</option>
+                    </select>
+                    <select class="seg-select" id="trend-segment">
+                        <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
+                        {% for event_type in event_type_options %}
+                        <option value="{{ event_type }}" {% if selected_event_type == event_type %}selected{% endif %}>{{ event_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             <div class="chart-shell">
                 <div class="skeleton-shimmer" id="shimmer-trend"></div>
@@ -193,22 +179,34 @@
             </div>
             <div class="metric-grid">
                 <div class="metric-tile">
-                    <span class="m-label">Total Revenue</span>
+                    <div class="m-head">
+                        <span class="m-label">Total Revenue</span>
+                        <div class="m-icon mic-rev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                    </div>
                     <span class="m-value">&#8369;{{ total_revenue|floatformat:2|intcomma }}</span>
                     <span class="m-sub {% if revenue_delta >= 0 %}pos{% else %}neg{% endif %}">{% if revenue_delta >= 0 %}+{% endif %}{{ revenue_delta_pct }}% vs previous</span>
                 </div>
                 <div class="metric-tile">
-                    <span class="m-label">Avg Booking Value</span>
+                    <div class="m-head">
+                        <span class="m-label">Avg Booking Value</span>
+                        <div class="m-icon mic-avg"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg></div>
+                    </div>
                     <span class="m-value">&#8369;{{ avg_booking_value|floatformat:2|intcomma }}</span>
                     <span class="m-sub">Completed bookings only</span>
                 </div>
                 <div class="metric-tile">
-                    <span class="m-label">Completion Rate</span>
+                    <div class="m-head">
+                        <span class="m-label">Completion Rate</span>
+                        <div class="m-icon mic-comp"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+                    </div>
                     <span class="m-value">{{ completion_rate }}%</span>
                     <span class="m-sub">{{ completed_count }} of {{ total_bookings }}</span>
                 </div>
                 <div class="metric-tile">
-                    <span class="m-label">Cancellation Rate</span>
+                    <div class="m-head">
+                        <span class="m-label">Cancellation Rate</span>
+                        <div class="m-icon mic-canc"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
+                    </div>
                     <span class="m-value">{{ cancellation_rate }}%</span>
                     <span class="m-sub">{{ cancelled_count }} cancelled</span>
                 </div>
@@ -403,8 +401,6 @@
 {{ dashboard_trend_labels|json_script:"dash-trend-labels" }}
 {{ dashboard_bookings_trend|json_script:"dash-bookings-trend" }}
 {{ dashboard_revenue_trend|json_script:"dash-revenue-trend" }}
-{{ dashboard_prev_bookings_trend|json_script:"dash-prev-bookings-trend" }}
-{{ dashboard_prev_revenue_trend|json_script:"dash-prev-revenue-trend" }}
 {{ revenue_by_event|json_script:"dash-revenue-by-event" }}
 {{ queue_breakdown|json_script:"dash-queue-breakdown" }}
 {{ dashboard_status_labels|json_script:"dash-status-labels" }}
@@ -461,26 +457,10 @@ document.addEventListener('DOMContentLoaded', function () {
         kpis.forEach(el => obs.observe(el));
     } else { kpis.forEach(animateCounter); }
 
-    /* Ring */
-    const ring = document.getElementById('ring-bookings');
-    if (ring) {
-        const bk = parseInt('{{ total_bookings }}' || '0', 10);
-        setTimeout(() => { ring.style.strokeDashoffset = 113 - (113 * Math.min(bk / Math.max(bk, 20), 1)); }, 400);
-    }
-
-    /* Stacked Bar */
-    const qb = document.getElementById('queue-bar');
-    if (qb) {
-        const p = parseInt('{{ pending_approvals }}' || '0', 10);
-        const e = parseInt('{{ edit_requests }}' || '0', 10);
-        const c = parseInt('{{ cancel_requests }}' || '0', 10);
-        const t = p + e + c || 1;
-        qb.innerHTML = '<span class="bar-pending" style="width:' + (p/t*100) + '%;animation-delay:0.3s"></span><span class="bar-edit" style="width:' + (e/t*100) + '%;animation-delay:0.45s"></span><span class="bar-cancel" style="width:' + (c/t*100) + '%;animation-delay:0.6s"></span>';
-    }
-
     /* Quick Presets */
     const filterForm = document.querySelector('.dash-filter-row');
     const trendSegment = document.getElementById('trend-segment');
+    const trendCategory = document.getElementById('trend-category');
     const eventTypeFilterInput = document.getElementById('event_type_filter');
 
     if (trendSegment && filterForm && eventTypeFilterInput) {
@@ -531,51 +511,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const tLabels = JSON.parse(document.getElementById('dash-trend-labels').textContent || '[]');
     const bTrend  = JSON.parse(document.getElementById('dash-bookings-trend').textContent || '[]');
     const rTrend  = JSON.parse(document.getElementById('dash-revenue-trend').textContent || '[]');
-    const prevBTrend = JSON.parse(document.getElementById('dash-prev-bookings-trend').textContent || '[]');
-    const prevRTrend = JSON.parse(document.getElementById('dash-prev-revenue-trend').textContent || '[]');
     const revEvt  = JSON.parse(document.getElementById('dash-revenue-by-event').textContent || '[]');
     const sLabels = JSON.parse(document.getElementById('dash-status-labels').textContent || '[]');
     const sValues = JSON.parse(document.getElementById('dash-status-values').textContent || '[]');
     const sColors = JSON.parse(document.getElementById('dash-status-colors').textContent || '[]');
 
     const ttip = { backgroundColor: 'rgba(8,8,8,0.94)', borderColor: 'rgba(255,255,255,0.06)', borderWidth: 1, titleColor: '#eee', bodyColor: '#999', cornerRadius: 8, padding: 10, titleFont: { weight: '600', size: 11 }, bodyFont: { size: 10.5 } };
-
-    /* Sparkline */
-    const spk = document.getElementById('sparkline-revenue');
-    if (spk && rTrend.length) {
-        const sCtx = spk.getContext('2d');
-        const sg = sCtx.createLinearGradient(0, 0, 0, 32);
-        sg.addColorStop(0, 'rgba(16,185,129,0.3)'); sg.addColorStop(1, 'rgba(16,185,129,0.01)');
-        new Chart(spk, {
-            type: 'line',
-            data: {
-                labels: tLabels,
-                datasets: [{
-                    data: rTrend,
-                    borderColor: '#10b981',
-                    backgroundColor: sg,
-                    borderWidth: 1.8,
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 0,
-                    pointHoverRadius: 3,
-                    pointHoverBackgroundColor: '#10b981',
-                    clip: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 800, easing: 'easeOutQuart' },
-                layout: { padding: { left: 2, right: 2, top: 1, bottom: 1 } },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true, mode: 'index', intersect: false, ...ttip, padding: 6, displayColors: false }
-                },
-                scales: { x: { display: false }, y: { display: false } }
-            }
-        });
-    }
 
     /* Ops Trend */
     const tc = document.getElementById('opsTrendChart');
@@ -584,78 +525,59 @@ document.addEventListener('DOMContentLoaded', function () {
         const bg = ctx.createLinearGradient(0, 0, 0, 260); bg.addColorStop(0, 'rgba(59,130,246,0.22)'); bg.addColorStop(1, 'rgba(59,130,246,0.01)');
         const rg = ctx.createLinearGradient(0, 0, 0, 260); rg.addColorStop(0, 'rgba(20,184,166,0.18)'); rg.addColorStop(1, 'rgba(20,184,166,0.01)');
 
-        const trendDatasets = [
-            {
-                label: 'Bookings',
-                data: bTrend,
-                borderColor: '#3b82f6',
-                backgroundColor: bg,
-                tension: 0.42,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 7,
-                pointBackgroundColor: '#3b82f6',
-                pointBorderColor: '#111',
-                pointBorderWidth: 2,
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: '#3b82f6',
-                pointHoverBorderWidth: 3,
-                borderWidth: 2.5
-            },
-            {
-                label: 'Revenue (PHP)',
-                data: rTrend,
-                borderColor: '#14b8a6',
-                backgroundColor: rg,
-                tension: 0.42,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 7,
-                pointBackgroundColor: '#14b8a6',
-                pointBorderColor: '#111',
-                pointBorderWidth: 2,
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: '#14b8a6',
-                pointHoverBorderWidth: 3,
-                borderWidth: 2.5,
-                yAxisID: 'y1'
+        function buildTrendDatasets(category) {
+            const datasets = [];
+            const includeBookings = category === 'all_metrics' || category === 'bookings';
+            const includeRevenue = category === 'all_metrics' || category === 'revenue';
+
+            if (includeBookings) {
+                datasets.push({
+                    label: 'Bookings',
+                    data: bTrend,
+                    borderColor: '#3b82f6',
+                    backgroundColor: bg,
+                    tension: 0.42,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#3b82f6',
+                    pointBorderColor: '#111',
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#3b82f6',
+                    pointHoverBorderWidth: 3,
+                    borderWidth: 2.5
+                });
             }
-        ];
 
-        if (prevBTrend.length === bTrend.length && prevBTrend.length > 0) {
-            trendDatasets.push({
-                label: 'Bookings (Previous)',
-                data: prevBTrend,
-                borderColor: 'rgba(59,130,246,0.55)',
-                backgroundColor: 'transparent',
-                borderDash: [6, 5],
-                tension: 0.35,
-                fill: false,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                borderWidth: 1.8
-            });
+            if (includeRevenue) {
+                datasets.push({
+                    label: 'Revenue (PHP)',
+                    data: rTrend,
+                    borderColor: '#14b8a6',
+                    backgroundColor: rg,
+                    tension: 0.42,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#14b8a6',
+                    pointBorderColor: '#111',
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#14b8a6',
+                    pointHoverBorderWidth: 3,
+                    borderWidth: 2.5,
+                    yAxisID: 'y1'
+                });
+            }
+
+            return datasets;
         }
 
-        if (prevRTrend.length === rTrend.length && prevRTrend.length > 0) {
-            trendDatasets.push({
-                label: 'Revenue (Previous)',
-                data: prevRTrend,
-                borderColor: 'rgba(20,184,166,0.5)',
-                backgroundColor: 'transparent',
-                borderDash: [6, 5],
-                tension: 0.35,
-                fill: false,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                borderWidth: 1.8,
-                yAxisID: 'y1'
-            });
-        }
-
-        new Chart(tc, {
+        const initialTrendCategory = (trendCategory && trendCategory.value) ? trendCategory.value : 'all_metrics';
+        const opsTrendChart = new Chart(tc, {
             type: 'line',
-            data: { labels: tLabels, datasets: trendDatasets },
+            data: { labels: tLabels, datasets: buildTrendDatasets(initialTrendCategory) },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
@@ -664,13 +586,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 scales: {
                     x: { grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } },
                     y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', precision: 0, font: { size: 10 } } },
-                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false, drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }
+                    y1: { beginAtZero: true, display: initialTrendCategory === 'all_metrics' || initialTrendCategory === 'revenue', position: 'right', grid: { drawOnChartArea: false, drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }
                 }
             },
             plugins: [{ id: 's1', afterRender() { rmShim('shimmer-trend'); } }]
         });
-    }
 
+        if (trendCategory) {
+            trendCategory.addEventListener('change', function () {
+                const selectedCategory = this.value || 'all_metrics';
+                opsTrendChart.data.datasets = buildTrendDatasets(selectedCategory);
+                opsTrendChart.options.scales.y1.display = selectedCategory === 'all_metrics' || selectedCategory === 'revenue';
+                opsTrendChart.update();
+            });
+        }
+    }
     /* Status Donut */
     const sc = document.getElementById('statusMixChart');
     if (sc) {
@@ -762,9 +692,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (rc && revEvt.length) {
         const bCtx = rc.getContext('2d');
         const bGrad = bCtx.createLinearGradient(0, 0, 0, 200); bGrad.addColorStop(0, 'rgba(59,130,246,0.6)'); bGrad.addColorStop(1, 'rgba(59,130,246,0.1)');
+        const eventLabels = revEvt.map(i => i.event_type || 'Unknown');
+        const eventRevenue = revEvt.map(i => Number(i.revenue || 0));
         new Chart(rc, {
             type: 'bar',
-            data: { labels: revEvt.map(i => i.event_type), datasets: [{ label: 'Revenue', data: revEvt.map(i => i.total), backgroundColor: bGrad, borderColor: '#3b82f6', borderWidth: 1, borderRadius: 8, maxBarThickness: 38, hoverBackgroundColor: 'rgba(59,130,246,0.75)' }] },
+            data: { labels: eventLabels, datasets: [{ label: 'Revenue', data: eventRevenue, backgroundColor: bGrad, borderColor: '#3b82f6', borderWidth: 1, borderRadius: 8, maxBarThickness: 38, hoverBackgroundColor: 'rgba(59,130,246,0.75)' }] },
             options: { responsive: true, maintainAspectRatio: false, animation: { duration: 900, easing: 'easeOutQuart', delay: c => c.dataIndex * 100 }, plugins: { legend: { display: false }, tooltip: { ...ttip, callbacks: { label: c => '₱' + c.parsed.y.toLocaleString() } } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 10 } } } } },
             plugins: [{ id: 's3', afterRender() { rmShim('shimmer-revenue'); } }]
         });
@@ -772,5 +704,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 {% endblock %}
+
+
 
 

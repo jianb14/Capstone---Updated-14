@@ -5,105 +5,77 @@
 
     <div id="services" class="page">
         <section class="services-hero">
-            <h1>Our Services</h1>
-            <p>Balloon styling and event decoration services for all types of events.</p>
+            <h1>{{ service_content.hero_title|default:"Our Services" }}</h1>
+            <p>{{ service_content.hero_subtitle|default:"Balloon styling and event decoration services for all types of events." }}</p>
         </section>
 
         <section class="services-detailed">
-            <div class="service-item" id="birthday-styling">
-                <div class="service-content">
-                    <h2>Birthday Balloon Styling</h2>
-                    <p>We design birthday setups for kids, teens, and adults. We customize the look based on your theme, colors, and venue.</p>
-                    <ul class="service-features">
-                        <li>Custom balloon arches and garlands</li>
-                        <li>Themed character installations</li>
-                        <li>Centerpieces and table decor</li>
-                        <li>Number and letter balloon displays</li>
-                        <li>Photo backdrop installations</li>
-                        <li>Ceiling and wall treatments</li>
-                    </ul>
-                    <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+            {% for service in services %}
+                <div class="service-item">
+                    <div class="service-content">
+                        <h2>{{ service.title }}</h2>
+                        <p>{{ service.description }}</p>
+                        <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+                    </div>
+                    <div class="service-image">
+                        {% if service.image %}
+                            <img src="{{ service.image.url }}" alt="{{ service.title }}">
+                        {% else %}
+                            <img src="{% static 'images/BalloorinaLogo1.png' %}" alt="{{ service.title }}">
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="service-image">
-                    <img src="{% static 'images/service_birthday.png' %}" alt="Birthday Balloon Styling">
+            {% empty %}
+                <!-- Fallback to static content if no dynamic services exist -->
+                <div class="service-item" id="birthday-styling">
+                    <div class="service-content">
+                        <h2>Birthday Balloon Styling</h2>
+                        <p>We design birthday setups for kids, teens, and adults. We customize the look based on your theme, colors, and venue.</p>
+                        <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+                    </div>
+                    <div class="service-image">
+                        <img src="{% static 'images/service_birthday.png' %}" alt="Birthday Balloon Styling">
+                    </div>
                 </div>
-            </div>
 
-            <div class="service-item">
-                <div class="service-content">
-                    <h2>Wedding Balloon Installations</h2>
-                    <p>We style wedding venues with elegant balloon designs that match your motif. We also coordinate with your other suppliers for a smooth setup.</p>
-                    <ul class="service-features">
-                        <li>Ceremony and reception arches</li>
-                        <li>Aisle markers and pew decorations</li>
-                        <li>Head table and guest table centerpieces</li>
-                        <li>Dance floor canopies</li>
-                        <li>Photo booth backdrops</li>
-                        <li>Venue entrance installations</li>
-                    </ul>
-                    <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+                <div class="service-item">
+                    <div class="service-content">
+                        <h2>Wedding Balloon Installations</h2>
+                        <p>We style wedding venues with elegant balloon designs that match your motif. We also coordinate with your other suppliers for a smooth setup.</p>
+                        <ul class="service-features">
+                            <li>Ceremony and reception arches</li>
+                            <li>Aisle markers and pew decorations</li>
+                            <li>Head table and guest table centerpieces</li>
+                            <li>Dance floor canopies</li>
+                            <li>Photo booth backdrops</li>
+                            <li>Venue entrance installations</li>
+                        </ul>
+                        <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+                    </div>
+                    <div class="service-image">
+                        <img src="{% static 'images/service_wedding.png' %}" alt="Wedding Balloon Installations">
+                    </div>
                 </div>
-                <div class="service-image">
-                    <img src="{% static 'images/service_wedding.png' %}" alt="Wedding Balloon Installations">
-                </div>
-            </div>
 
-            <div class="service-item">
-                <div class="service-content">
-                    <h2>Corporate Event Styling</h2>
-                    <p>We provide clean and professional balloon setups for launches, conferences, team events, and company celebrations.</p>
-                    <ul class="service-features">
-                        <li>Brand-aligned color schemes</li>
-                        <li>Logo and brand message displays</li>
-                        <li>Stage and podium backdrops</li>
-                        <li>Welcome and registration area styling</li>
-                        <li>Conference room decoration</li>
-                        <li>Trade show booth enhancements</li>
-                    </ul>
-                    <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+                <div class="service-item">
+                    <div class="service-content">
+                        <h2>Corporate Event Styling</h2>
+                        <p>We provide clean and professional balloon setups for launches, conferences, team events, and company celebrations.</p>
+                        <ul class="service-features">
+                            <li>Brand-aligned color schemes</li>
+                            <li>Logo and brand message displays</li>
+                            <li>Stage and podium backdrops</li>
+                            <li>Welcome and registration area styling</li>
+                            <li>Conference room decoration</li>
+                            <li>Trade show booth enhancements</li>
+                        </ul>
+                        <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
+                    </div>
+                    <div class="service-image">
+                        <img src="{% static 'images/service_corporate.png' %}" alt="Corporate Event Styling">
+                    </div>
                 </div>
-                <div class="service-image">
-                    <img src="{% static 'images/service_corporate.png' %}" alt="Corporate Event Styling">
-                </div>
-            </div>
-
-            <div class="service-item">
-                <div class="service-content">
-                    <h2>Christening &amp; Debut Setups</h2>
-                    <p>We create tasteful setups for christening and debut celebrations, with designs that fit both classic and modern styles.</p>
-                    <ul class="service-features">
-                        <li>Angel and cloud-themed installations</li>
-                        <li>Elegant pastel color palettes</li>
-                        <li>Floral and balloon combinations</li>
-                        <li>Entrance and stage decorations</li>
-                        <li>Candy and dessert table styling</li>
-                        <li>Gift and cake table backdrops</li>
-                    </ul>
-                    <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
-                </div>
-                <div class="service-image">
-                    <img src="{% static 'images/service_christening.png' %}" alt="Christening and Debut Setups">
-                </div>
-            </div>
-
-            <div class="service-item">
-                <div class="service-content">
-                    <h2>Custom Theme Decorations</h2>
-                    <p>If you have a specific theme in mind, we can build a custom setup based on your ideas, colors, and venue requirements.</p>
-                    <ul class="service-features">
-                        <li>Fully customized color schemes</li>
-                        <li>Thematic installations (tropical, vintage, modern, etc.)</li>
-                        <li>Specialty balloon shapes and sizes</li>
-                        <li>Mixed media installations (balloons + florals, lights, etc.)</li>
-                        <li>Large-scale statement pieces</li>
-                        <li>Interactive installations and displays</li>
-                    </ul>
-                    <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
-                </div>
-                <div class="service-image">
-                    <img src="{% static 'images/hero_corporate.png' %}" alt="Custom Theme Decorations">
-                </div>
-            </div>
+            {% endfor %}
         </section>
     </div>
 

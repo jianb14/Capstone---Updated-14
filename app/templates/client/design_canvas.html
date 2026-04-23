@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}">
+<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20260422j">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
@@ -10,17 +10,57 @@
 
     <div class="canvas-workspace-shell">
         <div class="design-layout">
-            <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
-                <a class="rail-home-btn" href="{% url 'select_design_type' %}" title="Back to design selection">
+            <div class="canvas-main-toolbar">
+                <a class="ctrl-btn icon-only" href="{% url 'my_designs' %}" title="Go to My Designs">
                     <i class="fas fa-house"></i>
                 </a>
+
+                <div class="topbar-group dimension-toolbar-group">
+                    <span id="canvasSizeDisp" class="toolbar-status">Canvas: 1920 x 1080</span>
+                    <label for="canvasWidthInput">W</label>
+                    <input type="number" id="canvasWidthInput" value="1920" min="100" max="5000" step="10">
+                    <label for="canvasHeightInput">H</label>
+                    <input type="number" id="canvasHeightInput" value="1080" min="100" max="5000" step="10">
+                    <button id="applySizeBtn" class="ctrl-btn icon-only" title="Apply Canvas Size">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+
+                <div class="topbar-group zoom-toolbar-group">
+                    <button id="zoomOutBtn" class="ctrl-btn icon-only" title="Zoom Out (Ctrl+-)">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="range" id="zoomRange" min="15" max="300" value="100" aria-label="Zoom level">
+                    <span id="zoomLabel" class="zoom-pill">100%</span>
+                    <button id="zoomInBtn" class="ctrl-btn icon-only" title="Zoom In (Ctrl++)">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <div class="topbar-group">
+                    <button id="undoBtn" class="ctrl-btn icon-only" title="Undo (Ctrl+Z)" disabled>
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button id="redoBtn" class="ctrl-btn icon-only" title="Redo (Ctrl+Y)" disabled>
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button id="zoomResetBtn" class="ctrl-btn icon-only" title="Fit to View (Ctrl+0)">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button id="clearBtn" class="ctrl-btn icon-only" title="Clear Canvas" disabled>
+                        <i class="fas fa-trash-can"></i>
+                    </button>
+                </div>
+
+                <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
+                    <i class="fas fa-floppy-disk"></i> Save
+                </button>
+            </div>
+
+            <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
                 <button type="button" class="rail-btn active" data-panel-target="elementsPanel" title="Elements">
                     <i class="fas fa-shapes"></i>
                     <span>Elements</span>
-                </button>
-                <button type="button" class="rail-btn" data-panel-target="packagesPanel" title="Packages">
-                    <i class="fas fa-box-open"></i>
-                    <span>Packages</span>
                 </button>
                 <button type="button" class="rail-btn" data-panel-target="textPanel" title="Text">
                     <i class="fas fa-font"></i>
@@ -29,10 +69,6 @@
                 <button type="button" class="rail-btn" data-panel-target="uploadsPanel" title="Uploads">
                     <i class="fas fa-cloud-upload-alt"></i>
                     <span>Uploads</span>
-                </button>
-                <button type="button" class="rail-btn" data-panel-target="toolsPanel" title="Tools">
-                    <i class="fas fa-pen-ruler"></i>
-                    <span>Tools</span>
                 </button>
             </aside>
 
@@ -86,21 +122,21 @@
                     </div>
 
                     {% for cat in canvas_categories %}
-                    <div class="inventory-category">
-                        <button type="button" class="category-header">
-                            <span>{{ cat.name }}</span>
+                    <div class="inventory-category" data-category-name="{{ cat.name|default:'Category'|lower }}">
+                        <button type="button" class="category-header is-open">
+                            <span>{{ cat.name|default:'Category' }}</span>
                             <i class="fas fa-chevron-down chevron"></i>
                         </button>
-                        <div class="category-items">
-                            {% for asset in cat.assets.all %}
-                            {% if asset.is_active %}
+                        <div class="category-items open">
+                            {% for asset in cat.design_assets %}
                             {% include 'components/canvas_asset_item.html' with asset=asset %}
-                            {% endif %}
+                            {% empty %}
+                            <div class="empty-panel-note">No assets in this category yet.</div>
                             {% endfor %}
                         </div>
                     </div>
                     {% empty %}
-                    <div class="inventory-category">
+                    <div class="inventory-category" data-category-name="no asset categories yet">
                         <button type="button" class="category-header">
                             <span>No asset categories yet</span>
                             <i class="fas fa-chevron-down chevron"></i>
@@ -110,36 +146,6 @@
                         </div>
                     </div>
                     {% endfor %}
-                </div>
-
-                <div class="sidebar-panel" id="packagesPanel">
-                    <div class="sidebar-panel-header">
-                        <div>
-                            <span class="panel-eyebrow">Workspace</span>
-                            <h4>Packages</h4>
-                            <p>Choose a base package for your design.</p>
-                        </div>
-                    </div>
-
-                    <div class="packages-grid">
-                        {% for pkg in all_packages %}
-                        <div class="package-selection-card {% if base_package.id == pkg.id %}selected{% endif %}" 
-                             data-package-id="{{ pkg.id }}" 
-                             data-package-name="{{ pkg.name }}"
-                             data-package-price="{{ pkg.price }}"
-                             title="Select {{ pkg.name }}">
-                            <div class="pkg-card-info">
-                                <span class="pkg-name">{{ pkg.name }}</span>
-                                <span class="pkg-price">P{{ pkg.price }}</span>
-                            </div>
-                            <div class="pkg-card-features">
-                                {% for feature in pkg.feature_list|slice:":3" %}
-                                <div class="pkg-mini-feature"><i class="fas fa-check"></i> {{ feature }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
                 </div>
 
                 <div class="sidebar-panel" id="uploadsPanel">
@@ -261,112 +267,12 @@
                     </div>
                 </div>
 
-                <div class="sidebar-panel" id="toolsPanel">
-                    <div class="sidebar-panel-header">
-                        <div>
-                            <span class="panel-eyebrow">Workspace</span>
-                            <h4>Draw</h4>
-                            <p>Sketch directly on the canvas with black editor tools.</p>
-                        </div>
-                    </div>
-
-                    <div class="draw-tool-list">
-                        <button type="button" class="draw-tool-btn active" data-draw-tool="pen">
-                            <i class="fas fa-pen"></i>
-                            <span>Pen</span>
-                        </button>
-                        <button type="button" class="draw-tool-btn" data-draw-tool="marker">
-                            <i class="fas fa-marker"></i>
-                            <span>Marker</span>
-                        </button>
-                        <button type="button" class="draw-tool-btn" data-draw-tool="highlighter">
-                            <i class="fas fa-highlighter"></i>
-                            <span>Highlighter</span>
-                        </button>
-                        <button type="button" class="draw-tool-btn" data-draw-tool="eraser">
-                            <i class="fas fa-eraser"></i>
-                            <span>Eraser</span>
-                        </button>
-                    </div>
-
-                    <div class="sidebar-section">
-                        <div class="section-label"><i class="fas fa-droplet"></i> Color</div>
-                        <div class="draw-color-field">
-                            <input type="color" id="drawColorInput" value="#000000">
-                            <span id="drawColorLabel">#000000</span>
-                        </div>
-                    </div>
-
-                    <div class="sidebar-section">
-                        <div class="section-label"><i class="fas fa-ruler-horizontal"></i> Size</div>
-                        <div class="draw-range-block">
-                            <input type="range" id="drawSizeInput" min="1" max="64" value="5">
-                            <span id="drawSizeValue">5px</span>
-                        </div>
-                    </div>
-
-                    <div class="sidebar-section">
-                        <div class="section-label"><i class="fas fa-circle-half-stroke"></i> Opacity</div>
-                        <div class="draw-range-block">
-                            <input type="range" id="drawOpacityInput" min="5" max="100" step="5" value="100">
-                            <span id="drawOpacityValue">100%</span>
-                        </div>
-                    </div>
-
-                    <button type="button" class="sidebar-secondary-btn" id="disableDrawBtn">
-                        <i class="fas fa-circle-stop"></i> Exit Draw Mode 
-                    </button>
-                </div>
-
                 <div class="sidebar-tip">
-                    Ctrl+Z Undo | Ctrl+Y Redo | Delete Remove | Ctrl+D Clone | Arrow keys Nudge | Space + Drag Pan
+                    Ctrl+Z Undo | Ctrl+Y Redo | Delete Remove | Ctrl+D Clone | Arrow keys Nudge | Mouse wheel Zoom
                 </div>
             </aside>
 
             <main class="canvas-area">
-                <div class="canvas-main-toolbar">
-                    <div class="topbar-group">
-                        <button id="undoBtn" class="ctrl-btn icon-only" title="Undo (Ctrl+Z)" disabled>
-                            <i class="fas fa-undo"></i>
-                        </button>
-                        <button id="redoBtn" class="ctrl-btn icon-only" title="Redo (Ctrl+Y)" disabled>
-                            <i class="fas fa-redo"></i>
-                        </button>
-                        <button id="zoomResetBtn" class="ctrl-btn icon-only" title="Fit to View (Ctrl+0)">
-                            <i class="fas fa-expand"></i>
-                        </button>
-                        <button id="clearBtn" class="ctrl-btn icon-only" title="Clear Canvas" disabled>
-                            <i class="fas fa-trash-can"></i>
-                        </button>
-                    </div>
-
-                    <div class="topbar-group zoom-toolbar-group">
-                        <button id="zoomOutBtn" class="ctrl-btn icon-only" title="Zoom Out (Ctrl+-)">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <input type="range" id="zoomRange" min="15" max="300" value="100" aria-label="Zoom level">
-                        <span id="zoomLabel" class="zoom-pill">100%</span>
-                        <button id="zoomInBtn" class="ctrl-btn icon-only" title="Zoom In (Ctrl++)">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-
-                    <div class="topbar-group dimension-toolbar-group">
-                        <span id="canvasSizeDisp" class="toolbar-status">Canvas: 1920 x 1080</span>
-                        <label for="canvasWidthInput">W</label>
-                        <input type="number" id="canvasWidthInput" value="1920" min="100" max="5000" step="10">
-                        <label for="canvasHeightInput">H</label>
-                        <input type="number" id="canvasHeightInput" value="1080" min="100" max="5000" step="10">
-                        <button id="applySizeBtn" class="ctrl-btn icon-only" title="Apply Canvas Size">
-                            <i class="fas fa-check"></i>
-                        </button>
-                    </div>
-
-                    <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
-                        <i class="fas fa-floppy-disk"></i> Save
-                    </button>
-                </div>
-
                 <div id="canvasDropZone">
                     <div class="selection-toolbar" id="selectionToolbar" aria-hidden="true">
                         <div class="toolbar-group">
@@ -405,6 +311,12 @@
                         <div class="toolbar-group">
                             <button id="lockBtn" class="ctrl-btn icon-only" title="Lock / Unlock" disabled><i class="fas fa-lock-open"></i></button>
                             <button id="cloneBtn" class="ctrl-btn icon-only" title="Duplicate" disabled><i class="far fa-copy"></i></button>
+                            <button id="rotateLeftBtn" class="ctrl-btn icon-only" title="Rotate Left" disabled><i class="fas fa-rotate-left"></i></button>
+                            <button id="rotateRightBtn" class="ctrl-btn icon-only" title="Rotate Right" disabled><i class="fas fa-rotate-right"></i></button>
+                            <button id="moveUpBtn" class="ctrl-btn icon-only" title="Move Up" disabled><i class="fas fa-arrow-up"></i></button>
+                            <button id="moveDownBtn" class="ctrl-btn icon-only" title="Move Down" disabled><i class="fas fa-arrow-down"></i></button>
+                            <button id="moveLeftBtn" class="ctrl-btn icon-only" title="Move Left" disabled><i class="fas fa-arrow-left"></i></button>
+                            <button id="moveRightBtn" class="ctrl-btn icon-only" title="Move Right" disabled><i class="fas fa-arrow-right"></i></button>
                             <button id="flipXBtn" class="ctrl-btn icon-only" title="Flip Horizontal" disabled><i class="fas fa-left-right"></i></button>
                             <button id="flipYBtn" class="ctrl-btn icon-only" title="Flip Vertical" disabled><i class="fas fa-up-down"></i></button>
                             <button id="skewLeftBtn" class="ctrl-btn icon-only" title="Skew Left" disabled><i class="fas fa-caret-left"></i></button>
@@ -422,6 +334,24 @@
                     <div class="object-context-toolbar" id="objectContextToolbar" aria-hidden="true">
                         <button type="button" class="ctx-btn" id="contextLockBtn" title="Lock / Unlock">
                             <i class="fas fa-lock-open"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextRotateLeftBtn" title="Rotate Left">
+                            <i class="fas fa-rotate-left"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextRotateRightBtn" title="Rotate Right">
+                            <i class="fas fa-rotate-right"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextMoveUpBtn" title="Move Up">
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextMoveDownBtn" title="Move Down">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextMoveLeftBtn" title="Move Left">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <button type="button" class="ctx-btn" id="contextMoveRightBtn" title="Move Right">
+                            <i class="fas fa-arrow-right"></i>
                         </button>
                         <button type="button" class="ctx-btn" id="contextDuplicateBtn" title="Duplicate">
                             <i class="far fa-copy"></i>
@@ -501,6 +431,7 @@
     </div>
 </div>
 
+{{ canvas_assets_payload_obj|json_script:"canvas-assets-payload" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const floatBtn = document.getElementById('summaryFloatBtn');
@@ -540,6 +471,16 @@ document.addEventListener('DOMContentLoaded', function() {
     window.packageQuotas = JSON.parse('{{ package_quotas|escapejs|default:"{}" }}');
     window.allPackageQuotas = JSON.parse('{{ all_package_quotas|escapejs|default:"{}" }}');
     window.addonPrices = JSON.parse('{{ addon_prices|escapejs|default:"{}" }}');
+
+    (function () {
+        const payloadNode = document.getElementById('canvas-assets-payload');
+        try {
+            window.canvasAssetsPayload = payloadNode ? JSON.parse(payloadNode.textContent || '{}') : {};
+        } catch (error) {
+            console.error('Failed to parse canvas assets payload:', error);
+            window.canvasAssetsPayload = {};
+        }
+    })();
 </script>
-<script src="{% static 'js/design_canvas.js' %}"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20260422k"></script>
 {% endblock content %}

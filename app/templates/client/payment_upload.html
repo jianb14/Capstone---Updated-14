@@ -7,8 +7,22 @@
 
 {% block content %}
 <section class="cp-shell cp-payment-shell">
-    <h1 class="cp-title">Booking #{{ booking.id }} Payment</h1>
-    <p class="cp-subtitle">You will be redirected to secure PayMongo checkout (GCash).</p>
+    <div class="cp-payment-header-wrapper">
+        <div class="cp-payment-header">
+            <div class="cp-header-badge">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+            </div>
+            <div class="cp-header-text">
+                <h1 class="cp-title">Complete Your Payment</h1>
+                <p class="cp-subtitle">Booking #{{ booking.id }} • Secure GCash checkout via PayMongo</p>
+            </div>
+        </div>
+        <div class="cp-back-link">
+            <a href="{% url 'my_payments' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
+            </a>
+        </div>
+    </div>
 
     {% if messages %}
         {% for message in messages %}
@@ -28,18 +42,41 @@
         <input type="hidden" name="payment_method" value="gcash">
         <input type="hidden" id="js-hidden-amount" name="amount" value="{% if is_initial_payment %}{{ downpayment_due|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}">
 
-        <h3 class="cp-h3">Step 1: Choose Payment Type</h3>
+        <div class="cp-step-header">
+            <span class="cp-step-number">1</span>
+            <h3 class="cp-h3">Select Payment Option</h3>
+        </div>
         {% if is_initial_payment %}
         <div class="cp-option-grid">
-            <label class="cp-option-card">
+            <label class="cp-option-card {% if not pending_payment %}cp-option-card--active{% endif %}">
                 <input type="radio" name="payment_option" value="downpayment" checked {% if pending_payment %}disabled{% endif %}>
-                <span class="cp-option-title">Downpayment</span>
-                <span class="cp-option-sub">Pay the required minimum first: &#8369;{{ downpayment_due|floatformat:2 }}</span>
+                <div class="cp-option-content">
+                    <div class="cp-option-icon cp-icon-downpayment">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+                    </div>
+                    <div class="cp-option-text">
+                        <span class="cp-option-title">Pay Downpayment</span>
+                        <span class="cp-option-sub">Minimum required: <strong>&#8369;{{ downpayment_due|floatformat:2 }}</strong></span>
+                    </div>
+                    <div class="cp-option-check">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                </div>
             </label>
             <label class="cp-option-card">
                 <input type="radio" name="payment_option" value="full" {% if pending_payment %}disabled{% endif %}>
-                <span class="cp-option-title">Full Payment</span>
-                <span class="cp-option-sub">Pay the complete booking amount now: &#8369;{{ total_price|floatformat:2 }}</span>
+                <div class="cp-option-content">
+                    <div class="cp-option-icon cp-icon-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </div>
+                    <div class="cp-option-text">
+                        <span class="cp-option-title">Pay Full Amount</span>
+                        <span class="cp-option-sub">Total: <strong>&#8369;{{ total_price|floatformat:2 }}</strong></span>
+                    </div>
+                    <div class="cp-option-check">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                </div>
             </label>
         </div>
         {% else %}
@@ -47,26 +84,50 @@
         <input type="hidden" name="payment_option" value="balance">
         {% endif %}
 
-        <h3 class="cp-h3 cp-mt">Step 2: Review Before Checkout</h3>
+        <div class="cp-step-header cp-mt">
+            <span class="cp-step-number">2</span>
+            <h3 class="cp-h3">Review Your Payment</h3>
+        </div>
         <div class="cp-review-box">
-            <div class="cp-review-row">
-                <span>Method</span>
-                <strong>GCash via PayMongo</strong>
+            <div class="cp-review-item">
+                <div class="cp-review-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                    Payment Method
+                </div>
+                <div class="cp-review-value">GCash via PayMongo</div>
             </div>
-            <div class="cp-review-row">
-                <span>Payment Type</span>
-                <strong id="js-selected-type-label-2">{% if is_initial_payment %}Downpayment{% else %}Balance Payment{% endif %}</strong>
+            <div class="cp-review-item">
+                <div class="cp-review-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Payment Type
+                </div>
+                <div class="cp-review-value" id="js-selected-type-label-2">{% if is_initial_payment %}Downpayment{% else %}Balance Payment{% endif %}</div>
             </div>
-            <div class="cp-review-row">
-                <span>Amount</span>
-                <strong>&#8369;<span id="js-amount-to-pay-2">{% if is_initial_payment %}{{ downpayment_due|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span></strong>
+            <div class="cp-review-item cp-review-item--highlight">
+                <div class="cp-review-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Amount to Pay
+                </div>
+                <div class="cp-review-value cp-review-amount">&#8369;<span id="js-amount-to-pay-2">{% if is_initial_payment %}{{ downpayment_due|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span></div>
             </div>
         </div>
 
-        <label class="cp-refund-check cp-mt-sm">
-            <input type="checkbox" id="js-refund-ack" name="refund_ack" value="1" {% if pending_payment %}disabled{% endif %} required>
-            <span>I understand that once this payment is confirmed, it is non-refundable except in cases required by law.</span>
-        </label>
+        <div class="cp-terms-box cp-mt-sm">
+            <div class="cp-terms-header">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span>Important Notice</span>
+            </div>
+            <label class="cp-refund-check">
+                <div class="cp-checkbox-wrapper">
+                    <input type="checkbox" id="js-refund-ack" name="refund_ack" value="1" {% if pending_payment %}disabled{% endif %} required>
+                    <span class="cp-checkmark"></span>
+                </div>
+                <div class="cp-terms-content">
+                    <p class="cp-terms-main">I understand that once I complete this payment, <strong>it cannot be refunded or cancelled</strong>.</p>
+                    <p class="cp-terms-sub">Please double-check your payment details before proceeding. All payments are final and non-refundable, except in special circumstances required by Philippine law.</p>
+                </div>
+            </label>
+        </div>
 
         <button
             id="js-checkout-btn"
@@ -76,7 +137,10 @@
             {% else %}
             disabled
             {% endif %}
-            class="cp-btn-primary cp-mt-sm">Proceed to PayMongo Checkout</button>
+            class="cp-btn-checkout cp-mt-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+            Proceed to Secure Checkout
+        </button>
     </form>
 
     <div class="cp-panel cp-mt">
@@ -112,9 +176,6 @@
     </div>
     {% endif %}
 
-    <div class="cp-mt">
-        <a href="{% url 'my_payments' %}" class="cp-link">Back to My Payments</a>
-    </div>
 </section>
 
 {% if not is_fully_paid and is_initial_payment and not pending_payment %}
@@ -130,6 +191,14 @@ document.addEventListener('DOMContentLoaded', function () {
     function syncSelectedPaymentOption() {
         const selected = document.querySelector('input[name="payment_option"]:checked');
         if (!selected) return;
+
+        // Update active state on cards
+        document.querySelectorAll('.cp-option-card').forEach(card => {
+            card.classList.remove('cp-option-card--active');
+        });
+        if (selected.closest('.cp-option-card')) {
+            selected.closest('.cp-option-card').classList.add('cp-option-card--active');
+        }
 
         if (selected.value === 'full') {
             hiddenAmount.value = fullValue.toFixed(2);

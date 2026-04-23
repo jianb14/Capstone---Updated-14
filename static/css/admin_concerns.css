@@ -1,9 +1,9 @@
-.reports-wrap {
+.concerns-wrap {
     display: grid;
     gap: 1.25rem;
 }
 
-.reports-head {
+.concerns-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -11,7 +11,7 @@
     flex-wrap: wrap;
 }
 
-.reports-head h1 {
+.concerns-head h1 {
     margin: 0;
     font-size: 2rem;
     font-weight: 800;
@@ -19,7 +19,7 @@
     color: #fff;
 }
 
-.reports-sub {
+.concerns-sub {
     margin: 0.45rem 0 0;
     color: #98a1ab;
     font-size: 0.92rem;
@@ -592,47 +592,49 @@ tbody tr:last-child td {
     background: #3a3a3a;
 }
 
-.reports-pagination {
+.concerns-pagination {
+    margin-top: 1.25rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+
+.concerns-pagination .page-link {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
     display: flex;
     align-items: center;
-    justify-content: right;
-    gap: 0.9rem;
-    margin-top: 0.95rem;
-}
-
-.reports-pagination .page-link {
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: #171717;
-    border: 1px solid #262626;
-    color: #fff;
-    border-radius: 6px;
+    transition: all 0.2s ease;
     text-decoration: none;
-    transition: all 0.2s;
 }
 
-.reports-pagination .page-link:hover:not(.disabled) {
-    background: #2a2a2a;
-    border-color: rgba(255, 255, 255, 0.3);
+.concerns-pagination .page-link:hover:not(.disabled) {
+    background: #252525;
+    border-color: #555;
+    transform: translateY(-1px);
 }
 
-.reports-pagination .page-link.disabled {
-    opacity: 0.5;
-    cursor: default;
-    border-color: #2a2a2a;
+.concerns-pagination .page-link.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
-.reports-pagination .current-page {
-    font-size: 0.9rem;
-    color: #888;
+.concerns-pagination .current-page {
+    color: #94a3b8;
+    font-size: 0.88rem;
+    font-weight: 500;
 }
 
-.reports-pagination .page-link img {
-    width: 20px;
-    height: 20px;
+.concerns-pagination .page-link img {
+    width: 14px;
+    height: 14px;
+    filter: brightness(0.9);
 }
 
 @media (max-width: 1100px) {
@@ -642,11 +644,11 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 700px) {
-    .reports-head {
+    .concerns-head {
         align-items: flex-start;
     }
 
-    .reports-head h1 {
+    .concerns-head h1 {
         font-size: 1.6rem;
     }
 
@@ -695,7 +697,7 @@ tbody tr:last-child td {
         min-width: 145px;
     }
 
-    .reports-pagination {
+    .concerns-pagination {
         gap: 0.6rem;
     }
 }
@@ -1623,44 +1625,36 @@ td {
     justify-self: end;
 }
 
-.admin-concern-modal .report-status-dropdown .dropdown-trigger {
-    border-color: rgba(255, 255, 255, 0.2);
-    background: #0f0f0f;
-    min-height: 44px;
+.admin-concern-modal .concern-status-dropdown .dropdown-trigger {
+    background: #111418;
+    border: 1px solid #282d35;
+    color: #f1f5f9;
+    padding: 0.62rem 0.95rem;
+    font-size: 0.95rem;
 }
 
 .admin-concern-modal .concern-update-form .status-field-wrap.has-error .dropdown-trigger {
     border-color: #ef4444 !important;
 }
 
-.admin-concern-modal .report-status-dropdown .dropdown-caret {
-    width: 8px;
-    height: 8px;
-    border-right: 2px solid #a7a7a7;
-    border-bottom: 2px solid #a7a7a7;
-    transform: rotate(45deg);
-    transition: transform 0.2s ease, border-color 0.2s ease;
-    margin-top: -3px;
+.admin-concern-modal .concern-status-dropdown .dropdown-caret {
+    border-right-color: #717d8e;
+    border-bottom-color: #717d8e;
 }
 
-.admin-concern-modal .report-status-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg);
+.admin-concern-modal .concern-status-dropdown.open .dropdown-caret {
     border-color: #ffffff;
-    margin-top: 3px;
 }
 
-.admin-concern-modal .report-status-dropdown .dropdown-options {
-    z-index: 30;
-    top: auto;
-    bottom: calc(100% + 8px);
-    margin: 0;
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
-    max-height: 180px;
-    transform: translateY(-8px);
+.admin-concern-modal .concern-status-dropdown .dropdown-options {
+    background: #1a1e24;
+    border-color: #2e343d;
+    top: calc(100% + 5px);
 }
 
-.admin-concern-modal .report-status-dropdown.open .dropdown-options {
+.admin-concern-modal .concern-status-dropdown.open .dropdown-options {
     transform: translateY(0);
+    opacity: 1;
 }
 
 @media (max-width: 700px) {

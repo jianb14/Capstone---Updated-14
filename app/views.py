@@ -33,6 +33,7 @@ from django.db.models.functions import Coalesce
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
@@ -69,6 +70,7 @@ from .models import (
     ReviewImage,
     Service,
     ServiceChargeConfig,
+    ServiceContent,
     User,
     UserDesign,
 )
@@ -428,6 +430,7 @@ class ServicesPageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["service_content"] = ServiceContent.objects.first()
         context["services"] = Service.objects.filter(is_active=True).order_by("display_order")
         return context
 
@@ -2490,6 +2493,151 @@ def admin_user_delete(request, id):
 
 
 @login_required
+def admin_about_content(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    content = AboutContent.objects.first()
+    if content is None:
+        content = AboutContent.objects.create()
+
+    if request.method == "POST":
+        content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
+        content.hero_subtitle = request.POST.get("hero_subtitle", content.hero_subtitle).strip()
+        
+        content.story_label = request.POST.get("story_label", content.story_label).strip()
+        content.story_title = request.POST.get("story_title", content.story_title).strip()
+        content.story_paragraph_1 = request.POST.get("story_paragraph_1", content.story_paragraph_1).strip()
+        content.story_paragraph_2 = request.POST.get("story_paragraph_2", content.story_paragraph_2).strip()
+        
+        content.stat_events_styled = request.POST.get("stat_events_styled", content.stat_events_styled).strip()
+        content.stat_year_founded = request.POST.get("stat_year_founded", content.stat_year_founded).strip()
+        content.stat_satisfaction = request.POST.get("stat_satisfaction", content.stat_satisfaction).strip()
+        
+        content.mission_label = request.POST.get("mission_label", content.mission_label).strip()
+        content.mission_title = request.POST.get("mission_title", content.mission_title).strip()
+        content.mission_paragraph_1 = request.POST.get("mission_paragraph_1", content.mission_paragraph_1).strip()
+        content.mission_paragraph_2 = request.POST.get("mission_paragraph_2", content.mission_paragraph_2).strip()
+        
+        content.values_title = request.POST.get("values_title", content.values_title).strip()
+        content.values_subtitle = request.POST.get("values_subtitle", content.values_subtitle).strip()
+
+        if request.FILES.get("story_image"):
+            content.story_image = request.FILES["story_image"]
+        if request.FILES.get("mission_image"):
+            content.mission_image = request.FILES["mission_image"]
+
+        content.save()
+        log_action(request.user, "Updated About page content.")
+        messages.success(request, "About content updated successfully.")
+        return redirect("admin_about_content")
+
+    values = AboutValueItem.objects.all()
+    return render(
+        request,
+        "admin/content/about_content.html",
+        {
+            "content": content,
+            "values": values,
+        },
+    )
+
+
+@login_required
+def admin_about_value_create(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    content = AboutContent.objects.first()
+    if content is None:
+        content = AboutContent.objects.create()
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        icon_class = request.POST.get("icon_class", "fas fa-star").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            display_order = int(request.POST.get("display_order", 0))
+        except (ValueError, TypeError):
+            display_order = 0
+
+        if not title:
+            messages.error(request, "Title is required.")
+            return render(
+                request,
+                "admin/content/about_value_form.html",
+                {
+                    "action": "Create",
+                    "feature": {},
+                    "post_data": request.POST,
+                },
+            )
+
+        AboutValueItem.objects.create(
+            about_content=content,
+            title=title,
+            description=description,
+            icon_class=icon_class,
+            display_order=display_order,
+            is_active=is_active,
+        )
+        log_action(request.user, f"Created about value item '{title}'.")
+        messages.success(request, "Value item created successfully.")
+        return redirect("admin_about_content")
+
+    return render(request, "admin/content/about_value_form.html", {"action": "Create", "feature": {}, "post_data": {}})
+
+
+@login_required
+def admin_about_value_edit(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    value = get_object_or_404(AboutValueItem, id=id)
+
+    if request.method == "POST":
+        value.title = request.POST.get("title", value.title).strip()
+        value.description = request.POST.get("description", value.description).strip()
+        value.icon_class = request.POST.get("icon_class", value.icon_class).strip()
+        value.is_active = request.POST.get("is_active") == "on"
+
+        try:
+            value.display_order = int(request.POST.get("display_order", value.display_order))
+        except (ValueError, TypeError):
+            pass
+
+        value.save()
+        log_action(request.user, f"Updated about value item '{value.title}' (ID #{value.id}).")
+        messages.success(request, "Value item updated successfully.")
+        return redirect("admin_about_content")
+
+    return render(
+        request,
+        "admin/content/about_value_form.html",
+        {
+            "action": "Edit",
+            "feature": value,
+            "post_data": {},
+        },
+    )
+
+
+@login_required
+def admin_about_value_delete(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    value = get_object_or_404(AboutValueItem, id=id)
+    value_title = value.title
+    value.delete()
+    log_action(request.user, f"Deleted about value item '{value_title}' (ID #{id}).")
+    messages.success(request, "Value item deleted successfully.")
+    return redirect("admin_about_content")
+
+
+@login_required
 def admin_audit_log_list(request):
     if request.user.role not in ["admin"]:
         return HttpResponseForbidden("Admins only")
@@ -2925,6 +3073,136 @@ def admin_additional_delete(request, id):
     return redirect("admin_package_list")
 
 
+# -----------------------------
+# 13️⃣ Service Page Admin
+# -----------------------------
+
+@login_required
+def admin_service_content(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    content = ServiceContent.objects.first()
+    if content is None:
+        content = ServiceContent.objects.create(
+            hero_title="Our Services",
+            hero_subtitle="Balloon styling and event decoration services for all types of events."
+        )
+
+    if request.method == "POST":
+        content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
+        content.hero_subtitle = request.POST.get("hero_subtitle", content.hero_subtitle).strip()
+        content.save()
+        
+        log_action(request.user, "Updated Service page content.")
+        messages.success(request, "Service content updated successfully.")
+        return redirect("admin_service_content")
+
+    services = Service.objects.all()
+    return render(
+        request,
+        "admin/content/service_content.html",
+        {
+            "content": content,
+            "services": services,
+        },
+    )
+
+
+@login_required
+def admin_service_item_create(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            display_order = int(request.POST.get("display_order", 0))
+        except (ValueError, TypeError):
+            display_order = 0
+
+        if not title:
+            messages.error(request, "Title is required.")
+            return render(
+                request,
+                "admin/content/service_item_form.html",
+                {
+                    "action": "Create",
+                    "feature": {},
+                    "post_data": request.POST,
+                },
+            )
+
+        service = Service.objects.create(
+            title=title,
+            description=description,
+            display_order=display_order,
+            is_active=is_active,
+        )
+        
+        if request.FILES.get("image"):
+            service.image = request.FILES["image"]
+            service.save()
+
+        log_action(request.user, f"Created service item '{title}'.")
+        messages.success(request, "Service item created successfully.")
+        return redirect("admin_service_content")
+
+    return render(request, "admin/content/service_item_form.html", {"action": "Create", "feature": {}, "post_data": {}})
+
+
+@login_required
+def admin_service_item_edit(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    service = get_object_or_404(Service, id=id)
+
+    if request.method == "POST":
+        service.title = request.POST.get("title", service.title).strip()
+        service.description = request.POST.get("description", service.description).strip()
+        service.is_active = request.POST.get("is_active") == "on"
+
+        try:
+            service.display_order = int(request.POST.get("display_order", service.display_order))
+        except (ValueError, TypeError):
+            pass
+
+        if request.FILES.get("image"):
+            service.image = request.FILES["image"]
+
+        service.save()
+        log_action(request.user, f"Updated service item '{service.title}' (ID #{service.id}).")
+        messages.success(request, "Service item updated successfully.")
+        return redirect("admin_service_content")
+
+    return render(
+        request,
+        "admin/content/service_item_form.html",
+        {
+            "action": "Edit",
+            "feature": service,
+            "post_data": {},
+        },
+    )
+
+
+@login_required
+def admin_service_item_delete(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    service = get_object_or_404(Service, id=id)
+    service_title = service.title
+    service.delete()
+    log_action(request.user, f"Deleted service item '{service_title}' (ID #{id}).")
+    messages.success(request, "Service item deleted successfully.")
+    return redirect("admin_service_content")
+
+
 # =========================
 # ADMIN REPORTS
 # =========================
@@ -3152,14 +3430,18 @@ def build_dashboard_context(request):
     revenue_by_event = list(
         filtered_bookings.filter(status="completed")
         .values("event_type")
-        .annotate(total=Sum("total_price"))
-        .order_by("-total")
+        .annotate(
+            count=Count("id"),
+            revenue=Sum("total_price"),
+            avg_value=Avg("total_price")
+        )
+        .order_by("-revenue")
     )
     top_event_label = "No completed bookings yet"
     top_event_revenue = 0
     if revenue_by_event:
         top_event_label = revenue_by_event[0]["event_type"]
-        top_event_revenue = revenue_by_event[0]["total"] or 0
+        top_event_revenue = revenue_by_event[0]["revenue"] or 0
 
     package_counts = {}
     completed_with_packages = filtered_bookings.filter(status="completed").values_list(
@@ -3189,7 +3471,6 @@ def build_dashboard_context(request):
         package_name = str(package_type).split("+")[0].strip()
         if not package_name:
             continue
-        package_counts[package_name] = package_counts.get(package_name, 0) + 1
         package_revenue[package_name] = package_revenue.get(
             package_name, Decimal("0.00")
         ) + (booking_total or Decimal("0.00"))
@@ -3205,11 +3486,13 @@ def build_dashboard_context(request):
             }
         )
 
-    top_customers = (
-        filtered_bookings.values("user__username", "user__email")
-        .annotate(bookings_count=Count("id"), total_spent=Sum("total_price"))
+    top_customers = list(
+        filtered_bookings.values("user__first_name", "user__last_name", "user__username", "user__email")
+        .annotate(booking_count=Count("id"), total_spent=Sum("total_price"))
         .order_by("-total_spent")[:8]
     )
+    for customer in top_customers:
+        customer['name'] = f"{customer['user__first_name']} {customer['user__last_name']}".strip() or customer['user__username']
 
     status_table = [
         {
@@ -3261,7 +3544,36 @@ def build_dashboard_context(request):
         "colors": ["#f59e0b", "#3b82f6", "#ef4444"],
     }
 
+    # Busiest days of the week
+    busiest_days_data = (
+        filtered_bookings.exclude(event_date__isnull=True)
+        .values("event_date__week_day")
+        .annotate(count=Count("id"))
+        .order_by("event_date__week_day")
+    )
+    
+    # Map Django's week_day (1=Sunday, 7=Saturday) to labels
+    day_map = {1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat"}
+    busiest_days_labels = [day_map.get(item["event_date__week_day"], "Unknown") for item in busiest_days_data]
+    busiest_days_values = [item["count"] for item in busiest_days_data]
+
+    # Customer Retention (Returning vs New)
+    # Define returning as someone who has more than 1 booking ever
+    all_time_customer_counts = (
+        Booking.objects.values("user")
+        .annotate(count=Count("id"))
+    )
+    returning_user_ids = [item["user"] for item in all_time_customer_counts if item["count"] > 1]
+    
+    new_customers_count = filtered_bookings.exclude(user_id__in=returning_user_ids).values("user").distinct().count()
+    returning_customers_count = filtered_bookings.filter(user_id__in=returning_user_ids).values("user").distinct().count()
+    
+    total_customers = new_customers_count + returning_customers_count
+    new_customers_pct = round((new_customers_count / total_customers * 100), 1) if total_customers > 0 else 0
+    returning_customers_pct = round((returning_customers_count / total_customers * 100), 1) if total_customers > 0 else 0
+
     return {
+        "filter_preset": request.GET.get("filter_preset", ""),
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
         "selected_event_type": selected_event_type,
@@ -3307,10 +3619,16 @@ def build_dashboard_context(request):
         "dashboard_status_labels": [item["label"] for item in status_distribution],
         "dashboard_status_values": [item["count"] for item in status_distribution],
         "dashboard_status_colors": [item["color"] for item in status_distribution],
+        "dashboard_busiest_days_labels": busiest_days_labels,
+        "dashboard_busiest_days_values": busiest_days_values,
+        "new_customers_count": new_customers_count,
+        "returning_customers_count": returning_customers_count,
+        "new_customers_pct": new_customers_pct,
+        "returning_customers_pct": returning_customers_pct,
     }
 
 
-def build_reports_context(request):
+def build_concerns_context(request):
     start_date, end_date = _get_reporting_date_range(request)
     concern_base_qs = (
         ConcernTicket.objects.select_related("user")
@@ -3341,6 +3659,7 @@ def build_reports_context(request):
     concerns_page = concerns_paginator.get_page(request.GET.get("page"))
 
     return {
+        "filter_preset": request.GET.get("filter_preset", ""),
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
         "date_range_days": (end_date - start_date).days + 1,
@@ -3357,12 +3676,6 @@ def build_reports_context(request):
 
 
 @login_required
-def admin_reports(request):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Admins only")
-    return render(request, "admin/admin_reports.html", build_reports_context(request))
-
-
 @login_required
 @require_POST
 def admin_concern_update(request, id):
@@ -3370,7 +3683,7 @@ def admin_concern_update(request, id):
         return HttpResponseForbidden("Admins only")
 
     ticket = get_object_or_404(ConcernTicket, id=id)
-    next_url = request.POST.get("next") or reverse("admin_reports")
+    next_url = request.POST.get("next") or reverse("admin_concerns")
 
     raw_status = (request.POST.get("status") or "").strip()
     valid_statuses = {choice[0] for choice in ConcernTicket.STATUS_CHOICES}
@@ -3822,11 +4135,48 @@ def design_canvas_page(request):
 
     categories = ["Backdrops", "Balloons", "Furniture", "Decorations"]
     context["categories"] = categories
-    context["canvas_categories"] = (
-        CanvasCategory.objects.filter(is_active=True)
-        .prefetch_related("assets")
-        .order_by("order", "name")
+    active_canvas_assets = list(
+        CanvasAsset.objects.filter(is_active=True, category__is_active=True)
+        .select_related("category")
+        .order_by("category__order", "category__name", "label_ref__order", "subgroup", "sort_order", "id")
     )
+    canvas_categories = list(CanvasCategory.objects.filter(is_active=True).order_by("order", "name"))
+
+    assets_by_category = {}
+    for asset in active_canvas_assets:
+        assets_by_category.setdefault(asset.category_id, []).append(asset)
+
+    # Attach explicit resolved assets per category so template rendering does not depend on prefetch state.
+    for category in canvas_categories:
+        category.design_assets = assets_by_category.get(category.id, [])
+
+    context["canvas_categories"] = canvas_categories
+
+    # Fallback payload for client-side hydration when sidebar cards are empty.
+    canvas_assets_payload = {}
+    for category in canvas_categories:
+        category_key = category.name.lower().strip()
+        items = []
+        for asset in category.design_assets:
+            src = ""
+            if asset.image:
+                src = asset.image.url
+            elif asset.static_path:
+                src = static(asset.static_path)
+            items.append(
+                {
+                    "id": asset.id,
+                    "label": asset.label or "Asset",
+                    "src": src,
+                    "category": category_key,
+                    "type": asset.item_type or "image",
+                    "width": int(asset.width or 150),
+                    "height": int(asset.height or 150),
+                }
+            )
+        canvas_assets_payload[category_key] = items
+    context["canvas_assets_payload"] = json.dumps(canvas_assets_payload)
+    context["canvas_assets_payload_obj"] = canvas_assets_payload
 
     return render(request, "client/design_canvas.html", context)
 
@@ -4607,9 +4957,18 @@ def my_payments(request):
     total_records = payments_qs.count()
     total_pending_payment_count = pending_count
 
-    payments_paginator = Paginator(payments_qs, 10)
-    payments_page_number = request.GET.get("page", 1)
+    payments_paginator = Paginator(payments_qs, 5)
+    payments_page_number = request.GET.get("payments_page", 1)
     payments_page_obj = payments_paginator.get_page(payments_page_number)
+
+    # Attach display helpers to payment bookings for modal
+    for pay in payments_page_obj:
+        pay.booking.time_range_display = get_booking_time_range(pay.booking)
+        verified_paid = pay.booking.payments.filter(payment_status="verified").aggregate(
+            total=Sum("amount")
+        )["total"] or Decimal("0.00")
+        pay.booking.booking_remaining = (pay.booking.total_price or Decimal("0.00")) - verified_paid
+        pay.booking.cleaned_special_requests = remove_end_time_tag(pay.booking.special_requests or "")
 
     # Action-required: approved bookings awaiting payment
     ar_search_query = request.GET.get("ar_search", "").strip()
@@ -4658,7 +5017,7 @@ def my_payments(request):
                 else:
                     action_required_list.append(b)
             
-            b.cleaned_special_requests = b.special_requests or ""
+            b.cleaned_special_requests = remove_end_time_tag(b.special_requests or "")
 
     action_required_total_count = len(action_required_list)
     partial_total_count = len(partial_bookings)
@@ -4666,6 +5025,11 @@ def my_payments(request):
     ar_paginator = Paginator(action_required_list, 5)
     ar_page_number = request.GET.get("ar_page", 1)
     action_required_page_obj = ar_paginator.get_page(ar_page_number)
+
+    # Paginate partial bookings (Remaining Balances)
+    partial_paginator = Paginator(partial_bookings, 5)
+    partial_page_number = request.GET.get("partial_page", 1)
+    partial_page_obj = partial_paginator.get_page(partial_page_number)
 
     return render(
         request,
@@ -4677,7 +5041,7 @@ def my_payments(request):
             "total_pending_payment_count": total_pending_payment_count,
             "action_required_total_count": action_required_total_count,
             "partial_total_count": partial_total_count,
-            "partial_bookings": partial_bookings,
+            "partial_page_obj": partial_page_obj,
             "total_records": total_records,
             "search_query": search_query,
             "status_filter": status_filter,
@@ -4929,12 +5293,6 @@ def admin_home_content(request):
         content.hero_subheadline = request.POST.get(
             "hero_subheadline", content.hero_subheadline
         ).strip()
-        content.hero_primary_cta_text = request.POST.get(
-            "hero_primary_cta_text", content.hero_primary_cta_text
-        ).strip()
-        content.hero_secondary_cta_text = request.POST.get(
-            "hero_secondary_cta_text", content.hero_secondary_cta_text
-        ).strip()
         content.stat_events_styled = request.POST.get(
             "stat_events_styled", content.stat_events_styled
         ).strip()
@@ -5006,6 +5364,7 @@ def admin_home_feature_create(request):
                 "admin/content/home_feature_form.html",
                 {
                     "action": "Create",
+                    "feature": {},
                     "post_data": request.POST,
                 },
             )
@@ -5026,7 +5385,7 @@ def admin_home_feature_create(request):
         messages.success(request, "Feature item created successfully.")
         return redirect("admin_home_content")
 
-    return render(request, "admin/content/home_feature_form.html", {"action": "Create"})
+    return render(request, "admin/content/home_feature_form.html", {"action": "Create", "feature": {}, "post_data": {}})
 
 
 @login_required
@@ -5069,6 +5428,7 @@ def admin_home_feature_edit(request, id):
         {
             "action": "Edit",
             "feature": feature,
+            "post_data": {},
         },
     )
 
@@ -5358,7 +5718,7 @@ def admin_review_toggle_testimonial(request, id):
 
 
 # =============================================================================
-# ADMIN CONCERNS (alias for admin_reports)
+# ADMIN CONCERNS
 # =============================================================================
 
 
@@ -5366,8 +5726,8 @@ def admin_review_toggle_testimonial(request, id):
 def admin_concerns(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
-    context = build_reports_context(request)
-    return render(request, "admin/admin_reports.html", context)
+    context = build_concerns_context(request)
+    return render(request, "admin/admin_concerns.html", context)
 
 
 # =============================================================================
@@ -5379,9 +5739,7 @@ def admin_concerns(request):
 def admin_analytics(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
-    return render(
-        request, "admin/admin_reports_analytics.html", build_dashboard_context(request)
-    )
+    return render(request, "admin/admin_analytics.html", build_dashboard_context(request))
 
 
 @login_required
@@ -5390,6 +5748,30 @@ def admin_analytics_export_excel(request):
         return HttpResponseForbidden("Not allowed")
 
     from openpyxl.styles import Alignment, Font, PatternFill
+
+    start_date, end_date = _get_reporting_date_range(request)
+    selected_event_type = (request.GET.get("event_type") or "all").strip()
+
+    bookings = Booking.objects.select_related("user").filter(
+        created_at__date__gte=start_date, created_at__date__lte=end_date
+    )
+    if selected_event_type != "all":
+        bookings = bookings.filter(event_type=selected_event_type)
+    bookings = bookings.order_by("-created_at")
+
+    payments = Payment.objects.select_related("booking").filter(
+        created_at__date__gte=start_date, created_at__date__lte=end_date
+    )
+    if selected_event_type != "all":
+        payments = payments.filter(booking__event_type=selected_event_type)
+    payments = payments.order_by("-created_at")
+
+    reviews = Review.objects.select_related("user").filter(
+        created_at__date__gte=start_date, created_at__date__lte=end_date
+    )
+    if selected_event_type != "all":
+        reviews = reviews.filter(booking__event_type=selected_event_type)
+    reviews = reviews.order_by("-created_at")
 
     wb = openpyxl.Workbook()
 
@@ -5418,7 +5800,6 @@ def admin_analytics_export_excel(request):
         cell.fill = header_fill
         cell.alignment = center_align
 
-    bookings = Booking.objects.select_related("user").order_by("-created_at")
     for row_idx, booking in enumerate(bookings, 2):
         ws1.cell(row=row_idx, column=1, value=booking.id)
         ws1.cell(
@@ -5458,7 +5839,6 @@ def admin_analytics_export_excel(request):
         cell.fill = header_fill
         cell.alignment = center_align
 
-    payments = Payment.objects.select_related("booking").order_by("-created_at")
     for row_idx, pay in enumerate(payments, 2):
         ws2.cell(row=row_idx, column=1, value=pay.id)
         ws2.cell(row=row_idx, column=2, value=pay.booking.id)
@@ -5493,7 +5873,6 @@ def admin_analytics_export_excel(request):
         cell.fill = header_fill
         cell.alignment = center_align
 
-    reviews = Review.objects.select_related("user").order_by("-created_at")
     for row_idx, rev in enumerate(reviews, 2):
         ws3.cell(row=row_idx, column=1, value=rev.id)
         ws3.cell(
@@ -5534,6 +5913,17 @@ def admin_analytics_export_pdf(request):
         return HttpResponseForbidden("Not allowed")
 
     context = build_dashboard_context(request)
+    
+    # Ensure start_date and end_date are date objects for the template's |date filter
+    from datetime import datetime
+    try:
+        context['start_date'] = datetime.strptime(context['start_date'], "%Y-%m-%d")
+        context['end_date'] = datetime.strptime(context['end_date'], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        pass
+        
+    context['timezone'] = timezone
+    
     template = get_template("admin/analytics_pdf_template.html")
     html = template.render(context, request)
 

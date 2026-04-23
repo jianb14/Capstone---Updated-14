@@ -1,0 +1,111 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="dash-head">
+        <div>
+            <h1>{{ action }} Core Value Card</h1>
+            <p class="dash-sub">Add or edit a core value card for the about page.</p>
+        </div>
+    </div>
+
+    <div class="form-container-centered">
+        <form method="POST" class="content-form card-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" name="title" id="title" value="{% if feature.title %}{{ feature.title }}{% elif post_data.title %}{{ post_data.title }}{% endif %}" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea name="description" id="description" rows="4" class="form-control">{% if feature.description %}{{ feature.description }}{% elif post_data.description %}{{ post_data.description }}{% endif %}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="icon_class">Icon Class (FontAwesome)</label>
+                <input type="text" name="icon_class" id="icon_class" value="{% if feature.icon_class %}{{ feature.icon_class }}{% elif post_data.icon_class %}{{ post_data.icon_class }}{% else %}fas fa-star{% endif %}" class="form-control">
+                <small class="help-text">Example: <code>fas fa-heart</code>, <code>fas fa-gem</code>, <code>fas fa-calendar-alt</code></small>
+            </div>
+
+            <div class="form-group">
+                <label for="display_order">Display Order</label>
+                <input type="number" name="display_order" id="display_order" value="{% if feature.display_order %}{{ feature.display_order }}{% elif post_data.display_order %}{{ post_data.display_order }}{% else %}0{% endif %}" class="form-control">
+            </div>
+
+            <div class="form-group flex-row">
+                <input type="checkbox" name="is_active" id="is_active" {% if feature.is_active or post_data.is_active == 'on' or action == 'Create' %}checked{% endif %}>
+                <label for="is_active">Active (Show on about page)</label>
+            </div>
+
+            <div class="form-actions mt-4">
+                <button type="submit" class="btn-save">Save Value</button>
+                <a href="{% url 'admin_about_content' %}" class="btn-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-container-centered {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .card-form {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 30px;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    .flex-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+    .form-group label {
+        font-size: 0.9rem;
+        color: #ccc;
+    }
+    .form-control {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: #fff;
+        font-size: 0.95rem;
+    }
+    .help-text {
+        font-size: 0.8rem;
+        color: #888;
+    }
+    .btn-save {
+        background: #f8bbd0;
+        color: #000;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-cancel {
+        color: #888;
+        text-decoration: none;
+        margin-left: 15px;
+        font-size: 0.9rem;
+    }
+    code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 4px;
+        border-radius: 4px;
+        color: #f8bbd0;
+    }
+</style>
+{% endblock %}

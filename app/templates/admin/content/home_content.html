@@ -1,0 +1,280 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="dash-head">
+        <div>
+            <h1>Manage Home Page</h1>
+            <p class="dash-sub">Update the hero section, stats, and "Why Choose Us" features.</p>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="content-form">
+        {% csrf_token %}
+        
+        <div class="form-section">
+            <h3 class="section-title">Hero Section</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="hero_title">Hero Title</label>
+                    <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="hero_subheadline">Hero Subheadline</label>
+                    <textarea name="hero_subheadline" id="hero_subheadline" rows="3" class="form-control">{{ content.hero_subheadline }}</textarea>
+                </div>
+            </div>
+            
+            <div class="form-grid mt-4">
+                <div class="form-group">
+                    <label for="hero_main_image">Hero Main Image</label>
+                    {% if content.hero_main_image %}
+                        <div class="current-img">
+                            <img src="{{ content.hero_main_image.url }}" alt="Current Main" style="max-width: 150px; border-radius: 8px; margin-bottom: 10px;">
+                        </div>
+                    {% endif %}
+                    <input type="file" name="hero_main_image" id="hero_main_image" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="hero_float_top_image">Hero Floating Image (Top)</label>
+                    {% if content.hero_float_top_image %}
+                        <div class="current-img">
+                            <img src="{{ content.hero_float_top_image.url }}" alt="Current Top" style="max-width: 150px; border-radius: 8px; margin-bottom: 10px;">
+                        </div>
+                    {% endif %}
+                    <input type="file" name="hero_float_top_image" id="hero_float_top_image" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="hero_float_bottom_image">Hero Floating Image (Bottom)</label>
+                    {% if content.hero_float_bottom_image %}
+                        <div class="current-img">
+                            <img src="{{ content.hero_float_bottom_image.url }}" alt="Current Bottom" style="max-width: 150px; border-radius: 8px; margin-bottom: 10px;">
+                        </div>
+                    {% endif %}
+                    <input type="file" name="hero_float_bottom_image" id="hero_float_bottom_image" class="form-control">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title">Statistics Section</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="stat_events_styled">Successful Events (Value only)</label>
+                    <input type="text" name="stat_events_styled" id="stat_events_styled" value="{{ content.stat_events_styled }}" class="form-control" placeholder="e.g. 500">
+                    <small class="help-text">The "+" symbol is hard-coded.</small>
+                </div>
+                <div class="form-group">
+                    <label for="stat_rating">Average Rating (Value only)</label>
+                    <input type="text" name="stat_rating" id="stat_rating" value="{{ content.stat_rating }}" class="form-control" placeholder="e.g. 5">
+                    <small class="help-text">The star (★) symbol is hard-coded.</small>
+                </div>
+                <div class="form-group">
+                    <label for="stat_satisfaction">Satisfaction Rate (Value only)</label>
+                    <input type="text" name="stat_satisfaction" id="stat_satisfaction" value="{{ content.stat_satisfaction }}" class="form-control" placeholder="e.g. 100">
+                    <small class="help-text">The "%" symbol is hard-coded.</small>
+                </div>
+                <div class="form-group">
+                    <label for="stat_response_time">Response Time (Value only)</label>
+                    <input type="text" name="stat_response_time" id="stat_response_time" value="{{ content.stat_response_time }}" class="form-control" placeholder="e.g. 24">
+                    <small class="help-text">The "HR" symbol is hard-coded.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title">Why Choose Balloorina Section</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="why_choose_title">Section Title</label>
+                    <input type="text" name="why_choose_title" id="why_choose_title" value="{{ content.why_choose_title }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="why_choose_subtitle">Section Subtitle</label>
+                    <textarea name="why_choose_subtitle" id="why_choose_subtitle" rows="2" class="form-control">{{ content.why_choose_subtitle }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-save">Save Home Content</button>
+        </div>
+    </form>
+
+    <div class="features-section mt-5">
+        <div class="section-header-flex">
+            <h3 class="section-title">Feature Cards (Why Choose Us)</h3>
+            <a href="{% url 'admin_home_feature_create' %}" class="btn-add-feature">Add New Feature</a>
+        </div>
+        
+        <div class="feature-list">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Icon</th>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feature in features %}
+                    <tr>
+                        <td>{{ feature.display_order }}</td>
+                        <td><i class="{{ feature.icon_class }}"></i></td>
+                        <td>{{ feature.title }}</td>
+                        <td>{{ feature.description|truncatechars:50 }}</td>
+                        <td>
+                            {% if feature.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-cell">
+                            <a href="{% url 'admin_home_feature_edit' feature.id %}" class="btn-edit-sm">Edit</a>
+                            <a href="{% url 'admin_home_feature_delete' feature.id %}" class="btn-delete-sm" onclick="return confirm('Are you sure you want to delete this feature?')">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No features added yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-section {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #fff;
+        border-left: 4px solid #f8bbd0;
+        padding-left: 12px;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .form-group label {
+        font-size: 0.9rem;
+        color: #ccc;
+    }
+    .form-control {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: #fff;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+    .form-control:focus {
+        border-color: #f8bbd0;
+        outline: none;
+        background: rgba(0, 0, 0, 0.3);
+    }
+    .help-text {
+        font-size: 0.8rem;
+        color: #888;
+    }
+    .btn-save {
+        background: #f8bbd0;
+        color: #000;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-save:hover {
+        background: #f48fb1;
+        transform: translateY(-2px);
+    }
+    .section-header-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .btn-add-feature {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+    .btn-add-feature:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .admin-table th, .admin-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .admin-table th {
+        background: rgba(0, 0, 0, 0.2);
+        color: #888;
+        font-weight: 500;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .admin-table td {
+        color: #ddd;
+    }
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .badge-success { background: rgba(76, 175, 80, 0.2); color: #81c784; }
+    .badge-secondary { background: rgba(158, 158, 158, 0.2); color: #bdbdbd; }
+    
+    .btn-edit-sm, .btn-delete-sm {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        text-decoration: none;
+    }
+    .btn-edit-sm { background: rgba(33, 150, 243, 0.2); color: #64b5f6; }
+    .btn-delete-sm { background: rgba(244, 67, 54, 0.2); color: #e57373; }
+
+    .action-cell {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+</style>
+{% endblock %}

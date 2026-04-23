@@ -2,7 +2,79 @@ document.addEventListener('DOMContentLoaded', function() {
     const byId = (id) => document.getElementById(id);
 
     const dropZone = byId('canvasDropZone');
-    if (!dropZone || typeof fabric === 'undefined') return;
+
+    function setCategoryOpenState(category, header, lists, open) {
+        if (!category || !header || !lists || !lists.length) return;
+        header.classList.toggle('is-open', open);
+        header.dataset.manualOpen = open ? 'true' : 'false';
+        header.setAttribute('aria-expanded', open ? 'true' : 'false');
+        category.classList.toggle('is-open', open);
+        lists.forEach((list) => list.classList.toggle('open', open));
+    }
+
+    const initSidebarFallback = () => {
+        const categories = Array.from(document.querySelectorAll('.inventory-category'));
+        const searchInput = byId('assetSearchInput');
+
+        categories.forEach((category, index) => {
+            const header = category.querySelector('.category-header');
+            const list = category.querySelector('.category-items');
+            if (!header || !list) return;
+
+            const shouldOpen = list.classList.contains('open') || index === 0;
+            setCategoryOpenState(category, header, [list], shouldOpen);
+
+            if (header.dataset.accordionBound === 'true') return;
+            header.dataset.accordionBound = 'true';
+
+            header.addEventListener('click', (event) => {
+                event.preventDefault();
+                const willOpen = !header.classList.contains('is-open');
+                setCategoryOpenState(category, header, [list], willOpen);
+                if (willOpen) {
+                    list.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            });
+        });
+
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            categories.forEach((category) => {
+                const header = category.querySelector('.category-header');
+                const list = category.querySelector('.category-items');
+                if (!header || !list) return;
+
+                const items = Array.from(list.querySelectorAll('.draggable-item'));
+                const hasItems = items.length > 0;
+                let hasVisibleItems = false;
+
+                items.forEach((item) => {
+                    const text = `${item.getAttribute('title') || ''} ${item.dataset.text || ''}`.toLowerCase();
+                    const matches = !query || text.includes(query);
+                    item.classList.toggle('is-hidden', !matches);
+                    if (matches) hasVisibleItems = true;
+                });
+
+                if (!query) {
+                    const manualOpen = header.dataset.manualOpen === 'true';
+                    setCategoryOpenState(category, header, [list], manualOpen);
+                    category.classList.remove('is-search-hidden');
+                    return;
+                }
+
+                const showCategory = hasItems ? hasVisibleItems : (header.textContent || '').toLowerCase().includes(query);
+                category.classList.toggle('is-search-hidden', !showCategory);
+                setCategoryOpenState(category, header, [list], showCategory);
+            });
+        });
+    };
+
+    if (!dropZone || typeof fabric === 'undefined') {
+        initSidebarFallback();
+        return;
+    }
 
     const dropHint = byId('dropHint');
     const selectionToolbar = byId('selectionToolbar');
@@ -28,6 +100,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const flipYBtn = byId('flipYBtn');
     const skewLeftBtn = byId('skewLeftBtn');
     const skewRightBtn = byId('skewRightBtn');
+    const rotateLeftBtn = byId('rotateLeftBtn');
+    const rotateRightBtn = byId('rotateRightBtn');
+    const moveUpBtn = byId('moveUpBtn');
+    const moveDownBtn = byId('moveDownBtn');
+    const moveLeftBtn = byId('moveLeftBtn');
+    const moveRightBtn = byId('moveRightBtn');
     const deleteBtn = byId('deleteBtn');
     const itemColorPicker = byId('itemColorPicker');
 
@@ -43,6 +121,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const contextDuplicateBtn = byId('contextDuplicateBtn');
     const contextLockBtn = byId('contextLockBtn');
     const contextBringFrontBtn = byId('contextBringFrontBtn');
+    const contextRotateLeftBtn = byId('contextRotateLeftBtn');
+    const contextRotateRightBtn = byId('contextRotateRightBtn');
+    const contextMoveUpBtn = byId('contextMoveUpBtn');
+    const contextMoveDownBtn = byId('contextMoveDownBtn');
+    const contextMoveLeftBtn = byId('contextMoveLeftBtn');
+    const contextMoveRightBtn = byId('contextMoveRightBtn');
     const contextDeleteBtn = byId('contextDeleteBtn');
 
     const customCanvasColor = byId('customCanvasColor');
@@ -81,6 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const MIN_ZOOM = 0.15;
     const MAX_ZOOM = 3;
     const MAX_UNDO = 40;
+    const ENABLE_VIEWPORT_PAN = false;
 
     const canvas = new fabric.Canvas('designCanvas', {
         width: dropZone.clientWidth,
@@ -110,6 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
         borderScaleFactor: 2,
         padding: 6
     };
+    const rotateCursorSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='%23ffffff' d='M12 4a8 8 0 1 1-7.3 4.7h2.2A6 6 0 1 0 12 6v2.2l4-3.7-4-3.7z'/><path fill='%23000000' d='M12 5.2a6.8 6.8 0 1 1-6.2 4h.7a6 6 0 1 0 5.5-3.2V7.9l2.7-2.5L12 2.9z' opacity='.35'/></svg>`;
+    const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(rotateCursorSvg)}") 12 12, crosshair`;
 
     const textActionButtons = [
         textBoldBtn,
@@ -150,66 +237,266 @@ document.addEventListener('DOMContentLoaded', function() {
     function applyObjectControlStyle(obj) {
         if (!obj) return obj;
         obj.set(objectControlStyle);
+        applyInteractionCursors(obj);
         return obj;
     }
 
-    function filterAssetsByPackage() {
-        // If no package quotas (e.g., custom design), show all categories
-        if (!window.packageQuotas || Object.keys(window.packageQuotas).length === 0) {
-            document.querySelectorAll('.inventory-category').forEach(cat => cat.style.display = 'block');
+    function applyInteractionCursors(obj) {
+        if (!obj || obj._isArtboard) return obj;
+
+        const isTextObject = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox';
+        if (!obj._isLocked) {
+            obj.set({
+                hasControls: true,
+                hasRotatingPoint: true,
+                lockRotation: false,
+                moveCursor: 'move',
+                hoverCursor: isTextObject ? 'move' : 'move'
+            });
+            if (typeof obj.setControlsVisibility === 'function') {
+                obj.setControlsVisibility({
+                    mtr: true
+                });
+            }
+            obj.rotatingPointOffset = 28;
+        }
+
+        if (obj.controls?.mtr) {
+            obj.controls.mtr.cursorStyleHandler = () => ROTATE_CURSOR;
+        }
+
+        return obj;
+    }
+
+    function categoriesMatch(categoryName, quotaName) {
+        const catLower = normalizeCategoryName(categoryName);
+        const quotaLower = normalizeCategoryName(quotaName);
+
+        if (!catLower || !quotaLower) return false;
+
+        const catSingular = catLower.endsWith('s') ? catLower.slice(0, -1) : catLower;
+        const catPlural = catLower.endsWith('s') ? catLower : `${catLower}s`;
+        const quotaSingular = quotaLower.endsWith('s') ? quotaLower.slice(0, -1) : quotaLower;
+        const quotaPlural = quotaLower.endsWith('s') ? quotaLower : `${quotaLower}s`;
+
+        return (
+            catLower === quotaLower ||
+            catLower === quotaSingular ||
+            catLower === quotaPlural ||
+            quotaLower === catSingular ||
+            quotaLower === catPlural ||
+            (quotaLower.includes(catSingular) && catSingular.length > 3) ||
+            (catLower.includes(quotaSingular) && quotaSingular.length > 3) ||
+            (quotaLower.includes('panel') && catLower.includes('backdrop')) ||
+            (quotaLower.includes('backdrop') && catLower.includes('panel')) ||
+            (quotaLower.includes('flower') && catLower.includes('floral')) ||
+            (quotaLower.includes('floral') && catLower.includes('flower'))
+        );
+    }
+
+    function updateSidebarGroupsBadge(visibleCount) {
+        const groupsBadge = document.querySelector('.panel-badge');
+        if (groupsBadge) groupsBadge.textContent = `${visibleCount} groups`;
+    }
+
+    function syncVisibleCategoryAccordions() {
+        const visibleCategories = Array.from(document.querySelectorAll('.inventory-category')).filter(
+            (cat) => cat.style.display !== 'none'
+        );
+        if (!visibleCategories.length) return;
+
+        let hasOpenVisible = false;
+        visibleCategories.forEach((category) => {
+            const header = category.querySelector('.category-header');
+            if (!header) return;
+            if (header.classList.contains('is-open')) hasOpenVisible = true;
+        });
+
+        if (hasOpenVisible) return;
+
+        const firstVisible = visibleCategories[0];
+        const firstHeader = firstVisible.querySelector('.category-header');
+        const firstLists = firstVisible.querySelectorAll('.category-items');
+        if (!firstHeader || !firstLists.length) return;
+
+        firstHeader.classList.add('is-open');
+        firstHeader.dataset.manualOpen = 'true';
+        firstLists.forEach((list) => list.classList.add('open'));
+    }
+
+    function ensureCategoryLabelsVisible() {
+        document.querySelectorAll('.inventory-category').forEach((category) => {
+            const header = category.querySelector('.category-header');
+            if (!header) return;
+
+            let labelNode = header.querySelector('span');
+            if (!labelNode) {
+                labelNode = document.createElement('span');
+                header.prepend(labelNode);
+            }
+
+            const currentText = (labelNode.textContent || '').trim();
+            if (currentText) return;
+
+            const fallback = (category.dataset.categoryName || 'Category')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+            labelNode.textContent = fallback || 'Category';
+        });
+    }
+
+    function normalizeAssetSrc(src) {
+        const value = String(src || '').trim();
+        if (!value) return '';
+        if (/^(data:|blob:|https?:\/\/|\/\/)/i.test(value)) return value;
+        if (value.startsWith('/')) return value;
+        return `/${value.replace(/^\.?\//, '')}`;
+    }
+
+    function ensureAssetPreviewFallback(img) {
+        if (!img || img.dataset.previewFallbackBound === 'true') return;
+        img.dataset.previewFallbackBound = 'true';
+        img.addEventListener('error', () => {
+            const wrapper = img.closest('.item-preview-img-wrapper');
+            if (!wrapper) {
+                img.remove();
+                return;
+            }
+            if (!wrapper.querySelector('.empty-panel-note')) {
+                const emptyText = document.createElement('span');
+                emptyText.className = 'empty-panel-note';
+                emptyText.textContent = 'Image unavailable';
+                wrapper.appendChild(emptyText);
+            }
+            img.remove();
+        });
+    }
+
+    function getCategoryAssetsFromPayload(payload, categoryKey) {
+        if (!payload || typeof payload !== 'object') return [];
+        if (Array.isArray(payload[categoryKey])) return payload[categoryKey];
+
+        const matchedEntry = Object.entries(payload).find(([key, items]) => {
+            return normalizeCategoryName(key) === categoryKey && Array.isArray(items);
+        });
+
+        return matchedEntry ? matchedEntry[1] : [];
+    }
+
+    function buildAssetCardFromPayload(asset, fallbackCategory) {
+        if (!asset) return null;
+
+        const item = document.createElement('div');
+        item.className = 'draggable-item';
+        item.setAttribute('draggable', 'true');
+        item.setAttribute('data-type', asset.type || 'image');
+        item.setAttribute('data-category', asset.category || fallbackCategory || 'custom');
+        item.setAttribute('data-src', normalizeAssetSrc(asset.src));
+        item.setAttribute('data-width', `${asset.width || 150}`);
+        item.setAttribute('data-height', `${asset.height || 150}`);
+        item.setAttribute('title', asset.label || 'Asset');
+
+        const preview = document.createElement('div');
+        preview.className = 'item-preview-img-wrapper';
+        const normalizedSrc = normalizeAssetSrc(asset.src);
+
+        if (normalizedSrc) {
+            const img = document.createElement('img');
+            img.className = 'item-preview-img';
+            img.src = normalizedSrc;
+            img.alt = asset.label || 'Asset';
+            img.loading = 'lazy';
+            ensureAssetPreviewFallback(img);
+            preview.appendChild(img);
+        } else {
+            const emptyText = document.createElement('span');
+            emptyText.className = 'empty-panel-note';
+            emptyText.textContent = 'No image';
+            preview.appendChild(emptyText);
+        }
+
+        const label = document.createElement('span');
+        label.className = 'item-label';
+        label.textContent = asset.label || 'Asset';
+
+        item.appendChild(preview);
+        item.appendChild(label);
+        return item;
+    }
+
+    function hydrateSidebarAssetsFromPayload() {
+        const payload = window.canvasAssetsPayload;
+        if (!payload || typeof payload !== 'object') {
+            document.querySelectorAll('.item-preview-img').forEach(ensureAssetPreviewFallback);
             return;
         }
 
-        const categories = document.querySelectorAll('.inventory-category');
-        let visibleCount = 0;
+        document.querySelectorAll('.inventory-category').forEach((category) => {
+            const list = category.querySelector('.category-items');
+            if (!list) return;
 
-        categories.forEach((cat) => {
-            const header = cat.querySelector('.category-header');
-            if (!header) return;
-            
-            const catName = header.innerText.trim().toLowerCase();
-            const normalizedCatName = normalizeCategoryName(catName);
-            
-            // Flexible matching logic for categories
-            const catLower = normalizedCatName;
-            const catSingular = catLower.endsWith('s') ? catLower.slice(0, -1) : catLower;
-            const catPlural = catLower.endsWith('s') ? catLower : catLower + 's';
-            
-            const isInQuotas = Object.keys(window.packageQuotas).some(quotaKey => {
-                const quotaLower = quotaKey.toLowerCase().trim();
-                const quotaSingular = quotaLower.endsWith('s') ? quotaLower.slice(0, -1) : quotaLower;
-                const quotaPlural = quotaLower.endsWith('s') ? quotaLower : quotaLower + 's';
+            const headerLabel =
+                category.querySelector('.category-header span')?.textContent ||
+                category.dataset.categoryName ||
+                '';
+            const categoryKey = normalizeCategoryName(category.dataset.categoryName || headerLabel);
+            const categoryAssets = getCategoryAssetsFromPayload(payload, categoryKey);
+            const existingItems = Array.from(list.querySelectorAll('.draggable-item'));
+            const shouldHydrateFromPayload = categoryAssets.length > 0;
 
-                return catLower === quotaLower || 
-                       catLower === quotaSingular || 
-                       catLower === quotaPlural ||
-                       quotaLower === catSingular || 
-                       quotaLower === catPlural ||
-                       (quotaLower.includes(catSingular) && catSingular.length > 3) ||
-                       (catLower.includes(quotaSingular) && quotaSingular.length > 3) ||
-                       // Specific common synonyms
-                       (quotaLower.includes('panel') && catLower.includes('backdrop')) ||
-                       (quotaLower.includes('backdrop') && catLower.includes('panel')) ||
-                       (quotaLower.includes('flower') && catLower.includes('floral')) ||
-                       (quotaLower.includes('floral') && catLower.includes('flower'));
-            });
-            
-            if (!isInQuotas) {
-                cat.style.display = 'none';
+            if (shouldHydrateFromPayload) {
+                list.innerHTML = '';
+                categoryAssets.forEach((asset) => {
+                    const card = buildAssetCardFromPayload(asset, categoryKey);
+                    if (card) list.appendChild(card);
+                });
             } else {
-                cat.style.display = 'block';
-                visibleCount++;
+                existingItems.forEach((item) => {
+                    const normalizedDataSrc = normalizeAssetSrc(item.getAttribute('data-src'));
+                    if (normalizedDataSrc) item.setAttribute('data-src', normalizedDataSrc);
+
+                    const previewImg = item.querySelector('.item-preview-img');
+                    if (previewImg) {
+                        const rawSrc = previewImg.getAttribute('src');
+                        const normalizedImgSrc = normalizeAssetSrc(rawSrc);
+                        if (normalizedImgSrc && rawSrc !== normalizedImgSrc) {
+                            previewImg.setAttribute('src', normalizedImgSrc);
+                        }
+                        ensureAssetPreviewFallback(previewImg);
+                    }
+                });
+            }
+
+            if (!list.querySelector('.draggable-item') && !list.querySelector('.empty-panel-note')) {
+                const emptyText = document.createElement('div');
+                emptyText.className = 'empty-panel-note';
+                emptyText.textContent = 'No assets in this category yet.';
+                list.appendChild(emptyText);
             }
         });
 
-        // Update the groups count badge
-        const groupsBadge = document.querySelector('.panel-badge');
-        if (groupsBadge) {
-            groupsBadge.textContent = `${visibleCount} groups`;
-        }
+        document.querySelectorAll('.item-preview-img').forEach(ensureAssetPreviewFallback);
+    }
+
+    function filterAssetsByPackage() {
+        const categories = Array.from(document.querySelectorAll('.inventory-category'));
+        if (!categories.length) return;
+
+        // Keep categories visible in the sidebar so users can always browse assets.
+        // Package limits are still enforced when adding items to canvas via checkQuota().
+        categories.forEach((cat) => {
+            cat.style.removeProperty('display');
+            cat.classList.remove('is-search-hidden');
+        });
+
+        updateSidebarGroupsBadge(categories.length);
+        syncVisibleCategoryAccordions();
     }
 
     // Call it after initializing sidebar panels or accordions
+    hydrateSidebarAssetsFromPayload();
+    ensureCategoryLabelsVisible();
     filterAssetsByPackage();
 
     function initSidebarPanels() {
@@ -283,15 +570,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!header || !lists.length) return;
 
             const initiallyOpen = category.querySelector('.category-items.open') || index === 0;
-            header.classList.toggle('is-open', !!initiallyOpen);
-            lists.forEach((list) => list.classList.toggle('open', !!initiallyOpen));
-            header.dataset.manualOpen = initiallyOpen ? 'true' : 'false';
+            setCategoryOpenState(category, header, lists, !!initiallyOpen);
 
-            header.addEventListener('click', () => {
+            if (header.dataset.accordionBound === 'true') return;
+            header.dataset.accordionBound = 'true';
+
+            header.addEventListener('click', (event) => {
+                event.preventDefault();
                 const willOpen = !header.classList.contains('is-open');
-                header.classList.toggle('is-open', willOpen);
-                header.dataset.manualOpen = willOpen ? 'true' : 'false';
-                lists.forEach((list) => list.classList.toggle('open', willOpen));
+                setCategoryOpenState(category, header, lists, willOpen);
+                if (willOpen) {
+                    const firstOpenList = category.querySelector('.category-items.open');
+                    if (firstOpenList) {
+                        firstOpenList.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                }
             });
         });
     }
@@ -333,9 +626,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 if (header && !query) {
-                    header.classList.toggle('is-open', header.dataset.manualOpen === 'true');
+                    setCategoryOpenState(category, header, lists, header.dataset.manualOpen === 'true');
                 } else if (header) {
-                    header.classList.toggle('is-open', categoryHasVisibleItems);
+                    setCategoryOpenState(category, header, lists, categoryHasVisibleItems);
                 }
 
                 category.classList.toggle('is-search-hidden', !categoryHasVisibleItems && !!query);
@@ -417,6 +710,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initPackageSelection();
     initCategoryAccordions();
     initAssetSearch();
+    ensureCategoryLabelsVisible();
 
     function createArtboard() {
         const rect = new fabric.Rect({
@@ -431,15 +725,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }),
             selectable: true,
             evented: true,
-            hoverCursor: 'move',
-            lockMovementX: false,
-            lockMovementY: false,
+            hoverCursor: 'default',
+            moveCursor: 'default',
+            lockMovementX: true,
+            lockMovementY: true,
             lockRotation: true,
-            lockScalingX: true,
-            lockScalingY: true,
-            hasControls: false,
+            lockScalingX: false,
+            lockScalingY: false,
+            hasControls: true,
             hasBorders: true,
             cornerStyle: 'circle'
+        });
+        rect.setControlsVisibility({
+            mtr: false
         });
         rect._isArtboard = true;
         canvas.add(rect);
@@ -463,6 +761,14 @@ document.addEventListener('DOMContentLoaded', function() {
             selectable: true,
             evented: true
         });
+        if (typeof obj.setControlsVisibility === 'function') {
+            obj.setControlsVisibility({
+                mtr: !shouldLock
+            });
+        }
+        if (!shouldLock) {
+            applyInteractionCursors(obj);
+        }
     }
 
     function getCurrentState() {
@@ -498,6 +804,63 @@ document.addEventListener('DOMContentLoaded', function() {
         if (canvasHeightInput) canvasHeightInput.value = ARTBOARD_H;
     }
 
+    function clampArtboardSize(width, height) {
+        return {
+            width: Math.max(100, Math.min(5000, Math.round(width || ARTBOARD_W))),
+            height: Math.max(100, Math.min(5000, Math.round(height || ARTBOARD_H)))
+        };
+    }
+
+    function syncBackgroundToArtboard() {
+        canvas.getObjects().forEach((obj) => {
+            if (!obj._isBgImage) return;
+            const scale = Math.max(ARTBOARD_W / obj.width, ARTBOARD_H / obj.height);
+            obj.set({
+                left: artboard.left,
+                top: artboard.top,
+                originX: 'left',
+                originY: 'top',
+                scaleX: scale,
+                scaleY: scale
+            });
+            obj.setCoords();
+        });
+    }
+
+    function applyArtboardSize(nextWidth, nextHeight, options = {}) {
+        const { saveHistory = false, fitToView = false } = options;
+        const clamped = clampArtboardSize(nextWidth, nextHeight);
+
+        if (saveHistory) saveState();
+
+        ARTBOARD_W = clamped.width;
+        ARTBOARD_H = clamped.height;
+
+        artboard.set({
+            width: ARTBOARD_W,
+            height: ARTBOARD_H,
+            scaleX: 1,
+            scaleY: 1
+        });
+        artboard.setCoords();
+
+        syncBackgroundToArtboard();
+        updateCanvasSizeDisplay();
+
+        if (fitToView) {
+            fitArtboardToView();
+        } else {
+            canvas.renderAll();
+            updateContextToolbar();
+        }
+    }
+
+    function commitArtboardResizeFromTransform() {
+        const scaledW = (artboard.width || ARTBOARD_W) * (artboard.scaleX || 1);
+        const scaledH = (artboard.height || ARTBOARD_H) * (artboard.scaleY || 1);
+        applyArtboardSize(scaledW, scaledH, { saveHistory: true, fitToView: false });
+    }
+
     function restoreCanvasState(state) {
         isLoadingState = true;
 
@@ -505,8 +868,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const loadedArtboard = canvas.getObjects().find((obj) => obj._isArtboard);
             if (loadedArtboard) {
                 artboard = loadedArtboard;
-                ARTBOARD_W = Math.round(artboard.width || ARTBOARD_W);
-                ARTBOARD_H = Math.round(artboard.height || ARTBOARD_H);
+                ARTBOARD_W = Math.round((artboard.width || ARTBOARD_W) * (artboard.scaleX || 1));
+                ARTBOARD_H = Math.round((artboard.height || ARTBOARD_H) * (artboard.scaleY || 1));
             } else {
                 artboard = createArtboard();
             }
@@ -516,14 +879,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     obj.set({
                         selectable: true,
                         evented: true,
-                        lockMovementX: false,
-                        lockMovementY: false,
+                        lockMovementX: true,
+                        lockMovementY: true,
                         lockRotation: true,
-                        lockScalingX: true,
-                        lockScalingY: true,
-                        hasControls: false,
+                        lockScalingX: false,
+                        lockScalingY: false,
+                        hasControls: true,
                         hasBorders: true,
-                        hoverCursor: 'move'
+                        hoverCursor: 'default',
+                        moveCursor: 'default'
+                    });
+                    obj.setControlsVisibility({
+                        mtr: false
                     });
                     obj.sendToBack();
                 }
@@ -531,10 +898,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     obj.selectable = false;
                     obj.evented = false;
                 }
+                if (!obj._isArtboard && !obj._isBgImage) {
+                    applyInteractionCursors(obj);
+                }
                 if (obj._isLocked) {
                     syncLockState(obj, true);
                 }
             });
+
+            artboard.set({
+                width: ARTBOARD_W,
+                height: ARTBOARD_H,
+                scaleX: 1,
+                scaleY: 1
+            });
+            artboard.setCoords();
+            syncBackgroundToArtboard();
 
             fitArtboardToView();
             updateCanvasSizeDisplay();
@@ -552,7 +931,39 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!zoomLabel) return;
         const zoomPercent = Math.round(canvas.getZoom() * 100);
         zoomLabel.textContent = `${zoomPercent}%`;
-        if (zoomRange) zoomRange.value = `${zoomPercent}`;
+        if (zoomRange) {
+            const minZoomPercent = Math.round(getMinAllowedZoom() * 100);
+            zoomRange.min = `${minZoomPercent}`;
+            zoomRange.value = `${zoomPercent}`;
+        }
+    }
+
+    function getFitZoom() {
+        const zoomX = canvas.getWidth() / ARTBOARD_W;
+        const zoomY = canvas.getHeight() / ARTBOARD_H;
+        return Math.min(zoomX, zoomY);
+    }
+
+    function getMinAllowedZoom() {
+        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, getFitZoom()));
+    }
+
+    function centerArtboardAtCurrentZoom() {
+        const zoom = canvas.getZoom();
+        const abLeft = (canvas.getWidth() - ARTBOARD_W * zoom) / 2;
+        const abTop = (canvas.getHeight() - ARTBOARD_H * zoom) / 2;
+
+        artboard.set({
+            left: abLeft / zoom,
+            top: abTop / zoom
+        });
+
+        const vpt = canvas.viewportTransform;
+        vpt[4] = 0;
+        vpt[5] = 0;
+        canvas.setViewportTransform(vpt);
+        artboard.setCoords();
+        syncBackgroundToArtboard();
     }
 
     function clampPan() {
@@ -577,37 +988,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fitArtboardToView() {
-        const zoomX = (canvas.getWidth() * 0.9) / ARTBOARD_W;
-        const zoomY = (canvas.getHeight() * 0.9) / ARTBOARD_H;
-        let zoom = Math.min(zoomX, zoomY);
-        zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+        const zoom = getMinAllowedZoom();
 
         canvas.setZoom(zoom);
-
-        const abLeft = (canvas.getWidth() - ARTBOARD_W * zoom) / 2;
-        const abTop = (canvas.getHeight() - ARTBOARD_H * zoom) / 2;
-
-        artboard.set({
-            left: abLeft / zoom,
-            top: abTop / zoom
-        });
-
-        const vpt = canvas.viewportTransform;
-        vpt[4] = 0;
-        vpt[5] = 0;
-        canvas.setViewportTransform(vpt);
-        artboard.setCoords();
+        centerArtboardAtCurrentZoom();
         canvas.renderAll();
         updateZoomLabel();
+        updateSelectionToolbarPosition();
         updateContextToolbar();
     }
 
     function zoomToPoint(point, newZoom) {
-        const safeZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-        canvas.zoomToPoint(point, safeZoom);
-        clampPan();
+        const minZoom = getMinAllowedZoom();
+        const safeZoom = Math.max(minZoom, Math.min(MAX_ZOOM, newZoom));
+        if (ENABLE_VIEWPORT_PAN) {
+            canvas.zoomToPoint(point, safeZoom);
+            clampPan();
+        } else {
+            canvas.setZoom(safeZoom);
+            centerArtboardAtCurrentZoom();
+        }
         canvas.renderAll();
         updateZoomLabel();
+        updateSelectionToolbarPosition();
         updateContextToolbar();
     }
 
@@ -622,6 +1025,23 @@ document.addEventListener('DOMContentLoaded', function() {
         contextToolbar.setAttribute('aria-hidden', 'true');
     }
 
+    function updateSelectionToolbarPosition() {
+        if (!selectionToolbar || !selectionToolbar.classList.contains('is-visible')) return;
+        const zoom = canvas.getZoom();
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        const artboardLeft = artboard.left * zoom + vpt[4];
+        const artboardTop = artboard.top * zoom + vpt[5];
+        const artboardWidth = ARTBOARD_W * zoom;
+
+        const centerX = artboardLeft + artboardWidth / 2;
+        const topY = artboardTop + 12;
+        const clampedX = Math.max(12, Math.min(dropZone.clientWidth - 12, centerX));
+        const clampedY = Math.max(12, Math.min(dropZone.clientHeight - 12, topY));
+
+        selectionToolbar.style.left = `${clampedX}px`;
+        selectionToolbar.style.top = `${clampedY}px`;
+    }
+
     function updateContextToolbar() {
         if (!contextToolbar) return;
         const active = canvas.getActiveObject();
@@ -630,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const bounds = active.getBoundingRect(true, true);
+        const bounds = active.getBoundingRect(false, true);
         if (!bounds) {
             hideContextToolbar();
             return;
@@ -670,6 +1090,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getSelectableActiveObjects() {
         return canvas.getActiveObjects().filter((obj) => !obj._isArtboard);
+    }
+
+    function getUnlockedActiveObjects() {
+        return getSelectableActiveObjects().filter((obj) => !obj._isLocked);
+    }
+
+    function rotateSelectedObjects(degrees) {
+        const selected = getUnlockedActiveObjects();
+        if (!selected.length) return;
+        saveState();
+        selected.forEach((obj) => {
+            obj.rotate((obj.angle || 0) + degrees);
+            obj.setCoords();
+        });
+        canvas.renderAll();
+        updateContextToolbar();
+    }
+
+    function nudgeSelectedObjects(dx, dy) {
+        const selected = getUnlockedActiveObjects();
+        if (!selected.length) return;
+        saveState();
+        selected.forEach((obj) => {
+            obj.left += dx;
+            obj.top += dy;
+            obj.setCoords();
+        });
+        canvas.renderAll();
+        updateContextToolbar();
     }
 
     function getSingleActiveObject() {
@@ -743,6 +1192,9 @@ document.addEventListener('DOMContentLoaded', function() {
             selectionToolbar.classList.toggle('is-visible', hasSelection && !canvas.isDrawingMode);
             selectionToolbar.setAttribute('aria-hidden', hasSelection && !canvas.isDrawingMode ? 'false' : 'true');
             selectionToolbar.dataset.selectionType = hasTextSelection ? 'text' : hasSelection ? 'object' : 'none';
+            if (hasSelection && !canvas.isDrawingMode) {
+                requestAnimationFrame(updateSelectionToolbarPosition);
+            }
         }
         if (!hasSelection) hideContextToolbar();
 
@@ -756,7 +1208,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (flipYBtn) flipYBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (skewLeftBtn) skewLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (skewRightBtn) skewRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (rotateLeftBtn) rotateLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (rotateRightBtn) rotateRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (moveUpBtn) moveUpBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (moveDownBtn) moveDownBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (moveLeftBtn) moveLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (moveRightBtn) moveRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (deleteBtn) deleteBtn.disabled = !hasSelection;
+        if (contextRotateLeftBtn) contextRotateLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextRotateRightBtn) contextRotateRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextMoveUpBtn) contextMoveUpBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextMoveDownBtn) contextMoveDownBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextMoveLeftBtn) contextMoveLeftBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (contextMoveRightBtn) contextMoveRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
 
         if (lockBtn) {
             const lockIcon = lockBtn.querySelector('i');
@@ -797,6 +1261,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateElementSizeInputs();
         updateTextControlsUI();
+        updateSelectionToolbarPosition();
         updateContextToolbar();
     }
 
@@ -1021,6 +1486,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!obj) return;
         obj._packageCategory = data.category || 'custom';
+        applyInteractionCursors(obj);
         canvas.add(obj);
         canvas.setActiveObject(obj);
         canvas.renderAll();
@@ -1191,7 +1657,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function normalizeCategoryName(cat) {
         if (!cat) return 'custom';
-        return cat.toLowerCase().trim();
+        return String(cat)
+            .toLowerCase()
+            .replace(/[_/-]+/g, ' ')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
     }
 
     function showToast(message, type = 'info') {
@@ -1417,6 +1888,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    if (rotateLeftBtn) {
+        rotateLeftBtn.addEventListener('click', () => {
+            rotateSelectedObjects(-15);
+        });
+    }
+
+    if (rotateRightBtn) {
+        rotateRightBtn.addEventListener('click', () => {
+            rotateSelectedObjects(15);
+        });
+    }
+
+    if (moveUpBtn) {
+        moveUpBtn.addEventListener('click', () => {
+            nudgeSelectedObjects(0, -5);
+        });
+    }
+
+    if (moveDownBtn) {
+        moveDownBtn.addEventListener('click', () => {
+            nudgeSelectedObjects(0, 5);
+        });
+    }
+
+    if (moveLeftBtn) {
+        moveLeftBtn.addEventListener('click', () => {
+            nudgeSelectedObjects(-5, 0);
+        });
+    }
+
+    if (moveRightBtn) {
+        moveRightBtn.addEventListener('click', () => {
+            nudgeSelectedObjects(5, 0);
+        });
+    }
+
     if (lockBtn) {
         lockBtn.addEventListener('click', () => {
             toggleLockSelection();
@@ -1466,6 +1973,36 @@ document.addEventListener('DOMContentLoaded', function() {
     if (contextBringFrontBtn) {
         contextBringFrontBtn.addEventListener('click', () => {
             if (toFrontBtn && !toFrontBtn.disabled) toFrontBtn.click();
+        });
+    }
+    if (contextRotateLeftBtn) {
+        contextRotateLeftBtn.addEventListener('click', () => {
+            if (rotateLeftBtn && !rotateLeftBtn.disabled) rotateLeftBtn.click();
+        });
+    }
+    if (contextRotateRightBtn) {
+        contextRotateRightBtn.addEventListener('click', () => {
+            if (rotateRightBtn && !rotateRightBtn.disabled) rotateRightBtn.click();
+        });
+    }
+    if (contextMoveUpBtn) {
+        contextMoveUpBtn.addEventListener('click', () => {
+            if (moveUpBtn && !moveUpBtn.disabled) moveUpBtn.click();
+        });
+    }
+    if (contextMoveDownBtn) {
+        contextMoveDownBtn.addEventListener('click', () => {
+            if (moveDownBtn && !moveDownBtn.disabled) moveDownBtn.click();
+        });
+    }
+    if (contextMoveLeftBtn) {
+        contextMoveLeftBtn.addEventListener('click', () => {
+            if (moveLeftBtn && !moveLeftBtn.disabled) moveLeftBtn.click();
+        });
+    }
+    if (contextMoveRightBtn) {
+        contextMoveRightBtn.addEventListener('click', () => {
+            if (moveRightBtn && !moveRightBtn.disabled) moveRightBtn.click();
         });
     }
     if (contextDeleteBtn) {
@@ -1737,7 +2274,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (applySizeBtn && canvasWidthInput && canvasHeightInput) {
-        applySizeBtn.addEventListener('click', () => {
+        const applyCanvasSizeFromInputs = () => {
             const nextW = parseInt(canvasWidthInput.value, 10) || ARTBOARD_W;
             const nextH = parseInt(canvasHeightInput.value, 10) || ARTBOARD_H;
             if (nextW < 100 || nextH < 100 || nextW > 5000 || nextH > 5000) {
@@ -1745,32 +2282,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            saveState();
-            ARTBOARD_W = nextW;
-            ARTBOARD_H = nextH;
+            applyArtboardSize(nextW, nextH, { saveHistory: true, fitToView: true });
+        };
 
-            artboard.set({
-                width: ARTBOARD_W,
-                height: ARTBOARD_H
+        applySizeBtn.addEventListener('click', applyCanvasSizeFromInputs);
+
+        [canvasWidthInput, canvasHeightInput].forEach((input) => {
+            input.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                applyCanvasSizeFromInputs();
             });
-            artboard.setCoords();
-
-            canvas.getObjects().forEach((obj) => {
-                if (!obj._isBgImage) return;
-                const scale = Math.max(ARTBOARD_W / obj.width, ARTBOARD_H / obj.height);
-                obj.set({
-                    left: artboard.left,
-                    top: artboard.top,
-                    originX: 'left',
-                    originY: 'top',
-                    scaleX: scale,
-                    scaleY: scale
-                });
-            });
-
-            updateCanvasSizeDisplay();
-            fitArtboardToView();
-            canvas.renderAll();
         });
     }
 
@@ -2045,6 +2567,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 strokeLineJoin: 'round'
             });
             applyObjectControlStyle(obj);
+        } else if (obj && !obj._isArtboard && !obj._isBgImage) {
+            applyInteractionCursors(obj);
         }
 
         if (!isLoadingState && obj && !obj._isArtboard) {
@@ -2061,14 +2585,14 @@ document.addEventListener('DOMContentLoaded', function() {
         event.stopPropagation();
 
         // Always zoom on wheel scroll, never pan.
-        // This "locks" the view from accidental panning while allowing the user 
-        // to move the artboard manually as an object.
+        // The artboard itself is fixed in place (non-draggable) and only resizable.
         let zoom = canvas.getZoom();
         zoom *= 0.997 ** event.deltaY;
         zoomToPoint(new fabric.Point(event.offsetX, event.offsetY), zoom);
     });
 
     document.addEventListener('keydown', (event) => {
+        if (!ENABLE_VIEWPORT_PAN) return;
         if (event.code === 'Space' && event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
             if (canvas.getActiveObject() && canvas.getActiveObject().isEditing) return;
             event.preventDefault();
@@ -2080,6 +2604,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.addEventListener('keyup', (event) => {
+        if (!ENABLE_VIEWPORT_PAN) return;
         if (event.code === 'Space') {
             isSpaceDown = false;
             canvas.defaultCursor = 'default';
@@ -2089,6 +2614,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     canvas.on('mouse:down', (opt) => {
+        if (opt.e.button === 1) {
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+            return;
+        }
+        if (!ENABLE_VIEWPORT_PAN) return;
         if (opt.e.altKey || opt.e.button === 1 || isSpaceDown) {
             isPanning = true;
             lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
@@ -2099,6 +2630,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     canvas.on('mouse:move', (opt) => {
+        if (!ENABLE_VIEWPORT_PAN) return;
         if (!isPanning) return;
         const dx = opt.e.clientX - lastPanPos.x;
         const dy = opt.e.clientY - lastPanPos.y;
@@ -2109,6 +2641,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     canvas.on('mouse:up', () => {
+        if (!ENABLE_VIEWPORT_PAN) return;
         if (!isPanning) return;
         isPanning = false;
         if (!isSpaceDown) {
@@ -2125,6 +2658,11 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas.on('selection:cleared', updateControlsState);
 
     canvas.on('object:modified', (event) => {
+        if (event.target && event.target._isArtboard) {
+            commitArtboardResizeFromTransform();
+            return;
+        }
+
         if (!isLoadingState && event.target && !event.target._isArtboard) {
             saveState();
             updateVisualCart();
@@ -2133,6 +2671,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     canvas.on('object:scaling', () => {
+        if (artboard === canvas.getActiveObject()) {
+            const scaledW = Math.round((artboard.width || ARTBOARD_W) * (artboard.scaleX || 1));
+            const scaledH = Math.round((artboard.height || ARTBOARD_H) * (artboard.scaleY || 1));
+            if (canvasWidthInput) canvasWidthInput.value = scaledW;
+            if (canvasHeightInput) canvasHeightInput.value = scaledH;
+            if (canvasSizeDisp) canvasSizeDisp.textContent = `Canvas: ${scaledW} x ${scaledH}`;
+        }
         updateElementSizeInputs();
         updateContextToolbar();
     });

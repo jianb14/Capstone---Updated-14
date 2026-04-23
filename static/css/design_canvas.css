@@ -19,9 +19,8 @@
 }
 
 .design-canvas-section {
-    margin-top: 72px;
-    min-height: calc(100vh - 72px);
-    padding: 10px;
+    margin-top: 67px;
+    min-height: 100vh;
     background:
         radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 30%),
         linear-gradient(180deg, #040404 0%, #090909 55%, #050505 100%);
@@ -30,26 +29,33 @@
 .canvas-workspace-shell {
     width: 100%;
     max-width: 1680px;
+    height: calc(100vh - 92px);
     min-height: calc(100vh - 92px);
     margin: 0 auto;
 }
 
 .design-layout {
     position: relative;
-    min-height: calc(100vh - 92px);
+    height: 100%;
+    min-height: 0;
     display: grid;
     grid-template-columns: 72px 320px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+        "toolbar toolbar toolbar"
+        "rail sidebar canvas";
     gap: 12px;
 }
 
 .canvas-tool-rail,
-.inventory-sidebar,
-.canvas-area {
+.inventory-sidebar {
     border: 1px solid var(--editor-border);
     box-shadow: var(--editor-shadow);
 }
 
 .canvas-tool-rail {
+    grid-area: rail;
+    min-height: 0;
     background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.98));
     border-radius: var(--editor-radius);
     padding: 10px 8px;
@@ -103,6 +109,7 @@
 }
 
 .inventory-sidebar {
+    grid-area: sidebar;
     background: linear-gradient(180deg, rgba(16, 16, 16, 0.98), rgba(8, 8, 8, 0.98));
     border-radius: var(--editor-radius);
     padding: 12px;
@@ -356,6 +363,14 @@
     border: 1px solid var(--editor-border);
     border-radius: 18px;
     overflow: hidden;
+    min-height: 46px;
+    height: auto;
+    flex: 0 0 auto;
+    transition: margin-bottom 0.2s ease;
+}
+
+.inventory-category.is-open {
+    margin-bottom: 8px;
 }
 
 .inventory-category.is-search-hidden {
@@ -364,6 +379,7 @@
 
 .category-header {
     width: 100%;
+    min-height: 44px;
     padding: 12px 14px;
     border: none;
     background: transparent;
@@ -376,6 +392,18 @@
     justify-content: space-between;
     gap: 10px;
     cursor: pointer;
+    display: flex !important;
+    position: relative;
+    z-index: 1;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.category-header span {
+    display: inline-block !important;
+    color: var(--editor-text) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .category-header:hover {
@@ -394,7 +422,9 @@
 
 .category-items {
     display: none;
+    width: 100%;
     flex-wrap: wrap;
+    align-items: flex-start;
     align-content: flex-start;
     gap: 8px;
     padding: 12px;
@@ -402,6 +432,13 @@
 }
 
 .category-items.open {
+    display: flex;
+    height: auto;
+    max-height: none;
+    padding-bottom: 16px;
+}
+
+.category-header.is-open + .category-items {
     display: flex;
 }
 
@@ -422,8 +459,10 @@
     background: linear-gradient(180deg, rgba(30, 30, 30, 0.98), rgba(15, 15, 15, 0.98));
     padding: 8px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     cursor: grab;
     overflow: hidden;
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -446,6 +485,8 @@
 .item-preview-img-wrapper {
     width: 100%;
     height: 100%;
+    min-height: 0;
+    flex: 1;
     display: grid;
     place-items: center;
 }
@@ -457,7 +498,15 @@
 }
 
 .item-label {
-    display: none;
+    display: block;
+    width: 100%;
+    color: var(--editor-muted-strong);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .upload-dropzone {
@@ -641,41 +690,50 @@
 }
 
 .canvas-area {
+    grid-area: canvas;
     min-width: 0;
     min-height: 0;
-    padding: 12px;
-    border-radius: 28px;
-    background: linear-gradient(180deg, rgba(16, 16, 16, 0.98), rgba(6, 6, 6, 0.98));
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
 .canvas-main-toolbar {
+    grid-area: toolbar;
+    width: 100%;
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     flex-wrap: wrap;
+    padding: 5px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 30, 30, 1);
 }
 
 .topbar-group {
-    min-height: 48px;
-    padding: 6px;
-    border: 1px solid var(--editor-border);
-    border-radius: 18px;
-    background: var(--editor-panel);
+    min-height: 40px;
+    padding: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .zoom-toolbar-group {
-    flex: 1 1 240px;
+    flex: 0 0 auto;
+    max-width: 180px;
 }
 
 .zoom-toolbar-group #zoomRange {
-    min-width: 120px;
+    width: 80px;
+    min-width: 80px;
 }
 
 .dimension-toolbar-group {
@@ -692,7 +750,7 @@
     width: 72px;
     min-height: 36px;
     padding: 0 10px;
-    border-radius: 12px;
+    border-radius: 8px;
     text-align: center;
     outline: none;
 }
@@ -701,29 +759,29 @@
 .zoom-pill {
     min-height: 36px;
     padding: 0 12px;
-    border-radius: 12px;
-    border: 1px solid var(--editor-border);
-    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(50, 50, 50, 0.5);
+    background: rgba(20, 20, 20, 0.9);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--editor-text);
+    color: #f8fdff;
     font-size: 0.76rem;
     font-weight: 800;
     white-space: nowrap;
 }
 
 .toolbar-status {
-    color: var(--editor-muted-strong);
+    color: rgba(245, 252, 255, 0.9);
 }
 
 .ctrl-btn {
     min-height: 36px;
     padding: 0 14px;
-    border: 1px solid var(--editor-border);
-    border-radius: 12px;
-    background: var(--editor-panel-strong);
-    color: var(--editor-text-soft);
+    border: 1px solid rgba(50, 50, 50, 0.5);
+    border-radius: 8px;
+    background: rgba(20, 20, 20, 1);
+    color: #f7fbff;
     font-family: 'Manrope', sans-serif;
     font-size: 0.75rem;
     font-weight: 800;
@@ -736,9 +794,9 @@
 }
 
 .ctrl-btn:hover {
-    background: #222222;
-    color: var(--editor-text);
-    border-color: var(--editor-border-strong);
+    background: rgba(50, 50, 50, 1);
+    color: #ffffff;
+    border-color: rgba(60, 60, 60, 0.5);
 }
 
 .ctrl-btn:disabled {
@@ -754,19 +812,19 @@
 }
 
 .ctrl-btn.is-active {
-    background: #f4f4f4;
-    color: #090909;
-    border-color: #ffffff;
+    background: #ffffff;
+    color: #0a2f54;
 }
 
 .ctrl-btn-primary {
     background: #f4f4f4;
-    color: #090909;
-    border-color: #ffffff;
+    color: black;
+    font-size: 14px;
 }
 
 .ctrl-btn-primary:hover {
     background: #ffffff;
+    color: black;
 }
 
 .danger-btn,
@@ -778,6 +836,7 @@
 #canvasDropZone {
     position: relative;
     flex: 1;
+    height: 100%;
     min-height: 0;
     border-radius: 24px;
     border: 1px solid var(--editor-border);
@@ -808,9 +867,13 @@
     display: none;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
     padding: 8px;
-    max-width: calc(100% - 32px);
+    width: max-content;
+    max-width: calc(100% - 24px);
+    overflow-x: auto;
+    overflow-y: hidden;
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 18px;
     background: rgba(20, 20, 20, 0.96);
@@ -821,9 +884,19 @@
     display: flex;
 }
 
+.selection-toolbar::-webkit-scrollbar {
+    height: 5px;
+}
+
+.selection-toolbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+}
+
 .toolbar-group {
     display: flex;
     align-items: center;
+    flex: 0 0 auto;
     gap: 6px;
     padding-right: 8px;
     margin-right: 2px;
@@ -907,7 +980,7 @@
 }
 
 .inclusion-item.checked {
-    /* Removed green color as per user request */
+    opacity: 1;
 }
 
 .inclusion-item .inclusion-status {
@@ -1213,12 +1286,18 @@
 @media (max-width: 1024px) {
     .canvas-workspace-shell,
     .design-layout {
+        height: auto;
         min-height: auto;
     }
 
     .design-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto minmax(460px, 1fr);
+        grid-template-rows: auto auto auto minmax(460px, 1fr);
+        grid-template-areas:
+            "toolbar"
+            "rail"
+            "sidebar"
+            "canvas";
     }
 
     .canvas-tool-rail {
@@ -1271,12 +1350,12 @@
         padding: 8px;
     }
 
-    .canvas-area,
     .inventory-sidebar {
         border-radius: 22px;
     }
 
     .canvas-main-toolbar {
+        border-radius: 16px;
         gap: 8px;
     }
 

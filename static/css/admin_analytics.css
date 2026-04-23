@@ -1,0 +1,324 @@
+/* admin_analytics.css */
+
+.analytics-container {
+    padding: 1.5rem;
+}
+
+/* Header & Breadcrumb already handled by admin_base.css and page-header class */
+
+.report-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1200px) {
+    .report-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .report-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+.summary-card {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-4px);
+    border-color: #4f46e5;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(79, 70, 229, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4f46e5;
+    margin-bottom: 1rem;
+}
+
+.card-label {
+    font-size: 0.875rem;
+    color: #888;
+    margin-bottom: 0.5rem;
+}
+
+.card-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.card-trend {
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.trend-up { color: #10b981; }
+.trend-down { color: #ef4444; }
+
+/* Report Sections */
+.report-section {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.section-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Table Styles (Matching admin_booking.css) */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #242424;
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #242424;
+    color: #ccc;
+    font-size: 0.875rem;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Badges */
+.badge {
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.badge-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.badge-danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.badge-info { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+
+/* Export Buttons */
+.btn-export {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.btn-excel {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.btn-excel:hover {
+    background: #10b981;
+    color: #fff;
+}
+
+.btn-pdf {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.btn-pdf:hover {
+    background: #ef4444;
+    color: #fff;
+}
+
+/* Filter Bar */
+.filter-bar {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-end;
+}
+
+.quick-filters {
+    display: flex;
+    gap: 0.5rem;
+    background: #111;
+    padding: 0.25rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.btn-quick {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #888;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-quick:hover {
+    color: #fff;
+    background: #333;
+}
+
+.btn-quick.active {
+    background: #4f46e5;
+    color: #fff;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.filter-group input, .filter-group select {
+    background: #242424;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    color: #fff;
+    font-size: 0.875rem;
+    outline: none;
+}
+
+.filter-group input:focus, .filter-group select:focus {
+    border-color: #4f46e5;
+}
+
+.btn-apply {
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-apply:hover {
+    background: #4338ca;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-card {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-height: 350px;
+}
+
+.chart-header {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chart-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
