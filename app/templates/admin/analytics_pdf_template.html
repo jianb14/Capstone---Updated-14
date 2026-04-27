@@ -13,15 +13,24 @@
             line-height: 1.4;
         }
         .header {
-            text-align: center;
-            border-bottom: 2px solid #4F46E5;
-            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding-bottom: 15px;
             margin-bottom: 20px;
         }
+        .logo {
+            width: 100px;
+            height: auto;
+        }
+        .header-content {
+            flex: 1;
+        }
         .header h1 {
-            color: #4F46E5;
-            margin: 0;
-            font-size: 24px;
+            color: #1e293b;
+            margin: 10px 0 0;
+            font-size: 20px;
+            font-weight: 600;
         }
         .header p {
             margin: 5px 0 0;
@@ -39,7 +48,7 @@
         .summary-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            padding: 15px;
+            padding: 10px;
             text-align: center;
         }
         .summary-box .label {
@@ -58,9 +67,7 @@
         h2 {
             font-size: 16px;
             color: #1e293b;
-            border-left: 4px solid #4F46E5;
-            padding-left: 10px;
-            margin: 25px 0 15px;
+            margin: 20px 0 10px;
         }
         table {
             width: 100%;
@@ -95,8 +102,11 @@
 </head>
 <body>
     <div class="header">
-        <h1>Analytics Report</h1>
-        <p>Generated on {{ timezone.now|date:"F d, Y H:i" }}</p>
+        <img src="{{ STATIC_ROOT }}/images/BalloorinaLogo1.png" alt="Balloorina" class="logo">
+        <div class="header-content">
+            <h1>Analytics Report</h1>
+            <p>Generated on {{ timezone.now|date:"F d, Y H:i" }}</p>
+        </div>
     </div>
 
     <div class="report-info">
@@ -118,7 +128,53 @@
                 <span class="label">Completion Rate</span>
                 <span class="value">{{ completion_rate|floatformat:1 }}%</span>
             </td>
+            <td class="summary-box">
+                <span class="label">Cancellation Rate</span>
+                <span class="value">{{ cancellation_rate|floatformat:1 }}%</span>
+            </td>
         </tr>
+        <tr>
+            <td class="summary-box">
+                <span class="label">Avg. Booking Value</span>
+                <span class="value">PHP {{ avg_booking_value|floatformat:2 }}</span>
+            </td>
+            <td class="summary-box">
+                <span class="label">Active Customers</span>
+                <span class="value">{{ active_users }}</span>
+            </td>
+            <td class="summary-box">
+                <span class="label">Completed</span>
+                <span class="value">{{ completed_count }}</span>
+            </td>
+            <td class="summary-box">
+                <span class="label">Cancelled</span>
+                <span class="value">{{ cancelled_count }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <h2>Status Breakdown</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th class="text-right">Count</th>
+                <th class="text-right">Percentage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in status_table %}
+            <tr>
+                <td>{{ item.label }}</td>
+                <td class="text-right">{{ item.count }}</td>
+                <td class="text-right">{{ item.share_pct }}%</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center;">No data available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 
     <h2>Revenue by Event Type</h2>
@@ -215,6 +271,60 @@
                 <td class="text-right">{{ returning_customers_count }}</td>
                 <td class="text-right">{{ returning_customers_pct }}%</td>
             </tr>
+        </tbody>
+    </table>
+
+    <h2>Action Queue Summary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th class="text-right">Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Pending Approvals</td>
+                <td class="text-right">{{ pending_approvals }}</td>
+            </tr>
+            <tr>
+                <td>Edit Requests</td>
+                <td class="text-right">{{ edit_requests }}</td>
+            </tr>
+            <tr>
+                <td>Cancel Requests</td>
+                <td class="text-right">{{ cancel_requests }}</td>
+            </tr>
+            <tr style="font-weight: bold; background: #f8fafc;">
+                <td>Total Action Required</td>
+                <td class="text-right">{{ action_queue_total }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Upcoming Deadlines (Next 3 Days)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Event Date</th>
+                <th>Customer</th>
+                <th>Event Type</th>
+                <th class="text-right">Days Left</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in upcoming_deadline_bookings %}
+            <tr>
+                <td>{{ booking.event_date|date:"M d, Y" }}</td>
+                <td>{{ booking.user.get_full_name|default:booking.user.username }}</td>
+                <td>{{ booking.event_type|title }}</td>
+                <td class="text-right">{{ booking.days_left }} day{{ booking.days_left|pluralize }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">No upcoming deadlines.</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 

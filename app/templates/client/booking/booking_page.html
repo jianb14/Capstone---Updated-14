@@ -53,11 +53,15 @@
                     <div class="stepper-progress-line" id="stepperLine"></div>
                     <div class="stepper-step-icon active" id="step-1-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Step 1</div>
+                        <div class="step-label">Select Package</div>
                     </div>
                     <div class="stepper-step-icon" id="step-2-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Step 2</div>
+                        <div class="step-label">Event Details</div>
+                    </div>
+                    <div class="stepper-step-icon" id="step-3-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Review & Confirm</div>
                     </div>
                 </div>
                 <button type="button" class="close-btn" id="closeModalBtn">&times;</button>
@@ -164,7 +168,7 @@
                     <div class="form-grid">
 
                         <div class="form-group full-width">
-                            <label>Event Type</label>
+                            <label><i class="fa-solid fa-list-ul"></i> Event Type <span class="input-required">*</span></label>
 
                             <!-- Custom Select UI -->
                             <div class="custom-select-container" id="eventTypeCustomSelect">
@@ -196,13 +200,13 @@
                         </div>
 
                         <div class="form-group full-width">
-                            <label>Event Date</label>
+                            <label><i class="fa-solid fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
                             <input type="date" id="event_date" name="event_date" data-label="Event Date" required>
                             <small class="booking-field-error" id="event_date_error"></small>
                         </div>
 
                         <div class="form-group full-width">
-                            <label>Event Duration</label>
+                            <label><i class="fa-solid fa-clock"></i> Event Duration <span class="input-required">*</span></label>
                             <div class="time-row">
                                 <div class="time-field">
                                     <small>Start</small>
@@ -218,7 +222,7 @@
                         </div>
 
                         <div class="form-group full-width">
-                            <label>Location (Venue Address)</label>
+                            <label><i class="fa-solid fa-location-dot"></i> Location (Venue Address) <span class="input-required">*</span></label>
                             <input type="text" id="event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" data-label="Event Location" required>
                             <small class="booking-field-error" id="event_location_error"></small>
                         </div>
@@ -231,13 +235,13 @@
 
                         <!-- Special Requests -->
                         <div class="form-group full-width">
-                            <label for="booking_special_requests">Special Requests (Optional)</label>
+                            <label for="booking_special_requests"><i class="fa-solid fa-comment"></i> Special Requests (Optional)</label>
                             <textarea id="booking_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                         </div>
                         
                         <!-- Reference Images -->
                         <div class="form-group full-width">
-                            <label for="booking_reference_images_ui">Add Reference Pictures (Optional)</label>
+                            <label for="booking_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
                             <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
                             <!-- Hidden proper input for backend submission -->
                             <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
@@ -249,36 +253,54 @@
                             <div id="bookingImagePreviewContainer" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;"></div>
                         </div>
 
-                        <!-- Order Summary Section -->
-                        <div class="booking-summary-container">
-                            <h4 class="summary-title">Order Summary</h4>
-                            <div id="booking-item-list" class="summary-items">
-                                <!-- Dynamic rows will be inserted here by JS -->
-                            </div>
-
-                            <div class="summary-divider"></div>
-
-                            <!-- Service Charge Row (Special handling for the note) -->
-                            <div class="summary-row service-charge-summary" id="serviceChargeRow"
-                                style="display: none;">
-                                <div class="row-info">
-                                    <span class="row-label">Service & Logistics Fee</span>
-                                    <p class="row-note" id="service_charge_note_text">{{ global_service_charge_note|default:"Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics." }}</p>
-                                </div>
-                                <span class="row-value" id="service_charge_display">₱0.00</span>
-                            </div>
-
-                            <div class="summary-row total-row">
-                                <div class="row-info">
-                                    <span class="row-label">Total Price</span>
-                                </div>
-                                <span class="row-value total-price" id="total_price_display">₱0.00</span>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="modal-actions split-actions">
                         <button type="button" class="booking-back-btn" id="btnPrevStep">Back</button>
+                        <button type="button" class="btn-submit" id="btnNextToSummary">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: BOOKING SUMMARY -->
+                <div class="stepper-step" id="step-3" style="display: none;">
+                    <h3>Review & Confirm</h3>
+                    <p class="step-desc">Review your selected package and event details before submitting.</p>
+
+                    <div class="booking-review-grid">
+                    <div class="booking-summary-container">
+                        <h4 class="summary-title"><i class="fa-solid fa-clipboard-check"></i> Booking Details</h4>
+                        <div id="booking-details-list" class="summary-items"></div>
+                    </div>
+
+                    <div class="booking-summary-container">
+                        <h4 class="summary-title"><i class="fa-solid fa-receipt"></i> Booking Summary</h4>
+                        <div id="booking-item-list" class="summary-items">
+                            <!-- Dynamic rows will be inserted here by JS -->
+                        </div>
+
+                        <div class="summary-divider"></div>
+
+                        <!-- Service Charge Row (Special handling for the note) -->
+                        <div class="summary-row service-charge-summary" id="serviceChargeRow"
+                            style="display: none;">
+                            <div class="row-info">
+                                <span class="row-label">Service & Logistics Fee</span>
+                                <p class="row-note" id="service_charge_note_text">{{ global_service_charge_note|default:"Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics." }}</p>
+                            </div>
+                            <span class="row-value" id="service_charge_display">₱0.00</span>
+                        </div>
+
+                        <div class="summary-row total-row">
+                            <div class="row-info">
+                                <span class="row-label">Total Price</span>
+                            </div>
+                            <span class="row-value total-price" id="total_price_display">₱0.00</span>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div class="modal-actions split-actions">
+                        <button type="button" class="booking-back-btn" id="btnBackToDetails">Back</button>
                         <button type="button" class="btn-submit" id="btnSubmitBooking">Submit Booking</button>
                     </div>
                 </div>
@@ -327,11 +349,15 @@
         // --- Stepper Logic Variables ---
         const step1Indicator = document.getElementById('step-1-indicator');
         const step2Indicator = document.getElementById('step-2-indicator');
+        const step3Indicator = document.getElementById('step-3-indicator');
         const stepperLine = document.getElementById('stepperLine');
         const step1Content = document.getElementById('step-1');
         const step2Content = document.getElementById('step-2');
+        const step3Content = document.getElementById('step-3');
         const btnNextStep = document.getElementById('btnNextStep');
         const btnPrevStep = document.getElementById('btnPrevStep');
+        const btnNextToSummary = document.getElementById('btnNextToSummary');
+        const btnBackToDetails = document.getElementById('btnBackToDetails');
         const packageInput = document.getElementById('package_type_input');
         const priceInput = document.getElementById('total_price_input');
         const priceDisplay = document.getElementById('total_price_display');
@@ -471,6 +497,120 @@
             if (finalPriceDisplay) finalPriceDisplay.textContent = formatPrice(total);
         }
 
+        function getSelectedEventTypeDisplay() {
+            if (eventTypeSelect.value === 'Other') {
+                return eventTypeOther.value.trim() || 'Other';
+            }
+            return eventTypeSelect.value || '-';
+        }
+
+        function formatTimeWithMeridiem(timeValue) {
+            if (!timeValue || !timeValue.includes(':')) return '-';
+            const [hourStr, minuteStr] = timeValue.split(':');
+            const hour = parseInt(hourStr, 10);
+            if (Number.isNaN(hour)) return timeValue;
+            const minute = minuteStr || '00';
+            const suffix = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = ((hour + 11) % 12) + 1;
+            return `${hour12}:${minute} ${suffix}`;
+        }
+
+        function updateBookingDetailsSummary() {
+            const detailsContainer = document.getElementById('booking-details-list');
+            if (!detailsContainer) return;
+
+            const locationValue = eventLocationInput.value.trim();
+            const specialRequestsValue = document.getElementById('booking_special_requests')?.value?.trim() || '';
+            const bookedItems = buildPackageTypeString() || '-';
+            const startValue = formatTimeWithMeridiem(startTimeInput.value);
+            const endValue = formatTimeWithMeridiem(endTimeInput.value);
+            const durationValue = (startValue === '-' || endValue === '-') ? '-' : `${startValue} - ${endValue}`;
+            const specialRequestsRow = specialRequestsValue
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsValue}</span></div>`
+                : '';
+
+            detailsContainer.innerHTML = `
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-box-open"></i> Package / Items</span></div><span class="row-value">${bookedItems}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-list-ul"></i> Event Type</span></div><span class="row-value">${getSelectedEventTypeDisplay()}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-calendar-days"></i> Event Date</span></div><span class="row-value">${dateInput.value || '-'}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-clock"></i> Event Duration</span></div><span class="row-value">${durationValue}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-location-dot"></i> Location</span></div><span class="row-value">${locationValue || '-'}</span></div>
+                ${specialRequestsRow}
+                <div class="summary-row" id="referencePicturesRow" style="display: none;">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-images"></i> Reference Pictures</span></div>
+                    <div class="row-value booking-details-images" id="booking-details-image-list"></div>
+                </div>
+            `;
+        }
+
+        function updateBookingImageSummary() {
+            const referencePicturesRow = document.getElementById('referencePicturesRow');
+            const summaryList = document.getElementById('booking-details-image-list');
+            if (!summaryList || !referencePicturesRow) return;
+
+            summaryList.innerHTML = '';
+
+            const appendSummaryImage = (src) => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = 'Reference image';
+                img.className = 'booking-summary-thumb';
+                summaryList.appendChild(img);
+            };
+
+            const files = (typeof bookingAccumulatedFiles !== 'undefined' && bookingAccumulatedFiles?.files)
+                ? Array.from(bookingAccumulatedFiles.files)
+                : [];
+
+            if (files.length > 0) {
+                referencePicturesRow.style.display = 'grid';
+                files.forEach((file) => {
+                    if (!file.type.startsWith('image/')) return;
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        appendSummaryImage(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                });
+                return;
+            }
+
+            const stepTwoPreviewImages = Array.from(document.querySelectorAll('#bookingImagePreviewContainer img'));
+            if (stepTwoPreviewImages.length > 0) {
+                referencePicturesRow.style.display = 'grid';
+                stepTwoPreviewImages.forEach((imgEl) => appendSummaryImage(imgEl.src));
+                return;
+            }
+
+            referencePicturesRow.style.display = 'none';
+        }
+
+        function showStep(stepNumber) {
+            step1Content.style.display = stepNumber === 1 ? 'block' : 'none';
+            step2Content.style.display = stepNumber === 2 ? 'block' : 'none';
+            step3Content.style.display = stepNumber === 3 ? 'block' : 'none';
+
+            step1Indicator.classList.remove('active', 'completed');
+            step2Indicator.classList.remove('active', 'completed');
+            step3Indicator.classList.remove('active', 'completed');
+
+            if (stepNumber === 1) {
+                step1Indicator.classList.add('active');
+                stepperLine.style.width = '0%';
+            } else if (stepNumber === 2) {
+                step1Indicator.classList.add('completed');
+                step2Indicator.classList.add('active');
+                stepperLine.style.width = '50%';
+            } else {
+                step1Indicator.classList.add('completed');
+                step2Indicator.classList.add('completed');
+                step3Indicator.classList.add('active');
+                stepperLine.style.width = '100%';
+            }
+
+            document.querySelector('.booking-modal-box').scrollTop = 0;
+        }
+
         function buildPackageTypeString() {
             let parts = [];
             if (soloModeAddon) {
@@ -582,15 +722,14 @@
             if (bookingPreviewGrid) bookingPreviewGrid.innerHTML = '';
             const bookingLimitError = document.getElementById('bookingImageLimitError');
             if (bookingLimitError) bookingLimitError.style.display = 'none';
+            const bookingDetailsImageList = document.getElementById('booking-details-image-list');
+            if (bookingDetailsImageList) bookingDetailsImageList.innerHTML = '';
+            const referencePicturesRow = document.getElementById('referencePicturesRow');
+            if (referencePicturesRow) referencePicturesRow.style.display = 'none';
 
             {% if prefilled_design %}
             // If we have a pre-filled design, go to Step 2
-            step1Content.style.display = 'none';
-            step2Content.style.display = 'block';
-            step1Indicator.classList.remove('active');
-            step1Indicator.classList.add('completed');
-            step2Indicator.classList.add('active');
-            stepperLine.style.width = '100%';
+            showStep(2);
 
             selectedPackageName = "{{ prefilled_design.base_package.name|escapejs }}";
             selectedPackagePrice = parseFloat("{{ prefilled_design.base_package.price|default:0 }}");
@@ -631,13 +770,7 @@
             designIdInput.value = "{{ prefilled_design.id }}";
             document.getElementById('bookingForm').appendChild(designIdInput);
             {% else %}
-            step1Content.style.display = 'block';
-            step2Content.style.display = 'none';
-
-            step1Indicator.classList.add('active');
-            step1Indicator.classList.remove('completed');
-            step2Indicator.classList.remove('active');
-            stepperLine.style.width = '0%';
+            showStep(1);
 
             selectedPackageName = null;
             selectedPackagePrice = 0;
@@ -1096,18 +1229,7 @@
 
         // --- Build Order Summary Breakdown ---
         updateOrderSummary();
-
-        // UI Transitions
-        step1Content.style.display = 'none';
-        step2Content.style.display = 'block';
-
-        step1Indicator.classList.remove('active');
-        step1Indicator.classList.add('completed');
-        step2Indicator.classList.add('active');
-        stepperLine.style.width = '100%';
-
-        // Scroll modal back to top
-        document.querySelector('.booking-modal-box').scrollTop = 0;
+        showStep(2);
     });
 
     // =============================================
@@ -1209,19 +1331,74 @@
                 reader.readAsDataURL(file);
             }
         });
+
+        updateBookingImageSummary();
     }
 
     btnPrevStep.addEventListener('click', function () {
-        step2Content.style.display = 'none';
-        step1Content.style.display = 'block';
+        showStep(1);
+    });
 
-        step2Indicator.classList.remove('active');
-        step1Indicator.classList.add('active');
-        step1Indicator.classList.remove('completed');
-        stepperLine.style.width = '0%';
+    btnBackToDetails.addEventListener('click', function () {
+        showStep(2);
+    });
 
-        // Scroll modal back to top
-        document.querySelector('.booking-modal-box').scrollTop = 0;
+    btnNextToSummary.addEventListener('click', function () {
+        bookingSubmitAttempted = true;
+        const firstInvalidField = validateBookingStepTwoFields();
+        if (firstInvalidField) {
+            focusBookingField(firstInvalidField);
+            return;
+        }
+
+        const startTimeStr = startTimeInput.value;
+        const endTimeStr = endTimeInput.value;
+
+        if (startTimeStr && endTimeStr) {
+            const startNode = new Date(`1970-01-01T${startTimeStr}:00`);
+            let endNode = new Date(`1970-01-01T${endTimeStr}:00`);
+            if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
+
+            const diffMins = (endNode - startNode) / 60000;
+            if (diffMins < 120) {
+                setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+                endTimeInput.focus();
+                return;
+            }
+        }
+
+        if (startTimeStr && endTimeStr) {
+            const startHour = parseInt(startTimeStr.split(':')[0], 10);
+            const startMinute = parseInt(startTimeStr.split(':')[1], 10);
+            const endHour = parseInt(endTimeStr.split(':')[0], 10);
+            const endMinute = parseInt(endTimeStr.split(':')[1], 10);
+
+            if (startHour < 7 || startHour >= 18) {
+                setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
+                startTimeInput.focus();
+                return;
+            }
+
+            if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
+                setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
+                endTimeInput.focus();
+                return;
+            }
+
+            const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
+            if (crossesMidnight) {
+                setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                endTimeInput.focus();
+                return;
+            }
+        }
+
+        packageInput.value = buildPackageTypeString();
+        priceInput.value = calculateTotalPrice().toFixed(2);
+        updateOrderSummary();
+        updateBookingDetailsSummary();
+        updateBookingImageSummary();
+        showStep(3);
     });
 
     dateInput.addEventListener('change', updateTimeConstraints);
@@ -1319,6 +1496,7 @@
         bookingSubmitAttempted = true;
         const firstInvalidField = validateBookingStepTwoFields();
         if (firstInvalidField) {
+            showStep(2);
             focusBookingField(firstInvalidField);
             return;
         }
@@ -1334,6 +1512,7 @@
 
             const diffMins = (endNode - startNode) / 60000;
             if (diffMins < 120) {
+                showStep(2);
                 setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
                 endTimeInput.focus();
                 return; // Stay on Step 2
@@ -1348,12 +1527,14 @@
             const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
             if (startHour < 7 || startHour >= 18) {
+                showStep(2);
                 setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
                 startTimeInput.focus();
                 return;
             }
 
             if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
+                showStep(2);
                 setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
                 endTimeInput.focus();
                 return;
@@ -1362,6 +1543,7 @@
             // Check if end time crosses midnight (end <= start) after operating-hours validation
             const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
             if (crossesMidnight) {
+                showStep(2);
                 setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
                 endTimeInput.focus();
                 return;
@@ -1369,6 +1551,7 @@
         }
 
         const applyServerBookingError = (message) => {
+            showStep(2);
             const safeMessage = (message || 'Please review the highlighted booking fields.').trim();
             const normalized = safeMessage.toLowerCase();
 

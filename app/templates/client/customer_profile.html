@@ -5,43 +5,56 @@
 <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}">
 
 <div class="profile-page" style="animation: fadeInPage 0.5s ease forwards;">
-    <div class="profile-bg"></div>
+    <div class="profile-shell">
+        <h1 class="profile-title">My Bookings</h1>
+        <p class="profile-subtitle">Track your booking status and manage upcoming events.</p>
 
-    <div class="profile-container">
-        <!-- Profile Card -->
-        <div class="profile-card">
-
-            <!-- Top: Identity & Stats -->
-            <div class="profile-top">
-
-                <div class="stats-row">
-                    <div class="stat-item">
-                        <span class="stat-value">{{ total_bookings }}</span>
-                        <span class="stat-label">Total</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" style="color: #3b82f6;">{{ confirmed_count }}</span>
-                        <span class="stat-label">Confirmed</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" style="color: #d97706;">{{ pending_count }}</span>
-                        <span class="stat-label">Pending</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" style="color: #10b981;">{{ completed_count }}</span>
-                        <span class="stat-label">Complete</span>
-                    </div>
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-total">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </div>
+                <div>
+                    <span class="stat-label">Total Bookings</span>
+                    <span class="stat-value">{{ total_bookings }}</span>
                 </div>
             </div>
-
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-confirmed">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <span class="stat-label">Confirmed</span>
+                    <span class="stat-value">{{ confirmed_count }}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-pending">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+                <div>
+                    <span class="stat-label">Pending</span>
+                    <span class="stat-value">{{ pending_count }}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon-complete">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="8 12 11 15 16 9"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <span class="stat-label">Completed</span>
+                    <span class="stat-value">{{ completed_count }}</span>
+                </div>
+            </div>
         </div>
 
-
-        <!-- Your Bookings Table -->
         <div class="bookings-section">
-            <div class="bookings-header">
-                <h3>Your Bookings</h3>
-            </div>
 
             <form method="GET" action="{% url 'customer_profile' %}" class="filter-form" id="filterForm" onsubmit="event.preventDefault(); return false;">
                     <input type="text" name="search" placeholder="Search ID or Event..." value="{{ search_query }}" class="filter-input" id="searchFilterInput">
@@ -58,8 +71,6 @@
                             <li data-value="confirmed" {% if status_filter == 'confirmed' %}class="selected"{% endif %}>Confirmed</li>
                             <li data-value="completed" {% if status_filter == 'completed' %}class="selected"{% endif %}>Completed</li>
                             <li data-value="cancelled" {% if status_filter == 'cancelled' %}class="selected"{% endif %}>Cancelled</li>
-                            <li data-value="request_edit" {% if status_filter == 'request_edit' %}class="selected"{% endif %}>Edit Request</li>
-                            <li data-value="request_cancel" {% if status_filter == 'request_cancel' %}class="selected"{% endif %}>Cancel Request</li>
                             <li data-value="expired" {% if status_filter == 'expired' %}class="selected"{% endif %}>Expired</li>
                         </ul>
                         <select name="status" class="filter-select" id="statusFilterSelect">
@@ -69,8 +80,6 @@
                             <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
                             <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
                             <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                            <option value="request_edit" {% if status_filter == 'request_edit' %}selected{% endif %}>Edit Request</option>
-                            <option value="request_cancel" {% if status_filter == 'request_cancel' %}selected{% endif %}>Cancel Request</option>
                             <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
                         </select>
                     </div>
@@ -101,7 +110,6 @@
                 </form>
 
             <div id="bookings-results" style="transition: opacity 0.2s;">
-            {% if page_obj %}
             <div class="table-container">
                 <table class="bookings-table">
                     <thead>
@@ -126,27 +134,36 @@
                                 <div class="action-buttons">
                                     <!-- Trigger Modal on Click -->
                                     <a href="javascript:void(0)" onclick="openBookingModal('{{ b.id }}')"
-                                        class="btn-view">View</a>
+                                        class="btn-view action-icon-btn"
+                                        aria-label="View Details"
+                                        data-tooltip="View Details">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </a>
                                     {% if b.status == 'pending' %}
                                     <a href="javascript:void(0)" onclick="openEditModal('{{ b.id }}')"
-                                        class="btn-edit">Edit</a>
+                                        class="btn-edit action-icon-btn action-icon-edit"
+                                        aria-label="Edit Booking"
+                                        data-tooltip="Edit Booking">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 20h9"></path>
+                                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                                        </svg>
+                                    </a>
                                     <a href="javascript:void(0)" onclick="openDeleteModal('{{ b.id }}')"
-                                        class="btn-delete">Delete</a>
-                                    {% elif b.status == 'pending_payment' %}
-                                    <a href="{% url 'my_payments' %}" class="btn-edit">Go to My Payments</a>
-                                    {% elif b.status == 'confirmed' and not b.edit_requested and not b.edit_allowed %}
-                                    {% elif b.edit_requested %}
-                                    <span class="status-text">Edit request pending (legacy)</span>
-                                    {% elif b.edit_allowed %}
-                                    {% elif b.status == 'cancel_requested' %}
-                                    <span class="status-text">Cancel request pending (legacy)</span>
-                                    {% elif b.status == 'completed' %}
-                                    {% if not b.has_reviewed %}
-                                    <a href="javascript:void(0)" onclick="openReviewModal('{{ b.id }}')"
-                                        class="btn-review">Leave Review</a>
-                                    {% else %}
-                                    <span class="reviewed-text">Reviewed</span>
-                                    {% endif %}
+                                        class="btn-delete action-icon-btn action-icon-delete"
+                                        aria-label="Delete Booking"
+                                        data-tooltip="Delete Booking">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 6h18"></path>
+                                            <path d="M8 6V4h8v2"></path>
+                                            <path d="M19 6l-1 14H6L5 6"></path>
+                                            <path d="M10 11v6"></path>
+                                            <path d="M14 11v6"></path>
+                                        </svg>
+                                    </a>
                                     {% endif %}
                                 </div>
 
@@ -201,6 +218,16 @@
                                 </div>
                             </td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="bookings-empty">
+                                {% if total_bookings == 0 and not search_query and status_filter == 'all' %}
+                                You don't have any bookings yet.
+                                {% else %}
+                                No bookings found matching your criteria.
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -215,16 +242,7 @@
                     {% else %}
                     <span class="pagination-btn disabled"><i class="fas fa-chevron-left"></i></span>
                     {% endif %}
-
-                    {% if page_obj.has_next %}
-                        <span class="pagination-btn active">{{ page_obj.number }}</span>
-                        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn">{{ page_obj.next_page_number }}</a>
-                    {% else %}
-                        {% if page_obj.has_previous %}
-                        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn">{{ page_obj.previous_page_number }}</a>
-                        {% endif %}
-                        <span class="pagination-btn active">{{ page_obj.number }}</span>
-                    {% endif %}
+                    <span class="pagination-current">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
 
                     {% if page_obj.has_next %}
                     <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if sort_date %}&sort_date={{ sort_date }}{% endif %}" class="pagination-btn"><i class="fas fa-chevron-right"></i></a>
@@ -233,14 +251,6 @@
                     {% endif %}
                 </div>
             </div>
-            {% endif %}
-
-            {% else %}
-            {% if total_bookings == 0 and not search_query and status_filter == 'all' %}
-            <p style="text-align: center; color: var(--dark-gray); padding: 2rem 0;">You don't have any bookings yet.</p>
-            {% else %}
-            <p style="text-align: center; color: var(--dark-gray); padding: 2rem 0;">No bookings found matching your criteria.</p>
-            {% endif %}
             {% endif %}
             </div>
         </div>
@@ -330,11 +340,15 @@
                 <div class="stepper-progress-line" id="editStepperLine"></div>
                 <div class="stepper-step-icon active" id="edit-step-1-indicator">
                     <div class="step-circle"></div>
-                    <div class="step-label">Step 1</div>
+                    <div class="step-label">Select Package</div>
                 </div>
                 <div class="stepper-step-icon" id="edit-step-2-indicator">
                     <div class="step-circle"></div>
-                    <div class="step-label">Step 2</div>
+                    <div class="step-label">Event Details</div>
+                </div>
+                <div class="stepper-step-icon" id="edit-step-3-indicator">
+                    <div class="step-circle"></div>
+                    <div class="step-label">Review & Confirm</div>
                 </div>
             </div>
             <button class="close-btn" onclick="closeEditModal()">&times;</button>
@@ -425,6 +439,7 @@
             <!-- STEP 2: BOOKING DETAILS -->
             <div class="stepper-step" id="edit-step-2" style="display: none;">
                 <h3>Event Details</h3>
+                <p class="step-desc">Great choice! Now fill in the details for your event.</p>
 
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -509,15 +524,30 @@
                         
                         <div id="removeImagesInputs"></div>
                     </div>
+                </div>
 
-                    <!-- Order Summary Section -->
+                <div class="modal-actions split-actions">
+                    <button type="button" class="booking-back-btn" id="btnPrevEditStep">Back</button>
+                    <button type="button" class="btn-submit" id="btnNextEditToSummary">Next Step</button>
+                </div>
+            </div>
+
+            <!-- STEP 3: REVIEW & CONFIRM -->
+            <div class="stepper-step" id="edit-step-3" style="display: none;">
+                <h3>Review & Confirm</h3>
+                <p class="step-desc">Review your selected package and event details before updating.</p>
+                <div class="booking-review-grid">
                     <div class="booking-summary-container">
-                        <h4 class="summary-title">Order Summary</h4>
+                        <h4 class="summary-title"><i class="fa-solid fa-clipboard-check"></i> Booking Details</h4>
+                        <div id="edit-booking-details-list" class="summary-items"></div>
+                    </div>
+
+                    <div class="booking-summary-container">
+                        <h4 class="summary-title"><i class="fa-solid fa-receipt"></i> Booking Summary</h4>
                         <div id="edit-booking-item-list" class="summary-items"></div>
 
                         <div class="summary-divider"></div>
 
-                        <!-- Service Charge Row -->
                         <div class="summary-row service-charge-summary" id="editServiceChargeRow" style="display: none;">
                             <div class="row-info">
                                 <span class="row-label">Service & Logistics Fee</span>
@@ -536,7 +566,7 @@
                 </div>
 
                 <div class="modal-actions split-actions">
-                    <button type="button" class="booking-back-btn" id="btnPrevEditStep">Back</button>
+                    <button type="button" class="booking-back-btn" id="btnPrevEditToDetails">Back</button>
                     <button type="submit" class="btn-submit">Update Booking</button>
                 </div>
             </div>
@@ -802,6 +832,7 @@
                 const firstInvalidField = validateEditBookingForm();
                 if (firstInvalidField) {
                     e.preventDefault();
+                    showEditStep(2);
                     if (firstInvalidField === 'event_type' && editEventTypeCustomSelect) {
                         const trigger = editEventTypeCustomSelect.querySelector('.custom-select-trigger');
                         if (trigger) trigger.focus();
@@ -1195,16 +1226,25 @@
 
     const editStep1Content = document.getElementById('edit-step-1');
     const editStep2Content = document.getElementById('edit-step-2');
+    const editStep3Content = document.getElementById('edit-step-3');
     const editStep1Indicator = document.getElementById('edit-step-1-indicator');
     const editStep2Indicator = document.getElementById('edit-step-2-indicator');
+    const editStep3Indicator = document.getElementById('edit-step-3-indicator');
     const editStepperLine = document.getElementById('editStepperLine');
     const btnNextEditStep = document.getElementById('btnNextEditStep');
     const btnPrevEditStep = document.getElementById('btnPrevEditStep');
+    const btnNextEditToSummary = document.getElementById('btnNextEditToSummary');
+    const btnPrevEditToDetails = document.getElementById('btnPrevEditToDetails');
     const editPackageInput = document.getElementById('edit_package_type_input');
     const editPriceInput = document.getElementById('edit_total_price_input');
     const editPriceDisplay = document.getElementById('edit_price_display');
     const editEventTypeSelect = document.getElementById('edit_event_type_select');
     const editEventTypeOther = document.getElementById('edit_event_type_other');
+    const editBookingDetailsList = document.getElementById('edit-booking-details-list');
+    const editBookingItemList = document.getElementById('edit-booking-item-list');
+    const editServiceChargeRow = document.getElementById('editServiceChargeRow');
+    const editServiceChargeDisplay = document.getElementById('edit_service_charge_display');
+    const editServiceChargeNoteText = document.getElementById('edit_service_charge_note_text');
 
     function formatEditPrice(val) {
         return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1234,6 +1274,145 @@
         }
         if (editSelectedAdditionalName) parts.push(editSelectedAdditionalName);
         return parts.join(' + ');
+    }
+
+    function getSelectedEditEventTypeDisplay() {
+        if (editEventTypeSelect && editEventTypeSelect.value === 'Other') {
+            return editEventTypeOther?.value?.trim() || 'Other';
+        }
+        return editEventTypeSelect?.value || '-';
+    }
+
+    function formatTimeWithMeridiem(timeValue) {
+        if (!timeValue || !timeValue.includes(':')) return '-';
+        const [hourStr, minuteStr] = timeValue.split(':');
+        const hour = parseInt(hourStr, 10);
+        if (Number.isNaN(hour)) return timeValue;
+        const minute = minuteStr || '00';
+        const suffix = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = ((hour + 11) % 12) + 1;
+        return `${hour12}:${minute} ${suffix}`;
+    }
+
+    function showEditStep(stepNumber) {
+        if (editStep1Content) editStep1Content.style.display = stepNumber === 1 ? 'block' : 'none';
+        if (editStep2Content) editStep2Content.style.display = stepNumber === 2 ? 'block' : 'none';
+        if (editStep3Content) editStep3Content.style.display = stepNumber === 3 ? 'block' : 'none';
+
+        if (editStep1Indicator) editStep1Indicator.classList.remove('active', 'completed');
+        if (editStep2Indicator) editStep2Indicator.classList.remove('active', 'completed');
+        if (editStep3Indicator) editStep3Indicator.classList.remove('active', 'completed');
+
+        if (stepNumber === 1) {
+            if (editStep1Indicator) editStep1Indicator.classList.add('active');
+            if (editStepperLine) editStepperLine.style.width = '0%';
+        } else if (stepNumber === 2) {
+            if (editStep1Indicator) editStep1Indicator.classList.add('completed');
+            if (editStep2Indicator) editStep2Indicator.classList.add('active');
+            if (editStepperLine) editStepperLine.style.width = '50%';
+        } else {
+            if (editStep1Indicator) editStep1Indicator.classList.add('completed');
+            if (editStep2Indicator) editStep2Indicator.classList.add('completed');
+            if (editStep3Indicator) editStep3Indicator.classList.add('active');
+            if (editStepperLine) editStepperLine.style.width = '100%';
+        }
+
+        const editModalBox = document.querySelector('#editBookingModal .booking-modal-box');
+        if (editModalBox) editModalBox.scrollTop = 0;
+    }
+
+    function populateEditSummary() {
+        if (editBookingItemList) {
+            editBookingItemList.innerHTML = '';
+
+            if (editSoloModeAddon) {
+                editBookingItemList.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${editSoloModeAddon} (Solo)</span>
+                        </div>
+                        <span class="row-value">${formatEditPrice(editSoloModePrice)}</span>
+                    </div>`;
+            } else if (editSelectedPackageName) {
+                editBookingItemList.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${editSelectedPackageName}</span>
+                        </div>
+                        <span class="row-value">${formatEditPrice(editSelectedPackagePrice)}</span>
+                    </div>`;
+            }
+
+            if (!editSoloModeAddon && editSelectedAddonName) {
+                editBookingItemList.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${editSelectedAddonName} (Add-on)</span>
+                        </div>
+                        <span class="row-value">${formatEditPrice(editSelectedAddonPrice)}</span>
+                    </div>`;
+            }
+
+            if (editSelectedAdditionalName) {
+                editBookingItemList.innerHTML += `
+                    <div class="summary-row">
+                        <div class="row-info">
+                            <span class="row-label">${editSelectedAdditionalName} (Additional)</span>
+                        </div>
+                        <span class="row-value">${formatEditPrice(editSelectedAdditionalPrice)}</span>
+                    </div>`;
+            }
+        }
+
+        const hasBaseSelection = editSelectedPackageName !== null || editSoloModeAddon !== null;
+        if (hasBaseSelection && editSelectedServiceCharge > 0) {
+            if (editServiceChargeDisplay) editServiceChargeDisplay.textContent = formatEditPrice(editSelectedServiceCharge);
+            if (editServiceChargeNoteText) editServiceChargeNoteText.textContent = globalServiceChargeNote;
+            if (editServiceChargeRow) editServiceChargeRow.style.display = 'flex';
+        } else {
+            if (editServiceChargeRow) editServiceChargeRow.style.display = 'none';
+        }
+
+        const total = calculateEditTotalPrice();
+        if (editPriceDisplay) editPriceDisplay.textContent = formatEditPrice(total);
+        editPriceInput.value = total.toFixed(2);
+
+        if (editBookingDetailsList) {
+            const eventDateVal = document.getElementById('edit_event_date')?.value || '-';
+            const startTimeVal = document.getElementById('edit_start_time')?.value || '';
+            const endTimeVal = document.getElementById('edit_end_time')?.value || '';
+            const locationVal = document.getElementById('edit_event_location')?.value || '-';
+            const specialRequestsVal = document.getElementById('edit_special_requests')?.value?.trim() || '';
+            const startDisplay = formatTimeWithMeridiem(startTimeVal);
+            const endDisplay = formatTimeWithMeridiem(endTimeVal);
+            const timeRange = (startDisplay === '-' || endDisplay === '-') ? '-' : `${startDisplay} - ${endDisplay}`;
+            const specialRequestsRow = specialRequestsVal
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsVal}</span></div>`
+                : '';
+
+            editBookingDetailsList.innerHTML = `
+                <div class="summary-row">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-box-open"></i> Package / Items</span></div>
+                    <span class="row-value">${buildEditPackageTypeString() || '-'}</span>
+                </div>
+                <div class="summary-row">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-list-ul"></i> Event Type</span></div>
+                    <span class="row-value">${getSelectedEditEventTypeDisplay()}</span>
+                </div>
+                <div class="summary-row">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-calendar-days"></i> Event Date</span></div>
+                    <span class="row-value">${eventDateVal}</span>
+                </div>
+                <div class="summary-row">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-clock"></i> Event Duration</span></div>
+                    <span class="row-value">${timeRange}</span>
+                </div>
+                <div class="summary-row">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-location-dot"></i> Location</span></div>
+                    <span class="row-value">${locationVal || '-'}</span>
+                </div>
+                ${specialRequestsRow}`;
+        }
     }
 
     function updateEditUIStates() {
@@ -1395,107 +1574,53 @@
             const total = calculateEditTotalPrice();
             editPriceInput.value = total.toFixed(2);
 
-            const itemListContainer = document.getElementById('edit-booking-item-list');
-            if (itemListContainer) {
-                itemListContainer.innerHTML = '';
-
-                if (editSoloModeAddon) {
-                    itemListContainer.innerHTML += `
-                        <div class="summary-row">
-                            <div class="row-info">
-                                <span class="row-label">${editSoloModeAddon} (Solo)</span>
-                            </div>
-                            <span class="row-value">${formatEditPrice(editSoloModePrice)}</span>
-                        </div>`;
-                } else if (editSelectedPackageName) {
-                    itemListContainer.innerHTML += `
-                        <div class="summary-row">
-                            <div class="row-info">
-                                <span class="row-label">${editSelectedPackageName}</span>
-                            </div>
-                            <span class="row-value">${formatEditPrice(editSelectedPackagePrice)}</span>
-                        </div>`;
-                }
-
-                if (!editSoloModeAddon && editSelectedAddonName) {
-                    itemListContainer.innerHTML += `
-                        <div class="summary-row">
-                            <div class="row-info">
-                                <span class="row-label">${editSelectedAddonName} (Add-on)</span>
-                            </div>
-                            <span class="row-value">${formatEditPrice(editSelectedAddonPrice)}</span>
-                        </div>`;
-                }
-
-                if (editSelectedAdditionalName) {
-                    itemListContainer.innerHTML += `
-                        <div class="summary-row">
-                            <div class="row-info">
-                                <span class="row-label">${editSelectedAdditionalName} (Additional)</span>
-                            </div>
-                            <span class="row-value">${formatEditPrice(editSelectedAdditionalPrice)}</span>
-                        </div>`;
-                }
-
-                const svcRow = document.getElementById('editServiceChargeRow');
-                const svcDisplay = document.getElementById('edit_service_charge_display');
-                const svcNote = document.getElementById('edit_service_charge_note_text');
-                const hasBaseSelection = editSelectedPackageName !== null || editSoloModeAddon !== null;
-                if (hasBaseSelection && editSelectedServiceCharge > 0) {
-                    if (svcDisplay) svcDisplay.textContent = formatEditPrice(editSelectedServiceCharge);
-                    if (svcNote) svcNote.textContent = globalServiceChargeNote;
-                    if (svcRow) svcRow.style.display = 'flex';
-                } else {
-                    if (svcRow) svcRow.style.display = 'none';
-                }
-            }
-
-            if (editStep1Content && editStep2Content) {
-                editStep1Content.style.display = 'none';
-                editStep2Content.style.display = 'block';
-
-                if (editStep1Indicator) {
-                    editStep1Indicator.classList.remove('active');
-                    editStep1Indicator.classList.add('completed');
-                }
-                if (editStep2Indicator) editStep2Indicator.classList.add('active');
-                if (editStepperLine) editStepperLine.style.width = '100%';
-
-                document.querySelector('#editBookingModal .booking-modal-box').scrollTop = 0;
-            }
+            showEditStep(2);
         });
     }
 
     if (btnPrevEditStep) {
         btnPrevEditStep.addEventListener('click', function () {
-            if (editStep1Content && editStep2Content) {
-                editStep2Content.style.display = 'none';
-                editStep1Content.style.display = 'block';
+            showEditStep(1);
+        });
+    }
 
-                if (editStep2Indicator) editStep2Indicator.classList.remove('active');
-                if (editStep1Indicator) {
-                    editStep1Indicator.classList.add('active');
-                    editStep1Indicator.classList.remove('completed');
+    if (btnNextEditToSummary) {
+        btnNextEditToSummary.addEventListener('click', function () {
+            editBookingSubmitAttempted = true;
+            const firstInvalidField = validateEditBookingForm();
+            if (firstInvalidField) {
+                if (firstInvalidField === 'event_type' && editEventTypeCustomSelect) {
+                    const trigger = editEventTypeCustomSelect.querySelector('.custom-select-trigger');
+                    if (trigger) trigger.focus();
+                } else if (firstInvalidField === 'event_type_other' && editEventTypeOtherEl) {
+                    editEventTypeOtherEl.focus();
+                } else if (firstInvalidField === 'event_date' && editEventDateEl) {
+                    editEventDateEl.focus();
+                } else if (firstInvalidField === 'start_time' && editStartTimeEl) {
+                    editStartTimeEl.focus();
+                } else if (firstInvalidField === 'end_time' && editEndTimeEl) {
+                    editEndTimeEl.focus();
+                } else if (firstInvalidField === 'event_location' && editEventLocationEl) {
+                    editEventLocationEl.focus();
                 }
-                if (editStepperLine) editStepperLine.style.width = '0%';
-
-                document.querySelector('#editBookingModal .booking-modal-box').scrollTop = 0;
+                return;
             }
+
+            editPackageInput.value = buildEditPackageTypeString();
+            editPriceInput.value = calculateEditTotalPrice().toFixed(2);
+            populateEditSummary();
+            showEditStep(3);
+        });
+    }
+
+    if (btnPrevEditToDetails) {
+        btnPrevEditToDetails.addEventListener('click', function () {
+            showEditStep(2);
         });
     }
 
     function resetEditModalSteps() {
-        if (editStep1Content && editStep2Content) {
-            editStep1Content.style.display = 'block';
-            editStep2Content.style.display = 'none';
-        }
-
-        if (editStep1Indicator) {
-            editStep1Indicator.classList.add('active');
-            editStep1Indicator.classList.remove('completed');
-        }
-        if (editStep2Indicator) editStep2Indicator.classList.remove('active');
-        if (editStepperLine) editStepperLine.style.width = '0%';
+        showEditStep(1);
         
         editSelectedPackageName = null;
         editSelectedPackagePrice = 0;
@@ -1506,6 +1631,10 @@
         editSoloModePrice = 0;
         editSelectedAdditionalName = null;
         editSelectedAdditionalPrice = 0;
+        if (editBookingDetailsList) editBookingDetailsList.innerHTML = '';
+        if (editBookingItemList) editBookingItemList.innerHTML = '';
+        if (editServiceChargeRow) editServiceChargeRow.style.display = 'none';
+        if (editPriceDisplay) editPriceDisplay.textContent = 'â‚±0.00';
     }
 
     function openEditModal(id) {
@@ -2087,3 +2216,4 @@
 </script>
 
 {% endblock %}
+

@@ -6026,7 +6026,9 @@ def admin_analytics_export_pdf(request):
         pass
         
     context['timezone'] = timezone
-    
+    from django.conf import settings
+    context['STATIC_ROOT'] = settings.STATIC_ROOT or settings.BASE_DIR / 'static'
+
     template = get_template("admin/analytics_pdf_template.html")
     html = template.render(context, request)
 

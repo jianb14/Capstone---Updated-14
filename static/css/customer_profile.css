@@ -483,14 +483,14 @@ td {
 
 /* View Button (First) */
 .action-buttons a.btn-view {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+    background: transparent;
     border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .action-buttons a.btn-view:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
 }
 
 /* Edit Button (Second) */
@@ -535,6 +535,10 @@ td {
 
 /* Colors */
 .status-badge.pending {
+    color: #d97706;
+}
+
+.status-badge.pending_payment {
     color: #d97706;
 }
 
@@ -1830,6 +1834,88 @@ td {
     margin-bottom: 0;
 }
 
+#edit-step-3 .booking-review-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+#edit-step-3 .booking-summary-container {
+    margin-top: 0;
+    padding: 1rem 1rem 1.1rem;
+    background: #0a0a0a;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+}
+
+#edit-step-3 .summary-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.9rem 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+#edit-step-3 .summary-title i {
+    color: #6b7280;
+    width: 14px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+#edit-step-3 .summary-row {
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+#edit-step-3 .summary-row:last-child {
+    border-bottom: none;
+}
+
+#edit-step-3 #edit-booking-details-list .row-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #8b93a0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+#edit-step-3 #edit-booking-details-list .row-label i {
+    color: #8a8a8a;
+    width: 14px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+#edit-step-3 #edit-booking-details-list .row-value {
+    color: #f3f4f6;
+    font-size: 1.03rem;
+    font-weight: 700;
+}
+
+#edit-step-3 .total-row {
+    margin-top: 0.9rem;
+    padding: 0.9rem 0.75rem 0.75rem;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 900px) {
+    #edit-step-3 .booking-review-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .modal-actions {
     margin-top: 1.5rem;
     display: flex;
@@ -2152,3 +2238,443 @@ td {
     background: #2f2f2f !important;
 }
 
+/* =======================================================
+   Payment-Inspired Booking Profile Layout
+   ======================================================= */
+.profile-page {
+    padding: 90px 16px 40px;
+    background-image: none;
+    min-height: 100vh;
+}
+
+.profile-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.profile-title {
+    margin: 0;
+    font-size: 2rem;
+    color: #fff;
+    font-weight: 700;
+}
+
+.profile-subtitle {
+    margin: 5px 0 14px;
+    color: #a3a3a3;
+    font-size: 1rem;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.stat-card {
+    border: 1px solid #2b2b2b;
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: #111;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.stat-icon-total {
+    background: rgba(147, 197, 253, 0.15);
+    color: #93c5fd;
+}
+
+.stat-icon-confirmed {
+    background: rgba(59, 130, 246, 0.16);
+    color: #60a5fa;
+}
+
+.stat-icon-pending {
+    background: rgba(251, 191, 36, 0.14);
+    color: #fbbf24;
+}
+
+.stat-icon-complete {
+    background: rgba(16, 185, 129, 0.16);
+    color: #10b981;
+}
+
+.stat-card .stat-label {
+    margin: 0;
+    display: block;
+    color: #a3a3a3;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.stat-card .stat-value {
+    display: block;
+    margin-top: 2px;
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 700;
+}
+
+.bookings-section {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+
+.bookings-header {
+    margin-bottom: 10px;
+}
+
+.bookings-header h3 {
+    margin: 0;
+    font-size: 2rem;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.filter-form {
+    justify-content: right;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.filter-input,
+.custom-filter-dropdown .dropdown-trigger {
+    height: 40px;
+    border-radius: 10px;
+    border-color: #2b2b2b;
+    background: #101010;
+}
+
+.filter-input {
+    min-width: 260px;
+}
+
+.custom-filter-dropdown .dropdown-options {
+    border-color: #2b2b2b;
+    border-radius: 10px;
+}
+
+.table-container {
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    overflow-x: auto;
+}
+
+.bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 780px;
+}
+
+.bookings-table thead {
+    background: #141414;
+}
+
+.bookings-table th {
+    padding: 0.75rem 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.bookings-table td {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #ccc;
+    border-bottom: 1px solid #171717;
+}
+
+.bookings-table .bookings-empty {
+    text-align: center;
+    color: #9ca3af;
+    padding: 2.2rem 1rem;
+    font-size: 0.95rem;
+}
+
+.bookings-table tbody tr {
+    border-bottom: 1px solid #171717;
+}
+
+.bookings-table tbody tr:hover {
+    background: transparent;
+}
+
+.action-buttons .btn-view.action-icon-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+    flex-shrink: 0;
+}
+
+.action-buttons .btn-view.action-icon-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.action-buttons .btn-edit.action-icon-btn,
+.action-buttons .btn-delete.action-icon-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+    flex-shrink: 0;
+}
+
+.action-buttons .btn-edit.action-icon-btn svg,
+.action-buttons .btn-delete.action-icon-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.action-buttons .btn-edit.action-icon-btn {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.action-buttons .btn-edit.action-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.action-buttons .btn-delete.action-icon-btn {
+    background: transparent;
+    border-color: rgba(239, 68, 68, 0.55);
+    color: rgba(239, 68, 68, 0.8);
+}
+
+.action-buttons .btn-delete.action-icon-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.action-buttons .btn-view.action-icon-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%) translateY(-4px);
+    background: #111;
+    border: 1px solid #2f2f2f;
+    color: #e5e7eb;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    padding: 0.34rem 0.56rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    z-index: 20;
+}
+
+.action-buttons .btn-view.action-icon-btn::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 3px);
+    transform: translateX(-50%) translateY(-4px) rotate(225deg);
+    width: 8px;
+    height: 8px;
+    background: #111;
+    border-left: 1px solid #2f2f2f;
+    border-top: 1px solid #2f2f2f;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    z-index: 19;
+}
+
+.action-buttons .btn-edit.action-icon-btn::after,
+.action-buttons .btn-delete.action-icon-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%) translateY(-4px);
+    background: #111;
+    border: 1px solid #2f2f2f;
+    color: #e5e7eb;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    padding: 0.34rem 0.56rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    z-index: 20;
+}
+
+.action-buttons .btn-edit.action-icon-btn::before,
+.action-buttons .btn-delete.action-icon-btn::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 3px);
+    transform: translateX(-50%) translateY(-4px) rotate(225deg);
+    width: 8px;
+    height: 8px;
+    background: #111;
+    border-left: 1px solid #2f2f2f;
+    border-top: 1px solid #2f2f2f;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    z-index: 19;
+}
+
+.action-buttons .btn-view.action-icon-btn:hover::after,
+.action-buttons .btn-view.action-icon-btn:hover::before,
+.action-buttons .btn-view.action-icon-btn:focus-visible::after,
+.action-buttons .btn-view.action-icon-btn:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.action-buttons .btn-view.action-icon-btn:hover::before,
+.action-buttons .btn-view.action-icon-btn:focus-visible::before {
+    transform: translateX(-50%) translateY(0) rotate(225deg);
+}
+
+.action-buttons .btn-edit.action-icon-btn:hover::after,
+.action-buttons .btn-edit.action-icon-btn:hover::before,
+.action-buttons .btn-edit.action-icon-btn:focus-visible::after,
+.action-buttons .btn-edit.action-icon-btn:focus-visible::before,
+.action-buttons .btn-delete.action-icon-btn:hover::after,
+.action-buttons .btn-delete.action-icon-btn:hover::before,
+.action-buttons .btn-delete.action-icon-btn:focus-visible::after,
+.action-buttons .btn-delete.action-icon-btn:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.action-buttons .btn-edit.action-icon-btn:hover::before,
+.action-buttons .btn-edit.action-icon-btn:focus-visible::before,
+.action-buttons .btn-delete.action-icon-btn:hover::before,
+.action-buttons .btn-delete.action-icon-btn:focus-visible::before {
+    transform: translateX(-50%) translateY(0) rotate(225deg);
+}
+
+.pagination-container {
+    margin-top: 1.5rem;
+}
+
+.pagination {
+    justify-content: flex-end;
+    margin-top: 0;
+}
+
+.pagination-btn {
+    width: 35px;
+    min-width: 35px;
+    height: 35px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.pagination-btn:hover:not(.disabled) {
+    background: #2a2a2a;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pagination-btn.active {
+    width: auto;
+    min-width: 35px;
+    padding: 0 12px;
+    background: #fff;
+    border-color: #fff;
+    color: #111;
+    font-weight: 600;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    border-color: #2a2a2a;
+    background: #141414;
+}
+
+.pagination-current {
+    font-size: 0.9rem;
+    color: #888;
+    padding: 0 0.5rem;
+}
+
+@media (max-width: 1024px) {
+    .stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-title {
+        font-size: 2rem;
+    }
+
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-input {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .custom-filter-dropdown {
+        width: 100%;
+    }
+
+    .custom-filter-dropdown .dropdown-trigger {
+        width: 100%;
+    }
+
+    .pagination {
+        justify-content: center;
+    }
+}

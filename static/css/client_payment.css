@@ -242,6 +242,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .cp-tab-btn:hover {
@@ -591,7 +592,7 @@
     font-size: 0.875rem;
     color: #ccc;
     border-bottom: 1px solid #171717;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .cp-empty {
@@ -610,27 +611,25 @@
     border: 1px solid;
     text-decoration: none;
     transition: all 0.2s ease;
-    background: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.12);
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .cp-btn-row:hover {
-    background: rgba(255, 255, 255, 0.12);
-}
-
-.cp-btn-download {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
     color: #fff;
 }
 
+.cp-btn-download {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+}
+
 .cp-btn-download:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
 }
 
 .cp-btn-download svg {
@@ -638,30 +637,97 @@
     height: 14px;
 }
 
+.cp-btn-download.cp-btn-view-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
 .cp-btn-view {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #e5e7eb;
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .cp-btn-view:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
 }
 
 .cp-btn-view svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
+}
+
+.cp-btn-view-icon {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+    flex-shrink: 0;
+}
+
+.cp-btn-view-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%) translateY(-4px);
+    background: #111;
+    border: 1px solid #2f2f2f;
+    color: #e5e7eb;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-family: Montserrat, sans-serif;
+    padding: 0.34rem 0.56rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-align: center;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    z-index: 20;
+}
+
+.cp-btn-view-icon::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 3px);
+    transform: translateX(-50%) translateY(-4px) rotate(225deg);
+    width: 8px;
+    height: 8px;
+    background: #111;
+    border-left: 1px solid #2f2f2f;
+    border-top: 1px solid #2f2f2f;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    z-index: 19;
+}
+
+.cp-btn-view-icon:hover::after,
+.cp-btn-view-icon:hover::before,
+.cp-btn-view-icon:focus-visible::after,
+.cp-btn-view-icon:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.cp-btn-view-icon:hover::before,
+.cp-btn-view-icon:focus-visible::before {
+    transform: translateX(-50%) translateY(0) rotate(225deg);
 }
 
 /* Status badges - matching admin style */
 .cp-status-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.25rem 0.5rem;
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 500;

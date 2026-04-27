@@ -597,9 +597,17 @@
 .form-group label {
     font-weight: 600;
     margin-bottom: 0.3rem;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: #999;
-    text-transform: uppercase;
+}
+
+.input-required{
+    color: #ef4444;
+}
+
+.form-group label i {
+    color: #8a8a8a;
+    font-size: 0.78rem;
 }
 
 
@@ -805,7 +813,8 @@
 
 .stepper-wrapper {
     position: relative;
-    width: 60%;
+    width: 78%;
+    max-width: 620px;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -815,9 +824,9 @@
 .stepper-wrapper::before {
     content: '';
     position: absolute;
-    top: 22px;
-    left: 10%;
-    right: 10%;
+    top: 18px;
+    left: 0;
+    right: 0;
     height: 3px;
     background: #444;
     z-index: 1;
@@ -825,12 +834,11 @@
 
 .stepper-progress-line {
     position: absolute;
-    top: 22px;
-    left: 10%;
+    top: 18px;
+    left: 0;
     width: 0%;
-    max-width: 80%;
     height: 3px;
-    background: #0d6efd;
+    background: #22c55e !important;
     z-index: 2;
     transition: width 0.4s ease;
 }
@@ -844,8 +852,8 @@
 }
 
 .step-circle {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: #444;
     display: flex;
@@ -858,14 +866,27 @@
 
 .step-label {
     position: absolute;
-    top: 55px;
+    top: 44px;
     /* position text below circle */
-    font-size: 0.85rem;
+    font-size: 0.68rem;
     color: #888;
     white-space: nowrap;
     font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+@media (max-width: 600px) {
+    .stepper-wrapper {
+        width: 92%;
+    }
+
+    .step-label {
+        font-size: 0.58rem;
+        width: 74px;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.2;
+    }
 }
 
 /* --- STATE: ACTIVE --- */
@@ -889,7 +910,7 @@
 
 /* --- STATE: COMPLETED --- */
 .stepper-step-icon.completed .step-circle {
-    background: #0d6efd;
+    background: #22c55e !important;
     border-color: #111;
 }
 
@@ -905,7 +926,61 @@
 }
 
 .stepper-step-icon.completed .step-label {
-    color: #0d6efd;
+    color: #22c55e !important;
+}
+
+#booking-details-list .summary-row {
+    display: grid;
+    grid-template-columns: minmax(130px, 220px) 1fr;
+    align-items: start;
+    gap: 0.8rem;
+}
+
+#booking-details-list .row-info {
+    padding-right: 0;
+}
+
+#booking-details-list .row-value {
+    text-align: left;
+    white-space: normal;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+#step-3 #referencePicturesRow {
+    grid-template-columns: 1fr !important;
+    gap: 0.45rem;
+}
+
+#step-3 #referencePicturesRow .row-info {
+    padding-right: 0;
+}
+
+#step-3 #referencePicturesRow .row-value {
+    justify-self: start;
+}
+
+.booking-summary-image-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.booking-details-images {
+    display: grid;
+    grid-template-columns: repeat(4, 78px);
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.booking-summary-thumb {
+    width: 78px;
+    height: 78px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #333;
 }
 
 .stepper-step {
@@ -923,6 +998,12 @@
     color: #aaa;
     font-size: 0.9rem;
     margin-bottom: 1.8rem;
+}
+
+#step-3 .step-desc {
+    color: #9ca3af;
+    margin-bottom: 1rem;
+    max-width: 64ch;
 }
 
 /* ======================== */
@@ -1147,17 +1228,52 @@
     margin-top: 1.5rem;
     padding: 1.5rem;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid #333;
+    border: 1px dashed #333;
     border-radius: 8px;
+}
+
+#step-3 .booking-review-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+#step-3 .booking-summary-container {
+    margin-top: 0;
+    padding: 1rem 1rem 1.1rem;
+    background: #0a0a0a;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
 }
 
 .summary-title {
     font-size: 1.1rem;
     font-weight: 800;
     color: var(--white);
-    text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.5rem 0;
+}
+
+#step-3 .summary-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.9rem 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+#step-3 .summary-title i {
+    color: #6b7280;
+    width: 14px;
+    text-align: center;
+    font-size: 0.85rem;
 }
 
 .summary-divider {
@@ -1181,6 +1297,14 @@
     padding: 0.4rem 0;
 }
 
+#step-3 .summary-row {
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+#step-3 .summary-row:last-child {
+    border-bottom: none;
+}
+
 .row-info {
     display: flex;
     flex-direction: column;
@@ -1191,14 +1315,41 @@
 }
 
 .row-label {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: #ccc;
     font-weight: 500;
 }
 
+#booking-details-list .row-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+#booking-details-list .row-label i {
+    color: #8a8a8a;
+    width: 14px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+#step-3 #booking-details-list .row-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #8b93a0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+#step-3 #booking-details-list .row-value {
+    color: #f3f4f6;
+    font-size: 1.03rem;
+    font-weight: 700;
+}
+
 .row-value {
-    font-size: 1rem;
-    color: var(--white);
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
     font-weight: 700;
     text-align: right;
     white-space: nowrap;
@@ -1209,6 +1360,14 @@
     margin-top: 0.8rem;
     padding-top: 0.8rem;
     border-top: 1px solid #444;
+}
+
+#step-3 .total-row {
+    margin-top: 0.9rem;
+    padding: 0.9rem 0.75rem 0.75rem;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .total-row .row-label {
@@ -1233,6 +1392,12 @@
 
 .service-charge-summary {
     margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    #step-3 .booking-review-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 

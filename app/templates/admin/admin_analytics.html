@@ -2,270 +2,425 @@
 {% load static humanize %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_analytics.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_analytics.css' %}?v=12">
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Report Analytics</h1>
-    <div class="breadcrumb">
-        <span>Admin</span>
-        <span class="separator">/</span>
-        <span>Reports</span>
-    </div>
-</div>
-
-<div class="analytics-container">
-    <!-- Filter Bar -->
-    <form method="GET" class="filter-bar">
-        <div class="quick-filters">
-            <a href="?filter_preset=today&event_type={{ selected_event_type }}" class="btn-quick {% if filter_preset == 'today' %}active{% endif %}">Today</a>
-            <a href="?filter_preset=weekly&event_type={{ selected_event_type }}" class="btn-quick {% if filter_preset == 'weekly' %}active{% endif %}">Weekly</a>
-            <a href="?filter_preset=monthly&event_type={{ selected_event_type }}" class="btn-quick {% if filter_preset == 'monthly' %}active{% endif %}">Monthly</a>
-            <a href="?filter_preset=all_time&event_type={{ selected_event_type }}" class="btn-quick {% if filter_preset == 'all_time' %}active{% endif %}">All Time</a>
+<div class="analytics-wrap">
+    <!-- Header -->
+    <div class="analytics-head">
+        <div>
+            <h1>Report Analytics</h1>
+            <p class="analytics-sub">Detailed reports on bookings, revenue, and customer insights.</p>
         </div>
-        <div class="filter-group">
-            <label>From Date</label>
-            <input type="date" name="start_date" value="{{ start_date }}">
-        </div>
-        <div class="filter-group">
-            <label>To Date</label>
-            <input type="date" name="end_date" value="{{ end_date }}">
-        </div>
-        <div class="filter-group">
-            <label>Event Type</label>
-            <select name="event_type">
-                <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
-                {% for event in event_type_options %}
-                <option value="{{ event }}" {% if selected_event_type == event %}selected{% endif %}>{{ event }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="btn-apply">Apply Filters</button>
-        <div class="section-actions" style="margin-left: auto;">
-            <a href="{% url 'admin_analytics_export_pdf' %}?start_date={{ start_date }}&end_date={{ end_date }}&event_type={{ selected_event_type }}" class="btn-export btn-pdf">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <div class="export-row">
+            <a href="{% url 'admin_analytics_export_pdf' %}?start_date={{ start_date }}&end_date={{ end_date }}&event_type={{ selected_event_type }}" class="export-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 Export PDF
             </a>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <form method="GET" class="dash-filter-row">
+        <input type="hidden" id="event_type_filter" name="event_type" value="{{ selected_event_type }}">
+        <div class="filter-fields">
+            <div class="filter-group">
+                <label for="start_date">From</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="end_date">To</label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="event_type_select">Event Type</label>
+                <select id="event_type_select" name="event_type">
+                    <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
+                    {% for event in event_type_options %}
+                    <option value="{{ event }}" {% if selected_event_type == event %}selected{% endif %}>{{ event }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn-apply">Apply</button>
+                <a href="{% url 'admin_analytics' %}" class="btn-reset">Reset</a>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button type="button" class="btn-preset" data-preset="today">Today</button>
+            <button type="button" class="btn-preset" data-preset="7days">7 Days</button>
+            <button type="button" class="btn-preset" data-preset="month">This Month</button>
+            <button type="button" class="btn-preset" data-preset="all">All Time</button>
         </div>
     </form>
 
     <!-- Summary Cards -->
-    <div class="report-summary">
-        <div class="summary-card">
-            <div class="card-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H3M16 2v4M8 2v4M7.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C21 19.72 21 18.88 21 17.2V8.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C18.72 4 17.88 4 16.2 4H7.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C3 6.28 3 7.12 3 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C5.28 22 6.12 22 7.8 22z"></path></svg>
+    <div class="data-modules">
+        <div class="data-mod">
+            <div class="mod-row">
+                <div class="mod-info">
+                    <span class="mod-label">TOTAL BOOKINGS</span>
+                    <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
+                </div>
+                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
             </div>
-            <span class="card-label">Total Bookings</span>
-            <span class="card-value">{{ total_bookings }}</span>
-            <div class="card-trend {% if period_delta >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                <span>{% if period_delta >= 0 %}+{% endif %}{{ period_delta_pct }}%</span>
-                <span>vs previous period</span>
-            </div>
-        </div>
-        <div class="summary-card">
-            <div class="card-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-            <span class="card-label">Total Revenue</span>
-            <span class="card-value">₱{{ total_revenue|floatformat:2|intcomma }}</span>
-            <div class="card-trend {% if revenue_delta >= 0 %}trend-up{% else %}trend-down{% endif %}">
-                <span>{% if revenue_delta >= 0 %}+{% endif %}{{ revenue_delta_pct }}%</span>
-                <span>vs previous period</span>
+            <div class="mod-footer">
+                <span class="{% if period_delta >= 0 %}pos{% else %}neg{% endif %}">
+                    {% if period_delta >= 0 %}+{% endif %}{{ period_delta_pct }}% vs previous period
+                </span>
             </div>
         </div>
-        <div class="summary-card">
-            <div class="card-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+
+        <div class="data-mod">
+            <div class="mod-row">
+                <div class="mod-info">
+                    <span class="mod-label">TOTAL REVENUE</span>
+                    <div class="mod-value" data-count="{{ total_revenue }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ total_revenue|floatformat:"-2"|intcomma }}</div>
+                </div>
+                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
             </div>
-            <span class="card-label">Completion Rate</span>
-            <span class="card-value">{{ completion_rate }}%</span>
-            <div class="card-trend">
-                <span>{{ completed_count }} completed</span>
+            <div class="mod-footer">
+                <span class="{% if revenue_delta >= 0 %}pos{% else %}neg{% endif %}">
+                    {% if revenue_delta >= 0 %}+{% endif %}{{ revenue_delta_pct }}% vs previous
+                </span>
             </div>
         </div>
-        <div class="summary-card">
-            <div class="card-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+
+        <div class="data-mod">
+            <div class="mod-row">
+                <div class="mod-info">
+                    <span class="mod-label">COMPLETION RATE</span>
+                    <div class="mod-value" data-count="{{ completion_rate }}">{{ completion_rate }}%</div>
+                </div>
+                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 4 12 14.01 9 11.01"></polyline><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path></svg></div>
             </div>
-            <span class="card-label">Avg. Booking Value</span>
-            <span class="card-value">₱{{ avg_booking_value|floatformat:2|intcomma }}</span>
-            <div class="card-trend">
-                <span>Per completed booking</span>
+            <div class="mod-footer">{{ completed_count }} completed bookings</div>
+        </div>
+
+        <div class="data-mod">
+            <div class="mod-row">
+                <div class="mod-info">
+                    <span class="mod-label">CANCELLATION RATE</span>
+                    <div class="mod-value" data-count="{{ cancellation_rate }}">{{ cancellation_rate }}%</div>
+                </div>
+                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
             </div>
+            <div class="mod-footer">{{ cancelled_count }} cancelled bookings</div>
+        </div>
+
+        <div class="data-mod">
+            <div class="mod-row">
+                <div class="mod-info">
+                    <span class="mod-label">AVG. BOOKING VALUE</span>
+                    <div class="mod-value" data-count="{{ avg_booking_value }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ avg_booking_value|floatformat:"-2"|intcomma }}</div>
+                </div>
+                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg></div>
+            </div>
+            <div class="mod-footer">Per completed booking</div>
+        </div>
+
+        <div class="data-mod">
+            <div class="mod-row">
+                <div class="mod-info">
+                    <span class="mod-label">ACTIVE CUSTOMERS</span>
+                    <div class="mod-value" data-count="{{ active_users }}">{{ active_users }}</div>
+                </div>
+                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+            </div>
+            <div class="mod-footer">Verified active accounts</div>
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="charts-grid">
-        <!-- Booking Trend -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 9l-5 5-2-2-4 4"></path></svg>
-                    {{ trend_title }}
-                </h3>
+    <!-- ═══ ROW 2 — Charts (like dashboard) ═══ -->
+    <div class="chart-row">
+        <!-- Booking Trend (big) -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>{{ trend_title }}</h2>
+                <span class="tag">Bookings & Revenue</span>
             </div>
-            <div class="chart-container">
+            <div class="chart-shell">
+                <div class="skeleton-shimmer" id="shimmer-trend"></div>
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
 
-        <!-- Status Distribution -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                    Booking Status Breakdown
-                </h3>
+        <!-- Status Distribution (small) -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Booking Status</h2>
+                <span class="tag">Summary<span class="tag-count">{{ total_bookings }}</span></span>
             </div>
-            <div class="chart-container">
+            <div class="chart-shell small" style="position: relative;">
+                <div class="skeleton-shimmer" id="shimmer-status"></div>
                 <canvas id="statusChart"></canvas>
             </div>
         </div>
+    </div>
 
+    <!-- ═══ ROW 3 — Busiest Days + Retention (like dashboard perf-row) ═══ -->
+    <div class="perf-row">
         <!-- Busiest Days -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    Busiest Days of Week
-                </h3>
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Busiest Days</h2>
+                <span class="tag">Weekly</span>
             </div>
-            <div class="chart-container">
+            <div class="chart-shell small">
+                <div class="skeleton-shimmer" id="shimmer-busiest"></div>
                 <canvas id="busiestDaysChart"></canvas>
             </div>
         </div>
 
         <!-- Customer Retention -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    Customer Retention
-                </h3>
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Customer Retention</h2>
+                <span class="tag">New vs Returning</span>
             </div>
-            <div class="chart-container">
+            <div class="chart-shell small">
+                <div class="skeleton-shimmer" id="shimmer-retention"></div>
                 <canvas id="retentionChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Revenue by Event Type -->
-    <div class="report-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                Revenue by Event Type
-            </h2>
+    <!-- ═══ STATUS BREAKDOWN + TOP PACKAGES ═══ -->
+    <div class="two-col-row">
+        <!-- Status Breakdown Table -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Status Breakdown</h2>
+                <span class="tag">Detailed</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Status</th><th>Count</th><th>Share</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in status_table %}
+                        <tr>
+                            <td><span class="dot" style="background-color:{{ row.color }};"></span>{{ row.label }}</td>
+                            <td>{{ row.count }}</td>
+                            <td>{{ row.share_pct }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="empty">No status data.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Event Type</th>
-                        <th>Total Revenue</th>
-                        <th>Share</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in revenue_by_event %}
-                    <tr>
-                        <td>{{ item.event_type }}</td>
-                        <td>₱{{ item.total|floatformat:2|intcomma }}</td>
-                        <td>
-                            {% widthratio item.total total_revenue 100 %}%
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="3" style="text-align: center; color: #888;">No revenue data for this period.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+        <!-- Top Packages -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Top Packages</h2>
+                <span class="tag">Popular</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Package Name</th>
+                            <th>Bookings</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in package_rows %}
+                        <tr>
+                            <td><span class="dot" style="background-color: var(--teal);"></span>{{ row.package_name }}</td>
+                            <td>{{ row.count }}</td>
+                            <td>&#8369;{{ row.revenue|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="empty">No package data.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Top Packages -->
-    <div class="report-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                Top Packages
-            </h2>
+    <!-- ═══ REVENUE INSIGHTS + CUSTOMER RETENTION ═══ -->
+    <div class="insights-row">
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Revenue Insights</h2>
+                <span class="tag">Top Performers</span>
+            </div>
+            <div class="insight-stack">
+                <div class="insight-card">
+                    <div class="insight-icon ic-revenue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                    <div class="insight-text">
+                        <div class="insight-label">Top Event (Revenue)</div>
+                        <div class="insight-val">{{ top_event_label }}</div>
+                    </div>
+                    <span class="insight-amount">&#8369;{{ top_event_revenue|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-icon ic-package"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div>
+                    <div class="insight-text">
+                        <div class="insight-label">Top Package</div>
+                        <div class="insight-val">{{ top_package_name }}</div>
+                        <div class="insight-sub">{{ top_package_count }} bookings</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Package Name</th>
-                        <th>Bookings</th>
-                        <th>Total Revenue</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in package_rows %}
-                    <tr>
-                        <td>{{ row.package_name }}</td>
-                        <td>{{ row.count }}</td>
-                        <td>₱{{ row.revenue|floatformat:2|intcomma }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="3" style="text-align: center; color: #888;">No package data for this period.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Customer Retention</h2>
+                <span class="tag">New vs Returning</span>
+            </div>
+            <div class="insight-stack">
+                <div class="insight-card">
+                    <div class="insight-icon ic-users"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
+                    <div class="insight-text">
+                        <div class="insight-label">New Customers</div>
+                        <div class="insight-val">{{ new_customers_count }} ({{ new_customers_pct }}%)</div>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-icon ic-users"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
+                    <div class="insight-text">
+                        <div class="insight-label">Returning Customers</div>
+                        <div class="insight-val">{{ returning_customers_count }} ({{ returning_customers_pct }}%)</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Top Customers -->
-    <div class="report-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                Top Customers
-            </h2>
+    <!-- ═══ REVENUE BY EVENT TYPE + TOP CUSTOMERS ═══ -->
+    <div class="two-col-row">
+        <!-- Revenue by Event Type -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Revenue by Event Type</h2>
+                <span class="tag">Breakdown</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Event Type</th>
+                            <th>Bookings</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in revenue_by_event %}
+                        <tr>
+                            <td><span class="dot" style="background-color: var(--blue);"></span>{{ item.event_type }}</td>
+                            <td>{{ item.count }}</td>
+                            <td>&#8369;{{ item.revenue|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="empty">No revenue data.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Customer</th>
-                        <th>Email</th>
-                        <th>Total Bookings</th>
-                        <th>Total Spent</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for customer in top_customers %}
-                    <tr>
-                        <td style="font-weight: 500; color: #fff;">{{ customer.user__username }}</td>
-                        <td>{{ customer.user__email }}</td>
-                        <td>{{ customer.bookings_count }}</td>
-                        <td>₱{{ customer.total_spent|floatformat:2|intcomma }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" style="text-align: center; color: #888;">No customer data for this period.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+        <!-- Top Customers -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Top Customers</h2>
+                <span class="tag">Top Spenders</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Bookings</th>
+                            <th>Total Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in top_customers %}
+                        <tr>
+                            <td><span class="dot" style="background-color: var(--green);"></span>{{ customer.name }}</td>
+                            <td>{{ customer.booking_count }}</td>
+                            <td>&#8369;{{ customer.total_spent|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="empty">No customer data.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ UPCOMING DEADLINES + RECENT ACTIVITY LOG ═══ -->
+    <div class="two-col-row">
+        <!-- Upcoming Deadlines -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Upcoming Deadlines</h2>
+                <span class="tag">Next 3 Days</span>
+            </div>
+            {% if upcoming_deadline_bookings %}
+            <div class="alert-stack">
+                {% for booking in upcoming_deadline_bookings %}
+                <div class="alert-card">
+                    <div class="alert-info">
+                        <strong>#{{ booking.id }} - {{ booking.user.username }}</strong>
+                        <p>{{ booking.event_type }} | {{ booking.event_date|date:"M d, Y" }}</p>
+                    </div>
+                    <span class="alert-chip {% if booking.days_left == 0 %}danger{% elif booking.days_left == 1 %}warn{% else %}muted{% endif %}">
+                        {% if booking.days_left == 0 %}Today{% else %}{{ booking.days_left }}d left{% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty">No urgent pending bookings in the next 3 days.</p>
+            {% endif %}
+        </div>
+
+        <!-- Recent Activity Log -->
+        <div class="glass-panel">
+            <div class="panel-head">
+                <h2>Recent Activity Log</h2>
+                <span class="tag">Audit Trail</span>
+            </div>
+            <ul class="feed-list">
+                {% for log in recent_audit_logs %}
+                <li class="feed-item">
+                    <div class="feed-avatar av-{{ log.action|slugify }}">{% if log.user %}{{ log.user.username|first }}{% else %}?{% endif %}</div>
+                    <div class="feed-text">
+                        <strong>{{ log.action }}</strong>
+                        <small>{% if log.user %}{{ log.user.username }}{% endif %}{% if log.description %} · {{ log.description }}{% endif %}</small>
+                    </div>
+                    <span class="feed-time">{{ log.created_at|timesince }} ago</span>
+                </li>
+                {% empty %}
+                <li class="feed-item"><span class="empty">No recent activity.</span></li>
+                {% endfor %}
+            </ul>
         </div>
     </div>
 
     <!-- Recent Bookings in Period -->
-    <div class="report-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Recent Bookings (Filtered Period)
-            </h2>
+    <div class="glass-panel full-width-panel">
+        <div class="panel-head">
+            <h2>Recent Bookings</h2>
+            <span class="tag">Filtered Period</span>
         </div>
-        <div class="table-responsive">
+        <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
@@ -283,21 +438,17 @@
                         <td>#{{ booking.id }}</td>
                         <td>{{ booking.user.username }}</td>
                         <td>{{ booking.event_type }}</td>
-                        <td>{{ booking.event_date }}</td>
-                        <td>₱{{ booking.total_price|floatformat:2|intcomma }}</td>
+                        <td>{{ booking.event_date|date:"M d, Y" }}</td>
+                        <td>&#8369;{{ booking.total_price|floatformat:2|intcomma }}</td>
                         <td>
-                            <span class="badge 
-                                {% if booking.status == 'completed' %}badge-success
-                                {% elif booking.status == 'pending' %}badge-warning
-                                {% elif booking.status == 'cancelled' %}badge-danger
-                                {% else %}badge-info{% endif %}">
+                            <span class="status-badge status-{{ booking.status }}">
                                 {{ booking.get_status_display }}
                             </span>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: #888;">No bookings found for this period.</td>
+                        <td colspan="6" class="empty">No bookings found for this period.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -310,120 +461,366 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Common Chart Options
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                labels: { color: '#888', font: { family: 'Montserrat' } }
-            }
-        },
-        scales: {
-            y: {
-                grid: { color: '#333' },
-                ticks: { color: '#888' }
-            },
-            x: {
-                grid: { display: false },
-                ticks: { color: '#888' }
-            }
-        }
+    const ttip = {
+        backgroundColor: 'rgba(8,8,8,0.94)',
+        borderColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        titleColor: '#eee',
+        bodyColor: '#999',
+        cornerRadius: 8,
+        padding: 10,
+        titleFont: { weight: '600', size: 11 },
+        bodyFont: { size: 10.5 }
     };
 
-    // Trend Chart
-    const trendCtx = document.getElementById('trendChart').getContext('2d');
-    new Chart(trendCtx, {
-        type: 'line',
-        data: {
-            labels: {{ dashboard_trend_labels|safe }},
-            datasets: [
-                {
-                    label: 'Bookings',
-                    data: {{ dashboard_bookings_trend|safe }},
-                    borderColor: '#4f46e5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'Revenue (₱)',
-                    data: {{ dashboard_revenue_trend|safe }},
-                    borderColor: '#10b981',
-                    backgroundColor: 'transparent',
-                    yAxisID: 'y1',
-                    tension: 0.4
-                }
-            ]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y1: {
-                    position: 'right',
-                    grid: { display: false },
-                    ticks: { 
-                        color: '#10b981',
-                        callback: value => '₱' + value.toLocaleString()
-                    }
-                }
+    function rmShim(id) {
+        const s = document.getElementById(id);
+        if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 600); }
+    }
+
+    /* Counter Animation */
+    function animateCounter(el) {
+        const raw = el.getAttribute('data-count');
+        if (!raw) return;
+        const target = parseFloat(raw.replace(/,/g, ''));
+        if (isNaN(target)) return;
+        const prefix = el.getAttribute('data-prefix') || '';
+        const decimalsMode = el.getAttribute('data-decimals') || '0';
+        const dec = parseInt(decimalsMode, 10);
+        const dur = 1200, start = performance.now();
+        function ease(t) { return 1 - Math.pow(1 - t, 3); }
+        function formatValue(v) {
+            if (decimalsMode === 'auto2') {
+                return prefix + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
             }
+            if (!isNaN(dec) && dec > 0) {
+                return prefix + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+            }
+            return prefix + Math.round(v).toLocaleString('en-US');
         }
+        function step(now) {
+            const p = Math.min((now - start) / dur, 1), v = target * ease(p);
+            el.textContent = formatValue(v);
+            if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    const kpis = document.querySelectorAll('.mod-value[data-count]');
+    if ('IntersectionObserver' in window) {
+        const obs = new IntersectionObserver(es => {
+            es.forEach(e => { if (e.isIntersecting) { animateCounter(e.target); obs.unobserve(e.target); } });
+        }, { threshold: 0.3 });
+        kpis.forEach(el => obs.observe(el));
+    } else { kpis.forEach(animateCounter); }
+
+    /* Quick Presets */
+    document.querySelectorAll('.btn-preset').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const preset = this.getAttribute('data-preset');
+            const startInput = document.getElementById('start_date');
+            const endInput = document.getElementById('end_date');
+            const today = new Date();
+            const formatDate = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+            endInput.value = formatDate(today);
+            if (preset === 'today') {
+                startInput.value = formatDate(today);
+            } else if (preset === '7days') {
+                const past = new Date(today);
+                past.setDate(today.getDate() - 6);
+                startInput.value = formatDate(past);
+            } else if (preset === 'month') {
+                const past = new Date(today.getFullYear(), today.getMonth(), 1);
+                startInput.value = formatDate(past);
+            } else if (preset === 'all') {
+                startInput.value = '2000-01-01';
+            }
+            this.closest('form').submit();
+        });
     });
 
-    // Status Chart
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: {{ dashboard_status_labels|safe }},
-            datasets: [{
-                data: {{ dashboard_status_values|safe }},
-                backgroundColor: {{ dashboard_status_colors|safe }},
-                borderWidth: 0
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: { x: { display: false }, y: { display: false } },
-            cutout: '70%'
-        }
-    });
+    if (typeof Chart === 'undefined') return;
 
-    // Busiest Days Chart
-    const busiestCtx = document.getElementById('busiestDaysChart').getContext('2d');
-    new Chart(busiestCtx, {
-        type: 'bar',
-        data: {
-            labels: {{ dashboard_busiest_days_labels|safe }},
-            datasets: [{
-                label: 'Bookings',
-                data: {{ dashboard_busiest_days_values|safe }},
-                backgroundColor: '#3b82f6',
-                borderRadius: 4
-            }]
-        },
-        options: commonOptions
-    });
+    // Trend Chart
+    const tc = document.getElementById('trendChart');
+    if (tc) {
+        const ctx = tc.getContext('2d');
+        const bg = ctx.createLinearGradient(0, 0, 0, 260);
+        bg.addColorStop(0, 'rgba(59,130,246,0.22)');
+        bg.addColorStop(1, 'rgba(59,130,246,0.01)');
+        const rg = ctx.createLinearGradient(0, 0, 0, 260);
+        rg.addColorStop(0, 'rgba(20,184,166,0.18)');
+        rg.addColorStop(1, 'rgba(20,184,166,0.01)');
 
-    // Retention Chart
-    const retentionCtx = document.getElementById('retentionChart').getContext('2d');
-    new Chart(retentionCtx, {
-        type: 'pie',
-        data: {
-            labels: ['New Customers', 'Returning Customers'],
-            datasets: [{
-                data: [{{ new_customers_count }}, {{ returning_customers_count }}],
-                backgroundColor: ['#f59e0b', '#8b5cf6'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: { x: { display: false }, y: { display: false } }
-        }
-    });
+        new Chart(tc, {
+            type: 'line',
+            data: {
+                labels: {{ dashboard_trend_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Bookings',
+                        data: {{ dashboard_bookings_trend|safe }},
+                        borderColor: '#3b82f6',
+                        backgroundColor: bg,
+                        tension: 0.42,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#111',
+                        pointBorderWidth: 2,
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#3b82f6',
+                        pointHoverBorderWidth: 3,
+                        borderWidth: 2.5
+                    },
+                    {
+                        label: 'Revenue (PHP)',
+                        data: {{ dashboard_revenue_trend|safe }},
+                        borderColor: '#14b8a6',
+                        backgroundColor: rg,
+                        tension: 0.42,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#14b8a6',
+                        pointBorderColor: '#111',
+                        pointBorderWidth: 2,
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#14b8a6',
+                        pointHoverBorderWidth: 3,
+                        borderWidth: 2.5,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                animation: { duration: 1200, easing: 'easeOutQuart', delay: c => c.dataIndex * 60 + c.datasetIndex * 150 },
+                plugins: {
+                    legend: {
+                        labels: { color: '#999', usePointStyle: true, pointStyle: 'circle', boxWidth: 7, padding: 14, font: { size: 11, weight: '500' } }
+                    },
+                    tooltip: { ...ttip, displayColors: true, boxPadding: 5, callbacks: { label: c => c.dataset.label.includes('Revenue') ? 'Revenue  &#8369;' + c.parsed.y.toLocaleString() : c.dataset.label + '  ' + c.parsed.y } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', precision: 0, font: { size: 10 } } },
+                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false, drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }
+                }
+            },
+            plugins: [{ id: 's1', afterRender() { rmShim('shimmer-trend'); } }]
+        });
+    }
+
+    // Status Donut Chart with Center Text
+    const sc = document.getElementById('statusChart');
+    if (sc) {
+        const pm = { completed:'#10b981', confirmed:'#3b82f6', pending:'#f59e0b', cancelled:'#ef4444', denied:'#ef4444', expired:'#555', edit_requested:'#3b82f6', cancel_requested:'#f87171' };
+        const labels = {{ dashboard_status_labels|safe }};
+        const colors = {{ dashboard_status_colors|safe }};
+        const pal = labels.map((l, i) => pm[String(l||'').toLowerCase().replace(/\s+/g,'')] || colors[i] || '#555');
+        const totalBookings = {{ total_bookings }};
+
+        // Center text plugin
+        const centerTextPlugin = {
+            id: 'centerText',
+            beforeDraw: function(chart) {
+                if (chart.config.type !== 'doughnut') return;
+                const ctx = chart.ctx;
+                const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Total number
+                ctx.font = 'bold 24px Segoe UI, sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(totalBookings.toString(), centerX, centerY - 8);
+
+                // Label
+                ctx.font = '500 11px Segoe UI, sans-serif';
+                ctx.fillStyle = '#888';
+                ctx.fillText('TOTAL', centerX, centerY + 14);
+
+                ctx.restore();
+            }
+        };
+
+        new Chart(sc, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: {{ dashboard_status_values|safe }},
+                    backgroundColor: pal,
+                    borderWidth: 0,
+                    hoverOffset: 0,
+                    borderRadius: 4,
+                    spacing: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
+                hover: { mode: 'nearest', intersect: true },
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        align: 'center',
+                        fullSize: false,
+                        labels: { color: '#999', boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 11, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        ...ttip,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const value = context.parsed;
+                                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return context.label + ': ' + value + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                },
+                cutout: '70%'
+            },
+            plugins: [
+                centerTextPlugin,
+                { id: 's2', afterRender() { rmShim('shimmer-status'); } }
+            ]
+        });
+    }
+
+    // Busiest Days Chart (gradient like dashboard)
+    const bc = document.getElementById('busiestDaysChart');
+    if (bc) {
+        const bCtx = bc.getContext('2d');
+        const bGrad = bCtx.createLinearGradient(0, 0, 0, 200);
+        bGrad.addColorStop(0, 'rgba(59,130,246,0.6)');
+        bGrad.addColorStop(1, 'rgba(59,130,246,0.1)');
+
+        new Chart(bc, {
+            type: 'bar',
+            data: {
+                labels: {{ dashboard_busiest_days_labels|safe }},
+                datasets: [{
+                    label: 'Bookings',
+                    data: {{ dashboard_busiest_days_values|safe }},
+                    backgroundColor: bGrad,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barThickness: 'flex',
+                    maxBarThickness: 35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 1000, easing: 'easeOutQuart' },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: ttip
+                },
+                scales: {
+                    x: { grid: { display: false, drawBorder: false }, ticks: { color: '#777', font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }, ticks: { color: '#777', precision: 0, font: { size: 10 } } }
+                }
+            },
+            plugins: [{ id: 's3', afterRender() { rmShim('shimmer-busiest'); } }]
+        });
+    }
+
+    // Retention Donut Chart with Center Text
+    const rc = document.getElementById('retentionChart');
+    if (rc) {
+        const newCount = {{ new_customers_count }};
+        const retCount = {{ returning_customers_count }};
+        const totalCust = newCount + retCount;
+
+        // Center text plugin for retention
+        const retentionCenterPlugin = {
+            id: 'retentionCenter',
+            beforeDraw: function(chart) {
+                if (chart.config.type !== 'doughnut') return;
+                const ctx = chart.ctx;
+                const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Total number
+                ctx.font = 'bold 24px Segoe UI, sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(totalCust.toString(), centerX, centerY - 8);
+
+                // Label
+                ctx.font = '500 11px Segoe UI, sans-serif';
+                ctx.fillStyle = '#888';
+                ctx.fillText('CUSTOMERS', centerX, centerY + 14);
+
+                ctx.restore();
+            }
+        };
+
+        new Chart(rc, {
+            type: 'doughnut',
+            data: {
+                labels: ['New Customers', 'Returning Customers'],
+                datasets: [{
+                    data: [newCount, retCount],
+                    backgroundColor: ['#f59e0b', '#8b5cf6'],
+                    borderWidth: 0,
+                    hoverOffset: 0,
+                    borderRadius: 4,
+                    spacing: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
+                hover: { mode: 'nearest', intersect: true },
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        align: 'center',
+                        fullSize: false,
+                        labels: { color: '#999', boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 11, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        ...ttip,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const value = context.parsed;
+                                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return context.label + ': ' + value + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                },
+                cutout: '70%'
+            },
+            plugins: [
+                retentionCenterPlugin,
+                { id: 's4', afterRender() { rmShim('shimmer-retention'); } }
+            ]
+        });
+    }
 });
 </script>
 {% endblock %}
