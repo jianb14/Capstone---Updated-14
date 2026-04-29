@@ -62,7 +62,13 @@ def get_paymongo_headers():
 
 
 def create_paymongo_checkout_session(
-    amount, booking_id, success_url, cancel_url, payment_type="card", description=""
+    amount,
+    booking_id,
+    success_url,
+    cancel_url,
+    payment_type="card",
+    description="",
+    billing=None,
 ):
     """
     Create a PayMongo checkout session.
@@ -76,7 +82,7 @@ def create_paymongo_checkout_session(
     payload = {
         "data": {
             "attributes": {
-                "billing": None,
+                "billing": billing or None,
                 "send_email_receipt": True,
                 "show_description": True,
                 "show_line_items": True,
@@ -1094,7 +1100,7 @@ def _build_core_chunks():
         "(3) Customer fills event details: event type, date, start/end time, location, optional notes, optional reference images (up to 4). "
         "(4) Validation rules: date cannot be in the past; if date is today, start time must be in the future; booking hours are 7:00 AM to 6:00 PM; end time must be later than start time; duration must be at least 2 hours; overlapping slots are blocked only against existing pending_payment/confirmed/completed bookings (pending bookings are not blocking yet). "
         "(5) Submit creates a pending booking. Admin approval moves it to pending_payment. After admin verifies payment, booking becomes confirmed; admin can later mark it completed. "
-        "Customer change rules: pending bookings can still be edited or deleted by the customer; request-edit and request-cancel routes are currently disabled; confirmed bookings are final. "
+        "Customer change rules: pending bookings can still be edited or deleted by the customer before confirmation; confirmed bookings are final. "
         f"Booking statuses: {_status_line(Booking.STATUS_CHOICES)}. "
         f"Booking payment statuses: {_status_line(Booking.PAYMENT_STATUS_CHOICES)}."
     )

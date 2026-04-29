@@ -33,6 +33,9 @@
     {% if is_fully_paid %}
     <div class="cp-success">This booking is fully paid.</div>
     {% else %}
+    {% if pending_checkout_url and not pending_payment %}
+    <div class="cp-warn cp-mb">You have an unfinished PayMongo checkout for this booking. You can continue your payment.</div>
+    {% endif %}
     {% if pending_payment %}
     <div class="cp-warn cp-mb">You already have a pending payment (Ref: {{ pending_payment.transaction_ref }}). Please wait for admin verification before sending another payment.</div>
     {% endif %}

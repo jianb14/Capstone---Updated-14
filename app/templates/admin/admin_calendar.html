@@ -48,6 +48,7 @@
         var popClose = document.getElementById('calPopClose');
         var popBody = document.getElementById('calPopBody');
         var popDate = document.getElementById('calPopDate');
+        var todayIso = '{{ today_iso }}';
 
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
@@ -62,6 +63,12 @@
             displayEventTime: false,
             dayMaxEvents: false,
             height: 'auto',
+            dayCellDidMount: function (info) {
+                var cellDate = info.date.toISOString().slice(0, 10);
+                if (cellDate < todayIso) {
+                    info.el.classList.add('admin-past-day');
+                }
+            },
 
             events: [
                 {% for event in calendar_events %}

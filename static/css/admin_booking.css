@@ -8,11 +8,17 @@
 }
 
 .page-header h1 {
-    font-size: 1.875rem;
+    font-size: 1.55rem;
     font-weight: 600;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     letter-spacing: -0.03em;
     color: #ffffff;
+}
+
+.page-subtitle {
+    font-size: 0.9rem;
+    color: #888888;
+    margin: 0;
 }
 
 .detail-page-header {
@@ -58,6 +64,151 @@
 
 .breadcrumb span:not(.separator) {
     color: #999999;
+}
+
+.booking-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Top 4 cards: each spans 3 columns (4 x 3 = 12) */
+.booking-summary-card:nth-child(1),
+.booking-summary-card:nth-child(2),
+.booking-summary-card:nth-child(3),
+.booking-summary-card:nth-child(4) {
+    grid-column: span 3;
+}
+
+/* Bottom 3 cards: each spans 4 columns (3 x 4 = 12) for equal width */
+.booking-summary-card:nth-child(5),
+.booking-summary-card:nth-child(6),
+.booking-summary-card:nth-child(7) {
+    grid-column: span 4;
+}
+
+.booking-summary-card {
+    position: relative;
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    padding: 0.8rem 1.1rem;
+    overflow: hidden;
+}
+
+.booking-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 2px;
+    opacity: 0.95;
+}
+
+.booking-summary-card--total::before {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.booking-summary-card--pending::before {
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
+.booking-summary-card--payment::before {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.booking-summary-card--confirmed::before {
+    background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+}
+
+.booking-summary-card--cancelled::before {
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+}
+
+.booking-summary-card--completed::before {
+    background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.booking-summary-card--expired::before {
+    background: linear-gradient(90deg, #6b7280, #9ca3af);
+}
+
+.booking-summary-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.booking-summary-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #8a8a8a;
+}
+
+.booking-summary-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+    flex-shrink: 0;
+}
+
+.booking-summary-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.booking-summary-card--total .booking-summary-icon {
+    color: #60a5fa;
+}
+
+.booking-summary-card--pending .booking-summary-icon {
+    color: #f59e0b;
+}
+
+.booking-summary-card--payment .booking-summary-icon {
+    color: #fbbf24;
+}
+
+.booking-summary-card--confirmed .booking-summary-icon {
+    color: #2dd4bf;
+}
+
+.booking-summary-card--cancelled .booking-summary-icon {
+    color: #ef4444;
+}
+
+.booking-summary-card--completed .booking-summary-icon {
+    color: #10b981;
+}
+
+.booking-summary-card--expired .booking-summary-icon {
+    color: #9ca3af;
+}
+
+.booking-summary-value {
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+    margin-bottom: 0.45rem;
+}
+
+.booking-summary-sub {
+    font-size: 0.82rem;
+    color: #777777;
 }
 
 .table-container {
@@ -160,53 +311,73 @@ td:last-child {
     gap: 0.375rem;
     justify-content: start;
     align-items: center;
+    flex-wrap: wrap;
 }
 
-.action-buttons a {
-    padding: 0.375rem 0.75rem;
+.action-buttons a,
+.action-buttons button {
     border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 500;
     text-decoration: none;
-    border: 1px solid;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    background: transparent;
+    font-family: inherit;
 }
 
-.action-buttons a:first-child {
+.action-icon-btn {
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+}
+
+.action-icon-btn svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.action-icon-btn span {
+    display: none;
+}
+
+.action-view {
     background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
-.action-buttons a:first-child:hover {
+.action-view:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Secondary/Tertiary buttons (Confirm/Deny) */
-.action-buttons a:nth-child(2) {
-    background: transparent;
-    color: #999999;
-    border-color: rgba(255, 255, 255, 0.08);
+.action-approve {
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.3);
 }
 
-.action-buttons a:nth-child(2):hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+.action-approve:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
 }
 
-.action-buttons a:not(:first-child):last-child {
-    background: transparent;
+.action-deny {
     color: #ef4444;
     border-color: rgba(239, 68, 68, 0.3);
 }
 
-.action-buttons a:not(:first-child):last-child:hover {
+.action-deny:hover {
     background: rgba(239, 68, 68, 0.15);
     border-color: rgba(239, 68, 68, 0.5);
 }
@@ -225,6 +396,10 @@ td:last-child {
 /* Responsive Design */
 @media (max-width: 1024px) {
 
+    .booking-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     th,
     td {
         padding: 0.75rem 0.875rem;
@@ -238,15 +413,28 @@ td:last-child {
         min-width: 800px;
     }
 
-    .action-buttons a {
-        padding: 0.35rem 0.65rem;
-        font-size: 0.7rem;
+    .action-icon-btn {
+        width: 2rem;
+        height: 2rem;
     }
 }
 
 @media (max-width: 768px) {
     .page-header {
         margin: 60px 0 1rem 0;
+    }
+
+    .booking-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    .booking-summary-card {
+        padding: 0.95rem 1rem;
+    }
+
+    .booking-summary-value {
+        font-size: 1.8rem;
     }
 
     .detail-page-header {
@@ -341,12 +529,25 @@ td:last-child {
         width: 100%;
     }
 
-    .action-buttons a {
+    .action-buttons a,
+    .action-buttons button {
         width: 100%;
         padding: 0.625rem;
         font-size: 0.8rem;
         text-align: center;
         justify-content: center;
+    }
+
+    .action-icon-btn {
+        height: auto;
+    }
+
+    .action-icon-btn span {
+        display: inline;
+    }
+
+    .action-icon-btn svg {
+        margin-right: 0.5rem;
     }
 
     td {
@@ -357,7 +558,8 @@ td:last-child {
         pointer-events: none;
     }
 
-    .action-buttons a {
+    .action-buttons a,
+    .action-buttons button {
         position: relative;
         z-index: 5;
     }
@@ -514,11 +716,31 @@ td:last-child {
 
 .search-input-wrapper {
     width: 350px;
+    position: relative;
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #666;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-icon svg {
+    width: 100%;
+    height: 100%;
 }
 
 .search-input-wrapper input {
     width: 100%;
-    padding: 0.6rem 1rem;
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
     background: #0f0f0f;
     border: 1px solid #2a2a2a;
     color: #fff;
@@ -603,7 +825,6 @@ td:last-child {
     box-shadow: 0 0 8px rgba(217, 119, 6, 0.3);
 }
 
-.status-badge.cancel_requested,
 .status-badge.cancelled {
     color: #dc2626;
     color: #ef4444;
@@ -611,7 +832,6 @@ td:last-child {
 }
 
 /* Darkened Red */
-.status-badge.cancel_requested::before,
 .status-badge.cancelled::before {
     background: #dc2626;
     background: #ef4444;

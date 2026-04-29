@@ -86,15 +86,15 @@
                 {% if user.role == 'admin' %}
                 <td data-label="Actions">
                     <div class="action-buttons">
-                        <a href="{% url 'admin_user_edit' u.id %}">Edit</a>
-                        <a href="{% url 'admin_user_toggle' u.id %}">
-                            {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                        <a href="{% url 'admin_user_edit' u.id %}" title="Edit"><i class="far fa-edit"></i></a>
+                        <a href="{% url 'admin_user_toggle' u.id %}" title="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}">
+                            {% if u.is_active %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check-circle"></i>{% endif %}
                         </a>
                         <a href="{% url 'admin_user_delete' u.id %}"
                             data-swal-confirm="true"
                             data-swal-title="Delete user?"
                             data-swal-text="Are you sure you want to delete this user?"
-                            data-swal-confirm-text="Yes, delete user">Delete</a>
+                            data-swal-confirm-text="Yes, delete user" title="Delete"><i class="far fa-trash-alt"></i></a>
                     </div>
                 </td>
                 {% endif %}

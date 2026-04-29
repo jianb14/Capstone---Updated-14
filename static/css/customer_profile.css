@@ -2678,3 +2678,227 @@ td {
         justify-content: center;
     }
 }
+
+.card-top-label {
+    display: block;
+    margin: 0 0 0.35rem 0;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.52);
+    text-align: left;
+}
+
+.input-required {
+    color: #ef4444;
+    font-weight: 700;
+    margin-left: 2px;
+}
+.stepper-header {
+    border-bottom: none;
+    padding-bottom: 2rem;
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.stepper-header .close-btn {
+    position: absolute;
+    right: 0;
+    top: -10px;
+}
+
+.stepper-wrapper {
+    position: relative;
+    width: 78%;
+    max-width: 620px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 1.5rem;
+}
+
+.stepper-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #444;
+    z-index: 1;
+}
+
+.stepper-progress-line {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background: #22c55e !important;
+    z-index: 2;
+    transition: width 0.4s ease;
+}
+
+.stepper-step-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 3;
+    position: relative;
+}
+
+.step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s ease;
+    border: 3px solid #222;
+    /* Adds a bit of gap around the line */
+}
+
+.step-label {
+    position: absolute;
+    top: 44px;
+    /* position text below circle */
+    font-size: 0.68rem;
+    color: #888;
+    white-space: nowrap;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 600px) {
+    .stepper-wrapper {
+        width: 92%;
+    }
+
+    .step-label {
+        font-size: 0.58rem;
+        width: 74px;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.2;
+    }
+}
+
+/* --- STATE: ACTIVE --- */
+.stepper-step-icon.active .step-circle {
+    background: #0d6efd;
+    border-color: #111;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2);
+}
+
+.stepper-step-icon.active .step-circle::after {
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+}
+
+.stepper-step-icon.active .step-label {
+    color: var(--white);
+}
+
+/* --- STATE: COMPLETED --- */
+.stepper-step-icon.completed .step-circle {
+    background: #22c55e !important;
+    border-color: #111;
+}
+
+.stepper-step-icon.completed .step-circle::after {
+    content: '';
+    width: 8px;
+    height: 16px;
+    border: solid white;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+    margin-top: -4px;
+    border-radius: 2px;
+}
+
+.stepper-step-icon.completed .step-label {
+    color: #22c55e !important;
+}
+
+#booking-details-list .summary-row {
+    display: grid;
+    grid-template-columns: minmax(130px, 220px) 1fr;
+    align-items: start;
+    gap: 0.8rem;
+}
+
+#booking-details-list .row-info {
+    padding-right: 0;
+}
+
+#booking-details-list .row-value {
+    text-align: left;
+    white-space: normal;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+#step-3 #referencePicturesRow {
+    grid-template-columns: 1fr !important;
+    gap: 0.45rem;
+}
+
+#step-3 #referencePicturesRow .row-info {
+    padding-right: 0;
+}
+
+#step-3 #referencePicturesRow .row-value {
+    justify-self: start;
+}
+
+.booking-summary-image-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.booking-details-images {
+    display: grid;
+    grid-template-columns: repeat(4, 78px);
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.booking-summary-thumb {
+    width: 78px;
+    height: 78px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.stepper-step {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.stepper-step h3 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--white);
+}
+
+.step-desc {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-bottom: 1.8rem;
+}
+
+#step-3 .step-desc {
+    color: #9ca3af;
+    margin-bottom: 1rem;
+    max-width: 64ch;
+}

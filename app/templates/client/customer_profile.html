@@ -89,22 +89,22 @@
                             <span id="sortDropdownText">
                                 {% if sort_date == 'id_desc' %}ID (High to Low)
                                 {% elif sort_date == 'id_asc' %}ID (Low to High)
-                                {% elif sort_date == 'oldest' %}Oldest First
-                                {% else %}Newest First{% endif %}
+                                {% elif sort_date == 'oldest' %}Event Date (Oldest First)
+                                {% else %}Event Date (Newest First){% endif %}
                             </span>
                             <i class="fas fa-chevron-down"></i>
                         </div>
                         <ul class="dropdown-options">
-                            <li data-value="newest" {% if sort_date == 'newest' or not sort_date %}class="selected"{% endif %}>Newest First</li>
-                            <li data-value="oldest" {% if sort_date == 'oldest' %}class="selected"{% endif %}>Oldest First</li>
                             <li data-value="id_desc" {% if sort_date == 'id_desc' %}class="selected"{% endif %}>ID (High to Low)</li>
                             <li data-value="id_asc" {% if sort_date == 'id_asc' %}class="selected"{% endif %}>ID (Low to High)</li>
+                            <li data-value="newest" {% if sort_date == 'newest' %}class="selected"{% endif %}>Event Date (Newest First)</li>
+                            <li data-value="oldest" {% if sort_date == 'oldest' %}class="selected"{% endif %}>Event Date (Oldest First)</li>
                         </ul>
                         <select name="sort_date" class="filter-select" id="sortFilterSelect">
-                            <option value="newest" {% if sort_date == 'newest' or not sort_date %}selected{% endif %}>Newest First</option>
-                            <option value="oldest" {% if sort_date == 'oldest' %}selected{% endif %}>Oldest First</option>
                             <option value="id_desc" {% if sort_date == 'id_desc' %}selected{% endif %}>ID (High to Low)</option>
                             <option value="id_asc" {% if sort_date == 'id_asc' %}selected{% endif %}>ID (Low to High)</option>
+                            <option value="newest" {% if sort_date == 'newest' %}selected{% endif %}>Event Date (Newest First)</option>
+                            <option value="oldest" {% if sort_date == 'oldest' %}selected{% endif %}>Event Date (Oldest First)</option>
                         </select>
                     </div>
                 </form>
@@ -382,13 +382,14 @@
                 </div>
 
                 <!-- Add-ons Section -->
-                <h3>Add-ons (Optional)</h3>
-                <p class="step-desc">Enhance your package with these extras.</p>
+                <h3>Entrance Arch</h3>
+                <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without a package.</p>
                 <div class="package-cards-grid addons-selection-grid">
                     {% for addon in active_addons %}
                     <div class="package-card edit-addon-selector" data-name="{{ addon.name }}"
                         data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
                         <div class="package-info">
+                            <span class="card-top-label">FOR ADD-ONS</span>
                             <h4>{{ addon.name }}</h4>
                             <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span></div>
                             <p class="feature-label">What&apos;s Included</p>
@@ -405,12 +406,14 @@
                 </div>
 
                 <!-- Additionals Section -->
-                <h3>Additionals (Optional)</h3>
+                <h3>Welcome Stand</h3>
+                <p class="step-desc">Individual items to customize your event.</p>
                 <div class="package-cards-grid additionals-selection-grid">
                     {% for additional in active_additionals %}
                     <div class="package-card edit-additional-selector" data-name="{{ additional.name }}"
                         data-price="{{ additional.price }}">
                         <div class="package-info">
+                            <span class="card-top-label">ADDITIONAL ONLY</span>
                             <h4>{{ additional.name }}</h4>
                             <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
                             {% if additional.features %}
@@ -445,7 +448,7 @@
                     <div class="form-group full-width">
                         <!-- Custom Select UI -->
                         <div class="custom-select-container" id="editEventTypeCustomSelect">
-                            <label>Event Type</label>
+                            <label><i class="fa-solid fa-list-ul"></i> Event Type <span class="input-required">*</span></label>
                             <div class="custom-select-trigger">
                                 <span>Select an Event</span>
                                 <i class="fa-solid fa-chevron-down"></i>
@@ -470,13 +473,13 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Event Date</label>
+                        <label><i class="fa-solid fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
                         <input type="date" id="edit_event_date" name="event_date" required>
                         <small class="review-field-error" id="edit_event_date_error"></small>
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Event Duration</label>
+                        <label><i class="fa-solid fa-clock"></i> Event Duration <span class="input-required">*</span></label>
                         <div class="time-row">
                             <div class="time-field">
                                 <small>Start</small>
@@ -492,7 +495,7 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label>Location (Venue Address)</label>
+                        <label><i class="fa-solid fa-location-dot"></i> Location (Venue Address) <span class="input-required">*</span></label>
                         <input type="text" id="edit_event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" required>
                         <small class="review-field-error" id="edit_event_location_error"></small>
                     </div>
@@ -503,13 +506,13 @@
 
                     <!-- Special Requests -->
                     <div class="form-group full-width">
-                        <label for="edit_special_requests">Special Requests</label>
+                        <label for="edit_special_requests"><i class="fa-solid fa-comment"></i> Special Requests (Optional)</label>
                         <textarea id="edit_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                     </div>
 
                     <!-- Unified Images -->
                     <div class="form-group full-width">
-                        <label for="edit_reference_images_ui">Pictures (Optional)</label>
+                        <label for="edit_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
                         <input type="file" id="edit_reference_images_ui" accept="image/*" multiple class="file-input">
                         <!-- Hidden proper input for backend submission -->
                         <input type="file" id="edit_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
@@ -1246,9 +1249,103 @@
     const editServiceChargeDisplay = document.getElementById('edit_service_charge_display');
     const editServiceChargeNoteText = document.getElementById('edit_service_charge_note_text');
 
+    const editEventTypeCustomSelect = document.getElementById('editEventTypeCustomSelect');
+    const editEventDateEl = document.getElementById('edit_event_date');
+    const editStartTimeEl = document.getElementById('edit_start_time');
+    const editEndTimeEl = document.getElementById('edit_end_time');
+    const editEventLocationEl = document.getElementById('edit_event_location');
+    const editEventTypeOtherEl = document.getElementById('edit_event_type_other');
+
+    let editBookingSubmitAttempted = false;
+
     function formatEditPrice(val) {
         return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
+    function setEditBookingFieldError(fieldKey, message) {
+        const fieldMap = {
+            event_type: {
+                container: editEventTypeCustomSelect?.closest('.form-group'),
+                errorEl: document.getElementById('edit_event_type_error'),
+                inputEl: editEventTypeCustomSelect?.querySelector('.custom-select-trigger')
+            },
+            event_type_other: {
+                container: editEventTypeOtherEl?.closest('.form-group'),
+                errorEl: document.getElementById('edit_event_type_other_error'),
+                inputEl: editEventTypeOtherEl
+            },
+            event_date: {
+                container: editEventDateEl?.closest('.form-group'),
+                errorEl: document.getElementById('edit_event_date_error'),
+                inputEl: editEventDateEl
+            },
+            start_time: {
+                container: editStartTimeEl?.closest('.time-field'),
+                errorEl: document.getElementById('edit_start_time_error'),
+                inputEl: editStartTimeEl
+            },
+            end_time: {
+                container: editEndTimeEl?.closest('.time-field'),
+                errorEl: document.getElementById('edit_end_time_error'),
+                inputEl: editEndTimeEl
+            },
+            event_location: {
+                container: editEventLocationEl?.closest('.form-group'),
+                errorEl: document.getElementById('edit_event_location_error'),
+                inputEl: editEventLocationEl
+            }
+        };
+
+        const config = fieldMap[fieldKey];
+        if (!config || !config.errorEl) return;
+
+        config.container?.classList.toggle('has-error', !!message);
+        config.inputEl?.classList.toggle('has-error', !!message);
+        config.errorEl.textContent = message || '';
+    }
+
+    function clearEditBookingValidationErrors() {
+        ['event_type', 'event_type_other', 'event_date', 'start_time', 'end_time', 'event_location']
+            .forEach((fieldKey) => setEditBookingFieldError(fieldKey, ''));
+    }
+
+    function validateEditBookingForm() {
+        clearEditBookingValidationErrors();
+        let firstInvalidField = null;
+
+        if (!editEventTypeSelect || !editEventTypeSelect.value) {
+            setEditBookingFieldError('event_type', 'Event Type is required*');
+            firstInvalidField = 'event_type';
+        }
+
+        if (editEventTypeSelect && editEventTypeSelect.value === 'Other' && (!editEventTypeOtherEl || !editEventTypeOtherEl.value.trim())) {
+            setEditBookingFieldError('event_type_other', 'Please specify your event type.');
+            if (!firstInvalidField) firstInvalidField = 'event_type_other';
+        }
+
+        if (!editEventDateEl || !editEventDateEl.value) {
+            setEditBookingFieldError('event_date', 'Event Date is required*');
+            if (!firstInvalidField) firstInvalidField = 'event_date';
+        }
+
+        if (!editStartTimeEl || !editStartTimeEl.value) {
+            setEditBookingFieldError('start_time', 'Start Time is required*');
+            if (!firstInvalidField) firstInvalidField = 'start_time';
+        }
+
+        if (!editEndTimeEl || !editEndTimeEl.value) {
+            setEditBookingFieldError('end_time', 'End Time is required*');
+            if (!firstInvalidField) firstInvalidField = 'end_time';
+        }
+
+        if (!editEventLocationEl || !editEventLocationEl.value.trim()) {
+            setEditBookingFieldError('event_location', 'Event Location is required*');
+            if (!firstInvalidField) firstInvalidField = 'event_location';
+        }
+
+        return firstInvalidField;
+    }
+
 
     function calculateEditTotalPrice() {
         let total = 0;
@@ -1606,6 +1703,46 @@
                 return;
             }
 
+            const startTimeStr = editStartTimeEl.value;
+            const endTimeStr = editEndTimeEl.value;
+
+            if (startTimeStr && endTimeStr) {
+                const startNode = new Date(`1970-01-01T${startTimeStr}:00`);
+                let endNode = new Date(`1970-01-01T${endTimeStr}:00`);
+                if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
+
+                const diffMins = (endNode - startNode) / 60000;
+                if (diffMins < 120) {
+                    setEditBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+                    editEndTimeEl.focus();
+                    return;
+                }
+                
+                const startHour = parseInt(startTimeStr.split(':')[0], 10);
+                const startMinute = parseInt(startTimeStr.split(':')[1], 10);
+                const endHour = parseInt(endTimeStr.split(':')[0], 10);
+                const endMinute = parseInt(endTimeStr.split(':')[1], 10);
+
+                if (startHour < 7 || startHour >= 18) {
+                    setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
+                    editStartTimeEl.focus();
+                    return;
+                }
+
+                if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
+                    setEditBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
+                    editEndTimeEl.focus();
+                    return;
+                }
+
+                const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
+                if (crossesMidnight) {
+                    setEditBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                    editEndTimeEl.focus();
+                    return;
+                }
+            }
+
             editPackageInput.value = buildEditPackageTypeString();
             editPriceInput.value = calculateEditTotalPrice().toFixed(2);
             populateEditSummary();
@@ -1631,10 +1768,12 @@
         editSoloModePrice = 0;
         editSelectedAdditionalName = null;
         editSelectedAdditionalPrice = 0;
+        editBookingSubmitAttempted = false;
+        clearEditBookingValidationErrors();
         if (editBookingDetailsList) editBookingDetailsList.innerHTML = '';
         if (editBookingItemList) editBookingItemList.innerHTML = '';
         if (editServiceChargeRow) editServiceChargeRow.style.display = 'none';
-        if (editPriceDisplay) editPriceDisplay.textContent = 'â‚±0.00';
+        if (editPriceDisplay) editPriceDisplay.textContent = '₱0.00';
     }
 
     function openEditModal(id) {

@@ -13,7 +13,7 @@
             <span>#{{ booking.id }}</span>
         </div>
     </div>
-    <a href="{% url 'admin_booking_list' %}" class="btn-top-back">&larr; Back to List</a>
+    <a href="{% url 'admin_booking_list' %}" class="btn-top-back"><i class="fas fa-arrow-left"></i> Back to List</a>
 </div>
 
 <div class="detail-container">
@@ -103,18 +103,6 @@
                 <span class="value">&#8369;{{ booking.total_price|intcomma }}</span>
             </div>
             {% endif %}
-            {% if booking.edit_requested and booking.edit_request_reason %}
-            <div class="info-row">
-                <span class="label">Edit Reason</span>
-                <span class="value">{{ booking.edit_request_reason }}</span>
-            </div>
-            {% endif %}
-            {% if booking.status == 'cancel_requested' and booking.cancel_request_reason %}
-            <div class="info-row">
-                <span class="label">Cancel Reason</span>
-                <span class="value">{{ booking.cancel_request_reason }}</span>
-            </div>
-            {% endif %}
             {% if booking.admin_denial_reason %}
             <div class="info-row">
                 <span class="label">Denial Reason</span>
@@ -164,20 +152,11 @@
     <!-- Actions -->
     <div class="detail-actions">
         {% if booking.status == 'pending' %}
-        <a href="{% url 'admin_booking_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Booking', 'Are you sure you want to approve this booking?', 'Yes, Approve')" class="btn-action primary">Approve Booking</a>
-        <a href="javascript:void(0)" onclick="openDetailDenyPrompt('{{ booking.id }}')" class="btn-action danger">Deny Booking</a>
-
-        {% elif booking.status == 'cancel_requested' %}
-        <a href="{% url 'admin_cancel_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Cancel Request', 'Are you sure you want to approve this cancellation request?', 'Yes, Approve')" class="btn-action primary">Approve Cancel</a>
-        <a href="{% url 'admin_cancel_action' booking.id 'deny' %}" onclick="return confirmAdminDetailAction(this, 'Deny Cancel Request', 'Are you sure you want to deny this cancellation request?', 'Yes, Deny')" class="btn-action danger">Deny Cancel</a>
-
-        {% elif booking.edit_requested %}
-        <a href="{% url 'admin_edit_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Edit Request', 'Are you sure you want to approve this edit request?', 'Yes, Approve')" class="btn-action primary">Approve Edit</a>
-        <a href="{% url 'admin_edit_action' booking.id 'deny' %}" onclick="return confirmAdminDetailAction(this, 'Deny Edit Request', 'Are you sure you want to deny this edit request?', 'Yes, Deny')" class="btn-action danger">Deny Edit</a>
+        <a href="{% url 'admin_booking_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Booking', 'Are you sure you want to approve this booking?', 'Yes, Approve')" class="btn-action primary"><i class="fas fa-check"></i> Approve Booking</a>
+        <a href="javascript:void(0)" onclick="openDetailDenyPrompt('{{ booking.id }}')" class="btn-action danger"><i class="fas fa-times"></i> Deny Booking</a>
 
         {% elif booking.status == 'confirmed' %}
-        <a href="{% url 'admin_booking_action' booking.id 'complete' %}" onclick="return confirmAdminDetailAction(this, 'Mark as Completed', 'Are you sure you want to mark this booking as completed?', 'Yes, Complete')" class="btn-action primary">Mark as
-            Completed</a>
+        <a href="{% url 'admin_booking_action' booking.id 'complete' %}" onclick="return confirmAdminDetailAction(this, 'Mark as Completed', 'Are you sure you want to mark this booking as completed?', 'Yes, Complete')" class="btn-action primary"><i class="fas fa-check-circle"></i> Mark as Completed</a>
         {% endif %}
     </div>
 </div>

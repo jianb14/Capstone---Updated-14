@@ -89,6 +89,7 @@
 #booking-calendar {
     --fc-border-color: var(--light-gray);
     --fc-today-bg-color: rgba(255, 255, 255, 0.05);
+    --fc-neutral-bg-color: #000000;
     --fc-button-bg-color: transparent;
     --fc-button-active-bg-color: #ffffff;
     --fc-button-text-color: #ffffff;
@@ -259,6 +260,19 @@
     transition: background 0.2s;
 }
 
+#booking-calendar .fc .fc-daygrid-day-events {
+    margin-top: 2px;
+    margin-bottom: 0;
+}
+
+#booking-calendar .fc .fc-daygrid-event-harness {
+    margin-top: 4px !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day-bottom {
+    margin-top: 3px;
+}
+
 #booking-calendar .fc .fc-daygrid-day-frame:hover {
     background-color: rgba(255, 255, 255, 0.08);
 }
@@ -420,29 +434,71 @@
 /* Past dates and outside-month dates should look inactive (no highlight/hover). */
 #booking-calendar .fc .fc-daygrid-day.fc-day-past,
 #booking-calendar .fc .fc-daygrid-day.is-past-date,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled,
 #booking-calendar .fc .fc-daygrid-day.fc-day-other,
 #booking-calendar .fc .fc-daygrid-day.fc-day-disabled {
     background-color: #000000 !important;
     cursor: default !important;
 }
 
+#booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.fc-day-disabled .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-top,
+#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-top,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-top,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-top,
+#booking-calendar .fc .fc-daygrid-day.fc-day-disabled .fc-daygrid-day-top {
+    background-color: #000000 !important;
+}
+
 #booking-calendar .fc .fc-daygrid-day.fc-day-past:hover,
 #booking-calendar .fc .fc-daygrid-day.is-past-date:hover,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled:hover,
 #booking-calendar .fc .fc-daygrid-day.fc-day-other:hover,
 #booking-calendar .fc .fc-daygrid-day.fc-day-disabled:hover {
     background-color: #000000 !important;
 }
 
+#booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-frame:hover,
+#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-frame:hover,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-frame:hover,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-frame:hover,
+#booking-calendar .fc .fc-daygrid-day.fc-day-disabled .fc-daygrid-day-frame:hover {
+    background-color: #000000 !important;
+}
+
 #booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.25) !important;
+    color: rgba(255, 255, 255, 0.2) !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.45) !important;
+    color: rgba(255, 255, 255, 0.35) !important;
 }
 
-#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.45) !important;
+#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-number,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-number {
+    color: rgba(255, 255, 255, 0.35) !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day-number.booking-day-number-disabled {
+    color: rgba(255, 255, 255, 0.28) !important;
+    opacity: 0.45 !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day.fc-day-past,
+#booking-calendar .fc .fc-daygrid-day.is-past-date,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other,
+#booking-calendar .fc .fc-daygrid-day.fc-day-disabled,
+#booking-calendar .fc .fc-daygrid-day.fc-day-past *,
+#booking-calendar .fc .fc-daygrid-day.is-past-date *,
+#booking-calendar .fc .fc-daygrid-day.booking-day-disabled *,
+#booking-calendar .fc .fc-daygrid-day.fc-day-other *,
+#booking-calendar .fc .fc-daygrid-day.fc-day-disabled * {
+    cursor: default !important;
 }
 
 /* Modal Time Inputs Layout */

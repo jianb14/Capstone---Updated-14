@@ -150,6 +150,7 @@ class Payment(models.Model):
     # PayMongo specific fields
     paymongo_checkout_session_id = models.CharField(max_length=100, blank=True, default='')
     paymongo_payment_id = models.CharField(max_length=100, blank=True, default='')
+    paymongo_contact_number = models.CharField(max_length=30, blank=True, default='')
     paymongo_checkout_url = models.URLField(blank=True, default='')
 
     def __str__(self):

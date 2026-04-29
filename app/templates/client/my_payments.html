@@ -124,12 +124,16 @@
                         <span class="cp-modal-value" id="modal-pay-ref">-</span>
                     </div>
                     <div class="cp-modal-field">
-                        <span class="cp-modal-label">GCash Ref #</span>
-                        <span class="cp-modal-value" id="modal-pay-gcash-ref">-</span>
+                        <span class="cp-modal-label">Payment ID</span>
+                        <span class="cp-modal-value" id="modal-pay-payment-id">-</span>
                     </div>
                     <div class="cp-modal-field">
                         <span class="cp-modal-label">Sender Name</span>
                         <span class="cp-modal-value" id="modal-pay-sender">-</span>
+                    </div>
+                    <div class="cp-modal-field">
+                        <span class="cp-modal-label">Checkout Session ID</span>
+                        <span class="cp-modal-value" id="modal-pay-checkout-session-id">-</span>
                     </div>
                     <div class="cp-modal-field">
                         <span class="cp-modal-label">Date Verified</span>
@@ -442,7 +446,8 @@
                                     data-pay-status="{{ pay.get_payment_status_display }}"
                                     data-pay-date="{{ pay.created_at|date:'M d, Y h:i A' }}"
                                     data-pay-ref="{{ pay.transaction_ref }}"
-                                    data-pay-gcash-ref="{{ pay.gcash_reference_number|default:'' }}"
+                                    data-pay-payment-id="{{ pay.paymongo_payment_id|default:'' }}"
+                                    data-pay-checkout-session-id="{{ pay.paymongo_checkout_session_id|default:'' }}"
                                     data-pay-sender="{{ pay.gcash_sender_name|default:'' }}"
                                     data-pay-verified="{% if pay.paid_at %}{{ pay.paid_at|date:'M d, Y h:i A' }}{% endif %}"
                                     data-source="history"
@@ -456,6 +461,8 @@
                                    data-tooltip="Download Receipt">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                 </a>
+                                {% elif pay.show_pending_info_button %}
+                                <a href="{{ pay.pending_info_url }}" class="cp-btn-row cp-btn-pending-info">View Pending Info</a>
                                 {% endif %}
                             </div>
                         </td>
@@ -629,8 +636,9 @@ function openBookingModal(btn) {
         document.getElementById('modal-pay-status').textContent = d.payStatus || '-';
         document.getElementById('modal-pay-date').textContent = d.payDate || '-';
         document.getElementById('modal-pay-ref').textContent = d.payRef || '-';
-        document.getElementById('modal-pay-gcash-ref').textContent = d.payGcashRef || '-';
+        document.getElementById('modal-pay-payment-id').textContent = d.payPaymentId || '-';
         document.getElementById('modal-pay-sender').textContent = d.paySender || '-';
+        document.getElementById('modal-pay-checkout-session-id').textContent = d.payCheckoutSessionId || '-';
         document.getElementById('modal-pay-verified').textContent = d.payVerified || '-';
     } else {
         detailSection.style.display = 'none';

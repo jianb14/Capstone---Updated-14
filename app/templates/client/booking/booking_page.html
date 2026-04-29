@@ -328,13 +328,11 @@
         const startTimeErrorEl = document.getElementById('start_time_error');
         const endTimeErrorEl = document.getElementById('end_time_error');
         const eventLocationErrorEl = document.getElementById('event_location_error');
+        const serverTodayStr = '{{ today_iso }}';
 
         // Date calculations (dynamic local date/time to avoid stale "today" after midnight)
         function getLocalTodayStr() {
-            const now = new Date();
-            const offset = now.getTimezoneOffset();
-            const localDate = new Date(now.getTime() - (offset * 60 * 1000));
-            return localDate.toISOString().split('T')[0];
+            return serverTodayStr;
         }
 
         function formatLocalDate(dateObj) {
@@ -406,6 +404,57 @@
                 minute: '2-digit',
                 hour12: true
             }).format(dateObj);
+        }
+
+        function getMinutesFromTimeValue(timeValue) {
+            if (!timeValue || !timeValue.includes(':')) return null;
+            const [hourStr, minuteStr] = timeValue.split(':');
+            const hour = parseInt(hourStr, 10);
+            const minute = parseInt(minuteStr, 10);
+            if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+            return (hour * 60) + minute;
+        }
+
+        function getLocalDateKey(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getBlockedScheduleMessage() {
+            if (!dateInput.value || !startTimeInput.value || !endTimeInput.value || !calendar) {
+                return '';
+            }
+
+            const selectedStartMinutes = getMinutesFromTimeValue(startTimeInput.value);
+            const selectedEndMinutes = getMinutesFromTimeValue(endTimeInput.value);
+            if (selectedStartMinutes === null || selectedEndMinutes === null) {
+                return '';
+            }
+
+            return calendar.getEvents().reduce((message, event) => {
+                if (message) return message;
+                if (!event.start) return '';
+
+                const eventDateKey = getLocalDateKey(event.start);
+                if (eventDateKey !== dateInput.value) return '';
+
+                const eventStartMinutes = (event.start.getHours() * 60) + event.start.getMinutes();
+                const eventEndSource = event.end || event.start;
+                const eventEndMinutes = (eventEndSource.getHours() * 60) + eventEndSource.getMinutes();
+
+                if (selectedStartMinutes < eventEndMinutes && selectedEndMinutes > eventStartMinutes) {
+                    const blockedStart = formatEventTooltipTime(event.start);
+                    const blockedEnd = event.end
+                        ? formatEventTooltipTime(event.end)
+                        : formatEventTooltipTime(event.start);
+
+                    return `This time slot is already booked (${blockedStart} to ${blockedEnd}). Please choose a different time.`;
+                }
+
+                return '';
+            }, '');
         }
 
         function calculateTotalPrice() {
@@ -947,9 +996,22 @@
                 const cellDate = formatLocalDate(arg.date);
                 const todayLocal = getLocalTodayStr();
                 if (cellDate < todayLocal) {
-                    return ['is-past-date'];
+                    return ['is-past-date', 'booking-day-disabled'];
                 }
                 return [];
+            },
+            dayCellDidMount: function (arg) {
+                const cellDate = formatLocalDate(arg.date);
+                const todayLocal = getLocalTodayStr();
+                if (cellDate < todayLocal) {
+                    arg.el.classList.add('booking-day-disabled');
+                    const dayNumber = arg.el.querySelector('.fc-daygrid-day-number');
+                    if (dayNumber) {
+                        dayNumber.classList.add('booking-day-number-disabled');
+                        dayNumber.style.color = 'rgba(255, 255, 255, 0.28)';
+                        dayNumber.style.opacity = '0.45';
+                    }
+                }
             },
             eventDisplay: 'block',
             displayEventTime: false,
@@ -1343,11 +1405,11 @@
         showStep(2);
     });
 
-    btnNextToSummary.addEventListener('click', function () {
-        bookingSubmitAttempted = true;
-        const firstInvalidField = validateBookingStepTwoFields();
-        if (firstInvalidField) {
-            focusBookingField(firstInvalidField);
+        btnNextToSummary.addEventListener('click', function () {
+            bookingSubmitAttempted = true;
+            const firstInvalidField = validateBookingStepTwoFields();
+            if (firstInvalidField) {
+                focusBookingField(firstInvalidField);
             return;
         }
 
@@ -1367,11 +1429,11 @@
             }
         }
 
-        if (startTimeStr && endTimeStr) {
-            const startHour = parseInt(startTimeStr.split(':')[0], 10);
-            const startMinute = parseInt(startTimeStr.split(':')[1], 10);
-            const endHour = parseInt(endTimeStr.split(':')[0], 10);
-            const endMinute = parseInt(endTimeStr.split(':')[1], 10);
+            if (startTimeStr && endTimeStr) {
+                const startHour = parseInt(startTimeStr.split(':')[0], 10);
+                const startMinute = parseInt(startTimeStr.split(':')[1], 10);
+                const endHour = parseInt(endTimeStr.split(':')[0], 10);
+                const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
             if (startHour < 7 || startHour >= 18) {
                 setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
@@ -1386,17 +1448,24 @@
             }
 
             const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
-            if (crossesMidnight) {
-                setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                if (crossesMidnight) {
+                    setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                    endTimeInput.focus();
+                    return;
+                }
+            }
+
+            const blockedScheduleMessage = getBlockedScheduleMessage();
+            if (blockedScheduleMessage) {
+                setBookingFieldError('end_time', blockedScheduleMessage);
                 endTimeInput.focus();
                 return;
             }
-        }
 
-        packageInput.value = buildPackageTypeString();
-        priceInput.value = calculateTotalPrice().toFixed(2);
-        updateOrderSummary();
-        updateBookingDetailsSummary();
+            packageInput.value = buildPackageTypeString();
+            priceInput.value = calculateTotalPrice().toFixed(2);
+            updateOrderSummary();
+            updateBookingDetailsSummary();
         updateBookingImageSummary();
         showStep(3);
     });
@@ -1520,11 +1589,11 @@
         }
 
         // Validate Time Between 7:00 AM and 6:00 PM
-        if (startTimeStr && endTimeStr) {
-            const startHour = parseInt(startTimeStr.split(':')[0], 10);
-            const startMinute = parseInt(startTimeStr.split(':')[1], 10);
-            const endHour = parseInt(endTimeStr.split(':')[0], 10);
-            const endMinute = parseInt(endTimeStr.split(':')[1], 10);
+            if (startTimeStr && endTimeStr) {
+                const startHour = parseInt(startTimeStr.split(':')[0], 10);
+                const startMinute = parseInt(startTimeStr.split(':')[1], 10);
+                const endHour = parseInt(endTimeStr.split(':')[0], 10);
+                const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
             if (startHour < 7 || startHour >= 18) {
                 showStep(2);
@@ -1542,13 +1611,21 @@
 
             // Check if end time crosses midnight (end <= start) after operating-hours validation
             const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
-            if (crossesMidnight) {
+                if (crossesMidnight) {
+                    showStep(2);
+                    setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                    endTimeInput.focus();
+                    return;
+                }
+            }
+
+            const blockedScheduleMessage = getBlockedScheduleMessage();
+            if (blockedScheduleMessage) {
                 showStep(2);
-                setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                setBookingFieldError('end_time', blockedScheduleMessage);
                 endTimeInput.focus();
                 return;
             }
-        }
 
         const applyServerBookingError = (message) => {
             showStep(2);

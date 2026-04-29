@@ -18,12 +18,12 @@
             <!-- Name Fields (Two Column) -->
             <div class="name-row">
                 <div class="field-group">
-                    <label class="input-label" for="first_name">First Name</label>
+                    <label class="input-label" for="first_name">First Name <span style="color: red;">*</span></label>
                     <input type="text" id="first_name" name="first_name" placeholder="Enter your first name" data-label="First Name" required>
                     <small class="field-error"></small>
                 </div>
                 <div class="field-group">
-                    <label class="input-label" for="last_name">Last Name</label>
+                    <label class="input-label" for="last_name">Last Name <span style="color: red;">*</span></label>
                     <input type="text" id="last_name" name="last_name" placeholder="Enter your last name" data-label="Last Name" required>
                     <small class="field-error"></small>
                 </div>
@@ -31,40 +31,49 @@
 
             <!-- Username -->
             <div class="field-group">
-                <label class="input-label" for="username">Username</label>
+                <label class="input-label" for="username">Username <span style="color: red;">*</span></label>
                 <input type="text" id="username" name="username" placeholder="Choose a username (e.g., juan_dc)" data-label="Username" required>
                 <small class="field-error"></small>
             </div>
             
             <!-- Email -->
             <div class="field-group">
-                <label class="input-label" for="email">Gmail Address</label>
+                <label class="input-label" for="email">Gmail Address <span style="color: red;">*</span></label>
                 <input type="email" name="email" id="email" placeholder="Enter your Gmail address (e.g., juan@gmail.com)" data-label="Gmail Address" pattern="[A-Za-z0-9._%+-]+@gmail\.com" title="Please use a valid Gmail address." required>
                 <small class="field-error"></small>
             </div>
             
             <!-- Phone Number -->
             <div class="field-group">
-                <label class="input-label" for="phone">Phone Number</label>
+                <label class="input-label" for="phone">Phone Number <span style="color: red;">*</span></label>
                 <input type="tel" name="phone" id="phone" placeholder="Enter your phone number (e.g., 09123456789)" data-label="Phone Number" required>
                 <small class="field-error"></small>
             </div>
             
             <!-- Password with Show/Hide Toggle -->
             <div class="field-group">
-                <label class="input-label" for="password">Password</label>
+                <label class="input-label" for="password">Password <span style="color: red;">*</span></label>
                 <div class="password-container">
                     <input type="password" class="pass-input" id="password" name="password" placeholder="Create a password (at least 8 characters)" data-label="Password" required>
                     <button type="button" class="password-toggle" onclick="togglePassword('password')">
                         <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
                     </button>
                 </div>
+                <div class="password-requirements" id="passwordRequirements" aria-live="polite">
+                    <p class="password-requirements-title">Password must have:</p>
+                    <ul class="password-requirements-list">
+                        <li id="rule-length" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 8 characters</span></li>
+                        <li id="rule-uppercase" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 1 uppercase letter</span></li>
+                        <li id="rule-number" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 1 number</span></li>
+                        <li id="rule-special" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 1 special character</span></li>
+                    </ul>
+                </div>
                 <small class="field-error"></small>
             </div>
 
             <!-- Confirm Password with Show/Hide Toggle -->
             <div class="field-group">
-                <label class="input-label" for="confirm_password">Confirm Password</label>
+                <label class="input-label" for="confirm_password">Confirm Password <span style="color: red;">*</span></label>
                 <div class="password-container">
                     <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter your password to confirm" data-label="Confirm Password" required>
                     <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')">
@@ -119,6 +128,14 @@
         const registerForm = document.getElementById('registerForm');
         if (registerForm) {
             const requiredInputs = Array.from(registerForm.querySelectorAll('input[required]'));
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            const passwordRules = {
+                length: document.getElementById('rule-length'),
+                uppercase: document.getElementById('rule-uppercase'),
+                number: document.getElementById('rule-number'),
+                special: document.getElementById('rule-special')
+            };
             let submitAttempted = false;
 
             const getFieldGroup = (input) => input.closest('.field-group');
@@ -152,6 +169,43 @@
                 return '';
             };
 
+            const getPasswordRuleState = (value) => ({
+                length: value.length >= 8,
+                uppercase: /[A-Z]/.test(value),
+                number: /\d/.test(value),
+                special: /[^A-Za-z0-9]/.test(value)
+            });
+
+            const syncPasswordChecklist = () => {
+                if (!passwordInput) return getPasswordRuleState('');
+
+                const ruleState = getPasswordRuleState(passwordInput.value);
+                Object.entries(passwordRules).forEach(([key, element]) => {
+                    if (!element) return;
+                    element.classList.toggle('is-valid', ruleState[key]);
+                });
+
+                return ruleState;
+            };
+
+            const validatePasswordRules = () => {
+                if (!passwordInput) return true;
+
+                const ruleState = syncPasswordChecklist();
+                const isPasswordValid = Object.values(ruleState).every(Boolean);
+
+                if (!isPasswordValid) {
+                    setFieldError(
+                        passwordInput,
+                        'Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.'
+                    );
+                    return false;
+                }
+
+                setFieldError(passwordInput, '');
+                return true;
+            };
+
             const validateField = (input) => {
                 if (!input.checkValidity()) {
                     setFieldError(input, getValidationMessage(input) || input.validationMessage);
@@ -163,6 +217,7 @@
 
             const resetValidationUI = () => {
                 requiredInputs.forEach((input) => setFieldError(input, ''));
+                syncPasswordChecklist();
             };
 
             resetValidationUI();
@@ -180,14 +235,20 @@
                     isFormValid = isFormValid && valid;
                 });
 
-                const password = document.getElementById('password');
-                const confirm_password = document.getElementById('confirm_password');
-                if (password && confirm_password && password.value !== confirm_password.value) {
+                if (passwordInput && !passwordInput.validity.valueMissing) {
+                    const passwordRulesValid = validatePasswordRules();
+                    if (!passwordRulesValid && !firstInvalidInput) {
+                        firstInvalidInput = passwordInput;
+                    }
+                    isFormValid = isFormValid && passwordRulesValid;
+                }
+
+                if (passwordInput && confirmPasswordInput && passwordInput.value !== confirmPasswordInput.value) {
                     isFormValid = false;
-                    setFieldError(confirm_password, 'Passwords do not match.');
-                    if (!firstInvalidInput) firstInvalidInput = confirm_password;
-                } else if (confirm_password && confirm_password.value) {
-                    setFieldError(confirm_password, '');
+                    setFieldError(confirmPasswordInput, 'Passwords do not match.');
+                    if (!firstInvalidInput) firstInvalidInput = confirmPasswordInput;
+                } else if (confirmPasswordInput && confirmPasswordInput.value) {
+                    setFieldError(confirmPasswordInput, '');
                 }
 
                 if (!isFormValid) {
@@ -202,15 +263,45 @@
                 input.addEventListener('blur', () => {
                     if (submitAttempted) {
                         validateField(input);
+                        if (input === passwordInput && !input.validity.valueMissing) {
+                            validatePasswordRules();
+                        }
                     }
                 });
 
                 input.addEventListener('input', () => {
+                    if (input === passwordInput) {
+                        syncPasswordChecklist();
+                    }
+
                     if (submitAttempted) {
                         validateField(input);
+                        if (input === passwordInput && !input.validity.valueMissing) {
+                            validatePasswordRules();
+                        }
+                        if (
+                            input === passwordInput &&
+                            confirmPasswordInput &&
+                            confirmPasswordInput.value
+                        ) {
+                            if (passwordInput.value !== confirmPasswordInput.value) {
+                                setFieldError(confirmPasswordInput, 'Passwords do not match.');
+                            } else {
+                                setFieldError(confirmPasswordInput, '');
+                            }
+                        }
+                        if (input === confirmPasswordInput && passwordInput) {
+                            if (passwordInput.value !== confirmPasswordInput.value) {
+                                setFieldError(confirmPasswordInput, 'Passwords do not match.');
+                            } else {
+                                setFieldError(confirmPasswordInput, '');
+                            }
+                        }
                     }
                 });
             });
+
+            syncPasswordChecklist();
         }
 
         {% if errors %}

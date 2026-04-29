@@ -38,12 +38,13 @@
                 <td data-label="Images">{{ cat.images.count }}</td>
                 <td data-label="Actions">
                     <div class="action-buttons">
-                        <a href="{% url 'admin_gallery_category_edit' cat.id %}">Edit</a>
+                        <a href="{% url 'admin_gallery_category_edit' cat.id %}" title="Edit"><i class="far fa-edit"></i></a>
                         <a href="{% url 'admin_gallery_category_delete' cat.id %}"
+                            title="Delete"
                             data-swal-confirm="true"
                             data-swal-title="Delete category?"
                             data-swal-text="Delete this category? All its images will also be deleted."
-                            data-swal-confirm-text="Yes, delete category">Delete</a>
+                            data-swal-confirm-text="Yes, delete category"><i class="far fa-trash-alt"></i></a>
                     </div>
                 </td>
             </tr>
@@ -128,13 +129,14 @@
                 </td>
                 <td data-label="Actions">
                     <div class="action-buttons">
-                        <a href="{% url 'admin_gallery_image_detail' img.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=gallery-images-section" class="view-btn">View</a>
-                        <a href="{% url 'admin_gallery_image_edit' img.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=gallery-images-section" class="edit-btn">Edit</a>
+                        <a href="{% url 'admin_gallery_image_detail' img.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=gallery-images-section" class="view-btn" title="View"><i class="far fa-eye"></i></a>
+                        <a href="{% url 'admin_gallery_image_edit' img.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=gallery-images-section" class="edit-btn" title="Edit"><i class="far fa-edit"></i></a>
                         <a href="{% url 'admin_gallery_image_delete' img.id %}" class="delete-btn"
+                            title="Delete"
                             data-swal-confirm="true"
                             data-swal-title="Delete image?"
                             data-swal-text="Delete this image?"
-                            data-swal-confirm-text="Yes, delete image">Delete</a>
+                            data-swal-confirm-text="Yes, delete image"><i class="far fa-trash-alt"></i></a>
                     </div>
                 </td>
             </tr>
