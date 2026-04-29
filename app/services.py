@@ -4,8 +4,10 @@ import hmac
 import os
 import re
 import time
+import uuid
 from datetime import timedelta
 from decimal import Decimal
+from html import escape
 from pathlib import Path
 from contextlib import contextmanager
 
@@ -663,9 +665,15 @@ IMAGE_KEYWORDS = {
     "image",
     "photo",
     "design",
+    "drawing",
+    "illustration",
     "gawa ka",
+    "gumawa",
+    "igawa",
     "draw",
     "generate",
+    "create",
+    "make",
     "show me",
     "backdrop",
     "balloon",
@@ -676,14 +684,319 @@ IMAGE_KEYWORDS = {
     "concept",
     "gawa ng",
     "pakita",
-    "igawa",
     "lagay",
+    "theme",
+    "themed",
 }
 
 
 def is_image_request(text):
     lowered = (text or "").lower()
-    return any(keyword in lowered for keyword in IMAGE_KEYWORDS)
+    if not lowered.strip():
+        return False
+
+    request_verbs = {
+        "add",
+        "include",
+        "insert",
+        "change",
+        "update",
+        "revise",
+        "regenerate",
+        "again",
+        "another",
+        "gawa",
+        "gumawa",
+        "igawa",
+        "generate",
+        "create",
+        "make",
+        "draw",
+        "show me",
+        "pakita",
+    }
+    visual_terms = {
+        "picture",
+        "image",
+        "photo",
+        "drawing",
+        "illustration",
+        "design",
+        "backdrop",
+        "theme",
+        "themed",
+        "concept",
+        "cartoon",
+        "anime",
+        "character",
+    }
+
+    has_request_verb = any(term in lowered for term in request_verbs)
+    has_visual_term = any(term in lowered for term in visual_terms)
+    if has_request_verb and has_visual_term:
+        return True
+
+    return any(
+        phrase in lowered
+        for phrase in [
+            "generate image",
+            "generate again",
+            "create image",
+            "make image",
+            "draw image",
+            "try again",
+            "make another",
+            "another version",
+            "design concept",
+            "backdrop design",
+            "themed backdrop",
+            "balloon backdrop",
+        ]
+    )
+
+
+def _history_has_generated_image(conversation_history):
+    if not conversation_history:
+        return False
+    for msg in reversed(conversation_history[-8:]):
+        content = str(msg.get("content") or "")
+        if "<img " in content or "/media/ai_generated/" in content or "Balloorina Design Concept" in content:
+            return True
+    return False
+
+
+def _is_image_followup_request(text, conversation_history):
+    if not _history_has_generated_image(conversation_history):
+        return False
+
+    lowered = (text or "").lower().strip()
+    if not lowered:
+        return False
+
+    followup_terms = {
+        "again",
+        "regenerate",
+        "retry",
+        "another",
+        "more",
+        "add",
+        "include",
+        "insert",
+        "change",
+        "update",
+        "revise",
+        "replace",
+        "remove",
+        "adjust",
+        "make it",
+        "gawin",
+        "lagyan",
+        "dagdag",
+        "palitan",
+        "ulitin",
+    }
+    return any(term in lowered for term in followup_terms)
+
+
+def _recent_image_request_context(conversation_history):
+    if not conversation_history:
+        return ""
+
+    recent_user_messages = []
+    for msg in reversed(conversation_history[-8:]):
+        role = msg.get("role")
+        content = _safe_text(msg.get("content"))
+        if not content:
+            continue
+        if role == "user":
+            recent_user_messages.append(content)
+            if is_image_request(content):
+                break
+
+    recent_user_messages.reverse()
+    return " ".join(recent_user_messages[-3:])
+
+
+IMAGE_REQUEST_CLEANUP_PATTERNS = [
+    r"\bgawa\s+(ka|mo)?\s*(nga|ng|nang|na)?\b",
+    r"\bigawa\s+(mo|nyo)?\s*(ako|kami)?\b",
+    r"\bgumawa\s+(ka|mo)?\s*(ng|nang)?\b",
+    r"\b(generate|create|make|draw|show me|pakita)\b",
+    r"\b(image|picture|photo|drawing|illustration|design|concept)\b",
+    r"\b(backdrop|balloon|decoration|setup)\b",
+    r"\b(can you|could you)\b",
+    r"\b(me|for me)\b",
+    r"\b(a|an|of)\b",
+    r"\b(ng|nang|na)\b",
+    r"\bplease|pls|po|nga|daw|sabi|can you|could you\b",
+]
+
+IMAGE_EVENT_HINTS = {
+    "birthday": ("birthday", "debut", "1st birthday", "bday"),
+    "wedding": ("wedding", "kasal"),
+    "christening": ("christening", "baptism", "baptismal", "binyag"),
+    "baby shower": ("baby shower",),
+    "corporate event": ("corporate", "company", "office", "launch"),
+    "gender reveal": ("gender reveal",),
+}
+
+IMAGE_COLOR_WORDS = {
+    "black",
+    "white",
+    "gold",
+    "silver",
+    "blue",
+    "pink",
+    "red",
+    "green",
+    "yellow",
+    "purple",
+    "lavender",
+    "orange",
+    "cream",
+    "beige",
+    "brown",
+    "pastel",
+    "rose gold",
+    "navy",
+    "mint",
+}
+
+
+def _clean_image_theme_text(text):
+    cleaned = _safe_text(text)
+    cleaned = re.sub(r"https?://\S+", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+    cleaned = re.sub(r"[\[\]{}<>]", " ", cleaned)
+    for pattern in IMAGE_REQUEST_CLEANUP_PATTERNS:
+        cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .,!?:;-")
+    return cleaned[:220] if cleaned else "custom elegant celebration theme"
+
+
+def _detect_image_event_type(text):
+    lowered = (text or "").lower()
+    for event_type, hints in IMAGE_EVENT_HINTS.items():
+        if any(hint in lowered for hint in hints):
+            return event_type
+    return "celebration event"
+
+
+def _detect_image_colors(text):
+    lowered = (text or "").lower()
+    colors = [color for color in IMAGE_COLOR_WORDS if re.search(rf"\b{re.escape(color)}\b", lowered)]
+    if colors:
+        return ", ".join(colors[:4])
+    return "coordinated theme colors"
+
+
+def _user_wants_arch(text):
+    lowered = (text or "").lower()
+    return any(word in lowered for word in ["arch", "entrance", "doorway", "archway", "banderitas"])
+
+
+def build_image_generation_prompt(user_message, model_prompt=""):
+    """
+    Build a reliable SDXL prompt from the user's exact request.
+    The optional model_prompt is treated as extra detail, never as the source of truth.
+    """
+    source_text = f"{model_prompt} {user_message}".strip()
+    theme_text = _clean_image_theme_text(source_text)
+    event_type = _detect_image_event_type(source_text)
+    colors = _detect_image_colors(source_text)
+    arch_direction = (
+        "include a clear entrance arch only if it fits the requested theme"
+        if _user_wants_arch(source_text)
+        else "use balloon garlands, balloon clusters, cascading balloons, and organic side arrangements instead of a doorway arch"
+    )
+
+    prompt_parts = [
+        "WIDE SHOT, full event backdrop center stage",
+        f"{event_type} styling for the theme: {theme_text}",
+        f"color palette: {colors}",
+        "premium balloon decoration for a real event venue",
+        arch_direction,
+        "large layered backdrop panels, round and rectangular panels, dessert table or plinths, themed props, soft fabric draping, floral accents, fairy lights",
+        "balanced left and right composition, full setup visible from floor to top, no cropped decorations",
+        "photorealistic event styling, clean professional venue lighting, realistic balloons, polished luxury finish",
+    ]
+
+    prompt_parts.append(
+        "wide event styling, luxury balloon decoration setup, high quality, detailed, vibrant colors"
+    )
+    return ", ".join(prompt_parts)
+
+
+def build_image_negative_prompt(user_message):
+    negative = (
+        "low quality, blurry, distorted, deformed, bad anatomy, bad lighting, ugly, messy, "
+        "watermark, logo, readable text, misspelled text, random letters, captions, cropped, "
+        "out of frame, close-up, portrait crop, empty stage, plain background, duplicate people"
+    )
+    if not _user_wants_arch(user_message):
+        negative += (
+            ", entrance arch, doorway arch, full balloon arch, archway, upside-down U-shape arch, "
+            "foreground arch, structural arch over stage"
+        )
+    return negative
+
+
+def _extract_image_prompt_block(reply_text):
+    text = reply_text or ""
+    if "[PROMPT]" not in text or "[/PROMPT]" not in text:
+        return None, text.strip(), ""
+    prompt_start = text.find("[PROMPT]") + len("[PROMPT]")
+    prompt_end = text.find("[/PROMPT]")
+    prompt = text[prompt_start:prompt_end].strip()
+    intro = text[: text.find("[PROMPT]")].strip()
+    outro = text[prompt_end + len("[/PROMPT]") :].strip()
+    return prompt, intro, outro
+
+
+def _save_generated_image(generated_image):
+    ai_img_dir = os.path.join(settings.MEDIA_ROOT, "ai_generated")
+    os.makedirs(ai_img_dir, exist_ok=True)
+
+    filename = f"design_{timezone.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.png"
+    filepath = os.path.join(ai_img_dir, filename)
+
+    if isinstance(generated_image, (bytes, bytearray)):
+        with open(filepath, "wb") as image_file:
+            image_file.write(generated_image)
+    else:
+        generated_image.save(filepath, format="PNG")
+
+    if not os.path.exists(filepath) or os.path.getsize(filepath) <= 0:
+        raise ValueError("Generated image file was not saved correctly.")
+
+    return f"{settings.MEDIA_URL.rstrip('/')}/ai_generated/{filename}"
+
+
+def _image_success_reply(img_url, prompt, intro_text=""):
+    intro = intro_text or "Here is a Balloorina design concept based on your request:"
+    return (
+        f"{escape(intro)}<br><br>"
+        f'<img src="{escape(img_url)}" alt="Balloorina Design Concept" '
+        'style="max-width:100%; border-radius:8px; margin-top:6px; '
+        'box-shadow:0 4px 12px rgba(0,0,0,0.5);">'
+    )
+
+
+def _image_unavailable_reply(prompt, intro_text="", error_message=""):
+    intro = intro_text or "I prepared the design concept, but the image provider did not return a usable image."
+    provider_hint = ""
+    if error_message:
+        error_lower = error_message.lower()
+        if "402" in error_lower or "quota" in error_lower or "credits" in error_lower:
+            provider_hint = " The AI provider quota may be exhausted."
+        elif "401" in error_lower or "unauthorized" in error_lower:
+            provider_hint = " The Hugging Face API key may be invalid or expired."
+    return (
+        f"{escape(intro)}{escape(provider_hint)}<br><br>"
+        "<div style=\"padding:12px; background:#1a1a1a; border-radius:8px; border:1px solid #333;\">"
+        "<em>Use this improved prompt to regenerate:</em><br><br>"
+        f"<strong>{escape(prompt)}</strong></div>"
+    )
 
 
 STOP_WORDS = {
@@ -1520,6 +1833,37 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
         with _without_dead_local_proxy():
             client = InferenceClient(token=api_key)
         model_id = getattr(settings, "HUGGINGFACE_MODEL_ID", "Qwen/Qwen2.5-72B-Instruct")
+        image_triggered = is_image_request(user_message) or _is_image_followup_request(
+            user_message,
+            conversation_history,
+        )
+
+        if image_triggered:
+            image_context = _recent_image_request_context(conversation_history)
+            img_prompt = build_image_generation_prompt(user_message, image_context)
+            image_model = getattr(
+                settings,
+                "HUGGINGFACE_IMAGE_MODEL_ID",
+                "stabilityai/stable-diffusion-xl-base-1.0",
+            )
+            try:
+                with _without_dead_local_proxy():
+                    generated_image = client.text_to_image(
+                        prompt=img_prompt,
+                        negative_prompt=build_image_negative_prompt(f"{image_context} {user_message}"),
+                        model=image_model,
+                    )
+
+                img_url = _save_generated_image(generated_image)
+                return _chat_response_payload(_image_success_reply(img_url, img_prompt))
+            except Exception as image_error:
+                print(f"Image Generation Error: {image_error}")
+                return _chat_response_payload(
+                    _image_unavailable_reply(
+                        img_prompt,
+                        error_message=str(image_error),
+                    )
+                )
 
         base_prompt = (
             "You are the official AI assistant of Balloorina, a balloon decoration and event styling company in the Philippines. "
@@ -1549,22 +1893,6 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
         )
         system_prompt = f"{base_prompt}\n\n{system_context}"
 
-        image_triggered = is_image_request(user_message)
-        if image_triggered:
-            system_prompt += (
-                "\n\nThe user wants a picture/design of a balloon decoration or event backdrop setup. "
-                "You MUST create a WIDE SHOT, FULL EVENT BACKDROP setup. "
-                "CRITICAL INSTRUCTION: DO NOT use the word 'arch' in your image prompt unless the user explicitly requests an entrance arch. "
-                "Never mention 'no arch', 'without arch', or 'half-arch'. If no arch is requested, use terms like balloon garlands, balloon clusters, cascading balloons, or organic balloon arrangements. "
-                "The scene must be a wide center stage setup focusing on backdrop panels, balloon garlands, number balloons, furniture or dessert table props, flower arrangements, and fairy lights. "
-                "If the user mentions specific characters, cartoons, anime, or themes, include those characters or illustrations in the backdrop design. "
-                "CRITICAL INSTRUCTION: You MUST reply with exactly ONE highly descriptive image prompt wrapped EXACTLY in [PROMPT] and [/PROMPT], preceded by a short polite intro sentence. "
-                "Even if the request is vague, invent a beautiful theme and output the [PROMPT] block. "
-                "Do not ask for clarification and do not output bullet points. "
-                "Always start the image prompt with: WIDE SHOT, full event backdrop center stage, "
-                "and end the image prompt with: wide event styling, luxury balloon decoration setup, high quality, detailed, vibrant colors."
-            )
-
         messages = [{"role": "system", "content": system_prompt}]
 
         if conversation_history:
@@ -1576,12 +1904,11 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
 
         messages.append({"role": "user", "content": user_message})
 
-        completion_max_tokens = 720 if not image_triggered else 420
         with _without_dead_local_proxy():
             response = client.chat_completion(
                 messages=messages,
                 model=model_id,
-                max_tokens=completion_max_tokens,
+                max_tokens=720,
                 temperature=0.6,
             )
         choice = response.choices[0]
@@ -1610,70 +1937,8 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
             if cont_text:
                 reply_text = f"{reply_text}\n{cont_text}".strip()
 
-        if "[PROMPT]" in reply_text and "[/PROMPT]" in reply_text:
-            prompt_start = reply_text.find("[PROMPT]") + len("[PROMPT]")
-            prompt_end = reply_text.find("[/PROMPT]")
-            img_prompt = reply_text[prompt_start:prompt_end].strip()
-
-            intro_text = reply_text[: reply_text.find("[PROMPT]")].strip()
-            outro_text = reply_text[prompt_end + len("[/PROMPT]") :].strip()
-
-            if image_triggered:
-                try:
-                    image_model = "stabilityai/stable-diffusion-xl-base-1.0"
-                    user_wants_arch = any(
-                        word in user_message.lower()
-                        for word in ["arch", "entrance", "doorway", "archway", "banderitas"]
-                    )
-                    negative_prompt = (
-                        "low quality, blurry, distorted, text, watermark, bad anatomy, bad lighting, "
-                        "cropped, out of frame"
-                    )
-                    if not user_wants_arch:
-                        negative_prompt += (
-                            ", entrance arch, doorway arch, full balloon arch, archway, "
-                            "upside-down U-shape arch, foreground arch, structural arch over stage"
-                        )
-
-                    with _without_dead_local_proxy():
-                        generated_image = client.text_to_image(
-                            prompt=img_prompt,
-                            negative_prompt=negative_prompt,
-                            model=image_model,
-                        )
-
-                    ai_img_dir = os.path.join(settings.MEDIA_ROOT, "ai_generated")
-                    os.makedirs(ai_img_dir, exist_ok=True)
-
-                    filename = f"design_{int(time.time())}.png"
-                    filepath = os.path.join(ai_img_dir, filename)
-                    generated_image.save(filepath)
-
-                    img_url = f"{settings.MEDIA_URL}ai_generated/{filename}"
-
-                    clean_reply = f"{intro_text}<br><br>"
-                    clean_reply += (
-                        f'<img src="{img_url}" alt="Balloorina Design Concept" '
-                        'style="max-width:100%; border-radius:8px; margin-top:6px; '
-                        'box-shadow:0 4px 12px rgba(0,0,0,0.5);">'
-                    )
-                    if outro_text:
-                        clean_reply += f"<br><br>{outro_text}"
-
-                    return _chat_response_payload(clean_reply)
-                except Exception as image_error:
-                    print(f"Image Generation Error: {image_error}")
-                    clean_reply = f"{intro_text}<br><br>"
-                    clean_reply += (
-                        "<div style=\"padding:12px; background:#1a1a1a; border-radius:8px; "
-                        "border:1px solid #333;\">"
-                        "<em>Image generation is temporarily unavailable. Here is the concept prompt:</em><br><br>"
-                        f"<strong>{img_prompt}</strong></div>"
-                    )
-                    if outro_text:
-                        clean_reply += f"<br><br>{outro_text}"
-                    return _chat_response_payload(clean_reply)
-
+        prompt_text, intro_text, outro_text = _extract_image_prompt_block(reply_text)
+        if prompt_text:
             reply_text = f"{intro_text} {outro_text}".strip()
 
         return _chat_response_payload(_normalize_reply_text(reply_text))

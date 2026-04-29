@@ -364,8 +364,8 @@
         }
 
         .ai-sidebar {
-            width: 230px;
-            min-width: 230px;
+            width: 180px;
+            min-width: 10px;
             flex-shrink: 0;
             background-color: #111111;
             border-right: 1px solid var(--light-gray);
@@ -871,6 +871,10 @@
                 localStorage.setItem(CHAT_SESSION_STORAGE_KEY, String(sessionId));
             }
 
+            function isSameSessionId(left, right) {
+                return Number(left) === Number(right);
+            }
+
             function formatCountdownClock(totalSeconds) {
                 const safe = Math.max(0, Number(totalSeconds) || 0);
                 const hrs = Math.floor(safe / 3600);
@@ -971,6 +975,7 @@
             // ---- Markdown-to-HTML Formatter ----
             function formatMarkdown(text) {
                 let html = text;
+                html = html.replace(/<details\b[\s\S]*?<summary>\s*View image prompt\s*<\/summary>[\s\S]*?<\/details>/gi, '');
 
                 // Simple check if it's already complex HTML (like an image response)
                 if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>⚠️')) {
@@ -1107,7 +1112,8 @@
             }
 
             // ---- Load Chat Sessions (Sidebar) ----
-            async function loadSessions() {
+            async function loadSessions(options = {}) {
+                const autoSelectSession = options.autoSelectSession !== false;
                 try {
                     const response = await fetch('/api/chat/sessions/', {
                         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
@@ -1128,7 +1134,7 @@
                         data.sessions.forEach(session => {
                             const li = document.createElement('li');
                             li.className = 'ai-recent-chat-item';
-                            if (currentSessionId === session.id) {
+                            if (isSameSessionId(currentSessionId, session.id)) {
                                 li.classList.add('active');
                             }
                             const titleSpan = document.createElement('span');
@@ -1159,7 +1165,8 @@
                                     color: '#fff'
                                 }).then(async (result) => {
                                     if (result.isConfirmed) {
-                                        await fetch('/api/chat/clear/', {
+                                        li.remove();
+                                        const deleteResponse = await fetch('/api/chat/clear/', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
@@ -1167,11 +1174,25 @@
                                             },
                                             body: JSON.stringify({ session_id: session.id })
                                         });
-                                        if (currentSessionId === session.id) {
-                                            startNewChat();
-                                        } else {
-                                            loadSessions();
+
+                                        if (!deleteResponse.ok) {
+                                            await loadSessions();
+                                            Swal.fire({
+                                                title: 'Delete failed',
+                                                text: 'Please try again.',
+                                                icon: 'error',
+                                                background: '#1e1e1e',
+                                                color: '#fff'
+                                            });
+                                            return;
                                         }
+
+                                        const deletedCurrentSession = isSameSessionId(currentSessionId, session.id);
+                                        if (deletedCurrentSession) {
+                                            startNewChat();
+                                        }
+                                        await loadSessions({ autoSelectSession: !deletedCurrentSession });
+
                                         Swal.fire({
                                             title: 'Deleted!',
                                             text: 'Your chat has been deleted.',
@@ -1188,7 +1209,7 @@
 
                             li.onclick = () => {
                                 // Ignore if already active
-                                if (currentSessionId === session.id) return;
+                                if (isSameSessionId(currentSessionId, session.id)) return;
 
                                 // Update active class
                                 document.querySelectorAll('.ai-recent-chat-item').forEach(el => el.classList.remove('active'));
@@ -1202,11 +1223,11 @@
                         });
 
                         const storedSessionId = loadStoredSessionId();
-                        if ((!currentSessionId || !data.sessions.some(s => s.id === currentSessionId)) && storedSessionId && data.sessions.some(s => s.id === storedSessionId)) {
+                        if ((!currentSessionId || !data.sessions.some(s => isSameSessionId(s.id, currentSessionId))) && storedSessionId && data.sessions.some(s => isSameSessionId(s.id, storedSessionId))) {
                             currentSessionId = storedSessionId;
                         }
 
-                        if (!currentSessionId && data.sessions.length > 0) {
+                        if (autoSelectSession && !currentSessionId && data.sessions.length > 0) {
                             currentSessionId = data.sessions[0].id;
                         }
 
@@ -1217,6 +1238,9 @@
                             storeSessionId(currentSessionId);
                             loadChatHistory(currentSessionId);
                         }
+                    } else {
+                        currentSessionId = null;
+                        storeSessionId(null);
                     }
                 } catch (e) {
                     console.error('Failed to load sessions', e);
