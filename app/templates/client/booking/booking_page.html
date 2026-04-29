@@ -335,11 +335,26 @@
             return serverTodayStr;
         }
 
+        function getCurrentMonthStartStr() {
+            return `${serverTodayStr.slice(0, 8)}01`;
+        }
+
+        function parseLocalDate(dateStr) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        }
+
         function formatLocalDate(dateObj) {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        }
+
+        function isBeforeCurrentMonth(year, monthIndex) {
+            const monthStart = parseLocalDate(getCurrentMonthStartStr());
+            return year < monthStart.getFullYear()
+                || (year === monthStart.getFullYear() && monthIndex < monthStart.getMonth());
         }
 
         dateInput.setAttribute('min', getLocalTodayStr());
@@ -992,6 +1007,11 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,today'
             },
+            validRange: function () {
+                return {
+                    start: getCurrentMonthStartStr()
+                };
+            },
             dayCellClassNames: function (arg) {
                 const cellDate = formatLocalDate(arg.date);
                 const todayLocal = getLocalTodayStr();
@@ -1081,6 +1101,21 @@
 
     calendar.render();
 
+    function updateCalendarNavState() {
+        const currentDate = calendar.getDate();
+        const prevButton = calendarEl.querySelector('.fc-prev-button');
+        if (prevButton) {
+            const atEarliestMonth = isBeforeCurrentMonth(currentDate.getFullYear(), currentDate.getMonth() - 1);
+            prevButton.disabled = atEarliestMonth;
+            prevButton.classList.toggle('fc-button-disabled', atEarliestMonth);
+            prevButton.setAttribute('aria-disabled', atEarliestMonth ? 'true' : 'false');
+            prevButton.title = atEarliestMonth ? 'Past months are not available for booking.' : '';
+        }
+    }
+
+    calendar.on('datesSet', updateCalendarNavState);
+    updateCalendarNavState();
+
     // =============================================
     // CUSTOM MONTH/YEAR PICKER LOGIC
     // =============================================
@@ -1090,7 +1125,20 @@
     const mypNextBtn = document.getElementById('myp-next-year');
     const mypMonthBtns = document.querySelectorAll('.myp-months-grid button');
 
-    let currentPickerYear = new Date().getFullYear();
+    let currentPickerYear = parseLocalDate(getCurrentMonthStartStr()).getFullYear();
+
+    function updateMonthYearPickerState() {
+        mypYearDisplay.textContent = currentPickerYear;
+        mypPrevBtn.disabled = currentPickerYear <= parseLocalDate(getCurrentMonthStartStr()).getFullYear();
+
+        mypMonthBtns.forEach(btn => {
+            const monthIndex = parseInt(btn.getAttribute('data-month'), 10);
+            const isDisabled = isBeforeCurrentMonth(currentPickerYear, monthIndex);
+            btn.disabled = isDisabled;
+            btn.classList.toggle('disabled-month', isDisabled);
+            btn.title = isDisabled ? 'Past months are not available for booking.' : '';
+        });
+    }
 
     // Intercept clicks on the calendar title
     document.getElementById('booking-calendar').addEventListener('click', function (e) {
@@ -1098,8 +1146,6 @@
             const currentDate = calendar.getDate();
             currentPickerYear = currentDate.getFullYear();
             const currentMonth = currentDate.getMonth();
-
-            mypYearDisplay.textContent = currentPickerYear;
 
             // Highlight current month
             mypMonthBtns.forEach(btn => {
@@ -1110,6 +1156,7 @@
                 }
             });
 
+            updateMonthYearPickerState();
             mypModal.style.display = 'block';
         }
     });
@@ -1126,19 +1173,21 @@
 
     // Year navigation
     mypPrevBtn.addEventListener('click', () => {
+        if (mypPrevBtn.disabled) return;
         currentPickerYear--;
-        mypYearDisplay.textContent = currentPickerYear;
+        updateMonthYearPickerState();
     });
 
     mypNextBtn.addEventListener('click', () => {
         currentPickerYear++;
-        mypYearDisplay.textContent = currentPickerYear;
+        updateMonthYearPickerState();
     });
 
     // Month selection
     mypMonthBtns.forEach(btn => {
         btn.addEventListener('click', function () {
             const selectedMonth = parseInt(this.getAttribute('data-month'));
+            if (isBeforeCurrentMonth(currentPickerYear, selectedMonth)) return;
             // Navigate FullCalendar to the 1st day of chosen month/year
             const newDate = new Date(currentPickerYear, selectedMonth, 1);
             calendar.gotoDate(newDate);

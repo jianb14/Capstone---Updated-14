@@ -27,7 +27,6 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db import transaction
 from django.db.models import Avg, Count, Exists, Max, OuterRef, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
@@ -672,20 +671,28 @@ def register(request):
             return render(request, "auth/register.html", {"errors": errors})
 
         try:
-            with transaction.atomic():
-                user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                    phone_number=phone,
-                    role=role,
-                    email_verified=False,
-                )
-                _send_account_verification_email(request, user)
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=phone,
+                role=role,
+                email_verified=False,
+            )
+        except Exception:
+            logger.exception("Failed to create user account during registration.")
+            errors.append(
+                "We could not create your account right now. Please try again in a moment."
+            )
+            return render(request, "auth/register.html", {"errors": errors})
+
+        try:
+            _send_account_verification_email(request, user)
         except Exception:
             logger.exception("Failed to send account verification email.")
+            user.delete()
             errors.append(
                 "We could not send a verification email right now. Please try again in a moment."
             )

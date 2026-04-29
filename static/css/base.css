@@ -1097,12 +1097,37 @@ nav.scrolled {
 }
 
 /* Packages Page */
+
+/* ── Floating Balloon Keyframes ── */
+@keyframes balloonFloat1 {
+    0%   { transform: translateY(0) rotate(-3deg); }
+    50%  { transform: translateY(-18px) rotate(3deg); }
+    100% { transform: translateY(0) rotate(-3deg); }
+}
+@keyframes balloonFloat2 {
+    0%   { transform: translateY(0) rotate(2deg); }
+    50%  { transform: translateY(-24px) rotate(-2deg); }
+    100% { transform: translateY(0) rotate(2deg); }
+}
+@keyframes balloonFloat3 {
+    0%   { transform: translateY(0) rotate(-1deg); }
+    50%  { transform: translateY(-14px) rotate(4deg); }
+    100% { transform: translateY(0) rotate(-1deg); }
+}
+@keyframes balloonPop {
+    0%   { transform: scale(1); opacity: 1; }
+    50%  { transform: scale(1.08); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 .packages-hero {
     padding: 8rem 5% 2rem;
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 25px 25px;
     color: var(--white);
     text-align: center;
+    position: relative;
+    overflow: hidden;
 }
 
 .package-title {
@@ -1114,6 +1139,13 @@ nav.scrolled {
     font-weight: 800;
     margin-bottom: 1rem;
     letter-spacing: -2px;
+    position: relative;
+    z-index: 1;
+}
+
+.packages-hero p {
+    position: relative;
+    z-index: 1;
 }
 
 .packages-detailed {
@@ -1143,32 +1175,252 @@ nav.scrolled {
 .package-card {
     flex: 0 0 calc((100% / 3) - (2rem * 2 / 3));
     min-width: 0;
-    background: linear-gradient(160deg, rgba(16, 16, 16, 0.98), rgba(10, 10, 10, 0.98));
+    background: 
+        radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
+        radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.025) 0%, transparent 30%),
+        linear-gradient(145deg, rgba(25, 25, 25, 0.98) 0%, rgba(15, 15, 15, 0.99) 50%, rgba(10, 10, 10, 0.98) 100%);
     color: var(--white);
     padding: 3rem 2rem 2rem 2rem;
     text-align: left;
-    transition: all 0.4s ease;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 14px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    box-shadow: 
+        0 12px 32px rgba(0, 0, 0, 0.35),
+        0 4px 8px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     overflow: visible;
 }
 
+/* Elegant inner frame */
+.package-card::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+/* Corner ornaments */
+.package-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px;
+    background: 
+        /* Top left corner */
+        linear-gradient(135deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
+        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
+        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
+        /* Top right corner */
+        linear-gradient(225deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
+        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
+        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
+        /* Bottom left corner */
+        linear-gradient(45deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
+        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
+        /* Bottom right corner */
+        linear-gradient(315deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
+        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%;
+    background-size: 20px 20px;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+/* ==========================================
+   BALLOON PIN - Hanging balloon decoration
+   ========================================== */
+.balloon-pin {
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* The string */
+.pin-string {
+    width: 1.5px;
+    height: 25px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%);
+    position: relative;
+}
+
+/* The knot */
+.pin-knot {
+    width: 4px;
+    height: 4px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    margin: -1px 0;
+}
+
+/* The balloon */
+.balloon {
+    width: 14px;
+    height: 18px;
+    background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.5) 20%, rgba(200,200,200,0.4) 100%);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    position: relative;
+    box-shadow: 
+        inset -2px -2px 4px rgba(0,0,0,0.1),
+        0 2px 8px rgba(0,0,0,0.15);
+    animation: balloon-sway 3s ease-in-out infinite;
+    transform-origin: top center;
+}
+
+/* Balloon highlight */
+.balloon::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 3px;
+    width: 4px;
+    height: 6px;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.9) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+/* Balloon string tail */
+.balloon::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 2px solid transparent;
+    border-right: 2px solid transparent;
+    border-top: 3px solid rgba(200,200,200,0.5);
+}
+
+/* Gentle sway animation */
+@keyframes balloon-sway {
+    0%, 100% {
+        transform: rotate(-2deg);
+    }
+    50% {
+        transform: rotate(2deg);
+    }
+}
+
+/* Featured card gets a slightly larger balloon */
+.package-card.featured .balloon {
+    width: 16px;
+    height: 20px;
+    background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.6) 20%, rgba(220,220,220,0.5) 100%);
+    box-shadow: 
+        inset -2px -2px 4px rgba(0,0,0,0.1),
+        0 2px 10px rgba(255,255,255,0.1);
+}
+
+.package-card.featured .pin-string {
+    background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%);
+}
+
+/* Addon cards balloon pin positioning */
+.addon-card .balloon-pin {
+    top: -32px;
+}
+
+.addon-card .balloon {
+    width: 12px;
+    height: 16px;
+}
+
+/* Hover effect - balloon reacts */
+.package-card:hover .balloon,
+.addon-card:hover .balloon {
+    animation: balloon-bounce 0.6s ease-in-out;
+}
+
+@keyframes balloon-bounce {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    50% {
+        transform: scale(1.1) rotate(5deg);
+    }
+}
+
 .package-card:hover {
-    transform: translateY(-8px);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
+    transform: translateY(-10px);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 
+        0 24px 48px rgba(0, 0, 0, 0.45),
+        0 8px 16px rgba(0, 0, 0, 0.25),
+        0 0 80px rgba(255, 255, 255, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Enhanced corner glow on hover */
+.package-card:hover::after {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(225deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(315deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
+        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%;
+    background-size: 20px 20px;
+    background-repeat: no-repeat;
 }
 
 .package-card.featured {
-    background: linear-gradient(160deg, rgba(28, 28, 28, 0.99), rgba(14, 14, 14, 0.99));
+    background: 
+        radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 35%),
+        radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.04) 0%, transparent 25%),
+        linear-gradient(145deg, rgba(35, 35, 35, 0.99) 0%, rgba(20, 20, 20, 0.99) 50%, rgba(12, 12, 12, 0.99) 100%);
     color: var(--white);
-    border: 1px solid rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     order: -1;
     z-index: 2;
+    box-shadow: 
+        0 16px 40px rgba(0, 0, 0, 0.4), 
+        0 0 60px rgba(255,255,255,0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Featured card enhanced corner glow */
+.package-card.featured::after {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(225deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(315deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
+        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%;
+    background-size: 24px 24px;
+    background-repeat: no-repeat;
 }
 
 .package-card.featured:hover {
@@ -1178,44 +1430,100 @@ nav.scrolled {
 
 .package-badge {
     position: absolute;
-    top: -10px;
+    top: -14px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--white);
+    background: 
+        linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.95) 100%);
     color: var(--black);
-    padding: 0.3rem 0.6rem 0.2rem 0.6rem;
-    width: 140px;
-    font-size: 0.7rem;
+    padding: 0.4rem 1rem 0.32rem 1rem;
+    width: auto;
+    min-width: 130px;
+    font-size: 0.6rem;
     text-align: center;
-    font-weight: 700;
-    letter-spacing: 1px;
-    border-radius: 5px;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    font-weight: 800;
+    letter-spacing: 2px;
+    border-radius: 2px;
+    box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.25),
+        0 2px 4px rgba(0, 0, 0, 0.15);
+    text-transform: uppercase;
+}
+
+/* Badge decorative lines */
+.package-badge::before,
+.package-badge::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 8px;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.package-badge::before {
+    left: 6px;
+}
+
+.package-badge::after {
+    right: 6px;
 }
 
 .package-card.featured .package-badge {
-    background: rgba(255, 255, 255, 1);
+    background: 
+        linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
     color: var(--black);
-    border-radius: 25px;
+    border-radius: 2px;
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.3),
+        0 0 30px rgba(255, 255, 255, 0.15);
 }
 
 .package-card h3 {
-    font-size: 1.5rem;
-    font-weight: 800;
+    font-size: 1.4rem;
+    font-weight: 700;
     text-align: left;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #ffffff;
+    position: relative;
+    padding-bottom: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Elegant underline */
+.package-card h3::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.6) 0%, transparent 100%);
+}
+
+.package-card.featured h3::after {
+    width: 60px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
 }
 
 .package-price {
-    font-size: 2rem;
-    font-weight: 800;
-    margin: 0.5rem 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0.8rem 0 1rem;
     text-align: left;
+    color: #ffffff;
+    font-family: Montserrat, sans-serif;
+    letter-spacing: 0.5px;
 }
 
 .package-price span {
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 400;
-    opacity: 0.7;
+    opacity: 0.6;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    font-family: system-ui, -apple-system, sans-serif;
 }
 
 .package-service-price {
@@ -1225,15 +1533,20 @@ nav.scrolled {
 }
 
 .package-notes {
-    color: var(--dark-gray);
-    font-weight: 500;
-    margin: 20px 0;
-    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 400;
+    margin: 1.5rem 1rem 0.5rem;
+    font-size: 0.75rem;
+    font-style: italic;
+    text-align: center;
+    line-height: 1.6;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 1rem;
 }
 
 .package-card.featured .package-notes {
-    color: var(--dark-gray);
-
+    color: rgba(255, 255, 255, 0.65);
+    border-top-color: rgba(255, 255, 255, 0.12);
 }
 
 .package-service-price span {
@@ -1298,31 +1611,64 @@ nav.scrolled {
 }
 
 .package-features li {
-    padding: 0.5rem 0;
-    font-size: 0.88rem;
-    color: rgba(255, 255, 255, 0.8);
+    padding: 0.55rem 0;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.82);
     display: grid;
-    grid-template-columns: 18px 1fr;
-    column-gap: 0.6rem;
+    grid-template-columns: 22px 1fr;
+    column-gap: 0.7rem;
     align-items: start;
-    line-height: 1.45;
+    line-height: 1.5;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: color 0.3s ease;
+}
+
+.package-features li:last-child {
+    border-bottom: none;
+}
+
+.package-card:hover .package-features li {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .package-list-label {
     display: inline-flex;
     align-self: flex-start;
     align-items: center;
-    gap: 0.35rem;
-    font-size: 0.6rem;
+    gap: 0.5rem;
+    font-size: 0.55rem;
     text-transform: uppercase;
-    letter-spacing: 1.3px;
-    color: rgba(255, 255, 255, 0.86);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 999px;
-    padding: 0.3rem 0.72rem 0.26rem;
-    margin: 0.25rem 0 0;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.8);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0;
+    padding: 0.2rem 1rem 0.2rem 1rem;
+    margin: 0.5rem 0 1.2rem;
     width: fit-content;
+    position: relative;
+}
+
+/* Decorative diamonds on label */
+.package-list-label::before,
+.package-list-label::after {
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+    transform: rotate(45deg);
+}
+
+.package-card.featured .package-list-label {
+    color: rgba(255, 255, 255, 0.9);
+    border-bottom-color: rgba(255, 255, 255, 0.25);
+}
+
+.package-card.featured .package-list-label::before,
+.package-card.featured .package-list-label::after {
+    background: rgba(255, 255, 255, 0.7);
 }
 
 .package-card.featured .package-features li {
@@ -1511,6 +1857,18 @@ nav.scrolled {
     max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
+    position: relative;
+}
+
+/* Balloon-string divider above each section */
+.addons-section::before,
+.additionals-section::before {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent);
+    margin: 0 auto 2rem;
 }
 
 .section-title {
@@ -1547,25 +1905,94 @@ nav.scrolled {
 
 .addon-card {
     flex: 0 0 calc((100% / 3) - (2rem * 2 / 3));
-    background: linear-gradient(160deg, rgba(16, 16, 16, 0.98), rgba(10, 10, 10, 0.98));
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    padding: 2rem;
-    border-radius: 14px;
+    background: 
+        radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
+        radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.025) 0%, transparent 30%),
+        linear-gradient(145deg, rgba(25, 25, 25, 0.98) 0%, rgba(15, 15, 15, 0.99) 50%, rgba(10, 10, 10, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 2.5rem 2rem 2rem 2rem;
+    border-radius: 4px;
     display: flex;
     flex-direction: column;
-    transition: 0.3s ease;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     box-sizing: border-box;
     position: relative;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+    box-shadow: 
+        0 12px 32px rgba(0, 0, 0, 0.35),
+        0 4px 8px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    overflow: hidden;
+    overflow: visible;
+}
+
+/* Elegant inner frame on addon cards */
+.addon-card::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+/* Corner ornaments on addon cards */
+.addon-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px;
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
+        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
+        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
+        linear-gradient(225deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
+        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
+        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
+        linear-gradient(45deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
+        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
+        linear-gradient(315deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
+        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%;
+    background-size: 20px 20px;
+    background-repeat: no-repeat;
+    pointer-events: none;
 }
 
 .addon-card:hover {
-    transform: translateY(-8px);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
+    transform: translateY(-10px);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 
+        0 24px 48px rgba(0, 0, 0, 0.45),
+        0 8px 16px rgba(0, 0, 0, 0.25),
+        0 0 80px rgba(255, 255, 255, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Enhanced corner glow on hover for addon cards */
+.addon-card:hover::after {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
+        linear-gradient(225deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
+        linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
+        linear-gradient(315deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
+        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
+        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%;
+    background-size: 20px 20px;
+    background-repeat: no-repeat;
 }
 
 
@@ -1578,59 +2005,93 @@ nav.scrolled {
 }
 
 .addon-tag {
-    font-size: 0.7rem;
-    letter-spacing: 1.5px;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
     opacity: 0.5;
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
 }
 
 .addon-name {
-    font-size: 1.5rem;
-    font-weight: 800;
+    font-size: 1.3rem;
+    font-weight: 700;
     margin: 0;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #ffffff;
+    position: relative;
+    padding-bottom: 0.7rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Elegant underline for addon names */
+.addon-name::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 35px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.6) 0%, transparent 100%);
 }
 
 .addon-price {
-    font-size: 1.5rem;
-    margin-top: 0.1rem;
-    margin-bottom: 0.2rem;
-    font-weight: 800;
+    font-size: 1.6rem;
+    margin-top: 0.3rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
     text-align: left;
     display: inline-flex;
     align-items: baseline;
     gap: 0.45rem;
+    color: #ffffff;
+    font-family:  Montserrat, sans-serif;
+    letter-spacing: 0.5px;
 }
 
 .addon-price-note {
     display: inline;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.55);
+    font-style: italic;
+    font-family: system-ui, -apple-system, sans-serif;
 }
 
 .price-amount {
-    font-size: 2rem;
-    font-weight: 800;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: Montserrat, sans-serif;
 }
 
 
 .addon-features {
     list-style: none;
     padding: 0;
-    margin: 0.6rem 0 1.2rem;
-    margin-bottom: 1.2rem;
+    margin: 0.85rem 0 1rem;
 }
 
 .addon-features li {
-    padding: 0.5rem 0;
+    padding: 0.55rem 0;
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.82);
     display: grid;
-    grid-template-columns: 18px 1fr;
-    column-gap: 0.6rem;
+    grid-template-columns: 22px 1fr;
+    column-gap: 0.7rem;
     align-items: start;
-    line-height: 1.45;
+    line-height: 1.5;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: color 0.3s ease;
+}
+
+.addon-features li:last-child {
+    border-bottom: none;
+}
+
+.addon-card:hover .addon-features li {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .addon-features li::before {
@@ -1667,11 +2128,19 @@ nav.scrolled {
 
 .solo-price {
     padding-top: 1rem;
-    border-top: 1px dashed rgba(255, 255, 255, 0.2);
-    font-size: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.8rem;
     text-align: center;
-    opacity: 0.85;
-    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 1rem 1rem 0.5rem;
+    font-style: italic;
+}
+
+.solo-price strong {
+    color: rgba(255, 255, 255, 0.9);
+    font-family: Montserrat, sans-serif;
+    font-style: normal;
+    font-weight: 600;
 }
 
 .additional-subtitle {
@@ -1684,9 +2153,13 @@ nav.scrolled {
 
 .additional-notes {
     text-align: center;
-    margin-bottom: 15px;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 0.85rem;
+    margin: 1.5rem 1rem 0.5rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.75rem;
+    font-style: italic;
+    line-height: 1.6;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 1rem;
 }
 
 .carousel-btn:hover {
@@ -2206,6 +2679,7 @@ footer {
     color: rgba(255, 255, 255, 0.6);
     text-decoration: none;
     transition: color 0.2s ease;
+    text-decoration: underline;
 }
 
 .footer-guidelines-link:hover {

@@ -5,17 +5,51 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Always load the project-local .env and let it override stale process values.
+# This helps when keys are rotated during local development.
+load_dotenv(BASE_DIR / ".env", override=True)
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def env_list(name, default=None):
+    value = os.getenv(name)
+    if value is None:
+        return default or []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-aqcbu(9ds5a=f9-c+0eqo$5a_(c_xe%ds$0jo(l)n9vfn@a*ue'
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "django-insecure-aqcbu(9ds5a=f9-c+0eqo$5a_(c_xe%ds$0jo(l)n9vfn@a*ue",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DEBUG", True)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["127.0.0.1", "localhost"])
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", False)
 
 
 # Application definition
@@ -113,6 +147,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR/ 'static']
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 AUTH_USER_MODEL = 'app.User'
 LOGIN_URL = '/login/'
@@ -122,13 +157,6 @@ LOGOUT_REDIRECT_URL = '/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
-
-# Always load the project-local .env and let it override stale process values.
-# This helps when keys are rotated during local development.
-load_dotenv(BASE_DIR / ".env", override=True)
-
 
 def sanitize_dead_local_proxy_env():
     """
@@ -157,23 +185,6 @@ def sanitize_dead_local_proxy_env():
 sanitize_dead_local_proxy_env()
 
 
-def env_bool(name, default=False):
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def env_int(name, default):
-    value = os.getenv(name)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        return default
-
-
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 # Email and password reset security
@@ -185,7 +196,7 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
-EMAIL_FAIL_SILENTLY = env_bool("EMAIL_FAIL_SILENTLY", True)
+EMAIL_FAIL_SILENTLY = env_bool("EMAIL_FAIL_SILENTLY", False)
 
 # Default Django token timeout is 3 days; tighten for better security.
 PASSWORD_RESET_TIMEOUT = env_int("PASSWORD_RESET_TIMEOUT", 1800)

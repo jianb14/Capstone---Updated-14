@@ -1,5 +1,8 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <style>
@@ -7,11 +10,13 @@
             size: A4;
             margin: 2cm;
         }
+
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             color: #333;
             line-height: 1.4;
         }
+
         .header {
             display: flex;
             align-items: center;
@@ -19,38 +24,46 @@
             padding-bottom: 15px;
             margin-bottom: 20px;
         }
+
         .logo {
             width: 100px;
             height: auto;
         }
+
         .header-content {
             flex: 1;
         }
+
         .header h1 {
             color: #1e293b;
             margin: 10px 0 0;
             font-size: 20px;
             font-weight: 600;
         }
+
         .header p {
             margin: 5px 0 0;
             color: #666;
             font-size: 12px;
         }
+
         .report-info {
             margin-bottom: 20px;
             font-size: 12px;
         }
+
         .summary-grid {
             width: 100%;
             margin-bottom: 30px;
         }
+
         .summary-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             padding: 10px;
             text-align: center;
         }
+
         .summary-box .label {
             display: block;
             font-size: 10px;
@@ -58,22 +71,26 @@
             text-transform: uppercase;
             margin-bottom: 5px;
         }
+
         .summary-box .value {
             display: block;
             font-size: 18px;
             font-weight: bold;
             color: #1e293b;
         }
+
         h2 {
             font-size: 16px;
             color: #1e293b;
             margin: 20px 0 10px;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
+
         th {
             background: #f1f5f9;
             color: #475569;
@@ -82,12 +99,17 @@
             padding: 8px;
             border-bottom: 1px solid #e2e8f0;
         }
+
         td {
             padding: 8px;
             font-size: 10px;
             border-bottom: 1px solid #f1f5f9;
         }
-        .text-right { text-align: right; }
+
+        .text-right {
+            text-align: right;
+        }
+
         .footer {
             position: fixed;
             bottom: 0;
@@ -100,9 +122,10 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header">
-        <img src="{{ STATIC_ROOT }}/images/BalloorinaLogo1.png" alt="Balloorina" class="logo">
+        <img src="{% static 'images/canvas/BalloorinaBlack.png' %}" alt="Balloorina" class="logo">
         <div class="header-content">
             <h1>Analytics Report</h1>
             <p>Generated on {{ timezone.now|date:"F d, Y H:i" }}</p>
@@ -324,4 +347,5 @@
         Confidential Analytics Report - For Administrative Use Only
     </div>
 </body>
+
 </html>
