@@ -3,11 +3,13 @@ from django.views.generic import RedirectView
 
 from .views import (
     AboutPageView,
+    DataPrivacyPageView,
     GalleryPageView,
     GuidelinesPageView,
     HomePageView,
     PackagePageView,
     ServicesPageView,
+    TermsConditionsPageView,
     admin_about_content,
     admin_about_value_create,
     admin_about_value_delete,
@@ -129,6 +131,8 @@ urlpatterns = [
     path("about/", AboutPageView.as_view(), name="about"),
     path("services/", ServicesPageView.as_view(), name="services"),
     path("guidelines/", GuidelinesPageView.as_view(), name="guidelines"),
+    path("terms-and-conditions/", TermsConditionsPageView.as_view(), name="terms_conditions"),
+    path("data-privacy/", DataPrivacyPageView.as_view(), name="data_privacy"),
     path("package/", PackagePageView.as_view(), name="package"),
     path("gallery/", GalleryPageView.as_view(), name="gallery"),
     # My Designs Dashboard

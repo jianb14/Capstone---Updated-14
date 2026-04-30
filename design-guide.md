@@ -56,39 +56,6 @@ All assets should use these exact colors when applicable:
 </svg>
 ```
 
----
-
-## Per-Category Notes
-
-### Frames / Structures
-- Drawn as outlined wireframe shapes (arches, circles, rectangles, hexagons).
-- Use the Gold color (`#ffb703`) for the frame fill, with the black outline.
-
-### Balloons
-- Purely the shape (circle, heart, star, number, letter). No string.
-- Each shape comes in ALL colors from the palette.
-
-### Decorations
-- Flowers, bows, lights, greenery rendered as clean icon objects.
-- Multi-part objects (like a flower) use 2-3 palette colors for differentiation.
-
-### Furniture
-- Plinths, chairs, tables, crates as clean side-view or front-view icons.
-- Use White, Cream, or Brown fills depending on material (acrylic = white, wood = brown).
-
-### Party Items
-- Cakes, gift boxes, standees as flat icon illustrations.
-- Bold outlines, flat fills.
-
-### Theme Objects
-- Teddy bears, rainbows, hot air balloons etc.
-- Same lineal color icon treatment.
-
-### Text & Signs
-- Neon signs shown as dark rectangles with bright text.
-- Marquee numbers as outlined shapes with small dot details.
-
----
 
 ## Summary
 

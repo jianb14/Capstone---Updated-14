@@ -79,7 +79,6 @@
                             <h4>Assets</h4>
                             <p>Click or drag elements into the canvas.</p>
                         </div>
-                        <span class="panel-badge">{{ canvas_categories|length }} groups</span>
                     </div>
 
                     <label class="panel-search" for="assetSearchInput">
@@ -384,7 +383,10 @@
                 </div>
                 <div class="cart-body" id="cartBody">
                     <div class="cart-base-package">
-                        <strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}No Package Selected{% endif %}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <span><strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}No Package Selected{% endif %}</span></span>
+                            <span id="cartBasePrice" style="font-weight: 600; color: #fff;">{% if base_package %}P{{ base_package.price }}{% endif %}</span>
+                        </div>
                     </div>
 
                     {% if base_package %}
@@ -393,18 +395,6 @@
                         <ul class="cart-list" id="cartInclusionsList"></ul>
                     </div>
                     {% endif %}
-
-                    <div class="cart-section" id="cartAddonsArea">
-                        <div class="section-title">Extra Add-ons</div>
-                        <ul class="cart-list" id="cartAddonsList">
-                            <li class="empty-list">No extra items yet.</li>
-                        </ul>
-                    </div>
-
-                    <div class="cart-total-area">
-                        <span>Total Est. Add-ons:</span>
-                        <span class="total-price" id="cartTotalPrice">P0.00</span>
-                    </div>
                 </div>
             </div>
         </div>

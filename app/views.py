@@ -442,6 +442,14 @@ class GuidelinesPageView(TemplateView):
     template_name = "client/guidelines.html"
 
 
+class TermsConditionsPageView(TemplateView):
+    template_name = "client/terms_conditions.html"
+
+
+class DataPrivacyPageView(TemplateView):
+    template_name = "client/data_privacy.html"
+
+
 class PackagePageView(TemplateView):
     template_name = "client/package.html"
 

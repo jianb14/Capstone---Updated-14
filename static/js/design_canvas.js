@@ -677,14 +677,42 @@ document.addEventListener('DOMContentLoaded', function() {
         const categories = Array.from(document.querySelectorAll('.inventory-category'));
         if (!categories.length) return;
 
-        // Keep categories visible in the sidebar so users can always browse assets.
-        // Package limits are still enforced when adding items to canvas via checkQuota().
+        const quotas = window.packageQuotas || {};
+        const quotaKeys = Object.keys(quotas).map(k => normalizeCategoryName(k));
+
         categories.forEach((cat) => {
-            cat.style.removeProperty('display');
-            cat.classList.remove('is-search-hidden');
+            const catName = normalizeCategoryName(cat.dataset.categoryName);
+            // Check if this category matches any of the quotas in the package
+            const isVisible = quotaKeys.some(qk => categoriesMatch(catName, qk));
+            
+            if (isVisible) {
+                cat.style.removeProperty('display');
+                cat.classList.remove('is-search-hidden');
+            } else {
+                cat.style.display = 'none';
+            }
         });
 
-        updateSidebarGroupsBadge(categories.length);
+        // Also handle the "Styrofoam Name" section which is outside .inventory-category
+        const styroLabel = document.querySelector('.title-assets');
+        if (styroLabel) {
+            const styroSection = styroLabel.closest('.sidebar-section');
+            if (styroSection) {
+                const hasStyro = quotaKeys.some(qk => qk.includes('styrofoam'));
+                const hasThemeDecor = quotaKeys.some(qk => qk.includes('theme') && qk.includes('decor'));
+                
+                styroSection.style.display = (hasStyro || hasThemeDecor) ? 'block' : 'none';
+                
+                const styroGrid = styroSection.querySelector('.text-presets-grid');
+                if (styroGrid) styroGrid.style.display = hasStyro ? 'grid' : 'none';
+                if (styroLabel) styroLabel.style.display = hasStyro ? 'block' : 'none';
+                
+                const themeDecorField = styroSection.querySelector('.theme-decor-field');
+                if (themeDecorField) themeDecorField.style.display = hasThemeDecor ? 'flex' : 'none';
+            }
+        }
+
+        updateSidebarGroupsBadge(categories.filter(c => c.style.display !== 'none').length);
         syncVisibleCategoryAccordions();
     }
 
@@ -746,6 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function initPackageSelection() {
         const packageCards = document.querySelectorAll('.package-selection-card');
         const cartBaseName = byId('cartBaseName');
+        const cartBasePrice = byId('cartBasePrice');
         const cartInclusionsArea = byId('cartInclusionsArea');
 
         if (!packageCards.length) return;
@@ -780,6 +809,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 3. Update summary panel info
                 if (cartBaseName) cartBaseName.textContent = pkgName;
+                if (cartBasePrice) cartBasePrice.textContent = `P${pkgPrice.toFixed(2)}`;
                 if (cartInclusionsArea) cartInclusionsArea.style.display = 'block';
 
                 // 4. Update asset visibility based on new quotas
@@ -1865,8 +1895,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (quotaKey) {
-            const limit = window.packageQuotas[quotaKey];
-            if (limit === -1 || limit >= 999) return true;
+            let limit = window.packageQuotas[quotaKey];
+            const normalizedQuota = normalizeCategoryName(quotaKey);
+            const isUnlimited = limit >= 999 || normalizedQuota.includes('styrofoam');
+            
+            // Treat -1 (Included) as a strict limit of 1, EXCEPT for styrofoam
+            if (limit === -1 && !normalizedQuota.includes('styrofoam')) limit = 1;
+
+            if (isUnlimited) return true;
+
             const currentCount = canvas.getObjects().filter(obj => 
                 (obj._packageCategory === quotaKey || normalizeCategoryName(obj._packageCategory) === quotaKey) 
                 && !obj._isArtboard && !obj._isBgImage
@@ -1877,7 +1914,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (quotaKey === 'panels' || quotaKey === 'panel' || quotaKey === 'backdrop' || quotaKey === 'backdrops') {
                     handlePackageUpgrade(quotaKey, limit);
                 } else {
-                    showToast(`Limit reached for ${quotaKey}. You can only have ${limit} ${quotaKey}(s) in this package.`, 'error');
+                    const label = generateCartLabel(quotaKey);
+                    showToast(`Limit reached for ${label}. You can only have ${limit} ${label}(s) in this package.`, 'error');
                 }
                 return false;
             }
@@ -2001,7 +2039,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.packageQuotas = window.allPackageQuotas[pkg.id] || {};
                 
                 const cartBaseName = byId('cartBaseName');
+                const cartBasePrice = byId('cartBasePrice');
                 if (cartBaseName) cartBaseName.textContent = pkg.name;
+                if (cartBasePrice) cartBasePrice.textContent = `P${parseFloat(pkg.price).toFixed(2)}`;
                 
                 filterAssetsByPackage();
                 updateVisualCart();
@@ -2823,8 +2863,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateVisualCart() {
-        if (!cartAddonsList || !cartTotalPrice) return;
-
         const objects = canvas.getObjects().filter((obj) => !obj._isArtboard && !obj._isBgImage);
         const counts = {};
         objects.forEach((obj) => {
@@ -2838,7 +2876,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (cartInclusionsList) cartInclusionsList.innerHTML = '';
-        cartAddonsList.innerHTML = '';
+        if (cartAddonsList) cartAddonsList.innerHTML = '';
 
         let totalAddonPrice = window.basePackagePrice || 0;
         let hasAddons = false;
@@ -2885,13 +2923,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const inclusionNode = document.createElement('li');
                     const normalizedQuota = normalizeCategoryName(quotaKey);
                     const isThemeDecorQuota = normalizedQuota.includes('theme') && normalizedQuota.includes('decor');
-                    const isChecked = isThemeDecorQuota ? used > 0 : limit === -1 || used >= limit;
+                    const isStyroQuota = normalizedQuota.includes('styrofoam');
+                    const isChecked = isThemeDecorQuota ? used > 0 : (limit === -1 || isStyroQuota || used >= limit);
                     
                     let statusHtml = '';
                     if (isThemeDecorQuota && limit === -1) {
                         statusHtml = `${Math.min(used, 1)} / 1`;
+                    } else if (isStyroQuota || limit >= 999) {
+                        statusHtml = `${used} / Unlimited`;
                     } else if (limit === -1) {
-                        statusHtml = 'Included';
+                        statusHtml = `${Math.min(used, 1)} / 1`;
                     } else {
                         const displayLimit = limit >= 999 ? 'Unlimited' : limit;
                         const displayUsed = limit >= 999 ? used : Math.min(used, limit);
@@ -2920,39 +2961,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     cartInclusionsList.appendChild(inclusionNode);
                 }
 
-                if (limit !== -1 && used > limit && limit < 999) {
-                    const excess = used - limit;
-                    const cost = excess * getAddonPrice(quotaKey);
-                    totalAddonPrice += cost;
-                    hasAddons = true;
-
-                    const addonNode = document.createElement('li');
-                    addonNode.innerHTML = `<span>Extra ${generateCartLabel(quotaKey)} (x${excess})</span> <span>P${cost.toFixed(2)}</span>`;
-                    cartAddonsList.appendChild(addonNode);
-                }
+                // Addon logic removed as per user request
             });
         }
 
-        Object.keys(counts).forEach((category) => {
-            const used = counts[category];
-            if (used <= 0 || category === 'custom') return;
+        // Addon logic for items not in quotas removed as per user request
 
-            const price = getAddonPrice(category);
-            if (price <= 0) return;
-
-            const cost = used * price;
-            totalAddonPrice += cost;
-            hasAddons = true;
-
-            const addonNode = document.createElement('li');
-            addonNode.innerHTML = `<span>${generateCartLabel(category)} (x${used})</span> <span>P${cost.toFixed(2)}</span>`;
-            cartAddonsList.appendChild(addonNode);
-        });
-
-        if (!hasAddons) {
-            cartAddonsList.innerHTML = '<li class="empty-list" style="color:#98a2b3;font-style:italic;">No extra items yet.</li>';
+        if (cartTotalPrice) {
+            cartTotalPrice.textContent = `P${totalAddonPrice.toFixed(2)}`;
         }
-        cartTotalPrice.textContent = `P${totalAddonPrice.toFixed(2)}`;
     }
 
     canvas.on('object:added', (event) => {

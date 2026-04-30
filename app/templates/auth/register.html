@@ -83,8 +83,21 @@
                 <small class="field-error"></small>
             </div>
 
+            <div class="terms-check-wrap">
+                <label for="terms_ack" class="terms-check-label">
+                    <input type="checkbox" id="terms_ack" name="terms_ack" required>
+                    <span>
+                        I agree to the
+                        <a href="{% url 'terms_conditions' %}" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+                        and
+                        <a href="{% url 'data_privacy' %}" target="_blank" rel="noopener">Privacy Policy</a>.
+                    </span>
+                </label>
+                <small class="field-error" id="terms-error"></small>
+            </div>
+
             <!-- Register Button -->
-            <button type="submit">Register</button>
+            <button type="submit" id="registerSubmitBtn" disabled>Register</button>
         </form>
 
         <p class="bottom-text">
@@ -130,6 +143,8 @@
             const requiredInputs = Array.from(registerForm.querySelectorAll('input[required]'));
             const passwordInput = document.getElementById('password');
             const confirmPasswordInput = document.getElementById('confirm_password');
+            const termsCheckbox = document.getElementById('terms_ack');
+            const registerSubmitBtn = document.getElementById('registerSubmitBtn');
             const passwordRules = {
                 length: document.getElementById('rule-length'),
                 uppercase: document.getElementById('rule-uppercase'),
@@ -220,7 +235,13 @@
                 syncPasswordChecklist();
             };
 
+            const syncSubmitState = () => {
+                if (!registerSubmitBtn || !termsCheckbox) return;
+                registerSubmitBtn.disabled = !termsCheckbox.checked;
+            };
+
             resetValidationUI();
+            syncSubmitState();
 
             registerForm.addEventListener('submit', function(e) {
                 submitAttempted = true;
@@ -249,6 +270,15 @@
                     if (!firstInvalidInput) firstInvalidInput = confirmPasswordInput;
                 } else if (confirmPasswordInput && confirmPasswordInput.value) {
                     setFieldError(confirmPasswordInput, '');
+                }
+
+                if (termsCheckbox && !termsCheckbox.checked) {
+                    isFormValid = false;
+                    const termsError = document.getElementById('terms-error');
+                    if (termsError) {
+                        termsError.textContent = 'You must agree to the Terms & Conditions and Data Privacy Notice.';
+                    }
+                    if (!firstInvalidInput) firstInvalidInput = termsCheckbox;
                 }
 
                 if (!isFormValid) {
@@ -300,6 +330,16 @@
                     }
                 });
             });
+
+            if (termsCheckbox) {
+                termsCheckbox.addEventListener('change', () => {
+                    const termsError = document.getElementById('terms-error');
+                    if (termsError && termsCheckbox.checked) {
+                        termsError.textContent = '';
+                    }
+                    syncSubmitState();
+                });
+            }
 
             syncPasswordChecklist();
         }

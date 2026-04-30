@@ -714,6 +714,10 @@ def is_image_request(text):
         "draw",
         "show me",
         "pakita",
+        "patingin",
+        "sample",
+        "peg",
+        "idea",
     }
     visual_terms = {
         "picture",
@@ -729,11 +733,18 @@ def is_image_request(text):
         "cartoon",
         "anime",
         "character",
+        "layout",
+        "styling",
+        "decoration",
     }
 
     has_request_verb = any(term in lowered for term in request_verbs)
     has_visual_term = any(term in lowered for term in visual_terms)
     if has_request_verb and has_visual_term:
+        return True
+
+    # Check for "generate ka pa" or similar without explicit visual terms
+    if any(verb in lowered for verb in ["generate", "gawa", "create", "make"]) and any(suffix in lowered for suffix in ["pa", "more", "ulit", "another"]):
         return True
 
     return any(
@@ -778,7 +789,11 @@ def _is_image_followup_request(text, conversation_history):
         "regenerate",
         "retry",
         "another",
+        "another one",
         "more",
+        "one more",
+        "next",
+        "sunod",
         "add",
         "include",
         "insert",
@@ -794,18 +809,94 @@ def _is_image_followup_request(text, conversation_history):
         "dagdag",
         "palitan",
         "ulitin",
+        "same theme",
+        "same prompt",
+        "example",
+        "sample",
+        "peg",
+        "idea",
+        "ganyan",
+        "pangalawa",
+        "pangatlo",
+        "pang-2",
+        "pang 2",
+        "pang-ilan",
+        "pang ilan",
     }
     if any(term in lowered for term in followup_terms):
         return True
 
     taglish_followup_patterns = [
         r"^\s*(generate|gawa|gumawa|igawa|create|make)\b.*\bpa\b",
+        r"^\s*(generate|gawa|gumawa|igawa|create|make)\b.*kapa\b",
         r"^\s*(isa|one)\s+pa\b",
+        r"^\s*(sunod|next)\b",
+        r"\b(one|isa)\s+more\b",
+        r"\b(example|sample|peg)\b",
+        r"\b(second|third|fourth|fifth|2nd|3rd|4th|5th)\b",
+        r"\b(pang|ika)[-\s]?(2|3|4|5|dalawa|tatlo|apat|lima|anim|pito|walo|siyam|sampu|ilan)\b",
         r"\b(ulit|ulitin|ibang version|other version|another version)\b",
         r"\b(lagyan|dagdagan)\b.*\b(arch|flowers?|florals?|balloons?|ilaw|lights?)\b",
         r"\b(alisin|tanggalin|remove)\b.*\b(arch|flowers?|florals?|balloons?|ilaw|lights?)\b",
     ]
     return any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in taglish_followup_patterns)
+
+
+def _asks_for_new_image_variant(text):
+    lowered = (text or "").lower()
+    variant_terms = (
+        "again",
+        "regenerate",
+        "another",
+        "another one",
+        "one more",
+        "next",
+        "sunod",
+        "new",
+        "new one",
+        "other version",
+        "ibang version",
+        "pangalawa",
+        "pangatlo",
+        "pang ilan",
+        "pang-ilan",
+        "example",
+        "sample",
+        "peg",
+    )
+    return any(term in lowered for term in variant_terms)
+
+
+def _is_retryable_image_error(error_message):
+    lowered = (error_message or "").lower()
+    retryable_markers = (
+        "503",
+        "timeout",
+        "timed out",
+        "temporarily unavailable",
+        "temporarily overloaded",
+        "model is currently loading",
+        "try again",
+        "connection reset",
+        "connection aborted",
+        "inference timeout",
+    )
+    return any(marker in lowered for marker in retryable_markers)
+
+
+def _is_prompt_limit_image_error(error_message):
+    lowered = (error_message or "").lower()
+    limit_markers = (
+        "413",
+        "422",
+        "payload too large",
+        "too long",
+        "prompt is too long",
+        "max length",
+        "maximum context length",
+        "input too long",
+    )
+    return any(marker in lowered for marker in limit_markers)
 
 
 def _extract_recent_image_prompt(conversation_history):
@@ -980,9 +1071,10 @@ def build_image_generation_prompt(user_message, model_prompt=""):
         if _user_wants_arch(source_text)
         else "use balloon garlands, balloon clusters, cascading balloons, and organic side arrangements instead of a doorway arch"
     )
+    needs_new_variant = bool(previous_prompt) and _asks_for_new_image_variant(user_message)
 
     prompt_parts = [
-        "WIDE SHOT, full event backdrop center stage",
+        "WIDE SHOT, full event backdrop center stage, high-end production",
         (
             f"{event_type} styling, preserve this previous concept: {previous_prompt}"
             if previous_prompt
@@ -990,12 +1082,17 @@ def build_image_generation_prompt(user_message, model_prompt=""):
         ),
         f"requested update or new instruction: {requested_update}",
         f"color palette: {colors}",
-        "premium balloon decoration for a real event venue",
+        "premium balloon decoration for a real event venue, high-gloss finish",
         arch_direction,
-        "large layered backdrop panels, round and rectangular panels, dessert table or plinths, themed props, soft fabric draping, floral accents, fairy lights",
+        "large layered backdrop panels, custom CNC cutouts, round and rectangular panels, dessert table or plinths, themed props, soft fabric draping, floral accents, fairy lights, spot lighting",
         "balanced left and right composition, full setup visible from floor to top, no cropped decorations",
-        "photorealistic event styling, clean professional venue lighting, realistic balloons, polished luxury finish",
+        "photorealistic event styling, clean professional venue lighting, realistic organic balloon garlands, polished luxury finish, sharp focus, 8k resolution",
     ]
+
+    if needs_new_variant:
+        prompt_parts.append(
+            "create a clearly different variation from the previous output: change layout flow, balloon grouping, focal arrangement, prop placement, and backdrop layering while keeping the same event theme"
+        )
 
     prompt_parts.append(
         "wide event styling, luxury balloon decoration setup, high quality, detailed, vibrant colors"
@@ -1276,6 +1373,23 @@ def _normalize_reply_text(text):
     cleaned = _strip_markdown_headings(cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
+
+
+def _strip_generated_image_markup(text):
+    content = str(text or "")
+    # Remove generated image + download action markup so the LLM does not echo old image URLs.
+    content = re.sub(r"<img\b[^>]*>", "", content, flags=re.IGNORECASE)
+    content = re.sub(r"<a\b[^>]*class=\"ai-action-btn\"[^>]*>.*?</a>", "", content, flags=re.IGNORECASE | re.DOTALL)
+    content = re.sub(r"<a\b[^>]*download=[^>]*>.*?</a>", "", content, flags=re.IGNORECASE | re.DOTALL)
+    content = re.sub(r"<[^>]+>", " ", content)
+    content = unescape(content)
+    content = re.sub(r"\s+", " ", content).strip()
+    return content
+
+
+def _random_image_seed():
+    # Stable int range for providers that expect 32-bit signed seeds.
+    return int((time.time_ns() + uuid.uuid4().int) % 2_147_483_647)
 
 
 def _looks_truncated(text):
@@ -1930,21 +2044,57 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
                 include_last_prompt=image_followup_triggered,
             )
             img_prompt = build_image_generation_prompt(user_message, image_context)
+            fallback_prompt = build_image_generation_prompt(user_message, "")
             image_model = getattr(
                 settings,
                 "HUGGINGFACE_IMAGE_MODEL_ID",
                 "stabilityai/stable-diffusion-xl-base-1.0",
             )
             try:
-                with _without_dead_local_proxy():
-                    generated_image = client.text_to_image(
-                        prompt=img_prompt,
-                        negative_prompt=build_image_negative_prompt(f"{image_context} {user_message}"),
-                        model=image_model,
-                    )
+                attempts = [
+                    {"prompt": img_prompt, "label": "primary"},
+                    {"prompt": fallback_prompt, "label": "fallback"},
+                ]
+                seen_prompts = set()
+                last_error = None
 
-                img_url = _save_generated_image(generated_image)
-                return _chat_response_payload(_image_success_reply(img_url, img_prompt))
+                for attempt in attempts:
+                    attempt_prompt = (attempt.get("prompt") or "").strip()
+                    if not attempt_prompt or attempt_prompt in seen_prompts:
+                        continue
+                    seen_prompts.add(attempt_prompt)
+
+                    max_retries = 2 if attempt.get("label") == "primary" else 1
+                    for retry_index in range(max_retries):
+                        try:
+                            with _without_dead_local_proxy():
+                                generated_image = client.text_to_image(
+                                    prompt=attempt_prompt,
+                                    negative_prompt=build_image_negative_prompt(f"{image_context} {user_message}"),
+                                    model=image_model,
+                                    seed=_random_image_seed(),
+                                )
+                            img_url = _save_generated_image(generated_image)
+                            return _chat_response_payload(_image_success_reply(img_url, attempt_prompt))
+                        except Exception as attempt_error:
+                            last_error = attempt_error
+                            error_text = str(attempt_error)
+
+                            should_retry = retry_index < (max_retries - 1) and _is_retryable_image_error(error_text)
+                            if should_retry:
+                                time.sleep(1.1)
+                                continue
+
+                            if attempt.get("label") == "primary" and _is_prompt_limit_image_error(error_text):
+                                # Try the shorter fallback prompt next.
+                                break
+                            # If primary prompt fails for any other reason, still try fallback once.
+                            if attempt.get("label") == "primary":
+                                break
+                            # Fallback attempt failed; stop.
+                            raise
+
+                raise last_error or RuntimeError("Image generation failed with unknown provider error.")
             except Exception as image_error:
                 print(f"Image Generation Error: {image_error}")
                 return _chat_response_payload(
@@ -1974,7 +2124,14 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
             "When giving procedures, use clean labels like 'Step 1:', 'Step 2:' with short clear lines. "
             "For booking procedure specifically, always start from the calendar step first. "
             "Answer clearly so the user understands on first read. "
-            "If user asks unrelated general-knowledge topics, politely redirect to Balloorina system questions."
+            "If user asks unrelated general-knowledge topics, politely redirect to Balloorina system questions. "
+            "\n\nIMAGE GENERATION CAPABILITY:\n"
+            "You CAN generate design concepts, backdrop ideas, and event styling images. "
+            "If the user asks to see a design, generate an image, or requests a visual concept, you MUST trigger the image generator. "
+            "To trigger it, include a detailed English image prompt wrapped in [PROMPT] and [/PROMPT] tags at the end of your response. "
+            "Example: 'Narito ang isang sample design para sa binyag. [PROMPT]photorealistic baptism backdrop, white and gold balloons...[/PROMPT]'. "
+            "The prompt inside [PROMPT] should be descriptive, photorealistic, and in English. "
+            "If you are generating a follow-up or a variation, make the prompt reflect the changes the user asked for."
         )
 
         system_context = get_system_context(
@@ -1991,7 +2148,12 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
                 role = msg.get("role")
                 content = msg.get("content")
                 if content and role in {"user", "assistant"}:
-                    messages.append({"role": role, "content": content})
+                    if role == "assistant":
+                        content = _strip_generated_image_markup(content)
+                    else:
+                        content = _safe_text(content)
+                    if content:
+                        messages.append({"role": role, "content": content})
 
         messages.append({"role": "user", "content": user_message})
 
@@ -2030,7 +2192,28 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
 
         prompt_text, intro_text, outro_text = _extract_image_prompt_block(reply_text)
         if prompt_text:
-            reply_text = f"{intro_text} {outro_text}".strip()
+            # AI model decided to generate an image. Let's do it.
+            image_model = getattr(
+                settings,
+                "HUGGINGFACE_IMAGE_MODEL_ID",
+                "stabilityai/stable-diffusion-xl-base-1.0",
+            )
+            try:
+                with _without_dead_local_proxy():
+                    generated_image = client.text_to_image(
+                        prompt=prompt_text,
+                        negative_prompt=build_image_negative_prompt(user_message),
+                        model=image_model,
+                        seed=_random_image_seed(),
+                    )
+                img_url = _save_generated_image(generated_image)
+                # Combine the AI's intro/outro with the generated image
+                final_reply = f"{intro_text}\n\n{_image_success_reply(img_url, prompt_text)}\n\n{outro_text}".strip()
+                return _chat_response_payload(final_reply)
+            except Exception as image_error:
+                print(f"Late Image Generation Error: {image_error}")
+                # If image fails, just return the text but without the [PROMPT] tags
+                return _chat_response_payload(_normalize_reply_text(f"{intro_text} {outro_text}".strip()))
 
         return _chat_response_payload(_normalize_reply_text(reply_text))
 
