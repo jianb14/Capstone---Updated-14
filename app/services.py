@@ -7,7 +7,7 @@ import time
 import uuid
 from datetime import timedelta
 from decimal import Decimal
-from html import escape
+from html import escape, unescape
 from pathlib import Path
 from contextlib import contextmanager
 
@@ -795,10 +795,39 @@ def _is_image_followup_request(text, conversation_history):
         "palitan",
         "ulitin",
     }
-    return any(term in lowered for term in followup_terms)
+    if any(term in lowered for term in followup_terms):
+        return True
+
+    taglish_followup_patterns = [
+        r"^\s*(generate|gawa|gumawa|igawa|create|make)\b.*\bpa\b",
+        r"^\s*(isa|one)\s+pa\b",
+        r"\b(ulit|ulitin|ibang version|other version|another version)\b",
+        r"\b(lagyan|dagdagan)\b.*\b(arch|flowers?|florals?|balloons?|ilaw|lights?)\b",
+        r"\b(alisin|tanggalin|remove)\b.*\b(arch|flowers?|florals?|balloons?|ilaw|lights?)\b",
+    ]
+    return any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in taglish_followup_patterns)
 
 
-def _recent_image_request_context(conversation_history):
+def _extract_recent_image_prompt(conversation_history):
+    if not conversation_history:
+        return ""
+
+    prompt_patterns = [
+        r'data-ai-prompt="([^"]+)"',
+        r"data-ai-prompt='([^']+)'",
+    ]
+    for msg in reversed(conversation_history[-10:]):
+        if msg.get("role") != "assistant":
+            continue
+        content = str(msg.get("content") or "")
+        for pattern in prompt_patterns:
+            match = re.search(pattern, content)
+            if match:
+                return _safe_text(unescape(match.group(1)))[:1000]
+    return ""
+
+
+def _recent_image_request_context(conversation_history, include_last_prompt=False):
     if not conversation_history:
         return ""
 
@@ -814,7 +843,14 @@ def _recent_image_request_context(conversation_history):
                 break
 
     recent_user_messages.reverse()
-    return " ".join(recent_user_messages[-3:])
+    context_parts = []
+    if include_last_prompt:
+        recent_prompt = _extract_recent_image_prompt(conversation_history)
+        if recent_prompt:
+            context_parts.append(f"Previous generated image prompt: {recent_prompt}")
+    if recent_user_messages:
+        context_parts.append("Recent user image instructions: " + " ".join(recent_user_messages[-3:]))
+    return " ".join(context_parts)
 
 
 IMAGE_REQUEST_CLEANUP_PATTERNS = [
@@ -862,6 +898,20 @@ IMAGE_COLOR_WORDS = {
     "mint",
 }
 
+IMAGE_COLOR_ALIASES = {
+    "asul": "blue",
+    "berde": "green",
+    "dilaw": "yellow",
+    "ginto": "gold",
+    "itim": "black",
+    "kahel": "orange",
+    "lila": "purple",
+    "pilak": "silver",
+    "pula": "red",
+    "puti": "white",
+    "rosas": "pink",
+}
+
 
 def _clean_image_theme_text(text):
     cleaned = _safe_text(text)
@@ -885,13 +935,27 @@ def _detect_image_event_type(text):
 def _detect_image_colors(text):
     lowered = (text or "").lower()
     colors = [color for color in IMAGE_COLOR_WORDS if re.search(rf"\b{re.escape(color)}\b", lowered)]
+    colors.extend(
+        color
+        for alias, color in IMAGE_COLOR_ALIASES.items()
+        if re.search(rf"\b{re.escape(alias)}\b", lowered)
+    )
     if colors:
-        return ", ".join(colors[:4])
+        return ", ".join(list(dict.fromkeys(colors))[:4])
     return "coordinated theme colors"
+
+
+def _user_removes_arch(text):
+    lowered = (text or "").lower()
+    remove_terms = ("remove", "without", "no arch", "no entrance", "alisin", "tanggalin", "wala")
+    arch_terms = ("arch", "entrance", "doorway", "archway")
+    return any(term in lowered for term in remove_terms) and any(term in lowered for term in arch_terms)
 
 
 def _user_wants_arch(text):
     lowered = (text or "").lower()
+    if _user_removes_arch(lowered):
+        return False
     return any(word in lowered for word in ["arch", "entrance", "doorway", "archway", "banderitas"])
 
 
@@ -901,6 +965,13 @@ def build_image_generation_prompt(user_message, model_prompt=""):
     The optional model_prompt is treated as extra detail, never as the source of truth.
     """
     source_text = f"{model_prompt} {user_message}".strip()
+    previous_prompt_match = re.search(
+        r"Previous generated image prompt:\s*(.*?)(?:Recent user image instructions:|$)",
+        model_prompt or "",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    previous_prompt = _safe_text(previous_prompt_match.group(1))[:800] if previous_prompt_match else ""
+    requested_update = _clean_image_theme_text(user_message)
     theme_text = _clean_image_theme_text(source_text)
     event_type = _detect_image_event_type(source_text)
     colors = _detect_image_colors(source_text)
@@ -912,7 +983,12 @@ def build_image_generation_prompt(user_message, model_prompt=""):
 
     prompt_parts = [
         "WIDE SHOT, full event backdrop center stage",
-        f"{event_type} styling for the theme: {theme_text}",
+        (
+            f"{event_type} styling, preserve this previous concept: {previous_prompt}"
+            if previous_prompt
+            else f"{event_type} styling for the theme: {theme_text}"
+        ),
+        f"requested update or new instruction: {requested_update}",
         f"color palette: {colors}",
         "premium balloon decoration for a real event venue",
         arch_direction,
@@ -957,7 +1033,7 @@ def _save_generated_image(generated_image):
     ai_img_dir = os.path.join(settings.MEDIA_ROOT, "ai_generated")
     os.makedirs(ai_img_dir, exist_ok=True)
 
-    filename = f"design_{timezone.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.png"
+    filename = f"design_{timezone.now().strftime('%Y%m%d%H%M%S%f')}_{uuid.uuid4().hex[:12]}.png"
     filepath = os.path.join(ai_img_dir, filename)
 
     if isinstance(generated_image, (bytes, bytearray)):
@@ -969,32 +1045,41 @@ def _save_generated_image(generated_image):
     if not os.path.exists(filepath) or os.path.getsize(filepath) <= 0:
         raise ValueError("Generated image file was not saved correctly.")
 
-    return f"{settings.MEDIA_URL.rstrip('/')}/ai_generated/{filename}"
+    img_url = f"{settings.MEDIA_URL.rstrip('/')}/ai_generated/{filename}"
+    expected_path = os.path.join(
+        settings.MEDIA_ROOT,
+        img_url.replace(settings.MEDIA_URL, "", 1).lstrip("/\\"),
+    )
+    if os.path.abspath(expected_path) != os.path.abspath(filepath):
+        raise ValueError("Generated image URL does not match the saved file path.")
+
+    return img_url
 
 
 def _image_success_reply(img_url, prompt, intro_text=""):
-    intro = intro_text or "Here is a Balloorina design concept based on your request:"
+    intro = intro_text or "Sige, ito ang Balloorina design concept based sa request mo:"
     return (
         f"{escape(intro)}<br><br>"
         f'<img src="{escape(img_url)}" alt="Balloorina Design Concept" '
+        f'data-ai-prompt="{escape(prompt)}" '
         'style="max-width:100%; border-radius:8px; margin-top:6px; '
         'box-shadow:0 4px 12px rgba(0,0,0,0.5);">'
     )
 
 
 def _image_unavailable_reply(prompt, intro_text="", error_message=""):
-    intro = intro_text or "I prepared the design concept, but the image provider did not return a usable image."
+    intro = intro_text or "Na-prepare ko na yung design prompt, pero hindi nakapag-return ng usable image yung provider."
     provider_hint = ""
     if error_message:
         error_lower = error_message.lower()
         if "402" in error_lower or "quota" in error_lower or "credits" in error_lower:
-            provider_hint = " The AI provider quota may be exhausted."
+            provider_hint = " Mukhang ubos o limited na yung AI provider quota."
         elif "401" in error_lower or "unauthorized" in error_lower:
-            provider_hint = " The Hugging Face API key may be invalid or expired."
+            provider_hint = " Posibleng invalid or expired yung Hugging Face API key."
     return (
         f"{escape(intro)}{escape(provider_hint)}<br><br>"
         "<div style=\"padding:12px; background:#1a1a1a; border-radius:8px; border:1px solid #333;\">"
-        "<em>Use this improved prompt to regenerate:</em><br><br>"
+        "<em>Improved prompt na pwedeng i-regenerate:</em><br><br>"
         f"<strong>{escape(prompt)}</strong></div>"
     )
 
@@ -1833,13 +1918,17 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
         with _without_dead_local_proxy():
             client = InferenceClient(token=api_key)
         model_id = getattr(settings, "HUGGINGFACE_MODEL_ID", "Qwen/Qwen2.5-72B-Instruct")
-        image_triggered = is_image_request(user_message) or _is_image_followup_request(
+        image_followup_triggered = _is_image_followup_request(
             user_message,
             conversation_history,
         )
+        image_triggered = is_image_request(user_message) or image_followup_triggered
 
         if image_triggered:
-            image_context = _recent_image_request_context(conversation_history)
+            image_context = _recent_image_request_context(
+                conversation_history,
+                include_last_prompt=image_followup_triggered,
+            )
             img_prompt = build_image_generation_prompt(user_message, image_context)
             image_model = getattr(
                 settings,
@@ -1878,6 +1967,8 @@ def get_chatbot_response(user_message, conversation_history=None, user=None):
             "If details are missing in the snapshot, say it clearly and suggest checking the relevant page in the app. "
             "Do not invent prices, statuses, dates, or policies. "
             "Keep responses concise, direct, and friendly, but complete. "
+            "Mirror the user's language. If the user writes in Filipino or Taglish, answer in natural friendly Taglish with simple words. "
+            "Avoid stiff corporate English when the user is casual. "
             "Do NOT use markdown headings with #, ##, or ###. "
             "Prefer plain text and simple readable structure. Avoid unnecessary markdown decorations. "
             "When giving procedures, use clean labels like 'Step 1:', 'Step 2:' with short clear lines. "

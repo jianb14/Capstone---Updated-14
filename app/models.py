@@ -168,6 +168,8 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     likes = models.ManyToManyField(User, related_name='liked_reviews', blank=True)
     is_testimonial = models.BooleanField(default=False)
+    is_featured = models.BooleanField(default=False)
+    admin_notified = models.BooleanField(default=False)
 
     def total_likes(self):
         return self.likes.count()
@@ -396,6 +398,7 @@ class ConcernTicket(models.Model):
     message = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     admin_notes = models.TextField(blank=True, null=True)
+    admin_notified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

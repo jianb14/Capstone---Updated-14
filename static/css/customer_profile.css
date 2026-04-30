@@ -1468,7 +1468,8 @@ td {
 
 .stepper-wrapper {
     position: relative;
-    width: 60%;
+    width: 78%;
+    max-width: 620px;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -1478,9 +1479,9 @@ td {
 .stepper-wrapper::before {
     content: '';
     position: absolute;
-    top: 22px;
-    left: 10%;
-    right: 10%;
+    top: 18px;
+    left: 18px;
+    right: 18px;
     height: 3px;
     background: #444;
     z-index: 1;
@@ -1488,12 +1489,12 @@ td {
 
 .stepper-progress-line {
     position: absolute;
-    top: 22px;
-    left: 10%;
+    top: 18px;
+    left: 18px;
     width: 0%;
-    max-width: 80%;
+    max-width: calc(100% - 36px);
     height: 3px;
-    background: #0d6efd;
+    background: #22c55e;
     z-index: 2;
     transition: width 0.4s ease;
 }
@@ -1507,8 +1508,8 @@ td {
 }
 
 .step-circle {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: #444;
     display: flex;
@@ -1520,8 +1521,8 @@ td {
 
 .step-label {
     position: absolute;
-    top: 55px;
-    font-size: 0.85rem;
+    top: 44px;
+    font-size: 0.68rem;
     color: #888;
     white-space: nowrap;
     font-weight: 600;
@@ -1548,7 +1549,7 @@ td {
 }
 
 .stepper-step-icon.completed .step-circle {
-    background: #0d6efd;
+    background: #22c55e;
     border-color: #111;
 }
 
@@ -1564,7 +1565,7 @@ td {
 }
 
 .stepper-step-icon.completed .step-label {
-    color: #0d6efd;
+    color: #22c55e;
 }
 
 .stepper-step {
@@ -1631,7 +1632,12 @@ td {
     content: '\2713';
     position: absolute;
     top: 15px;
+    left: auto !important;
     right: 15px;
+    inset-inline-start: auto !important;
+    inset-inline-end: 15px !important;
+    transform: none !important;
+    z-index: 2;
     background: white;
     color: black;
     width: 24px;
@@ -1874,6 +1880,18 @@ td {
     border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
 }
 
+#edit-step-3 #edit-booking-details-list .summary-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.8rem;
+    min-width: 0;
+}
+
+#edit-step-3 #edit-booking-details-list .row-info {
+    padding-right: 0;
+}
+
 #edit-step-3 .summary-row:last-child {
     border-bottom: none;
 }
@@ -1897,9 +1915,45 @@ td {
 }
 
 #edit-step-3 #edit-booking-details-list .row-value {
+    display: block;
+    min-width: 0;
     color: #f3f4f6;
     font-size: 1.03rem;
     font-weight: 700;
+    text-align: left;
+    white-space: normal;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+#edit-step-3 #editReferencePicturesRow {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+}
+
+#edit-step-3 #editReferencePicturesRow .row-info {
+    padding-right: 0;
+}
+
+#edit-step-3 #editReferencePicturesRow .row-value {
+    justify-self: start;
+}
+
+#edit-step-3 .booking-summary-image-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#edit-step-3 .booking-summary-thumb {
+    width: 78px;
+    height: 78px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #111;
 }
 
 #edit-step-3 .total-row {

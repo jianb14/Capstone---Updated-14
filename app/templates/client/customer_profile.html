@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20260430b">
 
 <div class="profile-page" style="animation: fadeInPage 0.5s ease forwards;">
     <div class="profile-shell">
@@ -1406,12 +1406,12 @@
         } else if (stepNumber === 2) {
             if (editStep1Indicator) editStep1Indicator.classList.add('completed');
             if (editStep2Indicator) editStep2Indicator.classList.add('active');
-            if (editStepperLine) editStepperLine.style.width = '50%';
+            if (editStepperLine) editStepperLine.style.width = 'calc(50% - 18px)';
         } else {
             if (editStep1Indicator) editStep1Indicator.classList.add('completed');
             if (editStep2Indicator) editStep2Indicator.classList.add('completed');
             if (editStep3Indicator) editStep3Indicator.classList.add('active');
-            if (editStepperLine) editStepperLine.style.width = '100%';
+            if (editStepperLine) editStepperLine.style.width = 'calc(100% - 36px)';
         }
 
         const editModalBox = document.querySelector('#editBookingModal .booking-modal-box');
@@ -1486,6 +1486,17 @@
             const specialRequestsRow = specialRequestsVal
                 ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsVal}</span></div>`
                 : '';
+            const referenceImageSources = getEditReviewImageSources();
+            const referencePicturesRow = referenceImageSources.length
+                ? `<div class="summary-row" id="editReferencePicturesRow">
+                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-images"></i> Reference Pictures</span></div>
+                    <span class="row-value">
+                        <span class="booking-summary-image-list">
+                            ${referenceImageSources.map((src, index) => `<img class="booking-summary-thumb" src="${src}" alt="Reference picture ${index + 1}">`).join('')}
+                        </span>
+                    </span>
+                </div>`
+                : '';
 
             editBookingDetailsList.innerHTML = `
                 <div class="summary-row">
@@ -1508,7 +1519,8 @@
                     <div class="row-info"><span class="row-label"><i class="fa-solid fa-location-dot"></i> Location</span></div>
                     <span class="row-value">${locationVal || '-'}</span>
                 </div>
-                ${specialRequestsRow}`;
+                ${specialRequestsRow}
+                ${referencePicturesRow}`;
         }
     }
 
@@ -1758,6 +1770,7 @@
 
     function resetEditModalSteps() {
         showEditStep(1);
+        clearEditReviewObjectUrls();
         
         editSelectedPackageName = null;
         editSelectedPackagePrice = 0;
@@ -2029,6 +2042,30 @@
     const editPreviewGrid = document.getElementById('editImagePreviewGrid');
     const editLimitError = document.getElementById('editImageLimitError');
     window.editAccumulatedFiles = new DataTransfer();
+    window.editReviewObjectUrls = [];
+
+    function clearEditReviewObjectUrls() {
+        (window.editReviewObjectUrls || []).forEach((url) => URL.revokeObjectURL(url));
+        window.editReviewObjectUrls = [];
+    }
+
+    function getEditReviewImageSources() {
+        clearEditReviewObjectUrls();
+
+        const existingSources = Array.from(document.querySelectorAll('#editExistingImagesGrid img'))
+            .map((img) => img.getAttribute('src'))
+            .filter(Boolean);
+
+        const newSources = Array.from(window.editAccumulatedFiles?.files || [])
+            .filter((file) => file.type && file.type.startsWith('image/'))
+            .map((file) => {
+                const url = URL.createObjectURL(file);
+                window.editReviewObjectUrls.push(url);
+                return url;
+            });
+
+        return existingSources.concat(newSources).slice(0, 4);
+    }
 
     if (editUiFilesInput) {
         editUiFilesInput.addEventListener('change', function(e) {
@@ -2128,6 +2165,7 @@
 
     function closeEditModal() {
         document.getElementById('editBookingModal').classList.remove('show');
+        clearEditReviewObjectUrls();
         document.querySelectorAll('#editBookingForm .review-field-error').forEach((el) => {
             el.textContent = '';
         });
@@ -2355,4 +2393,3 @@
 </script>
 
 {% endblock %}
-

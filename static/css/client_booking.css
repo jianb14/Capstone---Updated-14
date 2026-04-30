@@ -897,8 +897,8 @@
     content: '';
     position: absolute;
     top: 18px;
-    left: 0;
-    right: 0;
+    left: 18px;
+    right: 18px;
     height: 3px;
     background: #444;
     z-index: 1;
@@ -907,8 +907,9 @@
 .stepper-progress-line {
     position: absolute;
     top: 18px;
-    left: 0;
+    left: 18px;
     width: 0%;
+    max-width: calc(100% - 36px);
     height: 3px;
     background: #22c55e !important;
     z-index: 2;
@@ -1003,9 +1004,10 @@
 
 #booking-details-list .summary-row {
     display: grid;
-    grid-template-columns: minmax(130px, 220px) 1fr;
+    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
     align-items: start;
     gap: 0.8rem;
+    min-width: 0;
 }
 
 #booking-details-list .row-info {
@@ -1013,6 +1015,8 @@
 }
 
 #booking-details-list .row-value {
+    display: block;
+    min-width: 0;
     text-align: left;
     white-space: normal;
     max-width: 100%;
@@ -1139,6 +1143,17 @@
     justify-content: center;
     font-size: 0.85rem;
     font-weight: bold;
+}
+
+.package-card.selected::before {
+    content: '✓';
+    top: 15px !important;
+    left: auto !important;
+    right: 15px !important;
+    inset-inline-start: auto !important;
+    inset-inline-end: 15px !important;
+    transform: none !important;
+    z-index: 2;
 }
 
 .package-info {

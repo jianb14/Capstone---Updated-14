@@ -2,12 +2,14 @@ import hashlib
 import io
 import json
 import logging
+import os
 import re
 import time
 import uuid
 from calendar import monthrange
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from urllib.parse import unquote, urlparse
 
 import openpyxl
 from django.conf import settings
@@ -27,6 +29,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.contrib.staticfiles import finders
 from django.db.models import Avg, Count, Exists, Max, OuterRef, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
@@ -3277,11 +3280,17 @@ def admin_service_item_edit(request, id):
         except (ValueError, TypeError):
             pass
 
+        remove_image = request.POST.get("remove_image") == "1"
+        if remove_image and service.image:
+            service.image.delete(save=False)
+            service.image = None
+
         if request.FILES.get("image"):
             service.image = request.FILES["image"]
 
         service.save()
         log_action(request.user, f"Updated service item '{service.title}' (ID #{service.id}).")
+
         messages.success(request, "Service item updated successfully.")
         return redirect("admin_service_content")
 
@@ -6152,7 +6161,6 @@ def admin_analytics_export_pdf(request):
         pass
         
     context['timezone'] = timezone
-    from django.conf import settings
     context['STATIC_ROOT'] = settings.STATIC_ROOT or settings.BASE_DIR / 'static'
 
     template = get_template("admin/analytics_pdf_template.html")
@@ -6163,7 +6171,11 @@ def admin_analytics_export_pdf(request):
         f'attachment; filename="analytics_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
     )
 
-    pisa_status = pisa.CreatePDF(html, dest=response)
+    pisa_status = pisa.CreatePDF(
+        html,
+        dest=response,
+        link_callback=_pdf_link_callback,
+    )
     if pisa_status.err:
         return HttpResponse(
             "Error generating analytics PDF. Please try again.", status=500
@@ -6171,6 +6183,43 @@ def admin_analytics_export_pdf(request):
 
     log_action(request.user, "Exported analytics data to PDF.")
     return response
+
+
+def _pdf_link_callback(uri, rel):
+    """Resolve static/media URLs to local files for xhtml2pdf."""
+    uri = unquote(urlparse(uri).path)
+
+    if uri.startswith(settings.MEDIA_URL):
+        path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, "", 1))
+        return path if os.path.isfile(path) else uri
+
+    static_url = settings.STATIC_URL
+    static_prefixes = {
+        static_url,
+        static_url.lstrip("/"),
+        f"/{static_url.lstrip('/')}",
+    }
+    for prefix in static_prefixes:
+        if uri.startswith(prefix):
+            static_path = uri.replace(prefix, "", 1)
+            found_path = finders.find(static_path)
+            if found_path:
+                if isinstance(found_path, (list, tuple)):
+                    return found_path[0]
+                return found_path
+
+            for static_dir in getattr(settings, "STATICFILES_DIRS", []):
+                path = os.path.join(static_dir, static_path)
+                if os.path.isfile(path):
+                    return path
+
+            path = os.path.join(settings.STATIC_ROOT, static_path)
+            if os.path.isfile(path):
+                return path
+
+            return uri
+
+    return uri
 
 
 # =============================================================================

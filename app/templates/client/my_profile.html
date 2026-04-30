@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/my_profile.css' %}?v=20260430a">
 
 <div class="my-profile-page">
     <div class="my-profile-wrapper">
@@ -29,7 +29,12 @@
             <div class="my-profile-body">
                 
                 <div class="profile-section">
-                    <h3 class="section-title"><i class="far fa-address-card"></i> Personal Information</h3>
+                    <div class="section-title-row">
+                        <h3 class="section-title"><i class="far fa-address-card"></i> Personal Information</h3>
+                        <button type="button" class="btn-edit-profile" onclick="openProfileModal()">
+                            <i class="far fa-edit"></i> Edit
+                        </button>
+                    </div>
                     <div class="info-grid-modern">
                         <div class="info-group">
                             <label>First Name</label>
@@ -61,6 +66,36 @@
             </div>
 
         </div>
+    </div>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div id="profileModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Edit Profile</h2>
+            <button class="modal-close" onclick="closeProfileModal()">&times;</button>
+        </div>
+
+        <form id="editProfileForm" action="{% url 'update_my_profile' %}" method="POST" novalidate>
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="profile_first_name">First Name</label>
+                <input type="text" name="first_name" id="profile_first_name" value="{{ user.first_name|default:'' }}" maxlength="150" placeholder="Enter first name">
+            </div>
+
+            <div class="form-group">
+                <label for="profile_last_name">Last Name</label>
+                <input type="text" name="last_name" id="profile_last_name" value="{{ user.last_name|default:'' }}" maxlength="150" placeholder="Enter last name">
+            </div>
+
+            <div class="form-group">
+                <label for="profile_phone_number">Phone Number</label>
+                <input type="text" name="phone_number" id="profile_phone_number" value="{{ user.phone_number|default:'' }}" maxlength="20" placeholder="Enter phone number">
+            </div>
+
+            <button type="submit" class="btn-save-profile">Save Changes</button>
+        </form>
     </div>
 </div>
 
@@ -135,6 +170,17 @@
             toast.addEventListener('mouseleave', Swal.resumeTimer)
         }
     });
+
+    function openProfileModal() {
+        document.getElementById('profileModal').classList.add('show');
+    }
+
+    function closeProfileModal() {
+        const modal = document.getElementById('profileModal');
+        const form = document.getElementById('editProfileForm');
+        modal.classList.remove('show');
+        if (form) form.reset();
+    }
 
     // --- PASSWORD MODAL FUNCTIONS ---
     function openPasswordModal() {
@@ -392,7 +438,11 @@
 
     // Close on outside click
     window.onclick = function (event) {
+        const profileModal = document.getElementById('profileModal');
         const passwordModal = document.getElementById('passwordModal');
+        if (event.target == profileModal) {
+            closeProfileModal();
+        }
         if (event.target == passwordModal) {
             closePasswordModal();
         }

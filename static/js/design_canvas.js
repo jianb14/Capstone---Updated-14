@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const quickTextInput = byId('quickTextInput');
     const addTextBtn = byId('addTextBtn');
     const assetSearchInput = byId('assetSearchInput');
+    const themeDecorInput = byId('themeDecorInput');
 
     const userUploadInput = byId('userUploadInput');
     const userUploadsGrid = byId('userUploadsGrid');
@@ -1865,6 +1866,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (quotaKey) {
             const limit = window.packageQuotas[quotaKey];
+            if (limit === -1 || limit >= 999) return true;
             const currentCount = canvas.getObjects().filter(obj => 
                 (obj._packageCategory === quotaKey || normalizeCategoryName(obj._packageCategory) === quotaKey) 
                 && !obj._isArtboard && !obj._isBgImage
@@ -2057,7 +2059,8 @@ document.addEventListener('DOMContentLoaded', function() {
             width: parseInt(item.getAttribute('data-width') || '0', 10),
             height: parseInt(item.getAttribute('data-height') || '0', 10),
             text: item.getAttribute('data-text') || 'Text',
-            fontFamily: item.getAttribute('data-font-family') || 'Montserrat'
+            fontFamily: item.getAttribute('data-font-family') || 'Montserrat',
+            fontSize: parseInt(item.getAttribute('data-font-size') || '0', 10)
         };
     }
 
@@ -2660,6 +2663,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    if (themeDecorInput) {
+        themeDecorInput.addEventListener('input', () => {
+            updateVisualCart();
+            scheduleDraftPersist();
+        });
+    }
+
     if (applySizeBtn && canvasWidthInput && canvasHeightInput) {
         const applyCanvasSizeFromInputs = () => {
             const nextW = parseInt(canvasWidthInput.value, 10) || ARTBOARD_W;
@@ -2822,6 +2832,11 @@ document.addEventListener('DOMContentLoaded', function() {
             counts[category] = (counts[category] || 0) + 1;
         });
 
+        if (themeDecorInput && themeDecorInput.value.trim()) {
+            const themeDecorCategory = normalizeCategoryName('theme decor');
+            counts[themeDecorCategory] = (counts[themeDecorCategory] || 0) + 1;
+        }
+
         if (cartInclusionsList) cartInclusionsList.innerHTML = '';
         cartAddonsList.innerHTML = '';
 
@@ -2868,13 +2883,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (cartInclusionsList) {
                     const inclusionNode = document.createElement('li');
-                    const isChecked = limit === -1 || used >= limit;
+                    const normalizedQuota = normalizeCategoryName(quotaKey);
+                    const isThemeDecorQuota = normalizedQuota.includes('theme') && normalizedQuota.includes('decor');
+                    const isChecked = isThemeDecorQuota ? used > 0 : limit === -1 || used >= limit;
                     
                     let statusHtml = '';
-                    if (limit === -1) {
+                    if (isThemeDecorQuota && limit === -1) {
+                        statusHtml = `${Math.min(used, 1)} / 1`;
+                    } else if (limit === -1) {
                         statusHtml = 'Included';
                     } else {
-                        const displayLimit = limit >= 999 ? '∞' : limit;
+                        const displayLimit = limit >= 999 ? 'Unlimited' : limit;
                         const displayUsed = limit >= 999 ? used : Math.min(used, limit);
                         statusHtml = `${displayUsed} / ${displayLimit}`;
                     }

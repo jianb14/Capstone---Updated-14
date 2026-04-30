@@ -43,8 +43,13 @@
             <div class="form-group">
                 <label>Service Image</label>
                 {% if feature.image %}
-                    <div class="current-img">
+                    <input type="hidden" name="remove_image" id="remove_image" value="0">
+                    <div class="current-img" id="currentServiceImage">
                         <img src="{{ feature.image.url }}" alt="{{ feature.title }}">
+                        <button type="button" class="remove-image-control" id="removeServiceImageBtn" title="Remove image">
+                            <span aria-hidden="true">&times;</span>
+                            <span class="remove-image-text">Remove image</span>
+                        </button>
                     </div>
                 {% endif %}
                 <input type="file" name="image" id="image">
@@ -65,4 +70,19 @@
         </div>
     </form>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const removeInput = document.getElementById('remove_image');
+        const currentImage = document.getElementById('currentServiceImage');
+        const removeButton = document.getElementById('removeServiceImageBtn');
+
+        if (!removeInput || !currentImage || !removeButton) return;
+
+        removeButton.addEventListener('click', function () {
+            removeInput.value = '1';
+            currentImage.remove();
+        });
+    });
+</script>
 {% endblock %}

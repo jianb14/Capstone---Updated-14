@@ -365,7 +365,7 @@
 
         .ai-sidebar {
             width: 180px;
-            min-width: 10px;
+            min-width: 180px;
             flex-shrink: 0;
             background-color: #111111;
             border-right: 1px solid var(--light-gray);
@@ -567,6 +567,24 @@
             align-self: flex-start;
             border-bottom-left-radius: 4px;
             border: 1px solid var(--light-gray);
+        }
+
+        .ai-image-fallback {
+            padding: 12px;
+            margin-top: 8px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #a3a3a3;
+        }
+
+        .ai-generation-status {
+            min-width: 220px;
+        }
+
+        .ai-status-message {
+            font-weight: 700;
+            line-height: 1.4;
         }
 
         .ai-input-area {
@@ -871,8 +889,57 @@
                 localStorage.setItem(CHAT_SESSION_STORAGE_KEY, String(sessionId));
             }
 
-            function isSameSessionId(left, right) {
-                return Number(left) === Number(right);
+            function hasGeneratedImageInChat() {
+                return !!chatBox.querySelector('img[data-ai-generated-image="1"]');
+            }
+
+            function isLikelyImageMessage(message) {
+                const text = (message || '').toLowerCase();
+                const requestTerms = ['generate', 'create', 'make', 'draw', 'add', 'remove', 'change', 'gawa', 'gumawa', 'igawa', 'pakita'];
+                const visualTerms = ['image', 'picture', 'photo', 'design', 'concept', 'backdrop', 'balloon', 'theme'];
+                const hasRequest = requestTerms.some(term => text.includes(term));
+                const hasVisual = visualTerms.some(term => text.includes(term));
+                if (hasRequest && hasVisual) return true;
+                if (text.includes('generate image') || text.includes('design concept') || text.includes('backdrop design')) return true;
+
+                if (!hasGeneratedImageInChat()) return false;
+                return [
+                    'generate ka pa',
+                    'isa pa',
+                    'ulit',
+                    'another',
+                    'regenerate',
+                    'more elegant',
+                    'change color',
+                    'change colors',
+                    'design colors',
+                    'previous balloorina design',
+                    'palitan',
+                    'lagyan',
+                    'dagdagan',
+                    'add arch',
+                    'remove arch',
+                    'entrance arch',
+                    'alisin',
+                    'tanggalin'
+                ].some(term => text.includes(term));
+            }
+
+            function startImageGenerationStatus() {
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'ai-message-bubble ai-bot-msg ai-generation-status';
+                statusDiv.innerHTML = '<div class="ai-status-message">Your image is being generated. Please wait a moment while I prepare it.</div>';
+                chatBox.insertBefore(statusDiv, typingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                return { element: statusDiv };
+            }
+
+            function stopImageGenerationStatus(status) {
+                if (!status) return;
+                if (status.element && status.element.parentNode) {
+                    status.element.remove();
+                }
             }
 
             function formatCountdownClock(totalSeconds) {
@@ -975,13 +1042,13 @@
             // ---- Markdown-to-HTML Formatter ----
             function formatMarkdown(text) {
                 let html = text;
-                html = html.replace(/<details\b[\s\S]*?<summary>\s*View image prompt\s*<\/summary>[\s\S]*?<\/details>/gi, '');
 
                 // Simple check if it's already complex HTML (like an image response)
                 if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>⚠️')) {
                     // Fix img alt text and add onerror handler for broken images
                     html = html.replace(/<img\s+src="([^"]+)"\s+alt="([^"]*)"([^>]*)>/g, function (match, src, alt, rest) {
-                        return '<img src="' + src + '" alt="Balloorina Design Concept" onerror="this.style.display=\'none\';this.insertAdjacentHTML(\'afterend\',\'<div style=padding:16px;background:#1a1a1a;border-radius:8px;border:1px_solid_#333;text-align:center;color:#a3a3a3;>⚠️ Image could not be loaded. Please try generating again.</div>\');"' + rest + '>';
+                        const safeSrc = src.replace(/"/g, '&quot;');
+                        return '<img src="' + safeSrc + '" alt="Balloorina Design Concept" data-ai-generated-image="1"' + rest + '>';
                     });
                     // Try to inject download loop logic if it's an image.
                     if (html.includes('<img ')) {
@@ -1085,6 +1152,24 @@
                 return final;
             }
 
+            function bindGeneratedImageFallbacks(container) {
+                if (!container) return;
+                container.querySelectorAll('img[data-ai-generated-image="1"]').forEach(img => {
+                    if (img.dataset.boundFallback === '1') return;
+                    img.dataset.boundFallback = '1';
+                    img.addEventListener('error', function () {
+                        if (img.dataset.fallbackShown === '1') return;
+                        img.dataset.fallbackShown = '1';
+                        img.style.display = 'none';
+
+                        const fallback = document.createElement('div');
+                        fallback.className = 'ai-image-fallback';
+                        fallback.textContent = 'Image could not be loaded. The saved image file is missing or unavailable. Please generate again.';
+                        img.insertAdjacentElement('afterend', fallback);
+                    });
+                });
+            }
+
             // Global copy function
             window.copyAiText = function (btn) {
                 // Get the parent message bubble
@@ -1112,8 +1197,7 @@
             }
 
             // ---- Load Chat Sessions (Sidebar) ----
-            async function loadSessions(options = {}) {
-                const autoSelectSession = options.autoSelectSession !== false;
+            async function loadSessions() {
                 try {
                     const response = await fetch('/api/chat/sessions/', {
                         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
@@ -1134,7 +1218,7 @@
                         data.sessions.forEach(session => {
                             const li = document.createElement('li');
                             li.className = 'ai-recent-chat-item';
-                            if (isSameSessionId(currentSessionId, session.id)) {
+                            if (currentSessionId === session.id) {
                                 li.classList.add('active');
                             }
                             const titleSpan = document.createElement('span');
@@ -1165,8 +1249,7 @@
                                     color: '#fff'
                                 }).then(async (result) => {
                                     if (result.isConfirmed) {
-                                        li.remove();
-                                        const deleteResponse = await fetch('/api/chat/clear/', {
+                                        await fetch('/api/chat/clear/', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
@@ -1174,25 +1257,11 @@
                                             },
                                             body: JSON.stringify({ session_id: session.id })
                                         });
-
-                                        if (!deleteResponse.ok) {
-                                            await loadSessions();
-                                            Swal.fire({
-                                                title: 'Delete failed',
-                                                text: 'Please try again.',
-                                                icon: 'error',
-                                                background: '#1e1e1e',
-                                                color: '#fff'
-                                            });
-                                            return;
-                                        }
-
-                                        const deletedCurrentSession = isSameSessionId(currentSessionId, session.id);
-                                        if (deletedCurrentSession) {
+                                        if (currentSessionId === session.id) {
                                             startNewChat();
+                                        } else {
+                                            loadSessions();
                                         }
-                                        await loadSessions({ autoSelectSession: !deletedCurrentSession });
-
                                         Swal.fire({
                                             title: 'Deleted!',
                                             text: 'Your chat has been deleted.',
@@ -1209,7 +1278,7 @@
 
                             li.onclick = () => {
                                 // Ignore if already active
-                                if (isSameSessionId(currentSessionId, session.id)) return;
+                                if (currentSessionId === session.id) return;
 
                                 // Update active class
                                 document.querySelectorAll('.ai-recent-chat-item').forEach(el => el.classList.remove('active'));
@@ -1223,11 +1292,11 @@
                         });
 
                         const storedSessionId = loadStoredSessionId();
-                        if ((!currentSessionId || !data.sessions.some(s => isSameSessionId(s.id, currentSessionId))) && storedSessionId && data.sessions.some(s => isSameSessionId(s.id, storedSessionId))) {
+                        if ((!currentSessionId || !data.sessions.some(s => s.id === currentSessionId)) && storedSessionId && data.sessions.some(s => s.id === storedSessionId)) {
                             currentSessionId = storedSessionId;
                         }
 
-                        if (autoSelectSession && !currentSessionId && data.sessions.length > 0) {
+                        if (!currentSessionId && data.sessions.length > 0) {
                             currentSessionId = data.sessions[0].id;
                         }
 
@@ -1238,9 +1307,6 @@
                             storeSessionId(currentSessionId);
                             loadChatHistory(currentSessionId);
                         }
-                    } else {
-                        currentSessionId = null;
-                        storeSessionId(null);
                     }
                 } catch (e) {
                     console.error('Failed to load sessions', e);
@@ -1276,6 +1342,7 @@
                             } else {
                                 div.className = 'ai-message-bubble ai-bot-msg ai-history-msg';
                                 div.innerHTML = formatMarkdown(msg.content);
+                                bindGeneratedImageFallbacks(div);
                                 bindBanCountdowns(div);
                             }
                             chatBox.insertBefore(div, typingIndicator);
@@ -1305,8 +1372,9 @@
             closeBtn.addEventListener('click', toggleWidget);
 
             // Send Message
-            async function sendAiMessage() {
-                const message = chatInput.value.trim();
+            async function sendAiMessage(forcedMessage) {
+                const hasForcedMessage = typeof forcedMessage === 'string';
+                const message = (hasForcedMessage ? forcedMessage : chatInput.value).trim();
                 if (!message) return;
                 if (isGenerating) return; // Prevent double-send while generating
                 const activeBanSeconds = getBanRemainingSeconds();
@@ -1322,18 +1390,23 @@
                 userDiv.textContent = message;
                 chatBox.insertBefore(userDiv, typingIndicator);
 
-                chatInput.value = '';
+                if (!hasForcedMessage) {
+                    chatInput.value = '';
+                }
                 chatInput.style.height = 'auto';
-                chatBox.scrollTop = chatBox.scrollHeight;
-
-                // Typing Indicator
-                typingIndicator.style.display = 'flex';
-                chatBox.appendChild(typingIndicator);
                 chatBox.scrollTop = chatBox.scrollHeight;
 
                 // Disable send button & mark as generating
                 isGenerating = true;
                 setSendButtonDisabled(true);
+
+                const showImageStatus = isLikelyImageMessage(message);
+                const imageStatus = showImageStatus ? startImageGenerationStatus() : null;
+
+                // Typing Indicator
+                typingIndicator.style.display = showImageStatus ? 'none' : 'flex';
+                chatBox.appendChild(typingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
 
                 try {
                     const payload = { message: message };
@@ -1352,6 +1425,7 @@
 
                     const data = await response.json();
                     typingIndicator.style.display = 'none';
+                    stopImageGenerationStatus(imageStatus);
 
                     // Update session ID if it was newly created
                     if (data.session_id) {
@@ -1372,6 +1446,7 @@
                     } else {
                         // Format markdown in response
                         botDiv.innerHTML = formatMarkdown(data.response);
+                        bindGeneratedImageFallbacks(botDiv);
                         // Apply warning styling for profanity
                         if (data.is_warning) {
                             botDiv.classList.add('ai-warning-msg');
@@ -1395,10 +1470,11 @@
 
                 } catch (e) {
                     typingIndicator.style.display = 'none';
+                    stopImageGenerationStatus(imageStatus);
                     const errDiv = document.createElement('div');
                     errDiv.className = 'ai-message-bubble ai-bot-msg';
                     errDiv.style.color = '#ef4444';
-                    errDiv.textContent = 'Connection error. Please try again.';
+                    errDiv.textContent = 'Connection error. Paki-try ulit.';
                     chatBox.insertBefore(errDiv, typingIndicator);
                 }
 
