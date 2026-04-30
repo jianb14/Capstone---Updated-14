@@ -198,8 +198,12 @@ def sanitize_dead_local_proxy_env():
 
 sanitize_dead_local_proxy_env()
 
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+# PayMongo Config
+PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "")
+PAYMONGO_PUBLIC_KEY = os.getenv("PAYMONGO_PUBLIC_KEY", "")
+PAYMONGO_WEBHOOK_SECRET = os.getenv("PAYMONGO_WEBHOOK_SECRET", "")
 
 # Email and password reset security
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
