@@ -15,9 +15,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Project.settings')
 
 application = get_wsgi_application()
 
-# Auto-migrate on Vercel
+# Auto-migrate and Collect Static on Vercel startup
 from django.core.management import call_command
 try:
+    # Run database migrations
     call_command('migrate', '--noinput')
+    # Collect static files
+    call_command('collectstatic', '--noinput')
 except Exception as e:
-    print(f"Migration error: {e}")
+    print(f"Startup error: {e}")
