@@ -150,9 +150,6 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR/ 'static']
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# Using CompressedStaticFilesStorage instead of CompressedManifestStaticFilesStorage
-# to prevent deployment crashes if collectstatic hasn't been run yet.
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 if os.getenv('CLOUDINARY_CLOUD_NAME'):
     STORAGES = {
@@ -169,7 +166,7 @@ else:
             "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
 
