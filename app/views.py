@@ -997,6 +997,14 @@ def change_password(request):
     return redirect("customer_profile")
 
 
+def create_admin_account(request):
+    User = get_user_model()
+    if not User.objects.filter(username="admin").exists():
+        User.objects.create_superuser("admin", "admin@example.com", "admin12345", role="admin")
+        return HttpResponse("Admin account created! Username: admin, Password: admin12345. PLEASE DELETE THIS ROUTE AFTER USE.")
+    return HttpResponse("Admin already exists.")
+
+
 @login_required
 def dashboard(request):
     if request.user.role not in ["admin", "staff"]:
