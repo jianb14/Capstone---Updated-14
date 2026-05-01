@@ -34,7 +34,8 @@ from django.db.models import Avg, Count, Exists, Max, OuterRef, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import get_template
+from django.template.loader import get_template, render_to_string
+from xhtml2pdf import pisa
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
@@ -3526,6 +3527,9 @@ def build_dashboard_context(request):
     total_bookings = filtered_bookings.count()
     completed_count = filtered_bookings.filter(status="completed").count()
     cancelled_count = filtered_bookings.filter(status="cancelled").count()
+    pending_count = filtered_bookings.filter(status="pending").count()
+    confirmed_count = filtered_bookings.filter(status="confirmed").count()
+
     avg_booking_value = (
         filtered_bookings.filter(status="completed").aggregate(Avg("total_price"))[
             "total_price__avg"
@@ -3722,6 +3726,11 @@ def build_dashboard_context(request):
         "cancellation_rate": cancellation_rate,
         "completed_count": completed_count,
         "cancelled_count": cancelled_count,
+        "pending_bookings": pending_count,
+        "confirmed_bookings": confirmed_count,
+        "completed_bookings": completed_count,
+        "cancelled_bookings": cancelled_count,
+        "avg_booking_price": avg_booking_value,
         "total_bookings": total_bookings,
         "revenue_delta": revenue_delta,
         "revenue_delta_pct": revenue_delta_pct,
@@ -6162,6 +6171,40 @@ def admin_analytics_export_excel(request):
     return response
 
 
+def _pdf_link_callback(uri, rel):
+    """
+    Convert HTML static/media URIs to absolute filesystem paths so xhtml2pdf can find them.
+    """
+    s_url = settings.STATIC_URL
+    s_root = settings.STATIC_ROOT
+    m_url = settings.MEDIA_URL
+    m_root = settings.MEDIA_ROOT
+
+    path = None
+
+    if uri.startswith(m_url):
+        path = os.path.join(m_root, uri.replace(m_url, ""))
+    elif uri.startswith(s_url):
+        # Try finders first for static files
+        rel_path = uri.replace(s_url, "")
+        find_res = finders.find(rel_path)
+        if find_res:
+            if isinstance(find_res, (list, tuple)):
+                path = find_res[0]
+            else:
+                path = find_res
+        elif s_root:
+            path = os.path.join(s_root, rel_path)
+    
+    if not path or not os.path.isfile(path):
+        # Fallback to absolute path check if it's already a full path
+        if os.path.isabs(uri) and os.path.isfile(uri):
+            return uri
+        return uri
+
+    return path
+
+
 @login_required
 def admin_analytics_export_pdf(request):
     if request.user.role not in ["admin", "staff"]:
@@ -6169,44 +6212,14 @@ def admin_analytics_export_pdf(request):
 
     _cleanup_legacy_booking_request_states()
     context = build_dashboard_context(request)
+    context["timezone"] = timezone
 
+    html = render_to_string("admin/analytics_pdf_template.html", context)
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
+    pisa_status = pisa.CreatePDF(html, dest=buffer, link_callback=_pdf_link_callback)
 
-    # Title
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(50, height - 50, "Balloorina Analytics Report")
-    
-    p.setFont("Helvetica", 10)
-    p.drawString(50, height - 70, f"Generated on: {timezone.now().strftime('%B %d, %Y %I:%M %p')}")
-    p.drawString(50, height - 85, f"Date Range: {context['start_date']} to {context['end_date']}")
-
-    p.line(50, height - 95, width - 50, height - 95)
-
-    y = height - 120
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(50, y, "Summary Statistics")
-    y -= 25
-
-    p.setFont("Helvetica", 11)
-    stats = [
-        ("Total Bookings", context["total_bookings"]),
-        ("Pending Bookings", context["pending_bookings"]),
-        ("Confirmed Bookings", context["confirmed_bookings"]),
-        ("Cancelled Bookings", context["cancelled_bookings"]),
-        ("Completed Bookings", context["completed_bookings"]),
-        ("Total Revenue", f"PHP {context['total_revenue']:,.2f}"),
-        ("Average Booking Price", f"PHP {context['avg_booking_price']:,.2f}"),
-    ]
-
-    for label, value in stats:
-        p.drawString(70, y, f"{label}:")
-        p.drawString(250, y, str(value))
-        y -= 20
-
-    p.showPage()
-    p.save()
+    if pisa_status.err:
+        return HttpResponse("We had some errors <pre>" + html + "</pre>")
 
     buffer.seek(0)
     response = HttpResponse(buffer.read(), content_type="application/pdf")
@@ -6216,9 +6229,6 @@ def admin_analytics_export_pdf(request):
 
     log_action(request.user, "Exported analytics data to PDF.")
     return response
-
-
-# Removed _pdf_link_callback as it was for xhtml2pdf
 
 
 # =============================================================================
