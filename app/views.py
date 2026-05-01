@@ -42,7 +42,9 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import TemplateView
-from xhtml2pdf import pisa
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
 
 from .models import (
     AboutContent,
@@ -6159,75 +6161,56 @@ def admin_analytics_export_pdf(request):
 
     _cleanup_legacy_booking_request_states()
     context = build_dashboard_context(request)
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Title
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, height - 50, "Balloorina Analytics Report")
     
-    # Ensure start_date and end_date are date objects for the template's |date filter
-    from datetime import datetime
-    try:
-        context['start_date'] = datetime.strptime(context['start_date'], "%Y-%m-%d")
-        context['end_date'] = datetime.strptime(context['end_date'], "%Y-%m-%d")
-    except (ValueError, TypeError):
-        pass
-        
-    context['timezone'] = timezone
-    context['STATIC_ROOT'] = settings.STATIC_ROOT or settings.BASE_DIR / 'static'
+    p.setFont("Helvetica", 10)
+    p.drawString(50, height - 70, f"Generated on: {timezone.now().strftime('%B %d, %Y %I:%M %p')}")
+    p.drawString(50, height - 85, f"Date Range: {context['start_date']} to {context['end_date']}")
 
-    template = get_template("admin/analytics_pdf_template.html")
-    html = template.render(context, request)
+    p.line(50, height - 95, width - 50, height - 95)
 
-    response = HttpResponse(content_type="application/pdf")
+    y = height - 120
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Summary Statistics")
+    y -= 25
+
+    p.setFont("Helvetica", 11)
+    stats = [
+        ("Total Bookings", context["total_bookings"]),
+        ("Pending Bookings", context["pending_bookings"]),
+        ("Confirmed Bookings", context["confirmed_bookings"]),
+        ("Cancelled Bookings", context["cancelled_bookings"]),
+        ("Completed Bookings", context["completed_bookings"]),
+        ("Total Revenue", f"PHP {context['total_revenue']:,.2f}"),
+        ("Average Booking Price", f"PHP {context['avg_booking_price']:,.2f}"),
+    ]
+
+    for label, value in stats:
+        p.drawString(70, y, f"{label}:")
+        p.drawString(250, y, str(value))
+        y -= 20
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type="application/pdf")
     response["Content-Disposition"] = (
         f'attachment; filename="analytics_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
     )
-
-    pisa_status = pisa.CreatePDF(
-        html,
-        dest=response,
-        link_callback=_pdf_link_callback,
-    )
-    if pisa_status.err:
-        return HttpResponse(
-            "Error generating analytics PDF. Please try again.", status=500
-        )
 
     log_action(request.user, "Exported analytics data to PDF.")
     return response
 
 
-def _pdf_link_callback(uri, rel):
-    """Resolve static/media URLs to local files for xhtml2pdf."""
-    uri = unquote(urlparse(uri).path)
-
-    if uri.startswith(settings.MEDIA_URL):
-        path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, "", 1))
-        return path if os.path.isfile(path) else uri
-
-    static_url = settings.STATIC_URL
-    static_prefixes = {
-        static_url,
-        static_url.lstrip("/"),
-        f"/{static_url.lstrip('/')}",
-    }
-    for prefix in static_prefixes:
-        if uri.startswith(prefix):
-            static_path = uri.replace(prefix, "", 1)
-            found_path = finders.find(static_path)
-            if found_path:
-                if isinstance(found_path, (list, tuple)):
-                    return found_path[0]
-                return found_path
-
-            for static_dir in getattr(settings, "STATICFILES_DIRS", []):
-                path = os.path.join(static_dir, static_path)
-                if os.path.isfile(path):
-                    return path
-
-            path = os.path.join(settings.STATIC_ROOT, static_path)
-            if os.path.isfile(path):
-                return path
-
-            return uri
-
-    return uri
+# Removed _pdf_link_callback as it was for xhtml2pdf
 
 
 # =============================================================================
