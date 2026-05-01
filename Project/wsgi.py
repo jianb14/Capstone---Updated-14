@@ -14,10 +14,3 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Project.settings')
 
 application = get_wsgi_application()
-
-# Idagdag ito para mag-migrate automatic sa Vercel
-from django.core.management import call_command
-try:
-    call_command('migrate', '--noinput')
-except Exception as e:
-    print(f"Migration error: {e}")
