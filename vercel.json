@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "Project/wsgi.py",
-      "use": "@vercel/python"
+  "functions": {
+    "Project/wsgi.py": {
+      "runtime": "@vercel/python",
+      "memory": 1024,
+      "maxDuration": 60
     }
-  ],
+  },
   "routes": [
     {
       "src": "/static/(.*)",

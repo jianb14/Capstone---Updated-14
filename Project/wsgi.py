@@ -15,11 +15,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Project.settings')
 
 application = get_wsgi_application()
 
-# Auto-migrate on Vercel
+# Idagdag ito para mag-migrate automatic sa Vercel
 from django.core.management import call_command
 try:
     call_command('migrate', '--noinput')
-    # Idagdag ito para ma-collect ang CSS/JS
-    call_command('collectstatic', '--noinput')
 except Exception as e:
-    print(f"Build error: {e}")
+    print(f"Migration error: {e}")
