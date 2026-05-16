@@ -1,0 +1,136 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Review Details - Balloorina{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_reviews.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>Review Details</h1>
+        <p class="page-subtitle">View and manage customer feedback for this booking.</p>
+    </div>
+    <a href="{% url 'admin_reviews' %}" class="btn-back">
+        <i class="fas fa-arrow-left"></i></i>
+        Back
+    </a>
+</div>
+
+<div class="detail-wrap">
+    <div class="detail-grid">
+        <!-- Sidebar Profile -->
+        <aside class="profile-card">
+            <div class="review-id-badge">Review #{{ review.id }}</div>
+            <div class="profile-info">
+                <h2>{{ review.user.get_full_name|default:review.user.username }}</h2>
+                <p>{{ review.user.email }}</p>
+            </div>
+
+            <div class="meta-list">
+                <div class="meta-item">
+                    <div class="meta-icon"><i class="far fa-calendar-alt"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">Submitted On</span>
+                        <span class="meta-value">{{ review.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon"><i class="fas fa-glass-cheers"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">Event Type</span>
+                        <span class="meta-value">{{ review.booking.event_type }}</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon"><i class="far fa-clock"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">Event Date</span>
+                        <span class="meta-value">{{ review.booking.event_date|date:"F d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="review-main">
+            <!-- Review Content -->
+            <div class="glass-box">
+                <span class="box-title" style="display: block; margin-bottom: 2rem;">Review Assessment</span>
+                
+                <div class="rating-display-row">
+                    <div class="rating-number-badge">
+                        {{ review.rating }} <i class="fas fa-star" style="font-size: 1.2rem; margin-left: 0.5rem; color: #f59e0b;"></i>
+                    </div>
+                </div>
+                
+                <i class="fas fa-quote-left quote-icon-dev"></i>
+                <div class="comment-text">
+                    {{ review.comment|linebreaksbr }}
+                </div>
+            </div>
+
+            <!-- Image Attachments -->
+            {% if review.images.exists %}
+            <div class="glass-box">
+                <span class="box-title" style="display: block; margin-bottom: 1.5rem;">Attached Photos ({{ review.images.count }})</span>
+                <div class="image-grid">
+                    {% for img in review.images.all %}
+                    <div class="image-item" onclick="openModal('{{ img.image.url }}')">
+                        <img src="{{ img.image.url }}" alt="Review Attachment">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="action-bar">
+                <a href="{% url 'admin_review_toggle_testimonial' review.id %}" 
+                    class="btn-toggle {% if review.is_testimonial %}featured{% else %}not-featured{% endif %}">
+                    {% if review.is_testimonial %}
+                        Remove from Testimonial
+                    {% else %}
+                        Set as Testimonial
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div id="imageModal" class="img-modal">
+    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="modalImage">
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openModal(imgSrc) {
+        const modal = document.getElementById("imageModal");
+        const modalImg = document.getElementById("modalImage");
+        modal.style.display = "block";
+        modalImg.src = imgSrc;
+        document.body.style.overflow = "hidden"; // Prevent scrolling
+    }
+
+    function closeModal() {
+        const modal = document.getElementById("imageModal");
+        modal.style.display = "none";
+        document.body.style.overflow = "auto"; // Re-enable scrolling
+    }
+
+    // Close modal when clicking outside the image
+    window.onclick = function(event) {
+        const modal = document.getElementById("imageModal");
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}

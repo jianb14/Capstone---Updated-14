@@ -9,20 +9,66 @@
 {% block content %}
 <div class="page-container">
 
-    <!-- Header & Search -->
+    <!-- Header & Filters -->
     <div class="page-header">
-        <div>
-            <h1>Audit Logs</h1>
-            <div class="breadcrumb">
-                <span>Admin</span> <span class="separator">/</span> <span class="active">System Logs</span>
-            </div>
+        <div class="header-title">
+            <h1>System Audit Logs</h1>
+            <p class="page-subtitle">Monitor system activities, user actions, and security logs in real-time.</p>
         </div>
     </div>
 
     <div class="search-bar">
-            <form method="GET" action="" onsubmit="return false;">
-                <input type="text" id="searchInput" name="search" placeholder="Search..." value="{{ search_query }}">
-            </form>
+        <form method="GET" action="" id="filterForm">
+            <div class="search-controls">
+                <!-- Search with Icon -->
+                <div class="search-input-wrapper">
+                    <span class="search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </svg>
+                    </span>
+                    <input type="text" id="searchInput" name="search" placeholder="Search logs..." value="{{ search_query }}">
+                </div>
+
+                <!-- Role Custom Dropdown -->
+                <div class="custom-filter-dropdown" id="roleDropdown">
+                    <div class="dropdown-trigger">
+                        <span id="roleDropdownText">
+                            {% if role_filter == 'admin' %}
+                            Admin
+                            {% elif role_filter == 'customer' %}
+                            Customer
+                            {% else %}
+                            All Roles
+                            {% endif %}
+                        </span>
+                        <span class="dropdown-caret" aria-hidden="true"></span>
+                    </div>
+                    <ul class="dropdown-options">
+                        <li data-value="" {% if not role_filter %}class="selected"{% endif %}>All Roles</li>
+                        <li data-value="admin" {% if role_filter == 'admin' %}class="selected"{% endif %}>Admin</li>
+                        <li data-value="customer" {% if role_filter == 'customer' %}class="selected"{% endif %}>Customer</li>
+                    </ul>
+                    <select name="role" class="filter-select" id="roleFilterSelect">
+                        <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
+                        <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="customer" {% if role_filter == 'customer' %}selected{% endif %}>Customer</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="date-filter-group">
+                    <div class="date-input-wrapper">
+                        <input type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()" title="Start Date">
+                    </div>
+                    <span class="range-sep">-</span>
+                    <div class="date-input-wrapper">
+                        <input type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()" title="End Date">
+                    </div>
+                </div>
+            </div>
+        </form>
     </div>
 
     <div id="log-content">
@@ -55,8 +101,6 @@
                             {% if log.user %}
                                 {% if log.user.role == 'admin' %}
                                     <span class="role-badge admin">Admin</span>
-                                {% elif log.user.role == 'staff' %}
-                                    <span class="role-badge staff">Staff</span>
                                 {% else %}
                                     <span class="role-badge customer">Customer</span>
                                 {% endif %}
@@ -76,8 +120,18 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="no-logs">
-                            No audit logs found.
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        <line x1="8" y1="11" x2="14" y2="11"></line>
+                                    </svg>
+                                </div>
+                                <h3>No audit logs found</h3>
+                                <p>We couldn't find any logs matching your current filters.</p>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -89,7 +143,7 @@
         {% if logs.has_other_pages %}
         <div class="pagination">
             {% if logs.has_previous %}
-                <a href="?page={{ logs.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+                <a href="?page={{ logs.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
             {% else %}
                 <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
             {% endif %}
@@ -97,7 +151,7 @@
             <span class="current-page">Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span>
 
             {% if logs.has_next %}
-                <a href="?page={{ logs.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+                <a href="?page={{ logs.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
             {% else %}
                 <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
             {% endif %}
@@ -111,43 +165,71 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('searchInput');
+    const filterForm = document.getElementById('filterForm');
+    const roleDropdown = document.getElementById('roleDropdown');
+    const roleTrigger = roleDropdown ? roleDropdown.querySelector('.dropdown-trigger') : null;
+    const roleOptions = roleDropdown ? roleDropdown.querySelectorAll('.dropdown-options li') : [];
+    const roleText = document.getElementById('roleDropdownText');
+    const roleFilter = document.getElementById('roleFilterSelect');
     const contentContainer = document.getElementById('log-content');
     let debounceTimer;
 
-    searchInput.addEventListener('input', function (e) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            const query = e.target.value;
-            const url = new URL(window.location.href);
-            url.searchParams.set('search', query);
-            url.searchParams.delete('page'); // Bumalik sa page 1 para sa bagong search
+    // Live Search
+    if (searchInput && contentContainer) {
+        searchInput.addEventListener('input', function (e) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = e.target.value;
+                const url = new URL(window.location.href);
+                url.searchParams.set('search', query);
+                url.searchParams.delete('page');
 
-            // Magdagdag ng loading indicator
-            contentContainer.style.opacity = '0.5';
-            contentContainer.style.transition = 'opacity 0.2s ease-in-out';
+                contentContainer.style.opacity = '0.5';
+                contentContainer.style.transition = 'opacity 0.2s ease-in-out';
 
-            fetch(url.toString())
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newContent = doc.getElementById('log-content');
-                    
-                    if (newContent) {
-                        contentContainer.innerHTML = newContent.innerHTML;
-                    }
+                fetch(url.toString())
+                    .then(response => response.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newContent = doc.getElementById('log-content');
+                        if (newContent) {
+                            contentContainer.innerHTML = newContent.innerHTML;
+                        }
+                        window.history.pushState({ path: url.toString() }, '', url.toString());
+                    })
+                    .catch(error => console.error('Error:', error))
+                    .finally(() => contentContainer.style.opacity = '1');
+            }, 300);
+        });
+    }
 
-                    // I-update ang URL nang hindi nagre-reload ng page
-                    window.history.pushState({ path: url.toString() }, '', url.toString());
-                })
-                .catch(error => {
-                    console.error('Error fetching search results:', error);
-                })
-                .finally(() => {
-                    contentContainer.style.opacity = '1';
-                });
-        }, 300); // Maghintay ng 300ms pagkatapos mag-type ng user
-    });
+    // Custom Dropdown Logic
+    function closeDropdown() {
+        if (roleDropdown) roleDropdown.classList.remove('open');
+    }
+
+    if (roleTrigger && roleOptions.length && roleFilter && filterForm) {
+        roleTrigger.addEventListener('click', function () {
+            roleDropdown.classList.toggle('open');
+        });
+
+        roleOptions.forEach(option => {
+            option.addEventListener('click', function () {
+                const val = this.getAttribute('data-value') || '';
+                roleFilter.value = val;
+                roleText.textContent = this.textContent.trim();
+                roleOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                closeDropdown();
+                filterForm.submit();
+            });
+        });
+
+        document.addEventListener('click', function (e) {
+            if (roleDropdown && !roleDropdown.contains(e.target)) closeDropdown();
+        });
+    }
 });
 </script>
 {% endblock %}

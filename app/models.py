@@ -9,7 +9,6 @@ class User(AbstractUser):
     ROLE_CHOICES = (
         ('customer', 'Customer'),
         ('admin', 'Admin'),
-        ('staff', 'Staff'),
     )
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
@@ -407,6 +406,15 @@ class ConcernTicket(models.Model):
 
     def __str__(self):
         return f"Concern #{self.id} - {self.subject}"
+
+
+class ConcernImage(models.Model):
+    concern = models.ForeignKey(ConcernTicket, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='concern_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for Concern #{self.concern.id}"
 
 
 # -----------------------------

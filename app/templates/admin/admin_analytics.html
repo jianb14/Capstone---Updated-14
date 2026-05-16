@@ -14,7 +14,7 @@
             <p class="analytics-sub">Detailed reports on bookings, revenue, and customer insights.</p>
         </div>
         <div class="export-row">
-            <a href="{% url 'admin_analytics_export_pdf' %}?start_date={{ start_date }}&end_date={{ end_date }}&event_type={{ selected_event_type }}" class="export-btn">
+            <a href="{% url 'admin_analytics_export_pdf' %}?filter_preset={{ filter_preset }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&event_type={{ selected_event_type }}" class="export-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 Export PDF
             </a>
@@ -22,18 +22,18 @@
     </div>
 
     <!-- Filter Bar -->
-    <form method="GET" class="dash-filter-row">
-        <input type="hidden" id="event_type_filter" name="event_type" value="{{ selected_event_type }}">
+    <form method="GET" class="dash-filter-row" id="analyticsFilterForm">
+        <input type="hidden" name="filter_preset" id="filter_preset_input" value="{{ filter_preset }}">
         <div class="filter-fields">
             <div class="filter-group">
                 <label for="start_date">From</label>
-                <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+                <input type="date" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
             </div>
             <div class="filter-group">
                 <label for="end_date">To</label>
-                <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+                <input type="date" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
             </div>
-            <div class="filter-group">
+            <!--<div class="filter-group">
                 <label for="event_type_select">Event Type</label>
                 <select id="event_type_select" name="event_type">
                     <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
@@ -42,16 +42,17 @@
                     {% endfor %}
                 </select>
             </div>
+            -->
             <div class="filter-inline-actions">
                 <button type="submit" class="btn-apply">Apply</button>
                 <a href="{% url 'admin_analytics' %}" class="btn-reset">Reset</a>
             </div>
         </div>
         <div class="filter-actions">
-            <button type="button" class="btn-preset" data-preset="today">Today</button>
-            <button type="button" class="btn-preset" data-preset="7days">7 Days</button>
-            <button type="button" class="btn-preset" data-preset="month">This Month</button>
-            <button type="button" class="btn-preset" data-preset="all">All Time</button>
+            <button type="button" class="btn-preset {% if filter_preset == 'today' %}active{% endif %}" data-preset="today">Today</button>
+            <button type="button" class="btn-preset {% if filter_preset == '7days' %}active{% endif %}" data-preset="7days">7 Days</button>
+            <button type="button" class="btn-preset {% if filter_preset == 'month' %}active{% endif %}" data-preset="month">This Month</button>
+            <button type="button" class="btn-preset {% if filter_preset == 'all' %}active{% endif %}" data-preset="all">All Time</button>
         </div>
     </form>
 
@@ -521,14 +522,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const preset = this.getAttribute('data-preset');
             const startInput = document.getElementById('start_date');
             const endInput = document.getElementById('end_date');
+            const presetInput = document.getElementById('filter_preset_input');
             const today = new Date();
+            
             const formatDate = (d) => {
                 const year = d.getFullYear();
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const day = String(d.getDate()).padStart(2, '0');
                 return `${year}-${month}-${day}`;
             };
+
+            presetInput.value = preset;
             endInput.value = formatDate(today);
+            
             if (preset === 'today') {
                 startInput.value = formatDate(today);
             } else if (preset === '7days') {
@@ -543,6 +549,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             this.closest('form').submit();
         });
+    });
+
+    // Clear preset if manual dates are changed
+    ['start_date', 'end_date', 'event_type_select'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                const presetInput = document.getElementById('filter_preset_input');
+                if (presetInput) presetInput.value = '';
+            });
+        }
     });
 
     if (typeof Chart === 'undefined') return;

@@ -192,18 +192,22 @@
     min-height: 34px;
     padding: 0.45rem 0.75rem;
     border-color: #2f2f2f;
-    background: #0f0f0f;
+    background: #000;
     font-size: 0.82rem;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .queue-status-dropdown .dropdown-caret {
+    display: inline-block;
     width: 8px;
     height: 8px;
-    border-right: 2px solid #a7a7a7;
-    border-bottom: 2px solid #a7a7a7;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
     transform: rotate(45deg);
     transition: transform 0.2s ease, border-color 0.2s ease;
     margin-top: -3px;
+    flex-shrink: 0;
 }
 
 .queue-status-dropdown.open .dropdown-caret {
@@ -600,6 +604,29 @@ tbody tr:last-child td {
     gap: 1rem;
 }
 
+/* Image Grid & Preview Styles */
+.concern-images-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.concern-modal-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #333;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.concern-modal-img:hover {
+    transform: scale(1.05);
+    border-color: #4a4a4a;
+}
+
 .concerns-pagination .page-link {
     background: #1a1a1a;
     border: 1px solid #333;
@@ -860,7 +887,7 @@ h1{
 .custom-filter-dropdown .dropdown-trigger {
     padding: 0.6rem 1rem;
     border: 1px solid #303030;
-    background: #0b0b0b;
+    background: #000;
     color: #fff;
     border-radius: 6px;
     font-size: 0.9rem;
@@ -870,6 +897,8 @@ h1{
     gap: 20px;
     cursor: pointer;
     transition: all 0.22s ease;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .custom-filter-dropdown .dropdown-trigger i {
@@ -880,7 +909,7 @@ h1{
 
 .custom-filter-dropdown.open .dropdown-trigger {
     border-color: rgba(255, 255, 255, 0.45);
-    background: #101010;
+    background: #000;
 }
 
 .custom-filter-dropdown.open .dropdown-trigger i {
@@ -894,7 +923,7 @@ h1{
     position: absolute;
     left: 0;
     right: 0;
-    background: #0f0f0f;
+    background: #000;
     border: 1px solid #2f2f2f;
     border-radius: 6px;
     max-height: 220px;
@@ -921,7 +950,8 @@ h1{
     transition: background 0.18s ease, color 0.18s ease;
 }
 
-.custom-filter-dropdown .dropdown-options li:hover {
+.custom-filter-dropdown .dropdown-options li:hover,
+.custom-filter-dropdown .dropdown-options li.selected {
     background: #1a1a1a;
     color: #ffffff;
 }
@@ -946,6 +976,8 @@ h1{
 
 .filter-select {
     display: none;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .concern-form button {
@@ -1121,13 +1153,15 @@ td {
 
 .concern-update-form select,
 .concern-update-form textarea {
-    background: #0f1114;
+    background: #000;
     border: 1px solid #2c323b;
     border-radius: 8px;
     color: #f8fafc;
     padding: 0.62rem 0.72rem;
     font-family: inherit;
     font-size: 0.86rem;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .concern-update-form textarea {
@@ -1616,7 +1650,7 @@ td {
 
 .admin-concern-modal .concern-update-form select,
 .admin-concern-modal .concern-update-form textarea {
-    background: #0f0f0f;
+    background: #000;
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #f8fafc;
 }
@@ -1626,11 +1660,16 @@ td {
 }
 
 .admin-concern-modal .concern-status-dropdown .dropdown-trigger {
-    background: #111418;
+    background: #000;
     border: 1px solid #282d35;
     color: #f1f5f9;
     padding: 0.62rem 0.95rem;
     font-size: 0.95rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .admin-concern-modal .concern-update-form .status-field-wrap.has-error .dropdown-trigger {
@@ -1638,16 +1677,25 @@ td {
 }
 
 .admin-concern-modal .concern-status-dropdown .dropdown-caret {
-    border-right-color: #717d8e;
-    border-bottom-color: #717d8e;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(45deg);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+    margin-top: -3px;
+    flex-shrink: 0;
 }
 
 .admin-concern-modal .concern-status-dropdown.open .dropdown-caret {
+    transform: rotate(-135deg);
     border-color: #ffffff;
+    margin-top: 3px;
 }
 
 .admin-concern-modal .concern-status-dropdown .dropdown-options {
-    background: #1a1e24;
+    background: #000;
     border-color: #2e343d;
     top: calc(100% + 5px);
 }

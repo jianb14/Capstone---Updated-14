@@ -30,7 +30,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.contrib.staticfiles import finders
-from django.db.models import Avg, Count, Exists, Max, OuterRef, Q, Sum
+from django.db.models import Avg, Count, DecimalField, Exists, Max, OuterRef, Q, Sum, Value, Model, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -62,6 +62,7 @@ from .models import (
     ChatMessage,
     ChatSession,
     ConcernTicket,
+    ConcernImage,
     Design,
     GalleryCategory,
     GalleryImage,
@@ -381,22 +382,9 @@ def apply_booking_snapshot(booking, snapshot):
 
 
 def get_top_reviews():
-    """Helper function to get the top 3 reviews, prioritizing 5-stars and unique per user."""
-    # Fetch reviews ordered by rating descending, then newest first
-    all_reviews = Review.objects.select_related("user", "booking").order_by(
-        "-rating", "-created_at"
-    )
-
-    top_reviews = []
-    seen_users = set()
-
-    for review in all_reviews:
-        if review.user.id not in seen_users:
-            top_reviews.append(review)
-            seen_users.add(review.user.id)
-
-        if len(top_reviews) >= 6:
-            break
+    """Helper function to get the reviews selected as testimonials by the admin (max 4)."""
+    # Fetch reviews that are marked as testimonials
+    top_reviews = Review.objects.filter(is_testimonial=True).select_related("user", "booking").order_by("-created_at")[:4]
 
     for review in top_reviews:
         review.booking_selection_display = format_booking_selection(
@@ -941,6 +929,12 @@ def report_concern(request):
                 subject=subject,
                 message=message_text,
             )
+
+            # Handle multiple images
+            images = request.FILES.getlist("concern_images")
+            for img in images[:4]:  # Limit to 4 images
+                ConcernImage.objects.create(concern=ticket, image=img)
+
             log_action(request.user, f"Submitted concern ticket #{ticket.id}.")
             messages.success(
                 request, "Concern submitted. Our team will review it soon."
@@ -2503,7 +2497,7 @@ def admin_user_list(request):
 
     # 2. Role Filter
     role_filter = request.GET.get("role")
-    if role_filter and role_filter in ["admin", "staff", "customer"]:
+    if role_filter and role_filter in ["admin", "customer"]:
         users_list = users_list.filter(role=role_filter)
 
     # 3. Search Logic
@@ -2565,7 +2559,7 @@ def admin_user_edit(request, id):
             messages.error(request, "Phone number is required.")
             return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
 
-        valid_roles = {"admin", "staff", "customer"}
+        valid_roles = {"admin", "customer"}
         if role not in valid_roles:
             messages.error(request, "Role is required.")
             return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
@@ -2622,7 +2616,7 @@ def admin_user_delete(request, id):
 
 @login_required
 def admin_about_content(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
     content = AboutContent.objects.first()
@@ -2673,7 +2667,7 @@ def admin_about_content(request):
 
 @login_required
 def admin_about_value_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
     content = AboutContent.objects.first()
@@ -2720,7 +2714,7 @@ def admin_about_value_create(request):
 
 @login_required
 def admin_about_value_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
     value = get_object_or_404(AboutValueItem, id=id)
@@ -2766,19 +2760,40 @@ def admin_about_value_delete(request, id):
 
 
 @login_required
+@login_required
 def admin_audit_log_list(request):
     if request.user.role not in ["admin"]:
         return HttpResponseForbidden("Admins only")
 
     log_list = AuditLog.objects.select_related("user").all()
 
-    # Search Logic
-    search_query = request.GET.get("search")
+    # Filters
+    search_query = request.GET.get("search", "").strip()
+    role_filter = request.GET.get("role", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
     if search_query:
         log_list = log_list.filter(
             Q(action__icontains=search_query)
             | Q(user__username__icontains=search_query)
+            | Q(user__email__icontains=search_query)
         )
+
+    if role_filter:
+        log_list = log_list.filter(user__role=role_filter)
+
+    if date_from:
+        try:
+            log_list = log_list.filter(created_at__date__gte=date_from)
+        except (ValueError, ValidationError):
+            pass
+
+    if date_to:
+        try:
+            log_list = log_list.filter(created_at__date__lte=date_to)
+        except (ValueError, ValidationError):
+            pass
 
     # Pagination Logic (15 items per page)
     paginator = Paginator(log_list, 15)
@@ -2788,7 +2803,13 @@ def admin_audit_log_list(request):
     return render(
         request,
         "admin/audit_log_list.html",
-        {"logs": logs, "search_query": search_query or ""},
+        {
+            "logs": logs,
+            "search_query": search_query,
+            "role_filter": role_filter,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
     )
 
 
@@ -3347,15 +3368,15 @@ def _get_reporting_date_range(request):
     if filter_preset == "today":
         start_date = today
         end_date = today
-    elif filter_preset == "weekly":
-        start_date = today - timedelta(days=today.weekday())
-        end_date = start_date + timedelta(days=6)
-    elif filter_preset == "monthly":
+    elif filter_preset == "7days":
+        start_date = today - timedelta(days=6)
+        end_date = today
+    elif filter_preset == "month":
         start_date = today.replace(day=1)
         _, last_day = monthrange(today.year, today.month)
         end_date = today.replace(day=last_day)
-    elif filter_preset == "all_time":
-        start_date = datetime(2020, 1, 1).date()
+    elif filter_preset == "all":
+        start_date = datetime(2000, 1, 1).date()
         end_date = today
     else:
         start_date_str = request.GET.get("start_date")
@@ -3371,6 +3392,10 @@ def _get_reporting_date_range(request):
             except ValueError:
                 end_date = today
                 start_date = end_date - timedelta(days=30)
+
+    if not start_date or not end_date:
+        end_date = today
+        start_date = end_date - timedelta(days=30)
 
     if start_date > end_date:
         start_date, end_date = end_date, start_date
@@ -3455,10 +3480,10 @@ def _aggregate_trend_series(bookings_qs, range_start, bucket_spans):
     bookings_series = [0] * len(bucket_spans)
     revenue_series = [0.0] * len(bucket_spans)
 
-    for created_date, booking_total, status in bookings_qs.values_list(
-        "created_at__date", "total_price", "status"
+    for event_date, booking_total, status in bookings_qs.values_list(
+        "event_date", "total_price", "status"
     ):
-        bucket_idx = bucket_index_by_day.get(created_date)
+        bucket_idx = bucket_index_by_day.get(event_date)
         if bucket_idx is None:
             continue
         bookings_series[bucket_idx] += 1
@@ -3480,12 +3505,13 @@ def build_dashboard_context(request):
         .distinct()
         .order_by("event_type")
     )
+    # Ensure event_type is not an empty string or invalid
     selected_event_type = (request.GET.get("event_type") or "all").strip()
-    if selected_event_type != "all" and selected_event_type not in event_type_options:
+    if not selected_event_type or (selected_event_type != "all" and selected_event_type not in event_type_options):
         selected_event_type = "all"
 
     filtered_bookings = Booking.objects.filter(
-        created_at__date__gte=start_date, created_at__date__lte=end_date
+        event_date__gte=start_date, event_date__lte=end_date
     )
     if selected_event_type != "all":
         filtered_bookings = filtered_bookings.filter(event_type=selected_event_type)
@@ -3493,7 +3519,7 @@ def build_dashboard_context(request):
     previous_end = start_date - timedelta(days=1)
     previous_start = previous_end - timedelta(days=max(date_range_days - 1, 0))
     previous_period_bookings = Booking.objects.filter(
-        created_at__date__gte=previous_start, created_at__date__lte=previous_end
+        event_date__gte=previous_start, event_date__lte=previous_end
     )
     if selected_event_type != "all":
         previous_period_bookings = previous_period_bookings.filter(
@@ -3506,12 +3532,16 @@ def build_dashboard_context(request):
     pending_approvals = filtered_bookings.filter(status="pending").count()
     action_queue_total = pending_approvals
 
-    upcoming_deadline_bookings = (
-        Booking.objects.filter(
-            status="pending",
-            event_date__gte=today,
-            event_date__lte=today + timedelta(days=3),
-        )
+    upcoming_deadline_bookings_qs = Booking.objects.filter(
+        status="pending",
+        event_date__gte=today,
+        event_date__lte=today + timedelta(days=3),
+    )
+    if selected_event_type != "all":
+        upcoming_deadline_bookings_qs = upcoming_deadline_bookings_qs.filter(event_type=selected_event_type)
+    
+    upcoming_deadline_bookings = list(
+        upcoming_deadline_bookings_qs
         .select_related("user")
         .order_by("event_date")[:6]
     )
@@ -3519,11 +3549,10 @@ def build_dashboard_context(request):
         booking.days_left = (booking.event_date - today).days
 
     total_revenue = (
-        filtered_bookings.filter(status="completed").aggregate(Sum("total_price"))[
-            "total_price__sum"
-        ]
-        or 0
-    )
+        filtered_bookings.filter(status="completed").aggregate(
+            rev=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
+        )["rev"]
+    ) or Decimal("0.00")
     total_bookings = filtered_bookings.count()
     completed_count = filtered_bookings.filter(status="completed").count()
     cancelled_count = filtered_bookings.filter(status="cancelled").count()
@@ -3531,11 +3560,10 @@ def build_dashboard_context(request):
     confirmed_count = filtered_bookings.filter(status="confirmed").count()
 
     avg_booking_value = (
-        filtered_bookings.filter(status="completed").aggregate(Avg("total_price"))[
-            "total_price__avg"
-        ]
-        or 0
-    )
+        filtered_bookings.filter(status="completed").aggregate(
+            avg_val=Coalesce(Avg("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
+        )["avg_val"]
+    ) or Decimal("0.00")
     completion_rate = (
         round((completed_count / total_bookings) * 100, 1) if total_bookings else 0
     )
@@ -3552,10 +3580,9 @@ def build_dashboard_context(request):
     )
     prev_completed_revenue = (
         previous_period_bookings.filter(status="completed").aggregate(
-            Sum("total_price")
-        )["total_price__sum"]
-        or 0
-    )
+            rev=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
+        )["rev"]
+    ) or Decimal("0.00")
     revenue_delta = total_revenue - prev_completed_revenue
     revenue_delta_pct = (
         round((revenue_delta / prev_completed_revenue) * 100, 1)
@@ -3568,8 +3595,8 @@ def build_dashboard_context(request):
         .values("event_type")
         .annotate(
             count=Count("id"),
-            revenue=Sum("total_price"),
-            avg_value=Avg("total_price")
+            revenue=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField())),
+            avg_value=Coalesce(Avg("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
         )
         .order_by("-revenue")
     )
@@ -3624,7 +3651,10 @@ def build_dashboard_context(request):
 
     top_customers = list(
         filtered_bookings.values("user__first_name", "user__last_name", "user__username", "user__email")
-        .annotate(booking_count=Count("id"), total_spent=Sum("total_price"))
+        .annotate(
+            booking_count=Count("id"),
+            total_spent=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
+        )
         .order_by("-total_spent")[:8]
     )
     for customer in top_customers:
@@ -3699,7 +3729,7 @@ def build_dashboard_context(request):
         Booking.objects.values("user")
         .annotate(count=Count("id"))
     )
-    returning_user_ids = [item["user"] for item in all_time_customer_counts if item["count"] > 1]
+    returning_user_ids = [item["user"] for item in all_time_customer_counts if item["count"] > 1 and item["user"] is not None]
     
     new_customers_count = filtered_bookings.exclude(user_id__in=returning_user_ids).values("user").distinct().count()
     returning_customers_count = filtered_bookings.filter(user_id__in=returning_user_ids).values("user").distinct().count()
@@ -3710,8 +3740,8 @@ def build_dashboard_context(request):
 
     return {
         "filter_preset": request.GET.get("filter_preset", ""),
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
+        "start_date": start_date,
+        "end_date": end_date,
         "selected_event_type": selected_event_type,
         "event_type_options": event_type_options,
         "active_users": User.objects.filter(role="customer", is_active=True).count(),
@@ -5246,6 +5276,23 @@ def my_payments(request):
                 latest_payment.created_at if latest_payment else None
             )
 
+            # Attach latest payment details for modal
+            if latest_payment:
+                b.latest_pay_amount = latest_payment.amount
+                b.latest_pay_type = latest_payment.get_payment_type_display()
+                b.latest_pay_method = latest_payment.get_payment_method_display()
+                b.latest_pay_status = latest_payment.get_payment_status_display()
+                b.latest_pay_date = latest_payment.created_at
+                b.latest_pay_ref = latest_payment.transaction_ref
+                b.latest_pay_payment_id = latest_payment.paymongo_payment_id or ""
+                b.latest_pay_sender = latest_payment.gcash_sender_name or ""
+                b.latest_pay_checkout_session_id = latest_payment.paymongo_checkout_session_id or ""
+                b.latest_pay_verified = latest_payment.paid_at
+                b.latest_pay_notes = latest_payment.notes or ""
+            else:
+                b.latest_pay_amount = Decimal("0.00")
+                b.latest_pay_status = ""
+
             # If customer already submitted a payment that is awaiting admin review,
             # this booking should no longer appear under "Action Required".
             if latest_payment and latest_payment.payment_status == "pending":
@@ -5331,22 +5378,31 @@ def download_payment_receipt_pdf(request, payment_id):
     # Customers may only download their own receipts; admins/staff may download any
     if request.user.role == "customer" and payment.booking.user != request.user:
         return HttpResponseForbidden("Not allowed")
-    if request.user.role == "customer" and payment.payment_status != "verified":
-        messages.warning(
-            request,
-            "Receipt is available only after your payment has been verified.",
-        )
-        return redirect("my_payments")
 
     buffer = io.BytesIO()
     p = rl_canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
+    # Logo
+    from django.contrib.staticfiles import finders
+    from django.conf import settings
+    import os
+    
+    logo_path = finders.find('images/BalloorinaBlack.png')
+    if not logo_path:
+        # Fallback to direct path
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'BalloorinaBlack.png')
+        
+    if os.path.exists(logo_path):
+        # Position logo at top right
+        p.drawImage(logo_path, width - 180, height - 85, width=130, preserveAspectRatio=True, mask='auto')
+
     # Title
-    p.setFont("Helvetica-Bold", 18)
-    p.drawString(50, height - 60, "Payment Receipt")
+    p.setFont("Helvetica-Bold", 22)
+    p.drawString(50, height - 55, "Payment Receipt")
     p.setFont("Helvetica", 10)
-    p.drawString(50, height - 80, "Balloorina.ph – Official Payment Receipt")
+    p.setStrokeColorRGB(0.4, 0.4, 0.4)
+    p.drawString(50, height - 72, "Balloorina.ph – Official Billing Statement")
 
     # Divider
     p.setLineWidth(1)
@@ -5369,7 +5425,16 @@ def download_payment_receipt_pdf(request, payment_id):
         "Customer",
         payment.booking.user.get_full_name() or payment.booking.user.username,
     )
-    draw_row("Amount", f"PHP {payment.amount:,.2f}")
+    
+    # Event Information
+    draw_row("Event Type", payment.booking.event_type or "—")
+    draw_row("Event Date", payment.booking.event_date.strftime("%B %d, %Y"))
+    draw_row("Event Time", get_booking_time_range(payment.booking))
+    if payment.booking.package_type:
+        draw_row("Package", payment.booking.package_type)
+    
+    draw_row("Total Booking Price", f"PHP {payment.booking.total_price:,.2f}")
+    draw_row("Amount Paid", f"PHP {payment.amount:,.2f}")
     draw_row("Payment Method", payment.get_payment_method_display())
     draw_row("Payment Type", payment.get_payment_type_display())
     draw_row("Status", payment.get_payment_status_display())
@@ -5381,20 +5446,35 @@ def download_payment_receipt_pdf(request, payment_id):
     draw_row("Date Submitted", payment.created_at.strftime("%B %d, %Y %I:%M %p"))
     if payment.paid_at:
         draw_row("Date Verified", payment.paid_at.strftime("%B %d, %Y %I:%M %p"))
-    if payment.notes:
-        draw_row("Admin Notes", payment.notes)
 
+    y -= 30
+    p.setDash(1, 2)
+    p.setStrokeColorRGB(0.7, 0.7, 0.7)
+    p.line(50, y + 20, width - 50, y + 20)
+    p.setDash()
+    
+    p.setFont("Helvetica-Bold", 9)
+    p.setFillColorRGB(0.2, 0.2, 0.2)
+    p.drawString(50, y, "Terms and Conditions:")
+    
+    p.setFont("Helvetica", 8)
+    p.setFillColorRGB(0.4, 0.4, 0.4)
+    y -= 12
+    p.drawString(50, y, "1. This receipt serves as an official acknowledgment of the payment amount stated above.")
+    y -= 10
+    p.drawString(50, y, "2. Payments are non-refundable but may be transferable subject to management approval.")
+    y -= 10
+    p.drawString(50, y, "3. Please keep this document for future reference and verification during ingress/egress.")
+    
     y -= 20
-    p.line(50, y + 10, width - 50, y + 10)
-    p.setFont("Helvetica-Oblique", 9)
-    p.drawString(
-        50, y - 5, "This is an automatically generated receipt from Balloorina.ph."
-    )
-    p.drawString(
-        50,
-        y - 18,
-        "For concerns, please contact us via our website or GCash-registered number.",
-    )
+    p.setFont("Helvetica-Oblique", 8)
+    p.drawString(50, y, "Thank you for choosing Balloorina.ph! We look forward to making your event magical.")
+    
+    y -= 15
+    p.setFont("Helvetica-Bold", 8)
+    p.drawString(50, y, "Contact Us:")
+    p.setFont("Helvetica", 8)
+    p.drawString(105, y, "balloorina.ph@gmail.com | +63 967 233 6222")
 
     p.showPage()
     p.save()
@@ -5942,7 +6022,7 @@ def admin_reviews(request):
     avg_rating = round(avg_rating_data["avg"] or 0, 1)
     featured_count = Review.objects.filter(is_testimonial=True).count()
 
-    paginator = Paginator(reviews_qs, 15)
+    paginator = Paginator(reviews_qs, 10)
     page_number = request.GET.get("page", 1)
     reviews_page = paginator.get_page(page_number)
 
@@ -5962,11 +6042,27 @@ def admin_reviews(request):
 
 
 @login_required
+def admin_review_detail(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+    review = get_object_or_404(Review.objects.select_related("user", "booking"), id=id)
+    return render(request, "admin/admin_review_detail.html", {"review": review})
+
+
+@login_required
 def admin_review_toggle_testimonial(request, id):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
     review = get_object_or_404(Review, id=id)
+    
+    # If enabling testimonial, check if already 4
+    if not review.is_testimonial:
+        featured_count = Review.objects.filter(is_testimonial=True).count()
+        if featured_count >= 4:
+            messages.error(request, "You can only select up to 4 reviews as testimonials.")
+            return redirect("admin_reviews")
+    
     review.is_testimonial = not review.is_testimonial
     review.save()
 
@@ -6000,14 +6096,14 @@ def admin_concerns(request):
 
 @login_required
 def admin_analytics(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
     return render(request, "admin/admin_analytics.html", build_dashboard_context(request))
 
 
 @login_required
 def admin_analytics_export_excel(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
     _cleanup_legacy_booking_request_states()
@@ -6207,26 +6303,120 @@ def _pdf_link_callback(uri, rel):
 
 @login_required
 def admin_analytics_export_pdf(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
     _cleanup_legacy_booking_request_states()
     context = build_dashboard_context(request)
-    context["timezone"] = timezone
+    
+    # ULTIMATE DATA CLEANER: Force everything to be a safe type for ReportLab
+    def to_str(val, default="—"):
+        if val is None: return default
+        return str(val)
 
-    html = render_to_string("admin/analytics_pdf_template.html", context)
+    def to_float_str(val):
+        try:
+            if val is None: return "0.00"
+            return "{:,.2f}".format(float(val))
+        except:
+            return "0.00"
+
+    def to_int(val):
+        try:
+            if val is None: return 0
+            return int(float(val))
+        except:
+            return 0
+
+    # Pre-format all top-level stats
+    pdf_context = {
+        "now": timezone.now().strftime("%B %d, %Y %I:%M %p"),
+        "start_date_str": context.get("start_date").strftime("%b %d, %Y") if context.get("start_date") else "All Time",
+        "end_date_str": context.get("end_date").strftime("%b %d, %Y") if context.get("end_date") else "Now",
+        "selected_event_type": to_str(context.get("selected_event_type"), "all").title(),
+        "total_bookings": to_int(context.get("total_bookings")),
+        "total_revenue": to_float_str(context.get("total_revenue")),
+        "completion_rate": to_float_str(context.get("completion_rate")),
+        "cancellation_rate": to_float_str(context.get("cancellation_rate")),
+        "avg_booking_value": to_float_str(context.get("avg_booking_value")),
+        "active_users": to_int(context.get("active_users")),
+        "completed_count": to_int(context.get("completed_count")),
+        "cancelled_count": to_int(context.get("cancelled_count")),
+        "pending_approvals": to_int(context.get("pending_approvals")),
+        "action_queue_total": to_int(context.get("action_queue_total")),
+        "new_customers_count": to_int(context.get("new_customers_count")),
+        "returning_customers_count": to_int(context.get("returning_customers_count")),
+        "new_customers_pct": to_float_str(context.get("new_customers_pct")),
+        "returning_customers_pct": to_float_str(context.get("returning_customers_pct")),
+    }
+
+    # Pre-format Status Table
+    pdf_context["status_table"] = []
+    for item in context.get("status_table", []):
+        pdf_context["status_table"].append({
+            "label": to_str(item.get("label"), "Unknown"),
+            "count": to_int(item.get("count")),
+            "share_pct": to_float_str(item.get("share_pct"))
+        })
+
+    # Pre-format Revenue by Event
+    pdf_context["revenue_by_event"] = []
+    for item in context.get("revenue_by_event", []):
+        pdf_context["revenue_by_event"].append({
+            "event_type": to_str(item.get("event_type"), "Other").title(),
+            "count": to_int(item.get("count")),
+            "revenue": to_float_str(item.get("revenue")),
+            "avg_value": to_float_str(item.get("avg_value"))
+        })
+
+    # Pre-format Packages
+    pdf_context["package_rows"] = []
+    for item in context.get("package_rows", []):
+        pdf_context["package_rows"].append({
+            "package_name": to_str(item.get("package_name"), "Unnamed Package"),
+            "count": to_int(item.get("count")),
+            "revenue": to_float_str(item.get("revenue"))
+        })
+
+    # Pre-format Top Customers
+    pdf_context["top_customers"] = []
+    for item in context.get("top_customers", []):
+        pdf_context["top_customers"].append({
+            "name": to_str(item.get("name"), "Guest"),
+            "booking_count": to_int(item.get("booking_count") or item.get("count")),
+            "total_spent": to_float_str(item.get("total_spent"))
+        })
+
+    # Pre-format Deadlines
+    pdf_context["upcoming_deadline_bookings"] = []
+    for item in context.get("upcoming_deadline_bookings", []):
+        display_name = "Unknown"
+        if hasattr(item, 'user') and item.user:
+            display_name = item.user.get_full_name() or item.user.username or "Unknown"
+            
+        pdf_context["upcoming_deadline_bookings"].append({
+            "event_date_str": item.event_date.strftime("%b %d, %Y") if hasattr(item, 'event_date') and item.event_date else "—",
+            "customer_name": display_name,
+            "event_type": to_str(getattr(item, 'event_type', ""), "Other").title(),
+            "days_left": to_int(getattr(item, 'days_left', 0))
+        })
+
+    html = render_to_string("admin/analytics_pdf_template.html", pdf_context)
     buffer = io.BytesIO()
-    pisa_status = pisa.CreatePDF(html, dest=buffer, link_callback=_pdf_link_callback)
+    
+    try:
+        pisa_status = pisa.CreatePDF(html, dest=buffer, link_callback=_pdf_link_callback)
+    except Exception as e:
+        logger.error(f"PDF Generation Error: {str(e)}", exc_info=True)
+        return HttpResponse(f"Critical PDF Error: {str(e)}", status=500)
 
     if pisa_status.err:
-        return HttpResponse("We had some errors <pre>" + html + "</pre>")
+        return HttpResponse("Conversion Error. <pre>" + html + "</pre>")
 
     buffer.seek(0)
     response = HttpResponse(buffer.read(), content_type="application/pdf")
-    response["Content-Disposition"] = (
-        f'attachment; filename="analytics_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
-    )
-
+    response["Content-Disposition"] = f'attachment; filename="analytics_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
     log_action(request.user, "Exported analytics data to PDF.")
     return response
 
@@ -6656,7 +6846,7 @@ def payment_cancel(request, booking_id):
 
 @login_required
 def admin_payment_list(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
     check_booking_expirations()

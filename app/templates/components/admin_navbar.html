@@ -2,7 +2,7 @@
 
 <div class="sidebar">
     {% if user.is_authenticated %}
-    {% if user.role == 'admin' or user.role == 'staff' %}
+    {% if user.role == 'admin' %}
     <div class="sidebar-logo-container">
         <img src="{% static 'images/BalloorinaLogo1.png' %}" alt="Balloorina">
     </div>
@@ -121,6 +121,16 @@
         <!-- User Management -->
         <div class="nav-section">
             <span class="nav-section-title">System</span>
+            <a href="{% url 'admin_reviews' %}"
+                class="{% if request.resolver_match.url_name == 'admin_reviews' %}active{% endif %}">
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <path d="M9 9h6"></path>
+                    <path d="M9 13h6"></path>
+                </svg>
+                <span>Reviews</span>
+            </a>
             <a href="{% url 'admin_user_list' %}"
                 class="{% if request.resolver_match.url_name == 'admin_user_list' %}active{% endif %}">
                 <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"

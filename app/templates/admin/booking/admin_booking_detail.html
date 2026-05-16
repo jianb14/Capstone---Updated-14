@@ -118,22 +118,38 @@
             {% endif %}
         </div>
 
-        <!-- Reference Pictures -->
-        {% if booking.images.all or booking.reference_image %}
+        <!-- Reference Pictures & Custom Designs -->
+        {% if booking.images.all or booking.reference_image or booking.designs.all %}
         <div class="detail-card full-width">
-            <h3>Reference Pictures</h3>
+            <h3>Reference Pictures & Custom Designs</h3>
             <div class="booking-images-row">
+                {% if booking.designs.all %}
+                    {% for design in booking.designs.all %}
+                        {% if design.image %}
+                        <button type="button" class="booking-thumb-btn" data-full-src="{{ design.image.url }}"
+                            aria-label="Open custom design {{ forloop.counter }}">
+                            <img src="{{ design.image.url }}" alt="Custom Design {{ forloop.counter }}" loading="lazy">
+                            <span class="thumb-label">Custom Design</span>
+                        </button>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
                 {% if booking.images.all %}
-                {% for img in booking.images.all|slice:":4" %}
-                <button type="button" class="booking-thumb-btn" data-full-src="{{ img.image.url }}"
-                    aria-label="Open reference image {{ forloop.counter }}">
-                    <img src="{{ img.image.url }}" alt="Reference Image {{ forloop.counter }}" loading="lazy">
-                </button>
-                {% endfor %}
-                {% elif booking.reference_image %}
+                    {% for img in booking.images.all|slice:":4" %}
+                    <button type="button" class="booking-thumb-btn" data-full-src="{{ img.image.url }}"
+                        aria-label="Open reference image {{ forloop.counter }}">
+                        <img src="{{ img.image.url }}" alt="Reference Image {{ forloop.counter }}" loading="lazy">
+                        <span class="thumb-label">Reference</span>
+                    </button>
+                    {% endfor %}
+                {% endif %}
+
+                {% if booking.reference_image %}
                 <button type="button" class="booking-thumb-btn" data-full-src="{{ booking.reference_image.url }}"
                     aria-label="Open reference image">
                     <img src="{{ booking.reference_image.url }}" alt="Reference Image" loading="lazy">
+                    <span class="thumb-label">Reference</span>
                 </button>
                 {% endif %}
             </div>

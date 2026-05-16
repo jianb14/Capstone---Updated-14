@@ -1,4 +1,4 @@
-﻿{% extends 'client/base.html' %}
+{% extends 'client/base.html' %}
 {% load static tz %}
 
 {% block content %}
@@ -10,7 +10,7 @@
             <h1>Report a Concern</h1>
             <p class="sub">Share bugs, account issues, payment concerns, or other feedback.</p>
 
-            <form method="post" class="concern-form" id="concernForm" novalidate>
+            <form method="post" class="concern-form" id="concernForm" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 <label for="category">Category</label>
                 <div class="custom-filter-dropdown" id="categoryDropdown">
@@ -66,6 +66,13 @@
                     placeholder="e.g., explain what happened and the details">{{ form_data.message|default:'' }}</textarea>
                 <small class="field-error" id="message_error"></small>
 
+                <div class="form-group">
+                    <label for="concern_images"><i class="fa-solid fa-images"></i> Attach Images (Optional)</label>
+                    <input type="file" id="concern_images" name="concern_images" multiple accept="image/*" class="file-input">
+                    <small class="field-info">You can upload up to 4 images to help us understand your concern.</small>
+                    <div id="concernImagePreview" class="image-preview-grid"></div>
+                </div>
+
                 <button type="submit">Submit Concern</button>
             </form>
         </section>
@@ -98,7 +105,8 @@
                                     data-status-raw="{{ ticket.status }}"
                                     data-status="{{ ticket.get_status_display|escape }}"
                                     data-created="{{ ticket.created_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}"
-                                    data-updated="{{ ticket.updated_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}">
+                                    data-updated="{{ ticket.updated_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}"
+                                    data-images="{% for img in ticket.images.all %}{{ img.image.url }}{% if not forloop.last %},{% endif %}{% endfor %}">
                                     View
                                 </button>
                                 <div class="concern-hidden-texts" hidden>
@@ -146,6 +154,11 @@
                 <p id="modalMessage">-</p>
             </div>
 
+            <div class="detail-block" id="modalImagesBlock" style="display: none;">
+                <h4>Attached Images</h4>
+                <div id="modalImages" class="concern-images-grid"></div>
+            </div>
+
             <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
                 <h4>Admin Notes</h4>
                 <p id="modalAdminNotes" class="client-modal-admin-notes">-</p>
@@ -181,9 +194,79 @@
             updated: document.getElementById('modalUpdated'),
             subject: document.getElementById('modalSubject'),
             message: document.getElementById('modalMessage'),
-            adminNotes: document.getElementById('modalAdminNotes')
+            adminNotes: document.getElementById('modalAdminNotes'),
+            images: document.getElementById('modalImages')
         };
         const adminNotesBlock = document.getElementById('modalAdminNotesBlock');
+        const imagesBlock = document.getElementById('modalImagesBlock');
+
+        const imagesInput = document.getElementById('concern_images');
+        const imagePreviewContainer = document.getElementById('concernImagePreview');
+        let concernFiles = new DataTransfer();
+
+        if (imagesInput) {
+            imagesInput.addEventListener('change', function() {
+                const newFiles = Array.from(this.files);
+                
+                if (concernFiles.items.length + newFiles.length > 4) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Too many files',
+                        text: 'You can only upload a maximum of 4 images.',
+                        background: '#1a1a1a',
+                        color: '#fff'
+                    });
+                    this.value = ''; // Reset the actual input
+                    return;
+                }
+                
+                newFiles.forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        concernFiles.items.add(file);
+                        const fileIndex = concernFiles.items.length - 1;
+                        
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'preview-item';
+                            wrapper.dataset.index = fileIndex;
+
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'preview-thumb';
+                            
+                            const removeBtn = document.createElement('button');
+                            removeBtn.type = 'button';
+                            removeBtn.className = 'btn-remove-preview';
+                            removeBtn.innerHTML = '&times;';
+                            removeBtn.onclick = function() {
+                                removeConcernFile(file);
+                                wrapper.remove();
+                            };
+
+                            wrapper.appendChild(img);
+                            wrapper.appendChild(removeBtn);
+                            imagePreviewContainer.appendChild(wrapper);
+                        }
+                        reader.readAsDataURL(file);
+                    }
+                });
+                
+                // Update the input with the combined files
+                imagesInput.files = concernFiles.files;
+            });
+        }
+
+        function removeConcernFile(fileToRemove) {
+            const newDataTransfer = new DataTransfer();
+            Array.from(concernFiles.files).forEach(file => {
+                if (file !== fileToRemove) {
+                    newDataTransfer.items.add(file);
+                }
+            });
+            concernFiles = newDataTransfer;
+            imagesInput.files = concernFiles.files;
+        }
 
         function syncOtherCategoryVisibility() {
             const isOther = categorySelect && categorySelect.value === 'other';
@@ -394,6 +477,23 @@
             }
             if (adminNotesBlock) {
                 adminNotesBlock.style.display = shouldShowAdminNotes ? 'block' : 'none';
+            }
+
+            // Handle images
+            const imagesCsv = button.dataset.images || '';
+            if (imagesCsv) {
+                const urls = imagesCsv.split(',').filter(u => u.trim());
+                modalFields.images.innerHTML = '';
+                urls.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url.trim();
+                    img.className = 'concern-modal-img';
+                    img.onclick = () => window.open(url, '_blank');
+                    modalFields.images.appendChild(img);
+                });
+                imagesBlock.style.display = 'block';
+            } else {
+                imagesBlock.style.display = 'none';
             }
 
             modal.classList.add('show');

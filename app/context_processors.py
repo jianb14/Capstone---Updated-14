@@ -2,8 +2,8 @@ from .models import Booking, Notification, AdminNotification
 
 
 def admin_notifications(request):
-    """Inject pending booking and admin notifications for admin/staff users."""
-    if request.user.is_authenticated and request.user.role in ['admin', 'staff']:
+    """Inject pending booking and admin notifications for admin users."""
+    if request.user.is_authenticated and request.user.role == 'admin':
         from django.utils import timezone
         
         # 1. Fetch legacy Booking notifications (new bookings)

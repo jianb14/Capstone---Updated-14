@@ -8,60 +8,69 @@
     <style>
         @page {
             size: A4;
-            margin: 2cm;
+            margin: 1cm;
+            @frame footer {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 1cm;
+                margin-right: 1cm;
+                height: 1cm;
+            }
         }
 
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             color: #333;
             line-height: 1.4;
+            padding-bottom: 50px;
         }
 
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+        .header-table {
+            width: 100%;
+            border: none;
+            margin: 0;
+            padding: 0;
         }
 
-        .logo {
-            width: 100px;
-            height: auto;
+        .header-table td {
+            padding: 0;
+            border: none;
+            line-height: 1;
         }
 
-        .header-content {
-            flex: 1;
-        }
-
-        .header h1 {
+        .header-content h1 {
             color: #1e293b;
-            margin: 10px 0 0;
-            font-size: 20px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 8px 0 3px;
+            padding: 0;
         }
 
-        .header p {
-            margin: 5px 0 0;
-            color: #666;
-            font-size: 12px;
+        .header-content p {
+            color: #64748b;
+            font-size: 11px;
+            margin: 0 0 10px;
+            padding: 0;
         }
 
         .report-info {
-            margin-bottom: 20px;
-            font-size: 12px;
+            font-size: 11px;
+            line-height: 1.2;
+            padding-top: 5px;
         }
 
         .summary-grid {
             width: 100%;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            padding-top: -20px;
         }
 
         .summary-box {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
             padding: 10px;
             text-align: center;
+            border: 1px solid #e2e8f0;
         }
 
         .summary-box .label {
@@ -80,15 +89,17 @@
         }
 
         h2 {
-            font-size: 16px;
+            font-size: 14px;
             color: #1e293b;
-            margin: 20px 0 10px;
+            margin: 10px 0 0;
+            padding: 0;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-top: 5px;
+            margin-bottom: 10px;
         }
 
         th {
@@ -111,9 +122,6 @@
         }
 
         .footer {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
             text-align: center;
             font-size: 8px;
             color: #94a3b8;
@@ -124,17 +132,29 @@
 </head>
 
 <body>
-    <div class="header">
-        <img src="{% static 'images/BalloorinaBlack.png' %}" alt="Balloorina" class="logo">
-        <div class="header-content">
-            <h1>Analytics Report</h1>
-            <p>Generated on {{ timezone.now|date:"F d, Y H:i" }}</p>
-        </div>
+    <div id="footerContent" class="footer">
+        Confidential Analytics Report - For Administrative Use Only | Page <pdf:pagenumber>
     </div>
 
+    <table class="header-table">
+        <tr>
+            <td style="padding-bottom: 5px;">
+                <img src="{% static 'images/BalloorinaBlack.png' %}" style="width: 150px;">
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="header-content">
+                    <h1>Analytics Report</h1>
+                    <p>Generated on {{ now }}</p>
+                </div>
+            </td>
+        </tr>
+    </table>
+
     <div class="report-info">
-        <strong>Period:</strong> {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}<br>
-        <strong>Event Type:</strong> {{ selected_event_type|title }}
+        <strong>Period:</strong> {{ start_date_str }} - {{ end_date_str }}<br>
+        <strong>Event Type:</strong> {{ selected_event_type }}
     </div>
 
     <table class="summary-grid">
@@ -145,21 +165,21 @@
             </td>
             <td class="summary-box">
                 <span class="label">Total Revenue</span>
-                <span class="value">PHP {{ total_revenue|floatformat:2 }}</span>
+                <span class="value">PHP {{ total_revenue }}</span>
             </td>
             <td class="summary-box">
                 <span class="label">Completion Rate</span>
-                <span class="value">{{ completion_rate|floatformat:1 }}%</span>
+                <span class="value">{{ completion_rate }}%</span>
             </td>
             <td class="summary-box">
                 <span class="label">Cancellation Rate</span>
-                <span class="value">{{ cancellation_rate|floatformat:1 }}%</span>
+                <span class="value">{{ cancellation_rate }}%</span>
             </td>
         </tr>
         <tr>
             <td class="summary-box">
                 <span class="label">Avg. Booking Value</span>
-                <span class="value">PHP {{ avg_booking_value|floatformat:2 }}</span>
+                <span class="value">PHP {{ avg_booking_value }}</span>
             </td>
             <td class="summary-box">
                 <span class="label">Active Customers</span>
@@ -213,10 +233,10 @@
         <tbody>
             {% for item in revenue_by_event %}
             <tr>
-                <td>{{ item.event_type|title }}</td>
+                <td>{{ item.event_type }}</td>
                 <td class="text-right">{{ item.count }}</td>
-                <td class="text-right">PHP {{ item.revenue|floatformat:2 }}</td>
-                <td class="text-right">PHP {{ item.avg_value|floatformat:2 }}</td>
+                <td class="text-right">PHP {{ item.revenue }}</td>
+                <td class="text-right">PHP {{ item.avg_value }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -240,7 +260,7 @@
             <tr>
                 <td>{{ item.package_name }}</td>
                 <td class="text-right">{{ item.count }}</td>
-                <td class="text-right">PHP {{ item.revenue|floatformat:2 }}</td>
+                <td class="text-right">PHP {{ item.revenue }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -264,7 +284,7 @@
             <tr>
                 <td>{{ customer.name }}</td>
                 <td class="text-right">{{ customer.booking_count }}</td>
-                <td class="text-right">PHP {{ customer.total_spent|floatformat:2 }}</td>
+                <td class="text-right">PHP {{ customer.total_spent }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -310,9 +330,9 @@
                 <td>Pending Approvals</td>
                 <td class="text-right">{{ pending_approvals }}</td>
             </tr>
-            <tr style="font-weight: bold; background: #f8fafc;">
-                <td>Total Action Required</td>
-                <td class="text-right">{{ action_queue_total }}</td>
+            <tr>
+                <td style="font-weight: bold; background: #f8fafc;">Total Action Required</td>
+                <td class="text-right" style="font-weight: bold; background: #f8fafc;">{{ action_queue_total }}</td>
             </tr>
         </tbody>
     </table>
@@ -330,9 +350,9 @@
         <tbody>
             {% for booking in upcoming_deadline_bookings %}
             <tr>
-                <td>{{ booking.event_date|date:"M d, Y" }}</td>
-                <td>{{ booking.user.get_full_name|default:booking.user.username }}</td>
-                <td>{{ booking.event_type|title }}</td>
+                <td>{{ booking.event_date_str }}</td>
+                <td>{{ booking.customer_name }}</td>
+                <td>{{ booking.event_type }}</td>
                 <td class="text-right">{{ booking.days_left }} day{{ booking.days_left|pluralize }}</td>
             </tr>
             {% empty %}
@@ -343,9 +363,7 @@
         </tbody>
     </table>
 
-    <div class="footer">
-        Confidential Analytics Report - For Administrative Use Only
-    </div>
+    <div class="footer-spacer" style="height: 20px;"></div>
 </body>
 
 </html>

@@ -241,13 +241,17 @@
                         
                         <!-- Reference Images -->
                         <div class="form-group full-width">
-                            <label for="booking_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
-                            <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
-                            <!-- Hidden proper input for backend submission -->
-                            <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
-                            
-                            <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
-                            <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
+                            {% if not prefilled_design %}
+                                <label for="booking_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
+                                <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
+                                <!-- Hidden proper input for backend submission -->
+                                <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
+                                
+                                <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
+                                <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
+                            {% else %}
+                                <label><i class="fa-solid fa-paint-brush"></i> Your Custom Design</label>
+                            {% endif %}
                             
                             <!-- Container for Preview Images -->
                             <div id="bookingImagePreviewContainer" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;"></div>
@@ -622,6 +626,13 @@
                 summaryList.appendChild(img);
             };
 
+            const prefilledThumbnail = "{% if prefilled_design and prefilled_design.thumbnail %}{{ prefilled_design.thumbnail.url }}{% endif %}";
+            if (prefilledThumbnail) {
+                referencePicturesRow.style.display = 'grid';
+                appendSummaryImage(prefilledThumbnail);
+                return;
+            }
+
             const files = (typeof bookingAccumulatedFiles !== 'undefined' && bookingAccumulatedFiles?.files)
                 ? Array.from(bookingAccumulatedFiles.files)
                 : [];
@@ -794,6 +805,10 @@
             {% if prefilled_design %}
             // If we have a pre-filled design, go to Step 2
             showStep(2);
+
+            // Hide the back button in Step 2 for pre-filled designs
+            const btnPrevStep = document.getElementById('btnPrevStep');
+            if (btnPrevStep) btnPrevStep.style.display = 'none';
 
             selectedPackageName = "{{ prefilled_design.base_package.name|escapejs }}";
             selectedPackagePrice = parseFloat("{{ prefilled_design.base_package.price|default:0 }}");
@@ -1828,6 +1843,12 @@
 
         executeBookingSubmit();
     });
+
+    // --- Handle Prefilled Design on Page Load ---
+    {% if prefilled_design %}
+    resetModalSteps();
+    modalOverlay.classList.add('show');
+    {% endif %}
 
     });
 </script>

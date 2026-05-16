@@ -24,8 +24,6 @@
                 <span id="roleDropdownText">
                     {% if request.GET.role == 'admin' %}
                     Admin
-                    {% elif request.GET.role == 'staff' %}
-                    Staff
                     {% elif request.GET.role == 'customer' %}
                     Customer
                     {% else %}
@@ -37,13 +35,11 @@
             <ul class="dropdown-options">
                 <li data-value="" {% if not request.GET.role %}class="selected"{% endif %}>All Roles</li>
                 <li data-value="admin" {% if request.GET.role == 'admin' %}class="selected"{% endif %}>Admin</li>
-                <li data-value="staff" {% if request.GET.role == 'staff' %}class="selected"{% endif %}>Staff</li>
                 <li data-value="customer" {% if request.GET.role == 'customer' %}class="selected"{% endif %}>Customer</li>
             </ul>
             <select name="role" id="roleFilterSelect" class="filter-select">
                 <option value="" {% if not request.GET.role %}selected{% endif %}>All Roles</option>
                 <option value="admin" {% if request.GET.role == 'admin' %}selected{% endif %}>Admin</option>
-                <option value="staff" {% if request.GET.role == 'staff' %}selected{% endif %}>Staff</option>
                 <option value="customer" {% if request.GET.role == 'customer' %}selected{% endif %}>Customer</option>
             </select>
         </div>

@@ -87,7 +87,7 @@
                         <path d="m21 21-4.3-4.3"></path>
                     </svg>
                 </span>
-                <input type="text" name="search" placeholder="Search txn ref, GCash ref, customer..." value="{{ search_query }}">
+                <input type="text" name="search" id="paymentSearchInput" placeholder="Search txn ref, GCash ref, customer..." value="{{ search_query }}">
             </div>
             <div class="custom-filter-dropdown" id="paymentStatusDropdown">
                 <div class="dropdown-trigger">
@@ -198,15 +198,12 @@
                             <span>View</span>
                         </a>
                         {% if pay.payment_status == 'pending' %}
-                        <form method="post" action="{% url 'admin_payment_action' pay.id 'verify' %}" class="action-form">
-                            {% csrf_token %}
-                            <button type="submit" class="action-icon-btn action-approve" title="Approve payment" aria-label="Approve payment">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M20 6 9 17l-5-5"></path>
-                                </svg>
-                                <span>Approve</span>
-                            </button>
-                        </form>
+                        <a href="{% url 'admin_payment_action' pay.id 'verify' %}" class="action-icon-btn action-approve" title="Approve payment" aria-label="Approve payment" onclick="return confirmPaymentAction(this, 'Approve Payment', 'Are you sure you want to approve this payment?', 'Yes, Approve')">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20 6 9 17l-5-5"></path>
+                            </svg>
+                            <span>Approve</span>
+                        </a>
                         <button type="button" onclick="openRejectPaymentPrompt('{{ pay.id }}')" class="action-icon-btn action-deny" title="Reject payment" aria-label="Reject payment">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M18 6 6 18"></path>
@@ -260,8 +257,8 @@
 {% endif %}
 
 <div class="pm-mt">
-    <div class="table-container">
-        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+    <div class="table-container" style="margin-top: 1.25rem;">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f; ">
             <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Bookings With No Payment Yet ({{ unpaid_bookings_count }})</h3>
             <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Approved or confirmed bookings that still have no verified payment submitted.</p>
         </div>
@@ -438,6 +435,20 @@ document.addEventListener('DOMContentLoaded', function() {
     setupDropdown('paymentStatusDropdown', 'paymentStatusSelect', 'paymentStatusDropdownText');
     setupDropdown('paymentTypeDropdown', 'paymentTypeSelect', 'paymentTypeDropdownText');
 
+    // Auto-submit search on typing (with debounce)
+    const searchInput = document.getElementById('paymentSearchInput');
+    const form = document.querySelector('.search-bar form');
+    let searchTimeout;
+
+    if (searchInput && form) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                form.submit();
+            }, 600); // 600ms delay to wait for user to finish typing
+        });
+    }
+
     document.addEventListener('click', function() {
         document.querySelectorAll('.custom-filter-dropdown').forEach(d => d.classList.remove('open'));
     });
@@ -457,27 +468,88 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 title: 'Reject payment?',
-                text: 'Add an optional note for the customer.',
+                text: 'Please provide a reason for the customer.',
                 input: 'textarea',
-                inputPlaceholder: 'Reason for rejection (optional)',
+                inputPlaceholder: 'Reason for rejection (Required)',
                 showCancelButton: true,
                 confirmButtonText: 'Reject Payment',
                 cancelButtonText: 'Cancel',
                 confirmButtonColor: '#ef4444',
                 background: '#111',
-                color: '#fff'
+                color: '#fff',
+                customClass: {
+                    popup: 'booking-request-popup',
+                    title: 'booking-request-title',
+                    input: 'booking-request-textarea',
+                    confirmButton: 'booking-request-confirm',
+                    cancelButton: 'booking-request-cancel'
+                },
+                buttonsStyling: false,
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Rejection reason is required*';
+                    }
+                    return null;
+                }
             }).then((result) => {
-                if (result.isConfirmed) {
-                    submitReject((result.value || '').trim());
+                if (result.isConfirmed && result.value && result.value.trim()) {
+                    submitReject(result.value.trim());
                 }
             });
             return;
         }
 
-        const reason = window.prompt('Reason for rejection (optional):') || '';
-        if (window.confirm('Are you sure you want to reject this payment?')) {
-            submitReject(reason.trim());
+        const reason = window.prompt('Enter the reason for rejection (Required):');
+        if (reason && reason.trim()) {
+            if (window.confirm('Are you sure you want to reject this payment?')) {
+                submitReject(reason.trim());
+            }
+        } else if (reason !== null) {
+            alert('Rejection reason is required.');
         }
+    };
+
+    window.confirmPaymentAction = function (linkEl, title, text, confirmText) {
+        if (!linkEl || !linkEl.href) return false;
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: confirmText || 'Yes, Continue',
+                cancelButtonText: 'Cancel',
+                customClass: {
+                    popup: 'booking-request-popup',
+                    title: 'booking-request-title',
+                    confirmButton: 'booking-request-confirm',
+                    cancelButton: 'booking-request-cancel'
+                },
+                buttonsStyling: false,
+                background: '#111',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Create a temporary form to submit as POST
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = linkEl.href;
+                    
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = '{{ csrf_token }}';
+                    
+                    form.appendChild(csrfInput);
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+            return false;
+        }
+
+        return window.confirm(text || 'Are you sure?');
     };
 });
 </script>

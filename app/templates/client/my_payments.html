@@ -139,6 +139,10 @@
                         <span class="cp-modal-label">Date Verified</span>
                         <span class="cp-modal-value" id="modal-pay-verified">-</span>
                     </div>
+                    <div class="cp-modal-field cp-modal-field-full" id="modal-pay-notes-field">
+                        <span class="cp-modal-label">Admin Remarks / Rejection Reason</span>
+                        <span class="cp-modal-value" id="modal-pay-notes" style="color: #ef4444; font-weight: 600;">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -224,8 +228,20 @@
                         <td>
                             <div>{{ b.event_type|default:"Event" }}</div>
                             <div class="cp-muted">{{ b.event_date|date:"M d, Y" }}</div>
+                            {% if b.time_range_display %}
+                            <div class="cp-muted">{{ b.time_range_display }}</div>
+                            {% endif %}
+                            {% if b.event_location %}
+                            <div class="cp-muted">{{ b.event_location }}</div>
+                            {% endif %}
+                            <div class="cp-muted">Package: {{ b.package_type|default:"None" }}</div>
                         </td>
-                        <td>&#8369;{{ b.booking_remaining|floatformat:2 }}</td>
+                        <td>
+                            <div>&#8369;{{ b.booking_remaining|floatformat:2 }}</div>
+                            {% if b.total_verified_paid > 0 %}
+                            <div class="cp-muted" style="font-size: 0.85rem;">Paid: &#8369;{{ b.total_verified_paid|floatformat:2 }}</div>
+                            {% endif %}
+                        </td>
                         <td><span class="cp-status-badge cp-status-pending">Pending Payment</span></td>
                         <td>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -251,7 +267,18 @@
                                     data-action-url="{% url 'payment_page' b.id %}"
                                     data-action-label="{{ b.payment_action_display }}"
                                     data-action-disabled="{{ b.payment_action_disabled|lower }}"
-                                    data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}"
+                                    data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}{% for design in b.designs.all %}{% if design.image %}{% if b.reference_image or b.images.all or not forloop.first %},{% endif %}{{ design.image.url }}{% endif %}{% endfor %}"
+                                    data-pay-amount="{{ b.latest_pay_amount|floatformat:2 }}"
+                                    data-pay-type="{{ b.latest_pay_type|default:'' }}"
+                                    data-pay-method="{{ b.latest_pay_method|default:'' }}"
+                                    data-pay-status="{{ b.latest_pay_status|default:'' }}"
+                                    data-pay-date="{{ b.latest_pay_date|date:'M d, Y h:i A' }}"
+                                    data-pay-ref="{{ b.latest_pay_ref|default:'' }}"
+                                    data-pay-payment-id="{{ b.latest_pay_payment_id|default:'' }}"
+                                    data-pay-checkout-session-id="{{ b.latest_pay_checkout_session_id|default:'' }}"
+                                    data-pay-sender="{{ b.latest_pay_sender|default:'' }}"
+                                    data-pay-verified="{% if b.latest_pay_verified %}{{ b.latest_pay_verified|date:'M d, Y h:i A' }}{% endif %}"
+                                    data-pay-notes="{{ b.latest_pay_notes|default:'' }}"
                                     onclick="openBookingModal(this)">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </button>
@@ -312,8 +339,15 @@
                             <div>{{ b.event_type|default:"Event" }}</div>
                             <div class="cp-muted">{{ b.event_date|date:"M d, Y" }}</div>
                             <div class="cp-muted">{{ b.time_range_display|default:"Time not specified" }}</div>
+                            {% if b.event_location %}
+                            <div class="cp-muted">{{ b.event_location }}</div>
+                            {% endif %}
+                            <div class="cp-muted">Package: {{ b.package_type|default:"None" }}</div>
                         </td>
-                        <td>&#8369;{{ b.booking_remaining|floatformat:2 }}</td>
+                        <td>
+                            <div>&#8369;{{ b.booking_remaining|floatformat:2 }}</div>
+                            <div class="cp-muted" style="font-size: 0.85rem;">Paid: &#8369;{{ b.total_verified_paid|floatformat:2 }}</div>
+                        </td>
                         <td>
                             <span class="cp-status-badge cp-status-success">{{ b.get_status_display }}</span>
                         </td>
@@ -341,7 +375,18 @@
                                     data-action-url="{% url 'payment_page' b.id %}"
                                     data-action-label="Pay Balance"
                                     data-action-disabled="false"
-                                    data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}"
+                                    data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}{% for design in b.designs.all %}{% if design.image %}{% if b.reference_image or b.images.all or not forloop.first %},{% endif %}{{ design.image.url }}{% endif %}{% endfor %}"
+                                    data-pay-amount="{{ b.latest_pay_amount|floatformat:2 }}"
+                                    data-pay-type="{{ b.latest_pay_type|default:'' }}"
+                                    data-pay-method="{{ b.latest_pay_method|default:'' }}"
+                                    data-pay-status="{{ b.latest_pay_status|default:'' }}"
+                                    data-pay-date="{{ b.latest_pay_date|date:'M d, Y h:i A' }}"
+                                    data-pay-ref="{{ b.latest_pay_ref|default:'' }}"
+                                    data-pay-payment-id="{{ b.latest_pay_payment_id|default:'' }}"
+                                    data-pay-checkout-session-id="{{ b.latest_pay_checkout_session_id|default:'' }}"
+                                    data-pay-sender="{{ b.latest_pay_sender|default:'' }}"
+                                    data-pay-verified="{% if b.latest_pay_verified %}{{ b.latest_pay_verified|date:'M d, Y h:i A' }}{% endif %}"
+                                    data-pay-notes="{{ b.latest_pay_notes|default:'' }}"
                                     onclick="openBookingModal(this)">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </button>
@@ -439,7 +484,7 @@
                                     data-status="{{ pay.booking.get_status_display }}"
                                     data-package-type="{{ pay.booking.package_type|default:'None' }}"
                                     data-special-requests="{{ pay.booking.cleaned_special_requests|default:'None' }}"
-                                    data-reference-images="{% if pay.booking.reference_image %}{{ pay.booking.reference_image.url }}{% endif %}{% for img in pay.booking.images.all %}{% if pay.booking.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}"
+                                    data-reference-images="{% if pay.booking.reference_image %}{{ pay.booking.reference_image.url }}{% endif %}{% for img in pay.booking.images.all %}{% if pay.booking.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}{% for design in pay.booking.designs.all %}{% if design.image %}{% if pay.booking.reference_image or pay.booking.images.all or not forloop.first %},{% endif %}{{ design.image.url }}{% endif %}{% endfor %}"
                                     data-pay-amount="{{ pay.amount|floatformat:2 }}"
                                     data-pay-type="{{ pay.get_payment_type_display }}"
                                     data-pay-method="{{ pay.get_payment_method_display }}"
@@ -450,18 +495,18 @@
                                     data-pay-checkout-session-id="{{ pay.paymongo_checkout_session_id|default:'' }}"
                                     data-pay-sender="{{ pay.gcash_sender_name|default:'' }}"
                                     data-pay-verified="{% if pay.paid_at %}{{ pay.paid_at|date:'M d, Y h:i A' }}{% endif %}"
+                                    data-pay-notes="{{ pay.notes|default:'' }}"
                                     data-source="history"
                                     onclick="openBookingModal(this)">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </button>
-                                {% if pay.payment_status == 'verified' %}
                                 <a href="{% url 'download_payment_receipt_pdf' pay.id %}"
                                    class="cp-btn-row cp-btn-download cp-btn-view-icon"
                                    aria-label="Download Receipt"
                                    data-tooltip="Download Receipt">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                 </a>
-                                {% elif pay.show_pending_info_button %}
+                                {% if pay.payment_status != 'verified' and pay.show_pending_info_button %}
                                 <a href="{{ pay.pending_info_url }}" class="cp-btn-row cp-btn-pending-info">View Pending Info</a>
                                 {% endif %}
                             </div>
@@ -627,7 +672,7 @@ function openBookingModal(btn) {
     // Hide remaining balance if zero
     remainingField.style.display = remaining > 0 ? '' : 'none';
 
-    if (isHistory) {
+    if (isHistory || (isRemainingBalances && d.payStatus) || (isActionRequired && d.payStatus && d.payStatus.toLowerCase() === 'rejected')) {
         detailSection.style.display = '';
         document.getElementById('modal-payment-status').textContent = d.payStatus || d.paymentStatus || '-';
         document.getElementById('modal-pay-amount').textContent = 'PHP ' + (d.payAmount || '0.00');
@@ -640,6 +685,18 @@ function openBookingModal(btn) {
         document.getElementById('modal-pay-sender').textContent = d.paySender || '-';
         document.getElementById('modal-pay-checkout-session-id').textContent = d.payCheckoutSessionId || '-';
         document.getElementById('modal-pay-verified').textContent = d.payVerified || '-';
+
+        // Admin Notes / Rejection Reason: Show only if payment is rejected and notes exist
+        const notesField = document.getElementById('modal-pay-notes-field');
+        const notesVal = d.payNotes || '';
+        const payStatus = (d.payStatus || '').toLowerCase();
+        
+        if (payStatus === 'rejected' && notesVal.trim()) {
+            document.getElementById('modal-pay-notes').textContent = notesVal;
+            notesField.style.display = '';
+        } else {
+            notesField.style.display = 'none';
+        }
     } else {
         detailSection.style.display = 'none';
         document.getElementById('modal-payment-status').textContent = d.paymentStatus || '-';

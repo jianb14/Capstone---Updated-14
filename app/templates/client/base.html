@@ -1112,7 +1112,7 @@
 
             function isLikelyImageMessage(message) {
                 const text = (message || '').toLowerCase();
-                const requestTerms = ['generate', 'create', 'make', 'draw', 'add', 'remove', 'change', 'gawa', 'gumawa', 'igawa', 'pakita', 'patingin', 'sample', 'peg', 'idea'];
+                const requestTerms = ['generate', 'create', 'make', 'draw', 'add', 'remove', 'change', 'gawa', 'gumawa', 'igawa', 'pakita', 'patingin', 'sample', 'peg', 'idea', 'suggest'];
                 const visualTerms = ['image', 'picture', 'photo', 'design', 'concept', 'backdrop', 'balloon', 'theme', 'layout', 'styling', 'decoration'];
                 const hasRequest = requestTerms.some(term => text.includes(term));
                 const hasVisual = visualTerms.some(term => text.includes(term));
@@ -1123,7 +1123,7 @@
 
                 if (hasRequest && hasVisual) return true;
                 if (isFollowupAction) return true;
-                if (text.includes('generate image') || text.includes('design concept') || text.includes('backdrop design')) return true;
+                if (text.includes('generate image') || text.includes('design concept') || text.includes('backdrop design') || text.includes('suggest design')) return true;
 
                 if (!hasGeneratedImageInChat()) return false;
                 return [

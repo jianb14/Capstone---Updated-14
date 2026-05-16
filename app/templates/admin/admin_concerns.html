@@ -130,6 +130,7 @@
                                 data-status="{{ item.get_status_display|escape }}"
                                 data-created="{{ item.created_at|date:'M d, Y g:i A' }}"
                                 data-updated="{{ item.updated_at|date:'M d, Y g:i A' }}"
+                                data-images="{% for img in item.images.all %}{{ img.image.url }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                 data-update-url="{% url 'admin_concern_update' item.id %}">
                                 <i class="far fa-eye"></i> View
                             </button>
@@ -197,6 +198,11 @@
                 <div class="detail-block">
                     <h4>Message</h4>
                     <p id="modalMessage">-</p>
+                </div>
+
+                <div class="detail-block" id="modalImagesBlock" style="display: none;">
+                    <h4>Attached Images</h4>
+                    <div id="modalImages" class="concern-images-grid"></div>
                 </div>
 
                 <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
@@ -279,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusTrigger = statusDropdown ? statusDropdown.querySelector('.dropdown-trigger') : null;
     const statusOptions = statusDropdown ? statusDropdown.querySelectorAll('.dropdown-options li') : [];
     const adminNotesBlock = document.getElementById('modalAdminNotesBlock');
+    const imagesBlock = document.getElementById('modalImagesBlock');
     const updateAdminNotesBlock = document.getElementById('updateAdminNotesBlock');
     const queueStatusDropdown = document.getElementById('queueStatusDropdown');
     const queueStatusTrigger = queueStatusDropdown ? queueStatusDropdown.querySelector('.dropdown-trigger') : null;
@@ -301,7 +308,8 @@ document.addEventListener('DOMContentLoaded', function () {
         updated: document.getElementById('modalUpdated'),
         subject: document.getElementById('modalSubject'),
         message: document.getElementById('modalMessage'),
-        adminNotes: document.getElementById('modalAdminNotes')
+        adminNotes: document.getElementById('modalAdminNotes'),
+        images: document.getElementById('modalImages')
     };
 
     function textOrDash(value) {
@@ -351,19 +359,43 @@ document.addEventListener('DOMContentLoaded', function () {
         modalFields.message.textContent = textOrDash(messageNode ? messageNode.textContent : '');
         const adminNotesRaw = notesNode ? notesNode.textContent.trim() : '';
         modalFields.adminNotes.textContent = textOrDash(adminNotesRaw);
+        
+        const statusRaw = button.dataset.statusRaw || 'new';
+        const shouldShowAdminNotes = (statusRaw === 'in_progress' || statusRaw === 'resolved') && !!adminNotesRaw;
+
         if (adminNotesBlock) {
-            adminNotesBlock.style.display = adminNotesRaw ? 'block' : 'none';
+            adminNotesBlock.style.display = shouldShowAdminNotes ? 'block' : 'none';
         }
-        if (updateForm) updateForm.action = button.dataset.updateUrl || '';
-        const selectedStatus = button.dataset.statusRaw || 'new';
-        if (statusSelect) statusSelect.value = selectedStatus;
+
+        // Handle images
+        const imagesCsv = button.dataset.images || '';
+        if (imagesCsv) {
+            const urls = imagesCsv.split(',').filter(u => u.trim());
+            modalFields.images.innerHTML = '';
+            urls.forEach(url => {
+                const img = document.createElement('img');
+                img.src = url.trim();
+                img.className = 'concern-modal-img';
+                img.onclick = () => window.open(url, '_blank');
+                modalFields.images.appendChild(img);
+            });
+            imagesBlock.style.display = 'block';
+        } else {
+            imagesBlock.style.display = 'none';
+        }
+
+        if (updateForm) {
+            updateForm.action = button.dataset.updateUrl || '';
+        }
+
+        if (statusSelect) statusSelect.value = statusRaw;
         if (statusDropdownText && statusSelect && statusSelect.options[statusSelect.selectedIndex]) {
             statusDropdownText.textContent = statusSelect.options[statusSelect.selectedIndex].text;
         }
-        statusOptions.forEach(item => item.classList.toggle('selected', item.getAttribute('data-value') === selectedStatus));
-        if (notesInput) notesInput.value = notesNode ? notesNode.textContent.trim() : '';
+        statusOptions.forEach(item => item.classList.toggle('selected', item.getAttribute('data-value') === statusRaw));
+        if (notesInput) notesInput.value = adminNotesRaw;
         clearStatusError();
-        toggleUpdateAdminNotesField(selectedStatus);
+        toggleUpdateAdminNotesField(statusRaw);
 
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');

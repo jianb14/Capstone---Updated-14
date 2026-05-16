@@ -213,6 +213,13 @@
                                         <span class="multi-img-url" data-id="{{ img.id }}">{{ img.image.url }}</span>
                                         {% endfor %}
                                     </div>
+                                    <div class="raw-design-images">
+                                        {% for design in b.designs.all %}
+                                            {% if design.image %}
+                                            <span class="design-img-url" data-id="{{ design.id }}">{{ design.image.url }}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
                                     <div class="raw-edit-url">{% url 'edit_booking' b.id %}</div>
                                     <div class="raw-delete-url">{% url 'delete_booking' b.id %}</div>
                                 </div>
@@ -511,7 +518,7 @@
                     </div>
 
                     <!-- Unified Images -->
-                    <div class="form-group full-width">
+                    <div class="form-group full-width" id="edit_images_section">
                         <label for="edit_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
                         <input type="file" id="edit_reference_images_ui" accept="image/*" multiple class="file-input">
                         <!-- Hidden proper input for backend submission -->
@@ -736,6 +743,7 @@
         const editEventLocationEl = document.getElementById('edit_event_location');
         const editEventTypeCustomSelect = document.getElementById('editEventTypeCustomSelect');
         let editBookingSubmitAttempted = false;
+    let isEditCustomDesign = false;
 
         const setEditBookingFieldError = (key, message) => {
             const fieldConfigs = {
@@ -1045,19 +1053,28 @@
         badge.textContent = statusText;
         badge.className = 'status-badge-lg ' + statusClass;
 
-        // Reference Images (Multi + Fallback)
+        // Reference Images (Multi + Fallback + Designs)
         const singleImageUrl = dataDiv.querySelector('.raw-image-url').textContent.trim();
         const multiImages = Array.from(dataDiv.querySelectorAll('.multi-img-url'));
+        const designImages = Array.from(dataDiv.querySelectorAll('.design-img-url'));
         const viewImageRow = document.getElementById('viewImageRow');
         const viewGrid = document.getElementById('viewMultiImageGrid');
         
         viewGrid.innerHTML = ''; // reset
         
         let allImageUrls = [];
-        if (singleImageUrl) allImageUrls.push({ url: singleImageUrl });
+
+        // 1. Designs first (most important for "My Design" users)
+        designImages.forEach(span => {
+            allImageUrls.push({ url: span.textContent.trim(), label: 'Custom Design' });
+        });
+
+        // 2. Reference Image (Single)
+        if (singleImageUrl) allImageUrls.push({ url: singleImageUrl, label: 'Reference' });
         
+        // 3. Multi Images
         multiImages.forEach(span => {
-            allImageUrls.push({ url: span.textContent.trim() });
+            allImageUrls.push({ url: span.textContent.trim(), label: 'Reference' });
         });
         
         if (allImageUrls.length > 0) {
@@ -1068,12 +1085,29 @@
                 wrapper.type = 'button';
                 wrapper.className = 'reference-image-wrapper';
                 wrapper.style.margin = '0';
+                wrapper.style.position = 'relative'; // For label
                 wrapper.setAttribute('data-full-src', img.url);
                 wrapper.addEventListener('click', () => openCustomerImageLightbox(img.url));
 
                 const imgEl = document.createElement('img');
                 imgEl.src = img.url;
                 imgEl.className = 'reference-image-preview';
+                
+                // Add label if it's a custom design
+                if (img.label === 'Custom Design') {
+                    const label = document.createElement('span');
+                    label.textContent = 'Custom Design';
+                    label.style.position = 'absolute';
+                    label.style.bottom = '0';
+                    label.style.left = '0';
+                    label.style.right = '0';
+                    label.style.background = 'rgba(0,0,0,0.6)';
+                    label.style.color = '#fff';
+                    label.style.fontSize = '0.6rem';
+                    label.style.padding = '2px';
+                    label.style.textAlign = 'center';
+                    wrapper.appendChild(label);
+                }
                 
                 wrapper.appendChild(imgEl);
                 viewGrid.appendChild(wrapper);
@@ -1797,6 +1831,9 @@
 
         resetEditModalSteps(); 
 
+        // Detect if it's a "My Design" booking
+        isEditCustomDesign = dataDiv.querySelector('.design-img-url') !== null;
+
         // Get Raw Data
         const editUrl = dataDiv.querySelector('.raw-edit-url').textContent;
         const type = dataDiv.querySelector('.raw-type').textContent;
@@ -2029,6 +2066,72 @@
                 imgContainer.appendChild(delLabel);
                 existingImagesGrid.appendChild(imgContainer);
             });
+        }
+
+        // --- Design Images (Non-removable) ---
+        const designImagesSpans = Array.from(dataDiv.querySelectorAll('.design-img-url'));
+        if (designImagesSpans.length > 0) {
+            designImagesSpans.forEach(span => {
+                // We don't increment window.currentExistingImagesCount for designs 
+                // if we want to allow 4 OTHER reference images. 
+                // But for now, let's just show it.
+                
+                const imgContainer = document.createElement('div');
+                imgContainer.style.position = 'relative';
+                imgContainer.style.display = 'inline-block';
+                
+                const img = document.createElement('img');
+                img.src = span.textContent.trim();
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '5px';
+                img.style.border = '2px solid #3b82f6'; // Blue border for design
+                
+                const label = document.createElement('span');
+                label.textContent = 'Custom Design';
+                label.style.position = 'absolute';
+                label.style.bottom = '0';
+                label.style.left = '0';
+                label.style.right = '0';
+                label.style.background = 'rgba(59, 130, 246, 0.8)';
+                label.style.color = '#fff';
+                label.style.fontSize = '0.6rem';
+                label.style.padding = '2px';
+                label.style.textAlign = 'center';
+                label.style.borderRadius = '0 0 5px 5px';
+                
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(label);
+                existingImagesGrid.appendChild(imgContainer);
+            });
+        }
+
+        if (isEditCustomDesign) {
+            showEditStep(2);
+            if (btnPrevEditStep) btnPrevEditStep.style.display = 'none';
+            // Hide file input elements but keep the grid for the design image
+            const imagesSection = document.getElementById('edit_images_section');
+            if (imagesSection) {
+                const label = imagesSection.querySelector('label');
+                const uiInput = document.getElementById('edit_reference_images_ui');
+                const helpText = imagesSection.querySelector('small');
+                if (label) label.style.display = 'none';
+                if (uiInput) uiInput.style.display = 'none';
+                if (helpText) helpText.style.display = 'none';
+            }
+        } else {
+            if (btnPrevEditStep) btnPrevEditStep.style.display = 'inline-block';
+            // Show file input elements
+            const imagesSection = document.getElementById('edit_images_section');
+            if (imagesSection) {
+                const label = imagesSection.querySelector('label');
+                const uiInput = document.getElementById('edit_reference_images_ui');
+                const helpText = imagesSection.querySelector('small');
+                if (label) label.style.display = 'block';
+                if (uiInput) uiInput.style.display = 'block';
+                if (helpText) helpText.style.display = 'block';
+            }
         }
 
         modal.classList.add('show');

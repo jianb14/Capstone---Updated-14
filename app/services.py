@@ -718,6 +718,7 @@ def is_image_request(text):
         "sample",
         "peg",
         "idea",
+        "suggest",
     }
     visual_terms = {
         "picture",
@@ -762,6 +763,8 @@ def is_image_request(text):
             "backdrop design",
             "themed backdrop",
             "balloon backdrop",
+            "suggest design",
+            "suggest a design",
         ]
     )
 
@@ -948,7 +951,7 @@ IMAGE_REQUEST_CLEANUP_PATTERNS = [
     r"\bgawa\s+(ka|mo)?\s*(nga|ng|nang|na)?\b",
     r"\bigawa\s+(mo|nyo)?\s*(ako|kami)?\b",
     r"\bgumawa\s+(ka|mo)?\s*(ng|nang)?\b",
-    r"\b(generate|create|make|draw|show me|pakita)\b",
+    r"\b(generate|create|make|draw|show me|pakita|suggest)\b",
     r"\b(image|picture|photo|drawing|illustration|design|concept)\b",
     r"\b(backdrop|balloon|decoration|setup)\b",
     r"\b(can you|could you)\b",

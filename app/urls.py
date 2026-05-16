@@ -65,6 +65,7 @@ from .views import (
     admin_payment_detail,
     admin_payment_list,
     admin_profile,
+    admin_review_detail,
     admin_review_toggle_testimonial,
     admin_reviews,
     admin_service_charge_update,
@@ -206,6 +207,11 @@ urlpatterns = [
     path("staff/audit-log/", admin_audit_log_list, name="admin_audit_log"),
     # Admin Reviews
     path("staff/reviews/", admin_reviews, name="admin_reviews"),
+    path(
+        "staff/reviews/<int:id>/view/",
+        admin_review_detail,
+        name="admin_review_detail",
+    ),
     path(
         "staff/reviews/<int:id>/testimonial-toggle/",
         admin_review_toggle_testimonial,
