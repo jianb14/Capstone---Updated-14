@@ -656,7 +656,184 @@ class ServicesPageView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["service_content"] = ServiceContent.objects.first()
         context["services"] = Service.objects.filter(is_active=True).order_by("display_order")
+
+        # Interactive widgets: instant price estimator + comparison table data
+        active_packages = Package.objects.filter(is_active=True)
+        active_addons = AddOn.objects.filter(is_active=True)
+        service_charge_config = get_service_charge_config()
+
+        context["packages"] = active_packages
+        context["active_addons"] = active_addons
+        context["global_service_charge"] = service_charge_config.amount
+        context["global_service_charge_note"] = service_charge_config.notes
+
+        estimator_packages = [
+            {
+                "id": package.id,
+                "name": package.name,
+                "price": str(package.price),
+                "service_charge": str(package.service_charge or 0),
+                "features": package.feature_list(),
+            }
+            for package in active_packages
+        ]
+        estimator_addons = [
+            {
+                "id": addon.id,
+                "name": addon.name,
+                "price": str(addon.price),
+                "solo_price": str(addon.solo_price) if addon.solo_price is not None else None,
+                "service_charge": str(addon.service_charge or 0),
+                "features": addon.feature_list(),
+            }
+            for addon in active_addons
+        ]
+        context["services_widget_data"] = {
+            "packages": estimator_packages,
+            "addons": estimator_addons,
+            "serviceCharge": str(service_charge_config.amount or 0),
+        }
         return context
+
+
+# -----------------------------
+# Services Page Interactive Widgets (AI Style Quiz + Date Availability)
+# -----------------------------
+SERVICES_QUIZ_THROTTLE_SECONDS = 10
+
+
+@require_POST
+def theme_quiz_api(request):
+    """
+    JSON API for the Services page "Find Your Perfect Style" quiz.
+    Builds a prompt from the visitor's answers and reuses the existing
+    HuggingFace chatbot to generate a theme recommendation.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "error": "Please log in to get AI style suggestions."},
+            status=403,
+        )
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid request body."}, status=400)
+
+    event_type = str(data.get("event_type") or "").strip()
+    vibe = str(data.get("vibe") or "").strip()
+    budget = str(data.get("budget") or "").strip()
+    colors = str(data.get("colors") or "").strip()
+
+    if not event_type or not vibe:
+        return JsonResponse(
+            {"success": False, "error": "Event type and vibe are required."},
+            status=400,
+        )
+
+    # Light throttle so the HuggingFace API is not spammed.
+    throttle_key = f"services_quiz_{request.user.id}"
+    if not cache.add(throttle_key, "1", SERVICES_QUIZ_THROTTLE_SECONDS):
+        return JsonResponse(
+            {"success": False, "error": "Please wait a few seconds before trying again."},
+            status=429,
+        )
+
+    service_titles = list(
+        Service.objects.filter(is_active=True).values_list("title", flat=True)
+    )
+    service_hint = ", ".join(service_titles) if service_titles else "balloon styling services"
+
+    prompt = (
+        "You are a friendly balloon styling consultant for an event decoration business. "
+        "A customer answered a short style quiz with these details:\n"
+        f"- Event type: {event_type}\n"
+        f"- Preferred vibe: {vibe}\n"
+        f"- Budget range: {budget or 'Not specified'}\n"
+        f"- Preferred colors: {colors or 'No preference'}\n\n"
+        f"Our services include: {service_hint}.\n\n"
+        "Recommend ONE balloon theme concept. Reply in Taglish (casual but professional), "
+        "under 150 words, using this exact structure:\n"
+        "1. Theme Name (bold)\n"
+        "2. Color palette\n"
+        "3. Recommended service from our list\n"
+        "4. 3-4 suggested inclusions (balloon arch, centerpiece, backdrop, etc.)\n"
+        "5. One-sentence pitch on why it fits their event.\n"
+        "Do not mention that you are an AI."
+    )
+
+    payload = get_chatbot_response(prompt, user=request.user)
+    text = (payload.get("text") or "").strip() if isinstance(payload, dict) else str(payload)
+
+    if not text:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "The AI stylist is unavailable right now. Please try again later.",
+            },
+            status=502,
+        )
+
+    if payload.get("is_banned") or payload.get("is_warning"):
+        return JsonResponse({"success": False, "error": text}, status=403)
+
+    return JsonResponse({"success": True, "response": text})
+
+
+@require_GET
+def check_date_availability(request):
+    """
+    JSON API for the Services page "Is my date available?" quick-check.
+    A date is considered taken when any active customer booking
+    (pending_payment / confirmed / completed) exists on that day,
+    matching the client booking calendar filter.
+    """
+    raw_date = (request.GET.get("date") or "").strip()
+    try:
+        selected_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+    except ValueError:
+        return JsonResponse(
+            {"success": False, "error": "Please provide a valid date."},
+            status=400,
+        )
+
+    today = timezone.localdate()
+    if selected_date < today:
+        return JsonResponse(
+            {"success": False, "error": "Please choose a future date."},
+            status=400,
+        )
+
+    blocked_statuses = ["pending_payment", "confirmed", "completed"]
+    blocked_dates = set(
+        Booking.objects.filter(
+            event_date__gte=today,
+            status__in=blocked_statuses,
+        ).values_list("event_date", flat=True)
+    )
+
+    available = selected_date not in blocked_dates
+
+    suggestions = []
+    cursor = selected_date + timedelta(days=1)
+    while len(suggestions) < 3 and cursor <= selected_date + timedelta(days=60):
+        if cursor not in blocked_dates:
+            suggestions.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "date": selected_date.isoformat(),
+            "available": available,
+            "message": (
+                "Great news! This date is still open for booking."
+                if available
+                else "Sorry, this date is already fully booked. Here are the nearest open dates:"
+            ),
+            "suggestions": suggestions,
+        }
+    )
 
 
 def _policy_page_context(page_key):
@@ -2269,6 +2446,106 @@ def create_booking(request):
 # -------------------------
 # VIEW BOOKING
 # -------------------------
+BOOKING_TRACKER_ORDER = {
+    "pending": 0,
+    "pending_payment": 1,
+    "confirmed": 2,
+    "completed": 3,
+}
+
+
+def build_booking_tracker(booking, has_verified_payment=False):
+    """Build the animated status tracker data for the booking details page.
+
+    Returns (steps, message, message_state, failed) where steps is a list of
+    dicts with key/label/icon/state/note, and state is one of
+    "done", "current", "upcoming", "failed", or "skipped".
+    """
+    steps = [
+        {
+            "key": "requested",
+            "label": "Requested",
+            "icon": "fa-file-signature",
+            "state": "upcoming",
+            "note": booking.created_at.strftime("%b %d, %Y") if booking.created_at else "",
+        },
+        {
+            "key": "payment",
+            "label": "Payment",
+            "icon": "fa-wallet",
+            "state": "upcoming",
+            "note": "Payment verified" if has_verified_payment else "Awaiting payment",
+        },
+        {
+            "key": "confirmed",
+            "label": "Confirmed",
+            "icon": "fa-circle-check",
+            "state": "upcoming",
+            "note": "Date locked in",
+        },
+        {
+            "key": "completed",
+            "label": "Completed",
+            "icon": "fa-cake-candles",
+            "state": "upcoming",
+            "note": booking.event_date.strftime("%b %d, %Y") if booking.event_date else "",
+        },
+    ]
+
+    status = booking.status
+
+    if status in BOOKING_TRACKER_ORDER:
+        current = BOOKING_TRACKER_ORDER[status]
+        for index, step in enumerate(steps):
+            if index < current:
+                step["state"] = "done"
+            elif index == current:
+                step["state"] = "current"
+        if status == "pending":
+            message = "We've received your booking! Our team will review it shortly."
+            message_state = "info"
+        elif status == "pending_payment":
+            message = "Your date is reserved! Settle the payment to lock in your booking."
+            message_state = "warn"
+        elif status == "confirmed":
+            message = "Payment confirmed — everything is set for your event!"
+            message_state = "success"
+        else:
+            message = "Event delivered. Thank you for celebrating with us!"
+            message_state = "success"
+        if status in ("pending", "pending_payment", "confirmed") and booking.edit_requested:
+            message += " An edit request is pending admin approval."
+        return steps, message, message_state, False
+
+    if status == "cancel_requested":
+        current = 1 if has_verified_payment else 0
+        for index, step in enumerate(steps):
+            if index < current:
+                step["state"] = "done"
+            elif index == current:
+                step["state"] = "current"
+        message = "A cancellation request has been submitted and is awaiting admin approval."
+        return steps, message, "warn", False
+
+    # cancelled / expired — terminal (failed) states
+    reached = 1 if has_verified_payment else 0
+    for index, step in enumerate(steps):
+        if index < reached:
+            step["state"] = "done"
+        elif index == reached:
+            step["state"] = "failed"
+        else:
+            step["state"] = "skipped"
+    if status == "expired":
+        message = "This booking expired because the payment window closed before it was confirmed."
+    else:
+        message = "This booking has been cancelled."
+        reason = booking.cancel_request_reason or booking.admin_denial_reason
+        if reason:
+            message += " Reason: " + reason
+    return steps, message, "danger", True
+
+
 @login_required
 def view_booking(request, id):
     check_booking_expirations()
@@ -2283,9 +2560,12 @@ def view_booking(request, id):
         for pay in booking.payments.select_related("verified_by").order_by("-created_at")
         if not _is_abandoned_paymongo_payment(pay)
     ]
-    total_verified_paid = payment_history.filter(payment_status="verified").aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0.00")
+    # payment_history ay Python list (filtered na), kaya hindi pwedeng
+    # gamitin ang .filter() — i-sum na lang direkta ang verified amounts
+    total_verified_paid = sum(
+        (pay.amount for pay in payment_history if pay.payment_status == "verified"),
+        Decimal("0.00"),
+    )
     remaining_balance = (booking.total_price or Decimal("0.00")) - total_verified_paid
     cleaned_requests = remove_end_time_tag(booking.special_requests or "")
     source = (request.GET.get("from") or "").strip().lower()
@@ -2295,6 +2575,9 @@ def view_booking(request, id):
     else:
         back_url = reverse("customer_profile")
         back_label = "Back to Dashboard"
+    tracker_steps, tracker_message, tracker_message_state, tracker_failed = build_booking_tracker(
+        booking, has_verified_payment=total_verified_paid > 0
+    )
 
     return render(
         request,
@@ -2307,6 +2590,10 @@ def view_booking(request, id):
             "cleaned_requests": cleaned_requests,
             "back_url": back_url,
             "back_label": back_label,
+            "tracker_steps": tracker_steps,
+            "tracker_message": tracker_message,
+            "tracker_message_state": tracker_message_state,
+            "tracker_failed": tracker_failed,
         },
     )
 
@@ -3369,11 +3656,13 @@ def admin_service_content(request):
     content = ServiceContent.objects.first()
     if content is None:
         content = ServiceContent.objects.create(
+            hero_label="Balloorina Services",
             hero_title="Our Services",
             hero_subtitle="Balloon styling and event decoration services for all types of events."
         )
 
     if request.method == "POST":
+        content.hero_label = request.POST.get("hero_label", content.hero_label).strip()
         content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
         content.hero_subtitle = request.POST.get("hero_subtitle", content.hero_subtitle).strip()
         content.save()
@@ -3423,6 +3712,8 @@ def admin_service_item_create(request):
         service = Service.objects.create(
             title=title,
             description=description,
+            features=request.POST.get("features", "").strip(),
+            best_for=request.POST.get("best_for", "").strip(),
             display_order=display_order,
             is_active=is_active,
         )
@@ -3448,6 +3739,8 @@ def admin_service_item_edit(request, id):
     if request.method == "POST":
         service.title = request.POST.get("title", service.title).strip()
         service.description = request.POST.get("description", service.description).strip()
+        service.features = request.POST.get("features", "").strip()
+        service.best_for = request.POST.get("best_for", "").strip()
         service.is_active = request.POST.get("is_active") == "on"
 
         try:

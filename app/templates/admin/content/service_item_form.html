@@ -41,6 +41,21 @@
             </div>
 
             <div class="form-group">
+                <label>Service Features <small>(one per line, optional)</small></label>
+                <textarea name="features" id="features" rows="6"
+                    placeholder="e.g.&#10;Balloon arch at the entrance&#10;Table centerpieces&#10;Photo booth backdrop">{% if feature.features %}{{ feature.features }}{% elif post_data.features %}{{ post_data.features }}{% endif %}</textarea>
+                <p class="field-hint">Shown as a checklist under the service on the Services page.</p>
+            </div>
+
+            <div class="form-group">
+                <label>Best For <small>(optional)</small></label>
+                <input type="text" name="best_for" id="best_for" maxlength="255"
+                    value="{% if feature.best_for %}{{ feature.best_for }}{% elif post_data.best_for %}{{ post_data.best_for }}{% endif %}"
+                    placeholder="e.g. Kids parties and milestone celebrations">
+                <p class="field-hint">Shown in the "Which Service Is Right for You?" comparison table.</p>
+            </div>
+
+            <div class="form-group">
                 <label>Service Image</label>
                 {% if feature.image %}
                     <input type="hidden" name="remove_image" id="remove_image" value="0">

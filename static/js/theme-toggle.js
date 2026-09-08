@@ -97,8 +97,8 @@
         }
 
         // Scroll reveal: staggered per-element fade/slide within each section.
-        // Works on any page wrapper with section children (home #home, about #about, ...)
-        const revealPages = ['home', 'about']
+        // Works on any page wrapper with section children (home #home, about #about, services #services ...)
+        const revealPages = ['home', 'about', 'services']
             .map(function (id) { return document.getElementById(id); })
             .filter(Boolean);
 
@@ -120,7 +120,13 @@
                 '.home-gallery-grid > .gallery-item',
                 '.marquee-track .testimonial-card',
                 '.faq-list > .faq-item',
-                '.cta-banner > *'
+                '.cta-banner > *',
+                '.service-item .service-content > *',
+                '.service-item .service-image',
+                '.comparison-title',
+                '.comparison-subtitle',
+                '.comparison-table-wrap',
+                '.services-tools-inner > .tool-card'
             ].join(', ');
 
             const revealObserver = new IntersectionObserver(function (entries) {

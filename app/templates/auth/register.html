@@ -2,6 +2,8 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="{% static 'js/theme-toggle.js' %}"></script>
 
 <div class="body">
     <div class="auth-container">
@@ -130,8 +132,8 @@
             showConfirmButton: false,
             timer: 4000,
             timerProgressBar: true,
-            background: '#1a1a1a',
-            color: '#fff',
+            background: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#1a1a1a',
+            color: document.documentElement.getAttribute('data-theme') === 'light' ? '#111827' : '#fff',
             didOpen: (toast) => {
                 toast.addEventListener('mouseenter', Swal.stopTimer)
                 toast.addEventListener('mouseleave', Swal.resumeTimer)

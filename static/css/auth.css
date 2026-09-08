@@ -714,3 +714,157 @@ button[type="submit"]:disabled:hover {
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
 }
+
+/* ========================================================
+   PAGE BACKGROUND (nag-aayos ng puting linya/flash sa gilid
+   ng mobile browser kapag hindi sapat ang taas ng .body)
+   ======================================================== */
+html {
+    background: #000000;
+}
+
+html[data-theme="light"] {
+    background: #f3f4f6;
+}
+
+.body {
+    min-height: 100vh;
+    /* Tama na mobile viewport height kahit may URL bar / keyboard */
+    min-height: 100svh;
+}
+
+/* ========================================================
+   MOBILE FIXES
+   ======================================================== */
+@media (max-width: 768px) {
+    /* 16px+ para hindi mag-auto-zoom ang iOS kapag nag-focus sa input */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+        font-size: 16px;
+    }
+
+    button[type="submit"] {
+        font-size: 16px;
+    }
+
+    .body {
+        padding: 28px 16px;
+    }
+
+    .auth-container {
+        max-width: 100%;
+        padding: 28px 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .body {
+        padding: 22px 14px;
+    }
+
+    .auth-container {
+        padding: 20px 14px;
+    }
+
+    .logo-container img {
+        max-width: 130px;
+        margin-bottom: 22px;
+    }
+
+    .name-row {
+        gap: 14px;
+    }
+}
+
+/* ========================================================
+   LIGHT THEME — AUTH PAGES (buong suporta)
+   Dati puro hardcoded dark ang page, kaya sa light mode
+   puting text sa puting card = di nababasa
+   ======================================================== */
+[data-theme="light"] .body {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .input-label {
+    color: #374151;
+}
+
+[data-theme="light"] .info-text,
+[data-theme="light"] .bottom-text {
+    color: #4b5563;
+}
+
+[data-theme="light"] .bottom-text a {
+    color: #111827;
+}
+
+[data-theme="light"] .terms-check-label {
+    color: #374151;
+}
+
+[data-theme="light"] .terms-check-label a {
+    color: #111827;
+    text-decoration: underline;
+}
+
+[data-theme="light"] .remember-container label {
+    color: #4b5563;
+}
+
+[data-theme="light"] input[type="checkbox"] {
+    accent-color: #111827;
+}
+
+[data-theme="light"] .forgot-link {
+    color: #374151;
+}
+
+[data-theme="light"] .forgot-link:hover {
+    color: #000000;
+}
+
+[data-theme="light"] input:hover {
+    border-color: #9ca3af;
+}
+
+[data-theme="light"] input::placeholder {
+    color: #6b7280;
+}
+
+[data-theme="light"] button[type="submit"] {
+    background: #111827;
+    color: #ffffff;
+}
+
+[data-theme="light"] button[type="submit"]:hover {
+    background: #1f2937;
+}
+
+[data-theme="light"] .password-rule {
+    color: #6b7280;
+}
+
+[data-theme="light"] .password-requirements-title {
+    color: #374151;
+}
+
+[data-theme="light"] .password-rule-icon {
+    border-color: #9ca3af;
+}
+
+/* Puti ang logo image — gawing itim sa light mode (pareho ng navbar) */
+[data-theme="light"] .logo-container img {
+    filter: brightness(0);
+}
+
+/* Dapat makita ang red error border sa light mode kahit may
+   !important na light override ang inputs sa taas */
+[data-theme="light"] .field-group.has-error input[type="text"],
+[data-theme="light"] .field-group.has-error input[type="email"],
+[data-theme="light"] .field-group.has-error input[type="password"],
+[data-theme="light"] .field-group.has-error input[type="tel"] {
+    border-color: #ef4444 !important;
+}

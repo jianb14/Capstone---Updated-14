@@ -1523,7 +1523,7 @@ nav.scrolled {
 
 .service-item {
     max-width: 1200px;
-    margin: 0 auto 8rem;
+    margin: 0 auto 14rem;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4rem;
@@ -1545,25 +1545,11 @@ nav.scrolled {
 }
 
 .service-content p {
-    font-size: 1rem;
+    font-size: 1.05rem;
     line-height: 1.9;
     color: var(--dark-gray);
-    margin-bottom: 1.5rem;
-}
-
-.service-features {
-    list-style: none;
     margin-bottom: 2rem;
-}
-
-.service-features li {
-    padding: 0.5rem 0;
-    font-weight: 500;
-}
-
-.service-features li::before {
-    content: '◆ ';
-    margin-right: 0.4rem;
+    max-width: 46ch;
 }
 
 .service-image {
@@ -1612,6 +1598,32 @@ nav.scrolled {
 .service-image:hover img {
     filter: brightness(0.85);
     transform: scale(1.05);
+}
+
+/* Light mode: hindi bagay ang pang-dark-mode na brightness filter (0.7) —
+   nagmumukhang sunog/itim ang mga larawan sa maliwanag na background.
+   Full brightness + malambot na shadow ang gamit sa light mode. */
+[data-theme="light"] .service-image {
+    background: #eef0f3;
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .service-image img {
+    filter: none;
+}
+
+[data-theme="light"] .service-image:hover img {
+    filter: none;
+    transform: scale(1.05);
+}
+
+[data-theme="light"] .service-image-placeholder {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .service-image-placeholder::before {
+    color: rgba(0, 0, 0, 0.3);
 }
 
 /* Packages Page */
@@ -4212,6 +4224,8 @@ nav.scrolled {
 [data-theme="light"] .values-section, 
 [data-theme="light"] .services-hero, 
 [data-theme="light"] .services-detailed, 
+[data-theme="light"] .services-tools,
+[data-theme="light"] .services-comparison,
 [data-theme="light"] .packages-hero, 
 [data-theme="light"] .packages-detailed {
     background-color: #ffffff;
@@ -5179,5 +5193,466 @@ nav.scrolled {
     .gallery-hero p,
     .contact-hero p {
         font-size: 0.95rem;
+    }
+}
+
+/* ============================== */
+/* Services Page — Interactive Tools */
+/* ============================== */
+.services-tools {
+    padding: 2rem 5% 6rem;
+}
+
+.services-tools-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.tool-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--light-gray);
+    border-radius: 20px;
+    padding: 2rem 1.75rem;
+    backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.tool-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tool-card-head h2 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin: 0.75rem 0 0.5rem;
+}
+
+.tool-card-head p {
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+}
+
+.tool-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--light-gray);
+    color: var(--dark-gray);
+}
+
+.tool-badge i {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+.tool-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tool-field label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    color: var(--white);
+}
+
+.tool-field select,
+.tool-field input[type="text"],
+.tool-field input[type="date"] {
+    width: 100%;
+    padding: 0.7rem 0.95rem;
+    border-radius: 10px;
+    border: 1px solid var(--light-gray);
+    background: var(--gray);
+    color: var(--white);
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    color-scheme: dark;
+}
+
+.tool-field select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%23cccccc' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.95rem center;
+    background-size: 12px 8px;
+}
+
+[data-theme="light"] .tool-field select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%236b7280' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.tool-field select:hover,
+.tool-field input[type="text"]:hover,
+.tool-field input[type="date"]:hover {
+    border-color: var(--dark-gray);
+}
+
+.tool-field select:focus,
+.tool-field input:focus {
+    outline: none;
+    border-color: #facc15;
+    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+}
+
+/* Native dropdown list: panatilihing madilim sa dark mode at maliwanag sa
+   light mode para hindi puti-puti ang options sa madilim na background */
+.tool-field select option {
+    background: #1a1a1a;
+    color: #ffffff;
+}
+
+[data-theme="light"] .tool-field select option {
+    background: #ffffff;
+    color: #1a1a1a;
+}
+
+.tool-muted {
+    font-size: 0.82rem;
+    color: var(--dark-gray);
+    opacity: 0.85;
+}
+
+.tool-login-note {
+    text-align: center;
+    padding: 1rem 0 0.25rem;
+}
+
+.tool-login-note p {
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+    margin-bottom: 1rem;
+}
+
+.tool-login-note a:not(.btn) {
+    color: var(--white);
+    text-decoration: underline;
+}
+
+/* Quiz result */
+.quiz-result {
+    margin-top: 1.25rem;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid var(--light-gray);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--dark-gray);
+}
+
+.quiz-result-loading {
+    text-align: center;
+    font-style: italic;
+}
+
+.quiz-result-error {
+    border-color: rgba(220, 38, 38, 0.55);
+    color: #fca5a5;
+}
+
+.quiz-result-success {
+    border-color: rgba(250, 204, 21, 0.4);
+}
+
+.quiz-result-head {
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 0.5rem;
+}
+
+.quiz-result-body {
+    margin-bottom: 1rem;
+}
+
+.quiz-result-body strong {
+    color: var(--white);
+}
+
+/* Estimator */
+.estimator-addons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 170px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.addon-check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.86rem;
+    color: var(--dark-gray);
+    cursor: pointer;
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.addon-check:hover {
+    border-color: var(--light-gray);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.addon-check input {
+    accent-color: #facc15;
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.estimator-total {
+    border: 1px dashed var(--light-gray);
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.estimator-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.86rem;
+    color: var(--dark-gray);
+}
+
+.estimator-row.estimator-grand {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--white);
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--light-gray);
+}
+
+/* Availability */
+.availability-result {
+    margin-top: 0.5rem;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid var(--light-gray);
+    font-size: 0.9rem;
+}
+
+.availability-open {
+    border-color: rgba(74, 222, 128, 0.5);
+}
+
+.availability-taken {
+    border-color: rgba(220, 38, 38, 0.55);
+}
+
+.availability-status {
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.availability-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.availability-chip {
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid var(--light-gray);
+    background: transparent;
+    color: var(--white);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.availability-chip:hover {
+    border-color: var(--dark-gray);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.availability-book {
+    display: inline-flex;
+}
+
+/* Comparison table */
+.services-comparison {
+    padding: 0 5% 7rem;
+}
+
+.comparison-title {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    letter-spacing: -1px;
+}
+
+.comparison-subtitle {
+    text-align: center;
+    color: var(--dark-gray);
+    margin-bottom: 2.5rem;
+    font-size: 0.95rem;
+}
+
+.comparison-table-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    border: 1px solid var(--light-gray);
+    border-radius: 20px;
+    overflow-x: auto;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.comparison-table th,
+.comparison-table td {
+    padding: 1.1rem 1.4rem;
+    text-align: left;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--light-gray);
+    vertical-align: top;
+}
+
+.comparison-table thead th {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dark-gray);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.comparison-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.comparison-table tbody tr {
+    transition: background 0.2s ease;
+}
+
+.comparison-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.comparison-service {
+    font-weight: 800;
+    color: var(--white);
+    white-space: nowrap;
+}
+
+.comparison-features {
+    list-style: none;
+}
+
+.comparison-features li {
+    padding: 0.15rem 0;
+}
+
+.comparison-features li::before {
+    content: '◆ ';
+    margin-right: 0.3rem;
+    opacity: 0.6;
+}
+
+.btn-sm {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.82rem;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .tool-card {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .tool-card:hover {
+    border-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Ang base rules ay gumagamit na ng theme variables (var(--white),
+   var(--dark-gray), var(--gray)) na kusang nagfi-flip sa light mode,
+   kaya hindi na kailangan ng hiwalay na color overrides dito. */
+[data-theme="light"] .tool-field select,
+[data-theme="light"] .tool-field input[type="text"],
+[data-theme="light"] .tool-field input[type="date"] {
+    color-scheme: light;
+}
+
+[data-theme="light"] .comparison-table-wrap {
+    border-color: rgba(0, 0, 0, 0.12);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .comparison-table thead th {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .comparison-table tbody tr:hover,
+[data-theme="light"] .addon-check:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .quiz-result,
+[data-theme="light"] .availability-result {
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .services-tools-inner {
+        grid-template-columns: 1fr;
+        max-width: 560px;
+    }
+}
+
+@media (max-width: 768px) {
+    .comparison-table {
+        min-width: 640px;
+    }
+
+    .comparison-title {
+        font-size: 1.5rem;
     }
 }

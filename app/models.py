@@ -720,6 +720,7 @@ class HomeFaqItem(models.Model):
 # 13️⃣ Service Page Content
 # -----------------------------
 class ServiceContent(models.Model):
+    hero_label = models.CharField(max_length=255, blank=True, default='')
     hero_title = models.CharField(max_length=255, blank=True, default='')
     hero_subtitle = models.TextField(blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)
@@ -860,6 +861,17 @@ class GCashConfig(models.Model):
 class Service(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
+    features = models.TextField(
+        blank=True,
+        default='',
+        help_text="One feature per line. Shown as a checklist under the service on the Services page.",
+    )
+    best_for = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Short text used in the Services page comparison table, e.g. 'Kids parties and milestones'.",
+    )
     image = models.ImageField(upload_to="services/", blank=True, null=True)
     display_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
@@ -868,6 +880,9 @@ class Service(models.Model):
 
     class Meta:
         ordering = ["display_order", "id"]
+
+    def feature_list(self):
+        return [line.strip() for line in self.features.splitlines() if line.strip()]
 
     def __str__(self):
         return self.title

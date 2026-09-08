@@ -4,12 +4,18 @@
 {% block content %}
 
     <div id="services" class="page">
-        <section class="services-hero">
+        <section class="about-hero">
+            <span class="about-tagline">{{ service_content.hero_label|default:"Balloorina Services" }}</span>
             <h1>{{ service_content.hero_title|default:"Our Services" }}</h1>
             <p>{{ service_content.hero_subtitle|default:"Balloon styling and event decoration services for all types of events." }}</p>
+
+            <a href="#services-list" class="scroll-down" aria-label="Scroll down to our services">
+                <span>Scroll Down</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
         </section>
 
-        <section class="services-detailed">
+        <section class="services-detailed" id="services-list">
             {% for service in services %}
                 <div class="service-item">
                     <div class="service-content">
@@ -30,7 +36,7 @@
                 <div class="service-item" id="birthday-styling">
                     <div class="service-content">
                         <h2>Birthday Balloon Styling</h2>
-                        <p>We design birthday setups for kids, teens, and adults. We customize the look based on your theme, colors, and venue.</p>
+                        <p>We design birthday setups for kids, teens, and adults — from playful pastel wonderlands to bold, themed celebrations. Every detail is customized around your theme, color palette, and venue, so whether it is an intimate home party or a grand banquet hall, we create a setup that feels personal, festive, and picture-perfect from the entrance arch down to the cake table.</p>
                         <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
                     </div>
                     <div class="service-image">
@@ -41,15 +47,7 @@
                 <div class="service-item">
                     <div class="service-content">
                         <h2>Wedding Balloon Installations</h2>
-                        <p>We style wedding venues with elegant balloon designs that match your motif. We also coordinate with your other suppliers for a smooth setup.</p>
-                        <ul class="service-features">
-                            <li>Ceremony and reception arches</li>
-                            <li>Aisle markers and pew decorations</li>
-                            <li>Head table and guest table centerpieces</li>
-                            <li>Dance floor canopies</li>
-                            <li>Photo booth backdrops</li>
-                            <li>Venue entrance installations</li>
-                        </ul>
+                        <p>We style wedding venues with elegant balloon designs that match your motif — soft, romantic palettes, organic garlands, and refined installs that elevate every corner of your celebration. We also coordinate closely with your other suppliers for a smooth, stress-free setup from ceremony to reception.</p>
                         <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
                     </div>
                     <div class="service-image">
@@ -60,15 +58,7 @@
                 <div class="service-item">
                     <div class="service-content">
                         <h2>Corporate Event Styling</h2>
-                        <p>We provide clean and professional balloon setups for launches, conferences, team events, and company celebrations.</p>
-                        <ul class="service-features">
-                            <li>Brand-aligned color schemes</li>
-                            <li>Logo and brand message displays</li>
-                            <li>Stage and podium backdrops</li>
-                            <li>Welcome and registration area styling</li>
-                            <li>Conference room decoration</li>
-                            <li>Trade show booth enhancements</li>
-                        </ul>
+                        <p>We provide clean and professional balloon setups for product launches, conferences, team events, and company celebrations. From brand-aligned color schemes to logo displays and stage styling, we make sure your brand stands out while keeping the look polished, modern, and corporate-friendly.</p>
                         <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Book Your Event Now</span></a>
                     </div>
                     <div class="service-image">
@@ -77,7 +67,181 @@
                 </div>
             {% endfor %}
         </section>
+
+        <!-- Comparison Table: Which Service Is Right for You? -->
+        {% if services and services|length >= 2 %}
+            <section class="services-comparison">
+                <h2 class="comparison-title">Which Service Is Right for You?</h2>
+                <p class="comparison-subtitle">A quick side-by-side look at what we offer.</p>
+                <div class="comparison-table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Service</th>
+                                <th scope="col">Best For</th>
+                                <th scope="col">Key Inclusions</th>
+                                <th scope="col"><span class="visually-hidden">Action</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for service in services %}
+                                <tr>
+                                    <td data-label="Service" class="comparison-service">{{ service.title }}</td>
+                                    <td data-label="Best For">{{ service.best_for|default:"All types of events" }}</td>
+                                    <td data-label="Key Inclusions">
+                                        {% if service.feature_list %}
+                                            <ul class="comparison-features">
+                                                {% for feature in service.feature_list|slice:":3" %}
+                                                    <li>{{ feature }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="tool-muted">Customizable per event</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Action">
+                                        <a href="{% url 'create_booking' %}" class="btn btn-primary btn-sm"><span>Book</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        <!-- Interactive Tools: AI Style Quiz, Price Estimator, Date Availability -->
+        <section class="services-tools" aria-label="Services tools">
+            <div class="services-tools-inner">
+
+                <!-- AI Style Quiz -->
+                <div class="tool-card" id="style-quiz">
+                    <div class="tool-card-head">
+                        <span class="tool-badge tool-badge-ai"><i class="fa-solid fa-wand-magic-sparkles"></i>AI-Powered</span>
+                        <h2>Find Your Perfect Style</h2>
+                        <p>Answer 4 quick questions and our AI stylist will recommend a balloon theme made for your event.</p>
+                    </div>
+                    {% if user.is_authenticated %}
+                        <form id="quizForm" class="tool-form" novalidate>
+                            <div class="tool-field">
+                                <label for="quizEventType">Event Type</label>
+                                <select id="quizEventType" required>
+                                    <option value="">Select event type</option>
+                                    <option value="Birthday">Birthday</option>
+                                    <option value="Wedding">Wedding</option>
+                                    <option value="Corporate Event">Corporate Event</option>
+                                    <option value="Baby Shower">Baby Shower</option>
+                                    <option value="Debut">Debut</option>
+                                    <option value="Anniversary">Anniversary</option>
+                                    <option value="Kids Party">Kids Party</option>
+                                    <option value="Other Celebration">Other Celebration</option>
+                                </select>
+                            </div>
+                            <div class="tool-field">
+                                <label for="quizVibe">Preferred Vibe</label>
+                                <select id="quizVibe" required>
+                                    <option value="">Select a vibe</option>
+                                    <option value="Elegant and classy">Elegant and classy</option>
+                                    <option value="Fun and playful">Fun and playful</option>
+                                    <option value="Minimalist and modern">Minimalist and modern</option>
+                                    <option value="Whimsical and dreamy">Whimsical and dreamy</option>
+                                    <option value="Bold and festive">Bold and festive</option>
+                                </select>
+                            </div>
+                            <div class="tool-field">
+                                <label for="quizBudget">Budget Range</label>
+                                <select id="quizBudget">
+                                    <option value="">Prefer not to say</option>
+                                    <option value="Below ₱5,000">Below ₱5,000</option>
+                                    <option value="₱5,000 - ₱10,000">₱5,000 - ₱10,000</option>
+                                    <option value="₱10,000 - ₱20,000">₱10,000 - ₱20,000</option>
+                                    <option value="Above ₱20,000">Above ₱20,000</option>
+                                </select>
+                            </div>
+                            <div class="tool-field">
+                                <label for="quizColors">Preferred Colors</label>
+                                <input type="text" id="quizColors" maxlength="60" placeholder="e.g. blush pink, gold, white">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="quizSubmit"><span>Get My AI Theme</span></button>
+                        </form>
+                        <div id="quizResult" class="quiz-result" hidden></div>
+                    {% else %}
+                        <div class="tool-login-note">
+                            <p>Log in to unlock AI style suggestions.</p>
+                            <a href="{% url 'login' %}" class="btn btn-primary"><span>Log In</span></a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Instant Price Estimator -->
+                <div class="tool-card" id="price-estimator">
+                    <div class="tool-card-head">
+                        <span class="tool-badge tool-badge-price"><i class="fa-solid fa-calculator"></i>Instant Estimate</span>
+                        <h2>Estimate Your Setup</h2>
+                        <p>Mix and match a package with add-ons to see an instant price estimate before booking.</p>
+                    </div>
+                    {% if packages %}
+                        <div class="tool-form">
+                            <div class="tool-field">
+                                <label for="estimatorPackage">Package</label>
+                                <select id="estimatorPackage">
+                                    <option value="">Choose a package</option>
+                                    {% for package in packages %}
+                                        <option value="{{ package.id }}">{{ package.name }} — ₱{{ package.price }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="tool-field">
+                                <label>Add-Ons</label>
+                                <div class="estimator-addons" id="estimatorAddons">
+                                    {% for addon in active_addons %}
+                                        <label class="addon-check">
+                                            <input type="checkbox" value="{{ addon.id }}">
+                                            <span>{{ addon.name }} (+₱{{ addon.price }})</span>
+                                        </label>
+                                    {% empty %}
+                                        <p class="tool-muted">No add-ons available right now.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="estimator-total" id="estimatorTotal" hidden>
+                                <div class="estimator-row"><span>Subtotal</span><span id="estimatorSubtotal">₱0.00</span></div>
+                                <div class="estimator-row"><span>Service Charge</span><span id="estimatorServiceCharge">₱0.00</span></div>
+                                <div class="estimator-row estimator-grand"><span>Estimated Total</span><span id="estimatorGrand">₱0.00</span></div>
+                                <p class="tool-muted">Final pricing is confirmed during booking.</p>
+                            </div>
+                            <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Continue to Booking</span></a>
+                        </div>
+                    {% else %}
+                        <div class="tool-login-note">
+                            <p>Package pricing is being updated. <a href="{% url 'package' %}">View packages</a> or book your event directly.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Date Availability Quick-Check -->
+                <div class="tool-card" id="date-check">
+                    <div class="tool-card-head">
+                        <span class="tool-badge tool-badge-date"><i class="fa-solid fa-calendar-check"></i>Live Availability</span>
+                        <h2>Is Your Date Available?</h2>
+                        <p>Check if your event date is still open before you book.</p>
+                    </div>
+                    <div class="tool-form">
+                        <div class="tool-field">
+                            <label for="availabilityDate">Event Date</label>
+                            <input type="date" id="availabilityDate">
+                        </div>
+                        <button type="button" class="btn btn-primary" id="availabilityCheck"><span>Check Availability</span></button>
+                        <div id="availabilityResult" class="availability-result" hidden></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
     </div>
 
+    {{ services_widget_data|json_script:"services-widget-data" }}
+
+    <script src="{% static 'js/services_widgets.js' %}"></script>
 
 {% endblock content %}
