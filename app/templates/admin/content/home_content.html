@@ -100,6 +100,73 @@
         </div>
     </div>
 
+    <div class="form-section">
+        <h3 class="section-title">Occasion Chips Section</h3>
+        <div class="form-grid why-choose-stack">
+            <div class="form-group">
+                <label for="occasion_chips">Occasion Chips (comma-separated)</label>
+                <input type="text" name="occasion_chips" id="occasion_chips" value="{{ content.occasion_chips }}" class="form-control" placeholder="e.g. Birthdays, Weddings, Corporate Events, Christenings, Graduation">
+                <small class="help-text">Separate each occasion with a comma. Leave blank to use defaults.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3 class="section-title">How It Works Section</h3>
+        <div class="form-grid why-choose-stack">
+            <div class="form-group">
+                <label for="how_it_works_label">Small Label (above heading)</label>
+                <input type="text" name="how_it_works_label" id="how_it_works_label" value="{{ content.how_it_works_label }}" class="form-control" placeholder="e.g. How It Works">
+            </div>
+            <div class="form-group">
+                <label for="how_it_works_title">Section Heading (plain part)</label>
+                <input type="text" name="how_it_works_title" id="how_it_works_title" value="{{ content.how_it_works_title }}" class="form-control" placeholder="e.g. Start Planning Your Event in">
+            </div>
+            <div class="form-group">
+                <label for="how_it_works_title_accent">Section Heading (colored part)</label>
+                <input type="text" name="how_it_works_title_accent" id="how_it_works_title_accent" value="{{ content.how_it_works_title_accent }}" class="form-control" placeholder="e.g. 4 Simple Steps">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3 class="section-title">FAQ Section</h3>
+        <div class="form-grid why-choose-stack">
+            <div class="form-group">
+                <label for="faq_title">Section Title</label>
+                <input type="text" name="faq_title" id="faq_title" value="{{ content.faq_title }}" class="form-control" placeholder="e.g. Frequently Asked Questions">
+            </div>
+            <div class="form-group">
+                <label for="faq_subtitle">Section Subtitle / Description</label>
+                <textarea name="faq_subtitle" id="faq_subtitle" rows="3" class="form-control" placeholder="Enter section description...">{{ content.faq_subtitle }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3 class="section-title">CTA Banner Section</h3>
+        <div class="form-grid why-choose-stack">
+            <div class="form-group">
+                <label for="cta_title">Banner Title</label>
+                <input type="text" name="cta_title" id="cta_title" value="{{ content.cta_title }}" class="form-control" placeholder="e.g. Ready to Make Your Celebration Unforgettable?">
+            </div>
+            <div class="form-group">
+                <label for="cta_subtitle">Banner Subtitle</label>
+                <textarea name="cta_subtitle" id="cta_subtitle" rows="3" class="form-control" placeholder="Enter banner description...">{{ content.cta_subtitle }}</textarea>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="cta_primary_text">Primary Button Text</label>
+                    <input type="text" name="cta_primary_text" id="cta_primary_text" value="{{ content.cta_primary_text }}" class="form-control" placeholder="e.g. Book Your Event Now">
+                </div>
+                <div class="form-group">
+                    <label for="cta_secondary_text">Secondary Button Text</label>
+                    <input type="text" name="cta_secondary_text" id="cta_secondary_text" value="{{ content.cta_secondary_text }}" class="form-control" placeholder="e.g. View Our Packages">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="form-actions">
         <button type="submit" class="btn-save">Save Home Content</button>
     </div>
@@ -152,6 +219,112 @@
             {% empty %}
             <tr>
                 <td colspan="6">No features added yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+<!-- How It Works Steps Section -->
+<div class="page-header title-header">
+    <h1>How It Works Steps</h1>
+    <a href="{% url 'admin_hiw_step_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add New Step</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ORDER</th>
+                <th>TITLE</th>
+                <th>DESCRIPTION</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for step in hiw_steps %}
+            <tr>
+                <td data-label="Order">{{ step.display_order }}</td>
+                <td data-label="Title"><i class="{{ step.icon_class }}"></i> {{ step.title }}</td>
+                <td data-label="Description">{{ step.description|truncatechars:50 }}</td>
+                <td data-label="Status">
+                    {% if step.is_active %}
+                        <span class="status-badge active">Active</span>
+                    {% else %}
+                        <span class="status-badge inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_hiw_step_edit' step.id %}" title="Edit"><i class="far fa-edit"></i></a>
+                        <a href="{% url 'admin_hiw_step_delete' step.id %}"
+                            title="Delete"
+                            data-swal-confirm="true"
+                            data-swal-title="Delete step?"
+                            data-swal-text="Delete this step?"
+                            data-swal-confirm-text="Yes, delete step"><i class="far fa-trash-alt"></i></a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No steps added yet. Default steps will show on the home page.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+<!-- FAQ Items Section -->
+<div class="page-header title-header">
+    <h1>FAQ Items (Home Page)</h1>
+    <a href="{% url 'admin_faq_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add New FAQ</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ORDER</th>
+                <th>QUESTION</th>
+                <th>ANSWER</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for faq in faqs %}
+            <tr>
+                <td data-label="Order">{{ faq.display_order }}</td>
+                <td data-label="Question">{{ faq.question|truncatechars:60 }}</td>
+                <td data-label="Answer">{{ faq.answer|truncatechars:50 }}</td>
+                <td data-label="Status">
+                    {% if faq.is_active %}
+                        <span class="status-badge active">Active</span>
+                    {% else %}
+                        <span class="status-badge inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_faq_edit' faq.id %}" title="Edit"><i class="far fa-edit"></i></a>
+                        <a href="{% url 'admin_faq_delete' faq.id %}"
+                            title="Delete"
+                            data-swal-confirm="true"
+                            data-swal-title="Delete FAQ?"
+                            data-swal-text="Delete this FAQ item?"
+                            data-swal-confirm-text="Yes, delete FAQ"><i class="far fa-trash-alt"></i></a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No FAQ items added yet. Default FAQs will show on the home page.</td>
             </tr>
             {% endfor %}
         </tbody>

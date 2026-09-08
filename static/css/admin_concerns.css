@@ -1,6 +1,13 @@
 .concerns-wrap {
     display: grid;
-    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.8rem;
+}
+
+/* Grid items must be allowed to shrink below their content size,
+   otherwise wide children (filter row, tables) blow out the page width */
+.concerns-wrap > * {
+    min-width: 0;
 }
 
 .concerns-head {
@@ -25,7 +32,6 @@
     font-size: 0.92rem;
 }
 
-.filter-card,
 .panel {
     background: linear-gradient(180deg, #111111 0%, #0d0d0d 100%);
     border: 1px solid #232323;
@@ -33,119 +39,453 @@
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
 }
 
-.filter-card {
-    padding: 0.95rem;
+/* ═══════════════════════════════════════════════════════════════
+   FILTER BAR — identical design to admin dashboard (.dash-filter-row)
+   Values mirrored from admin_dashboard.css (vars resolved to literals).
+   Light mode + responsive styling come from admin_light_mode.css /
+   admin_base.css via the shared class names.
+   ═══════════════════════════════════════════════════════════════ */
+.dash-filter-row {
+    background: #111111;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 0.65rem 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: border-color 0.3s ease;
+    flex-wrap: wrap;
+}
+.dash-filter-row:hover {
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
-.filter-form {
+.filter-icon {
     display: flex;
-    align-items: flex-end;
-    gap: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    color: #999999;
+    flex-shrink: 0;
+}
+.filter-icon svg {
+    width: 15px;
+    height: 15px;
+}
+
+.filter-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #999999;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
+}
+
+.filter-sep {
+    width: 1px;
+    height: 22px;
+    background: rgba(255,255,255,0.06);
+    flex-shrink: 0;
+    display: none;
+}
+@media (min-width: 768px) {
+    .filter-sep {
+        display: block;
+    }
+    .dash-filter-row {
+        padding: 0.75rem 1rem;
+        gap: 1rem;
+    }
+}
+
+.filter-fields {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.filter-inline-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
     flex-wrap: wrap;
 }
 
 .filter-group {
     display: flex;
-    flex-direction: column;
-    gap: 0.38rem;
+    align-items: center;
+    gap: 0.3rem;
+    flex: 1 1 auto;
+    min-width: 140px;
 }
-
 .filter-group label {
-    color: #7e8792;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: 0.65rem;
     text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #666666;
+    font-weight: 600;
+    flex-shrink: 0;
 }
-
-.filter-group input {
+.filter-group input,
+.filter-group select {
     background: #0a0a0a;
-    border: 1px solid #2f2f2f;
-    border-radius: 8px;
-    color: #f3f3f3;
-    padding: 0.58rem 0.8rem;
-    font-size: 0.9rem;
-    min-width: 170px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 7px;
+    padding: 0.4rem 0.55rem;
+    color: #eeeeee;
+    font-size: 0.76rem;
     font-family: inherit;
-}
-
-.filter-group input:focus {
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
     outline: none;
-    border-color: #4a4a4a;
+    flex: 1;
+    min-width: 0;
+    width: 100%;
 }
-
+.filter-group input:focus,
+.filter-group select:focus {
+    border-color: #999999;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.05);
+}
 .filter-group input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
-    opacity: 0.9;
+    opacity: 0.5;
     cursor: pointer;
 }
+.filter-group select {
+    appearance: none;
+    -webkit-appearance: none;
+    color-scheme: dark;
+    padding-right: 1.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.45rem center;
+    cursor: pointer;
+}
+.filter-group select option {
+    background: #0b0d10;
+    color: #e5e7eb;
+}
+.filter-group select option:checked {
+    background: #141922;
+    color: #ffffff;
+}
 
-.btn-filter,
-.btn-reset {
-    border-radius: 8px;
-    padding: 0.62rem 1.05rem;
-    font-size: 0.85rem;
+/* Buttons — same as dashboard (icon/text stays centered when stretched on mobile) */
+.btn-apply {
+    border-radius: 7px;
+    padding: 0.46rem 0.75rem;
+    font-size: 0.78rem;
     font-weight: 600;
     text-decoration: none;
+    border: none;
     font-family: inherit;
     cursor: pointer;
-    border: 1px solid transparent;
+    background: #eeeeee;
+    color: #0a0a0a;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
-
-.btn-filter {
-    background: #efefef;
-    color: #101010;
-    border-color: #efefef;
+.btn-apply:hover {
+    background: #fff;
 }
-
-.btn-filter:hover {
-    background: #dbdbdb;
-}
+.btn-apply:active { transform: translateY(1px) scale(0.98); }
 
 .btn-reset {
-    background: #2a2a2a;
-    color: #d6d6d6;
-    border-color: #383838;
+    border-radius: 7px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    font-family: inherit;
+    cursor: pointer;
+    background: rgba(255,255,255,0.04);
+    color: #999999;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
-
 .btn-reset:hover {
-    background: #343434;
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.12);
 }
 
-.kpi-grid {
+/* Desktop: compact date inputs (same visual length as dashboard);
+   Apply/Reset sit right beside the date fields */
+@media (min-width: 769px) {
+    .dash-filter-row .filter-group {
+        flex: 0 0 auto;
+        min-width: 0;
+    }
+
+    .dash-filter-row .filter-group input[type="date"] {
+        flex: none;
+        width: 150px;
+    }
+
+    .dash-filter-row .filter-group select {
+        flex: none;
+        width: 150px;
+    }
+}
+
+/* Mobile: exact same stacked grid layout as the admin dashboard filter
+   (icon + label on top, 2-col date fields, full-width 50/50 buttons).
+   Placed after admin_base.css rules in cascade order, so these win. */
+@media (max-width: 768px) {
+    .dash-filter-row {
+        display: grid !important;
+        grid-template-columns: auto 1fr !important;
+        grid-template-areas:
+            "icon label"
+            "fields fields";
+        align-items: center !important;
+        gap: 0.7rem 0.6rem !important;
+        flex-direction: row !important;
+    }
+
+    .dash-filter-row .filter-icon {
+        grid-area: icon !important;
+        align-self: center !important;
+        margin-top: 0 !important;
+    }
+
+    .dash-filter-row .filter-label {
+        grid-area: label !important;
+        margin-right: 0 !important;
+        align-self: center !important;
+    }
+
+    .dash-filter-row .filter-sep {
+        display: none !important;
+    }
+
+    .dash-filter-row .filter-fields {
+        grid-area: fields !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        align-items: start !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+        flex: none !important;
+    }
+
+    .dash-filter-row .filter-group {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
+        flex: none !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+
+    .dash-filter-row .filter-group label {
+        width: 100% !important;
+        text-align: left !important;
+    }
+
+    .dash-filter-row .filter-group input,
+    .dash-filter-row .filter-group select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .dash-filter-row .filter-inline-actions {
+        grid-column: 1 / -1 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.4rem !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+        margin-left: 0 !important;
+    }
+
+    .dash-filter-row .filter-inline-actions .btn-apply,
+    .dash-filter-row .filter-inline-actions .btn-reset {
+        flex: 1 1 calc(50% - 0.2rem) !important;
+        min-width: 0 !important;
+        text-align: center !important;
+    }
+
+    /* Panel heads: stack cleanly — title on its own row, tools below */
+    .panel-head {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .panel-head h2 {
+        flex: 1 1 100%;
+        font-size: 1.05rem;
+    }
+
+    .panel-head > span {
+        margin-left: auto;
+    }
+
+    .queue-tools {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Tables stay as real tables: wider than the screen, scrolled horizontally */
+    .table-wrap table {
+        min-width: 640px;
+    }
+}
+
+/* ═══ KPI SUMMARY CARDS — identical design to admin booking summary ═══
+   (values mirrored from admin_booking.css; 4 cards = booking's top row) */
+.booking-summary-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.9rem;
+    gap: 1rem;
 }
 
-.kpi-card {
-    background: #0e0e0e;
-    border: 1px solid #232323;
-    border-radius: 10px;
-    padding: 0.95rem 1rem;
+.booking-summary-card {
+    position: relative;
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    padding: 0.8rem 1.1rem;
+    overflow: hidden;
+}
+
+.booking-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 2px;
+    opacity: 0.95;
+}
+
+.booking-summary-card--total::before {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.booking-summary-card--pending::before {
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
+.booking-summary-card--confirmed::before {
+    background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+}
+
+.booking-summary-card--completed::before {
+    background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.booking-summary-head {
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
 }
 
-.kpi-label {
-    color: #8d95a0;
-    font-size: 0.76rem;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+.booking-summary-label {
+    font-size: 0.75rem;
     font-weight: 600;
+    color: #8a8a8a;
 }
 
-.kpi-value {
-    color: #fff;
-    font-size: 1.6rem;
-    line-height: 1.15;
-    font-weight: 800;
+.booking-summary-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+    flex-shrink: 0;
 }
 
-.kpi-note {
-    font-size: 0.78rem;
-    color: #88919b;
+.booking-summary-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.booking-summary-card--total .booking-summary-icon {
+    color: #60a5fa;
+}
+
+.booking-summary-card--pending .booking-summary-icon {
+    color: #f59e0b;
+}
+
+.booking-summary-card--confirmed .booking-summary-icon {
+    color: #2dd4bf;
+}
+
+.booking-summary-card--completed .booking-summary-icon {
+    color: #10b981;
+}
+
+.booking-summary-value {
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+    margin-bottom: 0.45rem;
+}
+
+.booking-summary-sub {
+    font-size: 0.82rem;
+    color: #777777;
+}
+
+@media (max-width: 1024px) {
+    .booking-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    .booking-summary-card {
+        padding: 0.8rem 0.9rem;
+    }
+
+    .booking-summary-value {
+        font-size: 1.55rem;
+    }
+
+    .booking-summary-label {
+        font-size: 0.72rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .booking-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .booking-summary-card {
+        padding: 0.7rem 0.8rem;
+    }
+
+    .booking-summary-value {
+        font-size: 1.35rem;
+    }
 }
 
 .panel {
@@ -221,6 +561,8 @@
     border: 1px solid #202020;
     border-radius: 10px;
     background: #0c0c0c;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a #141414;
 }
 
 table {
@@ -664,12 +1006,6 @@ tbody tr:last-child td {
     filter: brightness(0.9);
 }
 
-@media (max-width: 1100px) {
-    .kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
 @media (max-width: 700px) {
     .concerns-head {
         align-items: flex-start;
@@ -677,19 +1013,6 @@ tbody tr:last-child td {
 
     .concerns-head h1 {
         font-size: 1.6rem;
-    }
-
-    .filter-form {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .filter-group input {
-        min-width: 100%;
-    }
-
-    .kpi-grid {
-        grid-template-columns: 1fr;
     }
 
     .notif-list li {
@@ -1717,4 +2040,229 @@ td {
     .admin-concern-modal .concern-modal-head h3 {
         font-size: 1.35rem;
     }
+}
+
+
+/* ========================================================
+   LIGHT THEME OVERRIDES
+   ======================================================== */
+[data-theme="light"] {
+    --card-bg: #ffffff;
+    --card-bg-s: #f9fafb;
+    --card-bdr: rgba(0, 0, 0, 0.1);
+    --card-bdr-h: rgba(0, 0, 0, 0.2);
+    --t1: #111827;
+    --t2: #4b5563;
+    --t3: #6b7280;
+    --t4: #9ca3af;
+}
+
+[data-theme="light"] .container,
+[data-theme="light"] .wrapper,
+[data-theme="light"] .card,
+[data-theme="light"] .box,
+[data-theme="light"] .panel,
+[data-theme="light"] .modal-content,
+[data-theme="light"] .auth-container,
+[data-theme="light"] .profile-card,
+[data-theme="light"] .booking-card,
+[data-theme="light"] .review-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .dashboard-card,
+[data-theme="light"] .table-container {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .table th,
+[data-theme="light"] table th,
+[data-theme="light"] .data-table th {
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .table td,
+[data-theme="light"] table td,
+[data-theme="light"] .data-table td {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] tr:hover td {
+    background-color: #f9fafb !important;
+}
+
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="number"],
+[data-theme="light"] input[type="date"],
+[data-theme="light"] input[type="time"],
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+    background-color: #f9fafb !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+    background-color: #ffffff !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+[data-theme="light"] .text-muted,
+[data-theme="light"] .help-text,
+[data-theme="light"] .sub-text,
+[data-theme="light"] small {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .btn-outline {
+    border-color: #d1d5db !important;
+    color: #374151 !important;
+}
+[data-theme="light"] .btn-outline:hover {
+    background-color: #f3f4f6 !important;
+}
+
+[data-theme="light"] .notification-dropdown,
+[data-theme="light"] .notif-header,
+[data-theme="light"] .notif-item {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-item:hover {
+    background-color: #f9fafb !important;
+}
+
+[data-theme="light"] .notif-date-header {
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .notif-content p {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-empty {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .canvas-container {
+    background-color: #f3f4f6 !important;
+}
+
+/* ── Concerns Page: Light Mode Fixes ── */
+
+/* Panels: solid white (kills the dark gradient) + subtle shadow */
+[data-theme="light"] .panel {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* KPI summary cards (booking-summary style) */
+[data-theme="light"] .booking-summary-card {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .booking-summary-value {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .booking-summary-label,
+[data-theme="light"] .booking-summary-sub {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .booking-summary-icon {
+    border-color: #e5e7eb !important;
+    background: #f9fafb !important;
+}
+
+/* Subtitle */
+[data-theme="light"] .concerns-sub {
+    color: #6b7280 !important;
+}
+
+/* Notification items inside the panel */
+[data-theme="light"] .notif-list li {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .notif-list strong {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-list p {
+    color: #4b5563 !important;
+}
+
+[data-theme="light"] .notif-list small {
+    color: #6b7280 !important;
+}
+
+/* Queue status dropdown trigger: white with dark caret */
+[data-theme="light"] .queue-status-dropdown .dropdown-trigger {
+    background: #ffffff !important;
+    border-color: #d1d5db !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .queue-status-dropdown .dropdown-caret {
+    border-right-color: #4b5563 !important;
+    border-bottom-color: #4b5563 !important;
+}
+
+/* Pagination buttons */
+[data-theme="light"] .concerns-pagination .page-link {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .concerns-pagination .page-link:hover:not(.disabled) {
+    background: #f3f4f6 !important;
+    border-color: #d1d5db !important;
+}
+
+/* Table wrapper: light border to match white surface */
+[data-theme="light"] .table-wrap {
+    border-color: #e5e7eb !important;
+    scrollbar-color: #9ca3af #e5e7eb;
+}
+
+/* Table horizontal scrollbar: light gray slim pill */
+[data-theme="light"] .table-wrap::-webkit-scrollbar-track {
+    background: #e5e7eb;
+}
+
+[data-theme="light"] .table-wrap::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
 }

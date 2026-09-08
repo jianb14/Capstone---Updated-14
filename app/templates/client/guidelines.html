@@ -1,41 +1,25 @@
 {% extends 'client/base.html' %}
 {% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/client_policies.css' %}">
+{% endblock %}
+
 {% block content %}
-<section class="section" style="padding: 6rem 5% 4rem 5%; background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.1px, transparent 1px); background-size: 25px 25px;">
-    <div style="max-width: 980px; margin: 0 auto; background: black; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 2rem;">
-        <h1 style="font-size: 1.5rem; margin-bottom: 0.8rem;">Booking Guidelines</h1>
-        <p style="color: rgba(255,255,255,0.78); margin-bottom: 1.4rem;">
-            These guidelines explain how booking, payment, and status updates work inside the Balloorina system.
+<section class="policy-section">
+    <div class="policy-card">
+        <h1>{{ policy.title|default:"Booking Guidelines" }}</h1>
+        <p class="policy-intro">
+            {{ policy.intro }}{% if policy.attachment_url %} <a class="policy-link" href="{{ policy.attachment_url }}" target="_blank" rel="noopener">{{ policy.attachment_label }}</a>{% endif %}
         </p>
-        <ol style="padding-left: 1.2rem; line-height: 1.75;">
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Complete and Accurate Booking Details:</strong> Make sure your event date, time, location, package selection, and special requests are correct before submitting your booking request.
+        <ol class="policy-list">
+            {% for item in policy_items %}
+            <li>
+                {% if item.heading %}<strong>{{ item.heading }}:</strong> {% endif %}{{ item.body|urlize }}
             </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Booking Status Flow:</strong> Booking requests are reviewed by admin. Your booking status may update as Pending, Pending Payment, Confirmed, Completed, or Expired based on verification and event timeline.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Required Initial Payment:</strong> For bookings that proceed to payment, the system may require an initial payment amount before full confirmation, based on current payment settings.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Payment Verification:</strong> Submitted payments are subject to admin verification. While payment is pending verification, please avoid sending duplicate payments for the same booking.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Non-Refundable Payment Notice:</strong> Upon checkout, you are required to confirm that completed payments are non-refundable and non-cancellable, except where required by law.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Track Updates in Your Account:</strong> Always monitor your booking and payment records in My Bookings and My Payments to stay updated on status changes and admin actions.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Edits and Requests:</strong> If you need to update booking details, use the available system actions as early as possible. Late changes may be limited depending on booking status.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Account Responsibility:</strong> Keep your profile information updated and secure your account credentials. Actions submitted through your account are treated as your confirmed requests.
-            </li>
-            <li style="margin-bottom: 0.8rem;">
-                <strong>Need Help:</strong> For booking or payment concerns, contact Balloorina support through the channels provided on the website so your concern can be reviewed promptly.
-            </li>
+            {% empty %}
+            <li class="policy-empty-note">Content coming soon.</li>
+            {% endfor %}
         </ol>
     </div>
 </section>

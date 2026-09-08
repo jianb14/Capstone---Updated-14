@@ -52,6 +52,19 @@
                 </svg>
                 <span>Payments</span>
             </a>
+            <a href="{% url 'admin_chat_inbox' %}"
+                class="{% if request.resolver_match.url_name == 'admin_chat_inbox' or request.resolver_match.url_name == 'admin_chat_thread' %}active{% endif %}">
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <path d="M8 9h8"></path>
+                    <path d="M8 13h5"></path>
+                </svg>
+                <span>Chat</span>
+                {% if admin_chat_pending_count or admin_chat_unread_count %}
+                <span class="nav-count-badge">{{ admin_chat_pending_count|default:admin_chat_unread_count }}</span>
+                {% endif %}
+            </a>
         </div>
 
         <!-- Content Management -->
@@ -106,6 +119,17 @@
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
                 <span>About Page</span>
+            </a>
+            <a href="{% url 'admin_guidelines_content' %}"
+                class="{% if request.resolver_match.url_name == 'admin_guidelines_content' %}active{% endif %}">
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                </svg>
+                <span>Guidelines &amp; Policies</span>
             </a>
             <a href="{% url 'admin_service_content' %}"
                 class="{% if request.resolver_match.url_name == 'admin_service_content' or 'service_item' in request.resolver_match.url_name %}active{% endif %}">
@@ -174,9 +198,73 @@
             </a>
         </div>
     </div>
+
+    <div class="sidebar-user-section show-on-mobile">
+        <div class="sidebar-user-divider"></div>
+        <div class="sidebar-user-dropdown" id="sidebarUserDropdown">
+            <div class="sidebar-user-card sidebar-user-trigger">
+                <div class="sidebar-user-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
+                <div class="sidebar-user-info">
+                    <strong>{{ user.first_name|default:user.username }}</strong>
+                    <span>
+                        {% if user.role == 'admin' %}
+                        Administrator
+                        {% else %}
+                        Staff
+                        {% endif %}
+                    </span>
+                </div>
+                <svg class="sidebar-user-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+            <div class="sidebar-user-dropdown-menu">
+                <a href="{% url 'admin_profile' %}" class="sidebar-user-link">
+                    <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>My Profile</span>
+                </a>
+                <a href="{% url 'logout' %}" class="sidebar-user-link sidebar-logout">
+                    <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Log Out</span>
+                </a>
+            </div>
+        </div>
+    </div>
     {% endif %}
     {% endif %}
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const sidebarUserDropdown = document.getElementById("sidebarUserDropdown");
+        if (sidebarUserDropdown) {
+            const trigger = sidebarUserDropdown.querySelector(".sidebar-user-trigger");
+            const menu = sidebarUserDropdown.querySelector(".sidebar-user-dropdown-menu");
+
+            trigger.addEventListener("click", function (e) {
+                e.stopPropagation();
+                sidebarUserDropdown.classList.toggle("open");
+            });
+
+            window.addEventListener("click", function (e) {
+                if (sidebarUserDropdown.classList.contains("open") && !sidebarUserDropdown.contains(e.target)) {
+                    sidebarUserDropdown.classList.remove("open");
+                }
+            });
+        }
+    });
+</script>
+
 <!--
 
 

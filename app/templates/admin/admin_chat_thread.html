@@ -1,0 +1,1027 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Chat with {{ session.user.get_full_name|default:session.user.username }} - Balloorina{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260906f">
+{% endblock %}
+
+{% block content %}
+<div class="admin-chat-shell">
+    <div class="admin-chat-page-head compact">
+        <div>
+            <h1>Client Support Center</h1>
+            <p>Respond to this client and keep the support conversation organized.</p>
+        </div>
+    </div>
+
+    <div class="admin-chat-wrap thread-view">
+        <aside class="admin-chat-sidebar">
+            <div class="chat-sidebar-head">
+                <h2>Support Inbox</h2>
+                <div class="admin-chat-tools">
+                    <label class="admin-chat-search" for="adminSessionSearch">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </svg>
+                        <input id="adminSessionSearch" type="search" placeholder="Search client or message">
+                    </label>
+                </div>
+            </div>
+            <div class="chat-session-scroll">
+                {% for item in all_sessions %}
+                <a href="{% url 'admin_chat_thread' item.id %}"
+                   class="session-card {% if item.id == session.id %}active{% endif %} {% if item.has_unread_for_admin %}has-unread{% endif %}"
+                   data-search="{{ item.user.get_full_name|default:item.user.username }} {{ item.user.email }} {{ item.title }} {{ item.last_msg_text|default:'' }}">
+                    <div class="sc-avatar">{{ item.user.first_name|default:item.user.username|slice:":1"|upper }}</div>
+                    <div class="sc-info">
+                        <div class="sc-name">{{ item.user.get_full_name|default:item.user.username }}</div>
+                        <div class="sc-preview">
+                            {% if item.last_msg_has_image %}
+                            📷 Image sent
+                            {% elif item.last_msg_text %}
+                            {{ item.last_msg_text|striptags|truncatechars:74 }}
+                            {% else %}
+                            No messages yet
+                            {% endif %}
+                        </div>
+                        <div class="sc-meta-line">
+                            {% if item.last_msg_time %}
+                            <span class="sc-time">{{ item.last_msg_time|date:"M d, g:i A" }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if item.unread_admin_count %}
+                    <span class="sc-unread-badge">{{ item.unread_admin_count }} new message{{ item.unread_admin_count|pluralize }}</span>
+                    {% endif %}
+                </a>
+                {% empty %}
+                <div class="empty-state">
+                    <p>No admin support chats.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <main class="admin-chat-main">
+            <header class="admin-thread-header">
+                <a href="{% url 'admin_chat_inbox' %}" class="thread-back" title="Back to inbox" aria-label="Back to inbox">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div class="thread-user">
+                    <div class="thread-avatar">{{ session.user.first_name|default:session.user.username|slice:":1"|upper }}</div>
+                    <div>
+                        <h3>{{ session.user.get_full_name|default:session.user.username }}</h3>
+                        <div id="clientPresenceStatus" class="presence-status">
+                            {% if client_is_online %}
+                            <span class="thread-status online"><span class="thread-status-dot"></span> Online</span>
+                            {% else %}
+                            <span class="thread-status offline"><span class="thread-status-dot"></span> Offline</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="thread-actions">
+                    <div class="thread-search-wrap">
+                        <label class="admin-thread-search" for="threadSearchInput">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.3-4.3"></path>
+                            </svg>
+                            <input type="search" id="threadSearchInput" placeholder="Search conversation...">
+                        </label>
+                        <div class="thread-search-panel" id="threadSearchPanel" hidden>
+                            <div class="thread-search-list" id="threadSearchList"></div>
+                            <div class="thread-search-empty" id="threadSearchEmpty" hidden>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.3-4.3"></path>
+                                </svg>
+                                <p>No results found</p>
+                                <span>Try a different keyword.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="{% url 'admin_chat_inbox' %}" class="btn-back">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </header>
+
+            <div class="thread-messages" id="threadMessages">
+                {% if messages %}
+                <div class="admin-chat-server-errors">
+                    {% for message in messages %}
+                    <div class="admin-chat-server-error">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% for message in chat_messages %}
+                <div class="admin-msg-row {% if message.is_from_admin %}admin{% else %}client{% endif %} {% if not message.is_deleted and message.reaction_emojis %}has-reactions{% endif %}" data-message-id="{{ message.id }}">
+                    {% if message.reply_to %}
+                    <div class="reply-preview{% if not message.reply_to.is_deleted and not message.reply_to.message and message.reply_to.image %} has-photo{% endif %}" data-reply-to-id="{{ message.reply_to.id }}" title="Jump to original message">
+                        {% if message.reply_to.is_deleted %}
+                        <span class="reply-preview-text">↩ This message was deleted</span>
+                        {% elif message.reply_to.message %}
+                        <span class="reply-preview-text">↩ {{ message.reply_to.message|truncatechars:60 }}</span>
+                        {% elif message.reply_to.image %}
+                        <span class="reply-preview-icon"><i class="fas fa-image"></i></span>
+                        <span class="reply-preview-text">Photo</span>
+                        {% else %}
+                        <span class="reply-preview-text">↩ Message</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="chat-bubble">
+                        {% if message.is_deleted %}
+                        <div class="chat-message-text deleted">This message was deleted</div>
+                        {% else %}
+                        {% if message.message %}
+                        <div class="chat-message-text">{{ message.message|linebreaksbr }}</div>
+                        {% endif %}
+                        {% if message.image %}
+                        <div class="chat-image-wrap">
+                            <a href="{{ message.image.url }}" class="chat-image-link js-lightbox" data-lightbox-url="{{ message.image.url }}" data-lightbox-name="{{ message.image_original_name|default:'Chat image' }}">
+                                <img class="chat-message-image" src="{{ message.image.url }}" alt="{{ message.image_original_name|default:'Chat image' }}" loading="lazy">
+                            </a>
+                            <a href="{{ message.image.url }}" download="{{ message.image_original_name|default:'chat-image' }}" class="chat-image-download" title="Save image" aria-label="Save image"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if not message.is_deleted and message.reaction_emojis %}
+                        <div class="reactions-row" data-message-id="{{ message.id }}">
+                            <button type="button" class="reaction-chip {% if message.reaction_mine %}mine{% endif %}" data-my-emoji="{{ message.reaction_mine }}" title="Reaction">{{ message.reaction_emojis }} <span class="count">{{ message.reaction_total }}</span></button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="msg-meta">
+                        <span class="am-time">
+                            {{ message.sent_at|date:"M d, g:i A" }}
+                            {% if message.is_edited %}<span class="am-edited">(Edited)</span>{% endif %}
+                        </span>
+                        {% if message.is_from_admin and not message.is_deleted %}
+                        <span class="am-receipt {% if message.is_read %}seen{% elif message.is_delivered %}delivered{% else %}sent{% endif %}">
+                            {% if message.is_read %}✓ Seen{% if message.read_at %} {{ message.read_at|date:"g:i A" }}{% endif %}
+                            {% elif message.is_delivered %}✓ Delivered
+                            {% else %}Sent
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {% if not message.is_deleted %}
+                    <div class="msg-actions">
+                        <button type="button" class="msg-action-btn react-btn" title="React" aria-label="React"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg></button>
+                        <button type="button" class="msg-action-btn reply-btn" title="Reply" aria-label="Reply"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg></button>
+                        {% if message.is_from_admin %}
+                        {% if message.message and not message.image %}
+                        <button type="button" class="msg-action-btn edit-btn" title="Edit message" aria-label="Edit message"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg></button>
+                        {% endif %}
+                        <button type="button" class="msg-action-btn delete-btn" title="Delete message" aria-label="Delete message"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-regular fa-comment"></i></div>
+                    <h2>No messages yet</h2>
+                    <p>This conversation is ready when the client sends a message.</p>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="typing-indicator thread-typing-indicator" id="adminTypingIndicator" hidden>
+                <span class="typing-dots"><span></span><span></span><span></span></span>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="thread-reply-box" id="replyForm">
+                {% csrf_token %}
+                <input type="hidden" name="reply_to_id" id="replyToInput" value="">
+                <div class="reply-preview-bar" id="replyPreviewBar" hidden>
+                    <span class="reply-bar-label">Replying to</span>
+                    <span class="reply-preview-text" id="replyPreviewText"></span>
+                    <button type="button" class="close" id="replyPreviewClose" aria-label="Cancel reply">&times;</button>
+                </div>
+                <div class="reply-preview-bar edit-preview-bar" id="editPreviewBar" hidden>
+                    <span class="reply-bar-label">Edit message</span>
+                    <span class="reply-preview-text" id="editPreviewText"></span>
+                    <button type="button" class="close" id="editPreviewClose" aria-label="Cancel edit">&times;</button>
+                </div>
+                <div class="chat-attachment-preview" id="adminReplyImagePreview" hidden></div>
+                <div class="thread-reply-input-row">
+                    <label class="chat-attach-btn" for="adminReplyImage" aria-label="Attach image" title="Attach image">
+                        <i class="fas fa-image"></i>
+                    </label>
+                    <input type="file" name="image" id="adminReplyImage" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
+                    <textarea name="message" id="replyMessage" rows="1" placeholder="Type your admin reply..."></textarea>
+                    <button type="submit" class="btn-send-reply" aria-label="Send reply">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 19V5"></path>
+                            <path d="M5 12l7-7 7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <small class="reply-hint">Images only. Up to 15MB each. Enter to send, Shift+Enter for newline.</small>
+            </form>
+        </main>
+    </div>
+</div>
+
+<!-- Delete confirmation dialog -->
+<div class="chat-confirm-overlay" id="chatConfirmOverlay" hidden>
+    <div class="chat-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="chatConfirmTitle">
+        <h4 id="chatConfirmTitle">Delete message?</h4>
+        <p>This message will be permanently removed for both of you. This action can&rsquo;t be undone.</p>
+        <div class="chat-confirm-actions">
+            <button type="button" class="chat-confirm-cancel" id="chatConfirmCancel">Cancel</button>
+            <button type="button" class="chat-confirm-delete" id="chatConfirmDelete">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Image lightbox -->
+<div class="chat-lightbox" id="chatLightbox" hidden>
+    <button type="button" class="lightbox-close" id="chatLightboxClose" aria-label="Close preview">&times;</button>
+    <button type="button" class="lightbox-prev" id="chatLightboxPrev" aria-label="Previous image">&#8249;</button>
+    <img class="lightbox-img" id="chatLightboxImg" src="" alt="Chat image">
+    <button type="button" class="lightbox-next" id="chatLightboxNext" aria-label="Next image">&#8250;</button>
+    <div class="lightbox-caption" id="chatLightboxCaption"></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const threadMessages = document.getElementById("threadMessages");
+    const replyForm = document.getElementById("replyForm");
+    const replyTextarea = document.getElementById("replyMessage");
+    const replyToInput = document.getElementById("replyToInput");
+    const replyPreviewBar = document.getElementById("replyPreviewBar");
+    const replyPreviewText = document.getElementById("replyPreviewText");
+    const replyPreviewClose = document.getElementById("replyPreviewClose");
+    const replyImageInput = document.getElementById("adminReplyImage");
+    const replyImagePreview = document.getElementById("adminReplyImagePreview");
+    const typingIndicator = document.getElementById("adminTypingIndicator");
+    const clientPresence = document.getElementById("clientPresenceStatus");
+    const threadSearchInput = document.getElementById("threadSearchInput");
+    const sessionSearchInput = document.getElementById("adminSessionSearch");
+    const sessionCards = document.querySelectorAll(".session-card");
+
+    const CSRF = "{{ csrf_token }}";
+    const SESSION_ID = {{ session.id }};
+    const REACTION_EMOJIS = ["👍", "❤️", "😮", "😂", "😢"];
+    const ICON_REACT = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>';
+    const ICON_REPLY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>';
+    const ICON_EDIT = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>';
+    const ICON_DELETE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+    const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+    const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+    const POLL_URL = "{% url 'admin_chat_poll' %}";
+    const UNREAD_POLL_URL = "{% url 'admin_chat_unread_poll' %}";
+    const REACT_URL = "{% url 'chat_reaction' %}";
+    const EDIT_URL = "{% url 'chat_edit_message' %}";
+    const DELETE_URL = "{% url 'chat_delete_message' %}";
+    const TYPING_URL = "{% url 'chat_typing_ping' %}";
+
+    let lastMessageId = 0;
+    let activeReactionPicker = null;
+    let typingTimer = null;
+    let lastTypingSent = 0;
+
+    document.querySelectorAll(".admin-msg-row").forEach(function (row) {
+        const id = Number(row.dataset.messageId) || 0;
+        if (id > lastMessageId) lastMessageId = id;
+    });
+
+    function scrollToBottom() {
+        if (threadMessages) threadMessages.scrollTop = threadMessages.scrollHeight;
+    }
+    scrollToBottom();
+    window.addEventListener("load", scrollToBottom);
+    setTimeout(scrollToBottom, 350);
+    document.querySelectorAll(".chat-message-image").forEach(function (img) {
+        if (!img.complete) img.addEventListener("load", scrollToBottom, { once: true });
+    });
+
+    /* ── Session search (sidebar) ── */
+    if (sessionSearchInput) {
+        sessionSearchInput.addEventListener("input", function () {
+            const q = (this.value || "").toLowerCase().trim();
+            sessionCards.forEach(function (card) {
+                const hay = (card.dataset.search || "").toLowerCase();
+                card.style.display = (!q || hay.indexOf(q) !== -1) ? "" : "none";
+            });
+        });
+    }
+
+    /* ── Escape helpers ── */
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = value || "";
+        return div.innerHTML;
+    }
+
+    function receiptHtml(isFromAdmin, seen, delivered, seenAt) {
+        if (!isFromAdmin) return "";
+        if (seen) return '<span class="am-receipt seen">✓ Seen' + (seenAt ? " " + seenAt : "") + '</span>';
+        if (delivered) return '<span class="am-receipt delivered">✓ Delivered</span>';
+        return '<span class="am-receipt sent">Sent</span>';
+    }
+
+    /* Reply quote chip: image icon + "Photo" text — same style as the client widget */
+    function replyPreviewHtml(r) {
+        const id = escapeHtml(String((r && r.id) || ""));
+        let cls = "reply-preview";
+        let inner;
+        if (r.is_deleted) {
+            inner = '<span class="reply-preview-text">↩ This message was deleted</span>';
+        } else if (r.text) {
+            inner = '<span class="reply-preview-text">↩ ' + escapeHtml(String(r.text).substring(0, 60)) + '</span>';
+        } else if (r.has_image) {
+            cls += " has-photo";
+            inner = '<span class="reply-preview-icon"><i class="fas fa-image"></i></span><span class="reply-preview-text">Photo</span>';
+        } else {
+            inner = '<span class="reply-preview-text">↩ Message</span>';
+        }
+        return '<div class="' + cls + '" data-reply-to-id="' + id + '" title="Jump to original message">' + inner + '</div>';
+    }
+
+    function renderPolledMessage(msg) {
+        const isAdmin = !!msg.is_from_admin;
+        const row = document.createElement("div");
+        row.className = "admin-msg-row " + (isAdmin ? "admin" : "client");
+        row.dataset.messageId = msg.id;
+
+        let replyHtml = "";
+        if (msg.reply_to && !msg.is_deleted) {
+            replyHtml = replyPreviewHtml(msg.reply_to);
+        }
+
+        let bodyHtml = "";
+        if (msg.is_deleted) {
+            bodyHtml = '<div class="chat-message-text deleted">This message was deleted</div>';
+        } else {
+            if (msg.content) bodyHtml += '<div class="chat-message-text">' + escapeHtml(msg.content) + '</div>';
+            if (msg.image_url) {
+                bodyHtml += '<div class="chat-image-wrap"><a href="' + msg.image_url + '" class="chat-image-link js-lightbox" data-lightbox-url="' + msg.image_url + '" data-lightbox-name="' + escapeHtml(msg.image_name || "Chat image") + '">' +
+                    '<img class="chat-message-image" src="' + msg.image_url + '" alt="Chat image" loading="lazy"></a>' +
+                    '<a href="' + msg.image_url + '" download="' + escapeHtml(msg.image_name || "chat-image") + '" class="chat-image-download" title="Save image" aria-label="Save image">' + ICON_DOWNLOAD + '</a></div>';
+            }
+        }
+
+        const editedMark = msg.is_edited ? ' <span class="am-edited">(Edited)</span>' : "";
+        row.innerHTML =
+            replyHtml +
+            '<div class="chat-bubble">' + bodyHtml + '</div>' +
+            '<div class="msg-meta">' +
+            '<span class="am-time">' + escapeHtml(msg.sent_at || "") + editedMark + '</span>' +
+            receiptHtml(isAdmin, msg.seen, msg.delivered, msg.seen_at) +
+            '</div>' +
+            (msg.is_deleted ? "" :
+            '<div class="msg-actions">' +
+            '<button type="button" class="msg-action-btn react-btn" title="React">' + ICON_REACT + '</button>' +
+            '<button type="button" class="msg-action-btn reply-btn" title="Reply">' + ICON_REPLY + '</button>' +
+            (isAdmin && msg.content && !msg.image_url
+                ? '<button type="button" class="msg-action-btn edit-btn" title="Edit message">' + ICON_EDIT + '</button>'
+                : "") +
+            (isAdmin
+                ? '<button type="button" class="msg-action-btn delete-btn" title="Delete message">' + ICON_DELETE + '</button>'
+                : "")) +
+            '</div>';
+        renderReactionChips(msg, row);
+        return row;
+    }
+
+    function reactionsPillHtml(reactions, mine) {
+        const counts = reactions || {};
+        const emojis = Object.keys(counts).join("");
+        if (!emojis) return "";
+        const total = Object.keys(counts).reduce(function (acc, k) { return acc + counts[k]; }, 0);
+        const myEmoji = (mine || [])[0] || "";
+        return '<button type="button" class="reaction-chip ' + (myEmoji ? "mine" : "") + '" data-my-emoji="' + escapeHtml(myEmoji) + '">' +
+            escapeHtml(emojis) + ' <span class="count">' + total + '</span></button>';
+    }
+
+    function renderReactionChips(msg, rowOverride) {
+        const row = rowOverride || threadMessages.querySelector('.admin-msg-row[data-message-id="' + msg.id + '"]');
+        if (!row) return;
+        const html = (msg.is_deleted ? "" : reactionsPillHtml(msg.reactions, msg.my_reactions));
+        let container = row.querySelector(".reactions-row");
+        if (!html) {
+            if (container) container.remove();
+            row.classList.remove("has-reactions");
+            return;
+        }
+        if (!container) {
+            container = document.createElement("div");
+            container.className = "reactions-row";
+            // Keep the pill INSIDE the bubble so it stays glued to the
+            // message's bottom edge (Messenger-style), never on the date line.
+            const bubble = row.querySelector(".chat-bubble");
+            if (bubble) bubble.appendChild(container);
+            else row.appendChild(container);
+        }
+        container.dataset.messageId = msg.id;
+        container.innerHTML = html;
+        row.classList.add("has-reactions");
+    }
+
+    /* ── Reply / quote setup ── */
+    function setReplyTo(messageId, senderName, text) {
+        /* Only one mode at a time — starting a reply cancels any active edit */
+        if (editingMessageId) {
+            editingMessageId = null;
+            if (editPreviewBar) editPreviewBar.hidden = true;
+            if (replyTextarea) replyTextarea.value = "";
+        }
+        if (replyToInput) replyToInput.value = messageId;
+        if (replyPreviewText) replyPreviewText.textContent = text.substring(0, 60);
+        if (replyPreviewBar) replyPreviewBar.hidden = false;
+        if (replyTextarea) replyTextarea.focus();
+    }
+    function clearReplyTo() {
+        if (replyToInput) replyToInput.value = "";
+        if (replyPreviewBar) replyPreviewBar.hidden = true;
+        if (replyPreviewText) replyPreviewText.textContent = "";
+    }
+    if (replyPreviewClose) replyPreviewClose.addEventListener("click", clearReplyTo);
+
+    /* ── Click a reply quote → scroll to the original message (Messenger-style) ── */
+    let jumpFlashTimer = null;
+    function jumpToMessage(messageId) {
+        if (!messageId || !threadMessages) return;
+        const target = threadMessages.querySelector('.admin-msg-row[data-message-id="' + String(messageId) + '"]');
+        if (!target) return;
+        if (target.style.display === "none") target.style.display = "";
+        threadMessages.querySelectorAll(".admin-msg-row.reply-jump").forEach(function (el) {
+            el.classList.remove("reply-jump");
+        });
+        void target.offsetWidth;
+        target.classList.add("reply-jump");
+        if (jumpFlashTimer) clearTimeout(jumpFlashTimer);
+        jumpFlashTimer = setTimeout(function () { target.classList.remove("reply-jump"); }, 1600);
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    /* ── Attachment preview + validation ── */
+    function validateImages(files) {
+        const list = Array.from(files || []);
+        for (const file of list) {
+            if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+                alert("Images only: JPG, PNG, GIF, or WEBP.");
+                return false;
+            }
+            if (file.size > MAX_IMAGE_BYTES) {
+                alert("Image must be 15MB or smaller.");
+                return false;
+            }
+        }
+        return true;
+    }
+    function renderReplyAttachmentPreview(files) {
+        if (!replyImagePreview) return;
+        const list = Array.from(files || []);
+        if (!list.length) { replyImagePreview.hidden = true; replyImagePreview.innerHTML = ""; return; }
+        replyImagePreview.hidden = false;
+        const label = list.length === 1 ? list[0].name : list[0].name + " +" + (list.length - 1) + " more";
+        replyImagePreview.innerHTML = '<span>📎 ' + escapeHtml(label) + ' (' + list.length + ' image' + (list.length === 1 ? "" : "s") + ')</span>' +
+            '<button type="button" aria-label="Remove image">&times;</button>';
+        replyImagePreview.querySelector("button").addEventListener("click", function () {
+            if (replyImageInput) replyImageInput.value = "";
+            replyImagePreview.hidden = true;
+            replyImagePreview.innerHTML = "";
+        });
+    }
+    if (replyImageInput) {
+        replyImageInput.addEventListener("change", function () {
+            if (!validateImages(replyImageInput.files)) { replyImageInput.value = ""; return; }
+            renderReplyAttachmentPreview(replyImageInput.files);
+        });
+    }
+
+    /* ── In-thread search (Messenger-style results panel) ── */
+    if (threadSearchInput) {
+        const searchPanel = document.getElementById("threadSearchPanel");
+        const searchList = document.getElementById("threadSearchList");
+        const searchEmpty = document.getElementById("threadSearchEmpty");
+        const clientName = (((document.querySelector(".thread-user h3") || {}).textContent) || "Client").trim() || "Client";
+        let searchDebounce = null;
+
+        function closeThreadSearch() {
+            if (searchPanel) searchPanel.hidden = true;
+        }
+
+        function jumpToSearchResult(row) {
+            const target = threadMessages.querySelector('.admin-msg-row[data-message-id="' + row.dataset.messageId + '"]');
+            if (!target) return;
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+            target.classList.remove("search-hit");
+            void target.offsetWidth; /* restart the flash animation */
+            target.classList.add("search-hit");
+            setTimeout(function () { target.classList.remove("search-hit"); }, 1800);
+        }
+
+        function renderThreadSearch() {
+            if (!searchPanel || !searchList || !searchEmpty) return;
+            const q = (threadSearchInput.value || "").toLowerCase().trim();
+            if (!q) { closeThreadSearch(); return; }
+
+            const results = [];
+            threadMessages.querySelectorAll(".admin-msg-row").forEach(function (row) {
+                if (row.querySelector(".chat-message-text.deleted")) return;
+                const textEl = row.querySelector(".chat-message-text");
+                const hasImage = !!row.querySelector(".chat-message-image");
+                const raw = textEl ? textEl.textContent.replace(/\s+/g, " ").trim() : "";
+                const haystack = (raw + (hasImage ? " photo" : "")).toLowerCase();
+                if (!haystack || haystack.indexOf(q) === -1) return;
+                const timeEl = row.querySelector(".am-time");
+                results.push({
+                    row: row,
+                    raw: raw,
+                    hasImage: hasImage,
+                    timeText: timeEl ? timeEl.textContent.replace(/\s+/g, " ").replace("(Edited)", "").trim() : "",
+                    name: row.classList.contains("client") ? clientName : "You"
+                });
+            });
+
+            searchList.innerHTML = "";
+            if (results.length === 0) {
+                searchList.hidden = true;
+                searchEmpty.hidden = false;
+            } else {
+                searchEmpty.hidden = true;
+                searchList.hidden = false;
+                renderThreadSearchItems(results, q);
+            }
+            searchPanel.hidden = false;
+        }
+
+        function renderThreadSearchItems(results, q) {
+            results.slice(0, 100).forEach(function (r) {
+                const item = document.createElement("div");
+                item.className = "thread-search-item";
+                item.setAttribute("role", "button");
+
+                const avatar = document.createElement("div");
+                avatar.className = "ts-avatar";
+                avatar.textContent = r.name.charAt(0).toUpperCase();
+
+                const body = document.createElement("div");
+                body.className = "ts-body";
+
+                const top = document.createElement("div");
+                top.className = "ts-top";
+                const nm = document.createElement("span");
+                nm.className = "ts-name";
+                nm.textContent = r.name;
+                const tm = document.createElement("span");
+                tm.className = "ts-time";
+                tm.textContent = r.timeText;
+                top.appendChild(nm);
+                top.appendChild(tm);
+
+                const sn = document.createElement("div");
+                sn.className = "ts-snippet";
+                let snippet;
+                if (r.raw) {
+                    const lower = r.raw.toLowerCase();
+                    const idx = lower.indexOf(q);
+                    const start = Math.max(0, idx - 40);
+                    const end = Math.min(r.raw.length, idx + q.length + 60);
+                    snippet = (start > 0 ? "…" : "") + r.raw.slice(start, end) + (end < r.raw.length ? "…" : "");
+                } else {
+                    snippet = "📷 Photo";
+                }
+                const sIdx = snippet.toLowerCase().indexOf(q);
+                if (sIdx !== -1) {
+                    sn.appendChild(document.createTextNode(snippet.slice(0, sIdx)));
+                    const mark = document.createElement("mark");
+                    mark.textContent = snippet.slice(sIdx, sIdx + q.length);
+                    sn.appendChild(mark);
+                    sn.appendChild(document.createTextNode(snippet.slice(sIdx + q.length)));
+                } else {
+                    sn.textContent = snippet;
+                }
+
+                body.appendChild(top);
+                body.appendChild(sn);
+                item.appendChild(avatar);
+                item.appendChild(body);
+                item.addEventListener("click", function () {
+                    closeThreadSearch();
+                    jumpToSearchResult(r.row);
+                });
+                searchList.appendChild(item);
+            });
+        }
+
+        threadSearchInput.addEventListener("input", function () {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(renderThreadSearch, 150);
+        });
+        threadSearchInput.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") { closeThreadSearch(); }
+            if (e.key === "Enter") {
+                e.preventDefault();
+                if (searchList && !searchList.hidden) {
+                    const first = searchList.querySelector(".thread-search-item");
+                    if (first) first.click();
+                }
+            }
+        });
+        document.addEventListener("click", function (e) {
+            if (!searchPanel || searchPanel.hidden) return;
+            if (!e.target.closest(".thread-search-wrap")) closeThreadSearch();
+        });
+    }
+
+    /* ── Message actions: react / reply / edit / delete ── */
+    function closeReactionPicker() {
+        threadMessages.querySelectorAll(".reaction-picker").forEach(function (el) { el.remove(); });
+        activeReactionPicker = null;
+    }
+    document.addEventListener("click", function (e) {
+        if (activeReactionPicker
+            && !e.target.closest(".reaction-picker")
+            && !e.target.closest(".react-btn")) {
+            closeReactionPicker();
+        }
+    });
+
+    function buildReactionPicker(row) {
+        closeReactionPicker();
+        const picker = document.createElement("div");
+        picker.className = "reaction-picker";
+        REACTION_EMOJIS.forEach(function (emoji) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "reaction-pick";
+            btn.textContent = emoji;
+            btn.addEventListener("click", function (ev) {
+                ev.stopPropagation();
+                closeReactionPicker();
+                toggleReaction(row.dataset.messageId, emoji);
+            });
+            picker.appendChild(btn);
+        });
+        activeReactionPicker = picker;
+        return picker;
+    }
+
+    function toggleReaction(messageId, emoji) {
+        fetch(REACT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF },
+            body: JSON.stringify({ message_id: Number(messageId), emoji: emoji }),
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) { alert(data.error); return; }
+                renderReactionChips({
+                    id: messageId,
+                    reactions: data.reactions,
+                    my_reactions: data.my_reactions,
+                    is_deleted: false,
+                });
+                // Sync the row signature so the 4s poll won't rebuild this
+                // row — reacting must not look like a page refresh.
+                const reactedRow = threadMessages.querySelector('.admin-msg-row[data-message-id="' + messageId + '"]');
+                if (reactedRow && reactedRow.dataset.sig) {
+                    try {
+                        const sig = JSON.parse(reactedRow.dataset.sig);
+                        sig[6] = data.reactions || {};
+                        sig[7] = data.my_reactions || [];
+                        reactedRow.dataset.sig = JSON.stringify(sig);
+                    } catch (err) { /* ignore malformed signature */ }
+                }
+            })
+            .catch(function () { alert("Could not save reaction."); });
+    }
+
+    /* ── Inline message editing (same UX as the client widget) ── */
+    const editPreviewBar = document.getElementById("editPreviewBar");
+    const editPreviewText = document.getElementById("editPreviewText");
+    const editPreviewClose = document.getElementById("editPreviewClose");
+    let editingMessageId = null;
+
+    function autoSizeReplyBox() {
+        if (!replyTextarea) return;
+        replyTextarea.style.height = "auto";
+        replyTextarea.style.height = Math.min(replyTextarea.scrollHeight, 140) + "px";
+    }
+
+    function startEdit(row) {
+        const textEl = row.querySelector(".chat-message-text:not(.deleted)");
+        if (!textEl || !replyTextarea || !editPreviewBar) return;
+        /* Only one mode at a time — starting an edit cancels any active reply */
+        clearReplyTo();
+        editingMessageId = Number(row.dataset.messageId);
+        const current = textEl.textContent.trim();
+        replyTextarea.value = current;
+        editPreviewText.textContent = current;
+        editPreviewBar.hidden = false;
+        autoSizeReplyBox();
+        replyTextarea.focus();
+        try { replyTextarea.setSelectionRange(current.length, current.length); } catch (err) {}
+    }
+
+    function cancelEdit() {
+        editingMessageId = null;
+        if (editPreviewBar) editPreviewBar.hidden = true;
+        if (replyTextarea) { replyTextarea.value = ""; autoSizeReplyBox(); }
+    }
+
+    if (editPreviewClose) editPreviewClose.addEventListener("click", cancelEdit);
+
+    /* ── Styled delete confirmation (no more browser confirm) ── */
+    const chatConfirmOverlay = document.getElementById("chatConfirmOverlay");
+    const chatConfirmCancel = document.getElementById("chatConfirmCancel");
+    const chatConfirmDelete = document.getElementById("chatConfirmDelete");
+    let pendingDeleteRow = null;
+
+    function openDeleteConfirm(row) {
+        pendingDeleteRow = row;
+        if (chatConfirmOverlay) chatConfirmOverlay.hidden = false;
+    }
+    function closeDeleteConfirm() {
+        pendingDeleteRow = null;
+        if (chatConfirmOverlay) chatConfirmOverlay.hidden = true;
+    }
+    if (chatConfirmCancel) chatConfirmCancel.addEventListener("click", closeDeleteConfirm);
+    if (chatConfirmOverlay) {
+        chatConfirmOverlay.addEventListener("click", function (e) {
+            if (e.target === chatConfirmOverlay) closeDeleteConfirm();
+        });
+    }
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && chatConfirmOverlay && !chatConfirmOverlay.hidden) closeDeleteConfirm();
+    });
+    if (chatConfirmDelete) {
+        chatConfirmDelete.addEventListener("click", function () {
+            const row = pendingDeleteRow;
+            closeDeleteConfirm();
+            if (!row) return;
+            fetch(DELETE_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF },
+                body: JSON.stringify({ message_id: Number(row.dataset.messageId) }),
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) { alert(data.error); return; }
+                    row.querySelectorAll(".chat-message-text").forEach(function (el) { el.remove(); });
+                    const bubble = row.querySelector(".chat-bubble");
+                    if (bubble) {
+                        const deletedEl = document.createElement("div");
+                        deletedEl.className = "chat-message-text deleted";
+                        deletedEl.textContent = "This message was deleted";
+                        bubble.appendChild(deletedEl);
+                    }
+                    const actions = row.querySelector(".msg-actions");
+                    if (actions) actions.remove();
+                    const reactions = row.querySelector(".reactions-row");
+                    if (reactions) reactions.remove();
+                    row.classList.remove("has-reactions");
+                })
+                .catch(function () { alert("Could not delete message."); });
+        });
+    }
+
+    threadMessages.addEventListener("click", function (e) {
+        const quoteEl = e.target.closest(".reply-preview[data-reply-to-id]");
+        if (quoteEl) {
+            e.preventDefault();
+            jumpToMessage(quoteEl.dataset.replyToId);
+            return;
+        }
+
+        const row = e.target.closest(".admin-msg-row");
+        if (!row) return;
+
+        const reactBtn = e.target.closest(".react-btn");
+        if (reactBtn) {
+            e.preventDefault();
+            row.appendChild(buildReactionPicker(row));
+            return;
+        }
+
+        const chip = e.target.closest(".reaction-chip");
+        if (chip) {
+            e.preventDefault();
+            const myEmoji = chip.dataset.myEmoji || "";
+            if (!myEmoji) return;
+            toggleReaction(row.dataset.messageId, myEmoji);
+            return;
+        }
+
+        const replyBtn = e.target.closest(".reply-btn");
+        if (replyBtn) {
+            e.preventDefault();
+            const textEl = row.querySelector(".chat-message-text:not(.deleted)");
+            const hasImage = row.querySelector(".chat-message-image");
+            setReplyTo(row.dataset.messageId, "", (textEl ? textEl.textContent : (hasImage ? "\uD83D\uDCF7 Photo" : "")).trim());
+            return;
+        }
+
+        const editBtn = e.target.closest(".edit-btn");
+        if (editBtn) {
+            e.preventDefault();
+            startEdit(row);
+            return;
+        }
+
+        const deleteBtn = e.target.closest(".delete-btn");
+        if (deleteBtn) {
+            e.preventDefault();
+            openDeleteConfirm(row);
+            return;
+        }
+    });
+
+    /* ── Attachment lightbox (gallery + prev/next) ── */
+    const lightbox = document.getElementById("chatLightbox");
+    const lightboxImg = document.getElementById("chatLightboxImg");
+    const lightboxCaption = document.getElementById("chatLightboxCaption");
+    const lightboxClose = document.getElementById("chatLightboxClose");
+    const lightboxPrev = document.getElementById("chatLightboxPrev");
+    const lightboxNext = document.getElementById("chatLightboxNext");
+    let lightboxLinks = [];
+    let lightboxIndex = 0;
+
+    function refreshLightboxLinks() {
+        lightboxLinks = Array.from(threadMessages.querySelectorAll(".js-lightbox"));
+    }
+    function showLightboxImage() {
+        if (!lightboxLinks.length) return;
+        if (lightboxIndex < 0) lightboxIndex = lightboxLinks.length - 1;
+        if (lightboxIndex >= lightboxLinks.length) lightboxIndex = 0;
+        const link = lightboxLinks[lightboxIndex];
+        lightboxImg.src = link.dataset.lightboxUrl || link.getAttribute("href");
+        lightboxCaption.textContent = link.dataset.lightboxName || link.getAttribute("data-lightbox-name") || "Chat image";
+    }
+    function openLightbox(link) {
+        refreshLightboxLinks();
+        if (!lightboxLinks.length) return;
+        lightboxIndex = Math.max(0, lightboxLinks.indexOf(link));
+        showLightboxImage();
+        lightbox.hidden = false;
+    }
+    function closeLightbox() {
+        lightbox.hidden = true;
+        lightboxImg.src = "";
+    }
+
+    threadMessages.addEventListener("click", function (e) {
+        const link = e.target.closest(".js-lightbox");
+        if (!link) return;
+        e.preventDefault();
+        openLightbox(link);
+    });
+    if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
+    if (lightboxPrev) lightboxPrev.addEventListener("click", function (e) {
+        e.stopPropagation();
+        lightboxIndex -= 1;
+        showLightboxImage();
+    });
+    if (lightboxNext) lightboxNext.addEventListener("click", function (e) {
+        e.stopPropagation();
+        lightboxIndex += 1;
+        showLightboxImage();
+    });
+    if (lightbox) {
+        lightbox.addEventListener("click", function (e) {
+            if (e.target === lightboxImg || e.target.closest(".lightbox-prev") || e.target.closest(".lightbox-next")) return;
+            closeLightbox();
+        });
+    }
+    document.addEventListener("keydown", function (e) {
+        if (!lightbox || lightbox.hidden) return;
+        if (e.key === "Escape") closeLightbox();
+        if (e.key === "ArrowLeft") { lightboxIndex -= 1; showLightboxImage(); }
+        if (e.key === "ArrowRight") { lightboxIndex += 1; showLightboxImage(); }
+    });
+
+    /* ── Upsert polled messages (live receipts, edits, deletes, reactions) ── */
+    function messageSig(msg) {
+        return JSON.stringify([
+            msg.is_deleted, msg.is_edited, msg.content || "", msg.seen, msg.delivered,
+            msg.seen_at || "", msg.reactions || {}, msg.my_reactions || [],
+            msg.reply_to ? msg.reply_to.text : null, msg.image_url || ""
+        ]);
+    }
+    function upsertPolledMessage(msg) {
+        const row = threadMessages.querySelector('.admin-msg-row[data-message-id="' + msg.id + '"]');
+        const fresh = renderPolledMessage(msg);
+        fresh.dataset.sig = messageSig(msg);
+        if (row) {
+            if (row.dataset.sig === fresh.dataset.sig) return;
+            row.replaceWith(fresh);
+            return;
+        }
+        const emptyState = threadMessages.querySelector(".empty-state");
+        if (emptyState) emptyState.remove();
+        threadMessages.appendChild(fresh);
+        if (msg.id > lastMessageId) lastMessageId = msg.id;
+        fresh.querySelectorAll("img.chat-message-image").forEach(function (img) {
+            if (img.complete) return;
+            img.addEventListener("load", function () {
+                const nearBottom = threadMessages.scrollHeight - threadMessages.scrollTop - threadMessages.clientHeight < 240;
+                if (nearBottom) scrollToBottom();
+            }, { once: true });
+        });
+        const nearBottom = threadMessages.scrollHeight - threadMessages.scrollTop - threadMessages.clientHeight < 180;
+        if (nearBottom) scrollToBottom();
+    }
+
+    /* ── Typing indicator + presence updates from poll ── */
+    function updateTypingIndicator(isTyping) {
+        if (!typingIndicator) return;
+        if (isTyping) {
+            typingIndicator.hidden = false;
+            if (typingTimer) clearTimeout(typingTimer);
+            typingTimer = setTimeout(function () { typingIndicator.hidden = true; }, 7000);
+        }
+    }
+    function updatePresence(online) {
+        if (!clientPresence) return;
+        const state = online ? "online" : "offline";
+        const label = online ? "Online" : "Offline";
+        clientPresence.innerHTML = '<span class="thread-status ' + state + '"><span class="thread-status-dot"></span> ' + label + '</span>';
+    }
+
+    let typingIdleTimer = null;
+    function postTyping(isTyping) {
+        fetch(TYPING_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF },
+            body: JSON.stringify({ session_id: SESSION_ID, is_typing: isTyping }),
+        }).catch(function () {});
+    }
+
+    if (replyTextarea) {
+        replyTextarea.addEventListener("input", function () {
+            replyTextarea.style.height = "auto";
+            replyTextarea.style.height = Math.min(replyTextarea.scrollHeight, 140) + "px";
+            const nowMs = Date.now();
+            if (nowMs - lastTypingSent > 3000) {
+                lastTypingSent = nowMs;
+                postTyping(true);
+            }
+            if (typingIdleTimer) clearTimeout(typingIdleTimer);
+            typingIdleTimer = setTimeout(function () { postTyping(false); }, 4000);
+        });
+        replyTextarea.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (replyForm) replyForm.requestSubmit();
+            }
+        });
+    }
+
+    /* While editing, the reply box sends the EDIT instead of a new message. */
+    if (replyForm) {
+        replyForm.addEventListener("submit", function (e) {
+            if (!editingMessageId) return; // normal reply → native POST
+            e.preventDefault();
+            const trimmed = (replyTextarea.value || "").trim();
+            if (!trimmed) { cancelEdit(); return; }
+            fetch(EDIT_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF },
+                body: JSON.stringify({ message_id: editingMessageId, message: trimmed }),
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) { alert(data.error); return; }
+                    if (data.updated) upsertPolledMessage(data.updated);
+                    cancelEdit();
+                })
+                .catch(function () { alert("Could not edit message."); });
+        });
+    }
+
+    /* ── Live polling loop (messages, receipts, typing, presence) ── */
+    function pollTick() {
+        fetch(POLL_URL + "?session_id=" + SESSION_ID + "&after_id=0")
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (!data) return;
+                (data.messages || []).forEach(upsertPolledMessage);
+                updateTypingIndicator(data.client_typing);
+                updatePresence(data.client_online);
+            })
+            .catch(function () {});
+    }
+    pollTick();
+    setInterval(pollTick, 4000);
+
+    });
+</script>
+{% endblock %}

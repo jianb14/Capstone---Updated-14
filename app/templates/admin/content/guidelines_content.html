@@ -1,0 +1,129 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_content.css' %}">
+
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Guidelines, Terms &amp; Privacy</h1>
+    <div class="breadcrumb">
+        <span>Admin</span>
+        <span class="separator">/</span>
+        <span>Content</span>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="policy-tabs" role="tablist" aria-label="Policy pages">
+    {% for page in pages %}
+    <button type="button" class="policy-tab {% if forloop.first %}active{% endif %}" data-pane="pane-{{ page.obj.page_key }}" role="tab" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+        {{ page.obj.get_page_key_display }}
+    </button>
+    {% endfor %}
+</div>
+
+<form method="POST" class="content-form">
+    {% csrf_token %}
+
+    {% for page in pages %}
+    <div class="policy-pane" id="pane-{{ page.obj.page_key }}" {% if not forloop.first %}hidden{% endif %}>
+        <!-- {{ page.obj.get_page_key_display }} Section -->
+        <div class="form-section">
+        <h3 class="section-title">{{ page.obj.get_page_key_display }}</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ page.obj.page_key }}_title">Page Title</label>
+                <input type="text" name="{{ page.obj.page_key }}_title" id="{{ page.obj.page_key }}_title" value="{{ page.obj.title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="{{ page.obj.page_key }}_intro">Intro Paragraph</label>
+                <textarea name="{{ page.obj.page_key }}_intro" id="{{ page.obj.page_key }}_intro" rows="3" class="form-control">{{ page.obj.intro }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-grid mt-4">
+            <div class="form-group">
+                <label for="{{ page.obj.page_key }}_attachment_label">Attachment Label (optional link text)</label>
+                <input type="text" name="{{ page.obj.page_key }}_attachment_label" id="{{ page.obj.page_key }}_attachment_label" value="{{ page.obj.attachment_label }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="{{ page.obj.page_key }}_attachment_url">Attachment URL (optional)</label>
+                <input type="text" name="{{ page.obj.page_key }}_attachment_url" id="{{ page.obj.page_key }}_attachment_url" value="{{ page.obj.attachment_url }}" class="form-control" placeholder="/static/docs/DataPrivacy.pdf">
+            </div>
+        </div>
+
+        <h4 class="section-subtitle mt-4">List Items</h4>
+        <div class="policy-items">
+            {% for item in page.items %}
+            <div class="policy-item {% if not item.is_active %}policy-item-inactive{% endif %}">
+                <div class="policy-item-head">
+                    <span class="policy-item-badge">#{{ item.display_order }}</span>
+                    <div class="policy-item-tools">
+                        <label class="policy-check" title="Order">
+                            <span>Order</span>
+                            <input type="number" name="item_order_{{ item.id }}" value="{{ item.display_order }}" min="0" class="form-control policy-order">
+                        </label>
+                        <label class="policy-check">
+                            <input type="checkbox" name="item_active_{{ item.id }}" {% if item.is_active %}checked{% endif %}>
+                            <span>Visible</span>
+                        </label>
+                        <label class="policy-check policy-check-danger">
+                            <input type="checkbox" name="item_delete_{{ item.id }}">
+                            <span>Delete</span>
+                        </label>
+                    </div>
+                </div>
+                <input type="text" name="item_heading_{{ item.id }}" value="{{ item.heading }}" placeholder="Bold heading (e.g. Rental Policy)" class="form-control policy-heading-input">
+                <textarea name="item_body_{{ item.id }}" rows="2" placeholder="Item description" class="form-control">{{ item.body }}</textarea>
+            </div>
+            {% empty %}
+            <p class="policy-empty">No items yet — add the first one below.</p>
+            {% endfor %}
+        </div>
+
+        <div class="policy-new-item mt-4">
+            <h4 class="section-subtitle">Add New Item</h4>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="new_heading_{{ page.obj.page_key }}">Bold Heading</label>
+                    <input type="text" name="new_heading_{{ page.obj.page_key }}" id="new_heading_{{ page.obj.page_key }}" class="form-control" placeholder="e.g. Rental Policy">
+                </div>
+                <div class="form-group">
+                    <label for="new_order_{{ page.obj.page_key }}">Order</label>
+                    <input type="number" name="new_order_{{ page.obj.page_key }}" id="new_order_{{ page.obj.page_key }}" class="form-control" min="0" placeholder="Auto">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="new_body_{{ page.obj.page_key }}">Description</label>
+                <textarea name="new_body_{{ page.obj.page_key }}" id="new_body_{{ page.obj.page_key }}" rows="2" class="form-control" placeholder="Item description"></textarea>
+            </div>
+        </div>
+    </div>
+    </div>
+    {% endfor %}
+
+    <div class="form-actions">
+        <button type="submit" class="btn-save">Save All Changes</button>
+    </div>
+</form>
+
+<script>
+    (function () {
+        var tabs = document.querySelectorAll('.policy-tab');
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                tabs.forEach(function (t) {
+                    var isActive = t === tab;
+                    t.classList.toggle('active', isActive);
+                    t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                });
+                document.querySelectorAll('.policy-pane').forEach(function (pane) {
+                    pane.hidden = pane.id !== tab.dataset.pane;
+                });
+            });
+        });
+    })();
+</script>
+
+{% endblock %}

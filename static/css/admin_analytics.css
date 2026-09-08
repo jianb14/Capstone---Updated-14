@@ -15,14 +15,6 @@
     from { opacity: 0; transform: scale(0.93); }
     to   { opacity: 1; transform: scale(1); }
 }
-@keyframes shimmer {
-    0%   { background-position: -600px 0; }
-    100% { background-position: 600px 0; }
-}
-@keyframes gradientShift {
-    0%, 100% { background-position: 0% 50%; }
-    50%      { background-position: 100% 50%; }
-}
 @keyframes countUp {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -83,35 +75,50 @@
     font-size: 0.84rem;
 }
 
-/* ── Export Button ───────────────────────────────────────── */
-.export-btn {
+/* ── Export Button (inside filter bar, far right) ────────── */
+.filter-export {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    flex-shrink: 0;
+}
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.95rem;
     border-radius: var(--rx);
     font-size: 0.78rem;
     font-weight: 600;
+    letter-spacing: 0.01em;
     text-decoration: none;
-    background: var(--red-d);
-    color: var(--red);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--t2);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
+.export-btn svg { flex-shrink: 0; }
 .export-btn:hover {
-    background: var(--red);
-    color: #fff;
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+    color: var(--t1);
+}
+.export-btn:active { transform: translateY(1px); }
+.export-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
 }
 
-/* ── Filter Bar ──────────────────────────────────────────── */
+/* ── Filter Bar (matches Admin Dashboard) ────────────────── */
 .dash-filter-row {
     background: var(--card-bg);
     border: 1px solid var(--card-bdr);
     border-radius: var(--r);
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 0.8rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.6rem;
     animation: fadeSlideUp 0.45s ease-out 0.05s both;
     transition: border-color 0.3s ease;
     flex-wrap: wrap;
@@ -124,20 +131,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     border-radius: 8px;
     background: rgba(255,255,255,0.04);
     color: var(--t2);
     flex-shrink: 0;
 }
 .filter-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
 }
 
 .filter-label {
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     font-weight: 600;
     color: var(--t2);
     white-space: nowrap;
@@ -146,49 +153,49 @@
 
 .filter-fields {
     display: flex;
-    align-items: flex-end;
-    gap: 0.75rem;
+    align-items: center;
+    gap: 0.5rem;
     flex: 1;
     flex-wrap: wrap;
+    min-width: 0;
 }
 
 .filter-inline-actions {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    flex-wrap: wrap;
 }
 
 .filter-group {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+    align-items: center;
+    gap: 0.3rem;
+    flex: 1 1 auto;
+    min-width: 140px;
 }
 .filter-group label {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     color: var(--t3);
     font-weight: 600;
+    flex-shrink: 0;
 }
 .filter-group input,
 .filter-group select {
     background: #0a0a0a;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--rx);
-    color: #e5e5e5;
-    font-size: 0.78rem;
-    padding: 0.4rem 0.5rem;
+    padding: 0.4rem 0.55rem;
+    color: var(--t1);
+    font-size: 0.76rem;
+    font-family: inherit;
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
     outline: none;
+    flex: 1;
     min-width: 0;
-    width: 110px;
-}
-.filter-group input[type="date"] {
-    width: 115px;
-}
-.filter-group select {
-    width: 120px;
+    width: 100%;
 }
 .filter-group input:focus,
 .filter-group select:focus {
@@ -213,16 +220,68 @@
 
 .filter-sep {
     width: 1px;
-    height: 24px;
+    height: 22px;
     background: rgba(255,255,255,0.06);
     flex-shrink: 0;
+    display: none;
+}
+@media (min-width: 768px) {
+    .filter-sep {
+        display: block;
+    }
+    .dash-filter-row {
+        padding: 0.75rem 1rem;
+        gap: 1rem;
+    }
 }
 
 .filter-actions {
     display: flex;
-    gap: 0.4rem;
-    margin-left: auto;
+    gap: 0.35rem;
+    width: 100%;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+@media (min-width: 768px) {
+    .filter-actions {
+        margin-left: auto;
+        width: auto;
+        justify-content: flex-end;
+    }
+}
+
+.btn-preset {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #ccc;
+    padding: 0.45rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease, box-shadow 0.2s ease;
+    font-family: montserrat, sans-serif;
+}
+
+.btn-preset:hover,
+.btn-preset:focus-visible {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.18);
+    color: #fff;
+    outline: none;
+}
+
+.btn-preset.is-active,
+.btn-preset.is-active:hover,
+.btn-preset.is-active:focus-visible,
+.btn-preset.active,
+.btn-preset.active:hover,
+.btn-preset.active:focus-visible {
+    background: #ffffff;
+    border-color: #ffffff;
+    color: #0a0a0a;
+    font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 2px 12px rgba(0, 0, 0, 0.55);
 }
 
 /* Buttons */
@@ -264,122 +323,117 @@
     border-color: rgba(255,255,255,0.12);
 }
 
-.btn-preset {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #ccc;
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-right: 6px;
-}
-.btn-preset:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-}
-.btn-preset.active {
-    background: var(--t1);
-    color: #0a0a0a;
-    border-color: var(--t1);
-    font-weight: 700;
-}
-
-/* ── Data Modules ───────────────────────────────────────── */
-.data-modules {
+/* ── Summary Cards (identical design as Admin Booking) ────── */
+.booking-summary-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 0.7rem;
+    margin-bottom: 0;
 }
-.data-mod {
-    background: var(--card-bg);
-    border: 1px solid var(--card-bdr);
-    border-radius: var(--r);
-    padding: 0.85rem 0.95rem;
+.booking-summary-card {
+    grid-column: span 4;
     position: relative;
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    padding: 0.8rem 1.1rem;
     overflow: hidden;
+    min-width: 0;
     animation: fadeSlideIn 0.5s ease-out both;
-    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
-                border-color 0.3s ease, box-shadow 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
-.data-mod:nth-child(1) { animation-delay: 0.04s; }
-.data-mod:nth-child(2) { animation-delay: 0.08s; }
-.data-mod:nth-child(3) { animation-delay: 0.12s; }
-.data-mod:nth-child(4) { animation-delay: 0.16s; }
-.data-mod:hover {
-    transform: translateY(-3px);
-    border-color: var(--card-bdr-h);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 12px var(--blue-glow);
+.booking-summary-card:nth-child(1) { animation-delay: 0.04s; }
+.booking-summary-card:nth-child(2) { animation-delay: 0.08s; }
+.booking-summary-card:nth-child(3) { animation-delay: 0.12s; }
+.booking-summary-card:nth-child(4) { animation-delay: 0.16s; }
+.booking-summary-card:nth-child(5) { animation-delay: 0.20s; }
+.booking-summary-card:nth-child(6) { animation-delay: 0.24s; }
+.booking-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 2px;
+    opacity: 0.95;
 }
-/* Top border removed - using icons instead */
+.booking-summary-card--total::before     { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.booking-summary-card--completed::before { background: linear-gradient(90deg, #059669, #10b981); }
+.booking-summary-card--confirmed::before { background: linear-gradient(90deg, #14b8a6, #2dd4bf); }
+.booking-summary-card--cancelled::before { background: linear-gradient(90deg, #dc2626, #ef4444); }
+.booking-summary-card--payment::before   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.booking-summary-card--pending::before   { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.booking-summary-card:hover {
+    border-color: rgba(255,255,255,0.14);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+@media (max-width: 1024px) {
+    .booking-summary-card { grid-column: span 6; }
+}
+@media (max-width: 600px) {
+    .booking-summary-card { grid-column: span 12; }
+}
 
-.mod-row {
+.booking-summary-head {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    position: relative;
-    z-index: 1;
+    justify-content: space-between;
+    gap: 0.75rem;
 }
-.mod-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-.mod-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--t3);
+.booking-summary-label {
+    font-size: 0.75rem;
     font-weight: 600;
+    color: #8a8a8a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.mod-icon {
-    width: 44px;
-    height: 44px;
+.booking-summary-icon {
+    width: 34px;
+    height: 34px;
     border-radius: 10px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
     flex-shrink: 0;
 }
-.mod-icon svg {
-    width: 22px;
-    height: 22px;
+.booking-summary-icon svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
-/* Icon colors per card */
-.data-mod:nth-child(1) .mod-icon { color: #60a5fa; background: rgba(96,165,250,0.12); border-color: rgba(96,165,250,0.25); }
-.data-mod:nth-child(2) .mod-icon { color: #34d399; background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.25); }
-.data-mod:nth-child(3) .mod-icon { color: #fbbf24; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.25); }
-.data-mod:nth-child(4) .mod-icon { color: #f87171; background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.25); }
-.data-mod:nth-child(5) .mod-icon { color: #a78bfa; background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.25); }
-.data-mod:nth-child(6) .mod-icon { color: #f472b6; background: rgba(244,114,182,0.12); border-color: rgba(244,114,182,0.25); }
-.mod-body {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    position: relative;
-    z-index: 1;
-}
-.mod-value {
+.booking-summary-card--total .booking-summary-icon     { color: #60a5fa; }
+.booking-summary-card--completed .booking-summary-icon { color: #10b981; }
+.booking-summary-card--confirmed .booking-summary-icon { color: #2dd4bf; }
+.booking-summary-card--cancelled .booking-summary-icon { color: #ef4444; }
+.booking-summary-card--payment .booking-summary-icon   { color: #fbbf24; }
+.booking-summary-card--pending .booking-summary-icon   { color: #f59e0b; }
+
+.booking-summary-value {
     font-size: 2rem;
+    line-height: 1.15;
     font-weight: 700;
-    line-height: 1.1;
-    color: var(--t1);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+    margin: 0 0 0.45rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.mod-footer {
-    font-size: 0.72rem;
-    color: var(--t3);
-    position: relative;
-    z-index: 1;
+.booking-summary-sub {
+    font-size: 0.82rem;
+    color: #777777;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.mod-footer .pos { color: var(--green); font-weight: 600; }
-.mod-footer .neg { color: var(--red); font-weight: 600; }
+.booking-summary-sub .pos { color: var(--green); font-weight: 600; }
+.booking-summary-sub .neg { color: var(--red); font-weight: 600; }
 
 /* ── Glass Panel ─────────────────────────────────────────── */
 .glass-panel {
@@ -389,6 +443,7 @@
     padding: 0.95rem 1rem;
     position: relative;
     overflow: hidden;
+    min-width: 0;
     animation: fadeSlideIn 0.5s ease-out both;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -425,8 +480,8 @@
 
 /* ── Chart Row (like dashboard) ──────────────────────────────── */
 .chart-row {
-    display: grid !important;
-    grid-template-columns: 1.55fr 1fr !important;
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
     gap: 0.7rem;
     width: 100%;
 }
@@ -435,8 +490,8 @@
 
 /* ── Perf Row (like dashboard) ──────────────────────────────── */
 .perf-row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.7rem;
     width: 100%;
 }
@@ -452,19 +507,6 @@
     animation: scaleIn 0.5s ease-out 0.3s both;
 }
 .chart-shell.small { height: 200px; }
-
-.skeleton-shimmer {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0) 100%);
-    background-size: 800px 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
-    border-radius: inherit;
-    z-index: 3;
-    pointer-events: none;
-    transition: opacity 0.5s ease;
-}
-.skeleton-shimmer.hidden { opacity: 0; }
 
 .donut-center {
     position: absolute;
@@ -558,6 +600,15 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     text-align: center;
 }
 
+td.empty,
+td[colspan] {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    vertical-align: middle;
+    color: var(--t3);
+    font-size: 0.8rem;
+}
+
 /* ── Status Badges ───────────────────────────────────────── */
 .status-badge {
     font-weight: 700;
@@ -570,50 +621,6 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
 .status-pending { color: var(--gold); background: var(--gold-d); }
 .status-confirmed { color: var(--blue); background: var(--blue-d); }
 .status-cancelled, .status-denied { color: var(--red); background: var(--red-d); }
-
-/* ── Responsive ────────────────────────────────────────────── */
-@media (max-width: 1400px) {
-    .chart-row, .perf-row { grid-template-columns: 1fr; }
-}
-@media (max-width: 1200px) {
-    .data-modules { grid-template-columns: repeat(3, 1fr); }
-    .two-col-row { grid-template-columns: 1fr; }
-    .chart-row, .perf-row { grid-template-columns: 1fr; }
-}
-@media (max-width: 768px) {
-    .analytics-head h1 { font-size: 1.25rem; }
-    .dash-filter-row { flex-direction: column; align-items: stretch; }
-    .filter-actions { margin-left: 0; }
-    .data-modules { grid-template-columns: 1fr; }
-    .mod-value { font-size: 1.35rem; }
-    .chart-row, .perf-row { grid-template-columns: 1fr; }
-    .insights-row { grid-template-columns: 1fr; }
-}
-
-/* ── Export Buttons Row ───────────────────────────────────── */
-.export-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-.export-btn-excel {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--rx);
-    font-size: 0.78rem;
-    font-weight: 600;
-    text-decoration: none;
-    background: var(--green-d);
-    color: var(--green);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    transition: all 0.2s ease;
-}
-.export-btn-excel:hover {
-    background: var(--green);
-    color: #fff;
-}
 
 /* ── Insights Row ─────────────────────────────────────────── */
 .insights-row {
@@ -638,6 +645,7 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     border-radius: var(--rs);
     background: rgba(255,255,255,0.02);
     border: 1px solid rgba(255,255,255,0.04);
+    min-width: 0;
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 .insight-card:hover {
@@ -685,6 +693,145 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     font-weight: 700;
     color: var(--green);
     white-space: nowrap;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+}
+
+/* ── Responsive (matches dashboard breakpoints) ───────────── */
+@media (max-width: 1200px) {
+    .chart-row, .perf-row, .two-col-row { grid-template-columns: 1fr; }
+    .insights-row { grid-template-columns: 1fr; }
+    .metric-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+    .analytics-head h1 { font-size: 1.25rem; }
+    .analytics-sub { font-size: 0.78rem; }
+
+    /* Filter bar: clean stacked layout (same as dashboard):
+       icon + label on top, then date fields, presets, export */
+    .dash-filter-row {
+        display: grid !important;
+        grid-template-columns: auto 1fr !important;
+        grid-template-areas:
+            "icon label"
+            "fields fields"
+            "actions actions"
+            "export export";
+        align-items: center !important;
+        gap: 0.7rem 0.6rem !important;
+        flex-direction: row !important;
+    }
+    .dash-filter-row .filter-icon {
+        grid-area: icon !important;
+        align-self: center !important;
+        margin-top: 0 !important;
+    }
+    .dash-filter-row .filter-label {
+        grid-area: label !important;
+        margin-right: 0 !important;
+        align-self: center !important;
+    }
+    .dash-filter-row .filter-sep {
+        display: none !important;
+    }
+    .dash-filter-row .filter-fields {
+        grid-area: fields !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        align-items: start !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+        flex: none !important;
+    }
+    .dash-filter-row .filter-group {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
+        flex: none !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+    .dash-filter-row .filter-group label {
+        width: 100% !important;
+        text-align: left !important;
+    }
+    .dash-filter-row .filter-inline-actions {
+        grid-column: 1 / -1 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.4rem !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+    }
+    .dash-filter-row .filter-inline-actions .btn-apply,
+    .dash-filter-row .filter-inline-actions .btn-reset {
+        flex: 1 1 calc(50% - 0.2rem) !important;
+        text-align: center !important;
+    }
+    .dash-filter-row .filter-actions {
+        grid-area: actions !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.4rem !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+        justify-content: stretch !important;
+    }
+    .dash-filter-row .filter-actions .btn-preset {
+        flex: none !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+    }
+    .dash-filter-row .filter-export {
+        grid-area: export !important;
+        width: 100% !important;
+    }
+    .dash-filter-row .filter-export .export-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .booking-summary-value { font-size: 1.55rem; }
+    .booking-summary-label { font-size: 0.72rem; }
+    .booking-summary-card { padding: 0.8rem 0.9rem; }
+    .metric-grid { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .panel-head { flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .panel-head h2 { font-size: 0.82rem; }
+    .chart-shell { height: 230px; }
+    .chart-shell.small { height: 200px; }
+    .insights-row { grid-template-columns: 1fr; }
+    .insight-card { gap: 0.5rem; padding: 0.5rem 0.55rem; flex-wrap: wrap; }
+    .insight-val { white-space: normal; overflow-wrap: anywhere; }
+    .insight-amount { font-size: 0.72rem; max-width: 100%; }
+    /* Activity log: let the time stamp drop to its own aligned row */
+    .feed-item { flex-wrap: wrap; }
+    .feed-time { flex: 1 1 100%; padding-left: calc(28px + 0.55rem); text-align: left; }
+    /* Upcoming deadlines: allow chips to wrap cleanly */
+    .alert-card { flex-wrap: wrap; }
+    .alert-info { min-width: 0; }
+}
+@media (max-width: 480px) {
+    .analytics-wrap { gap: 0.7rem; }
+    .analytics-head h1 { font-size: 1.1rem; }
+    .booking-summary-value { font-size: 1.35rem; }
+    .booking-summary-card { padding: 0.7rem 0.8rem; }
+    .metric-grid { grid-template-columns: 1fr; }
+    .chart-shell { height: 210px; }
+    .retention-stats { gap: 1rem; }
+    .insight-icon { width: 28px; height: 28px; }
+    .insight-amount {
+        flex: 1 1 100%;
+        max-width: 100%;
+        margin-left: calc(28px + 0.65rem);
+        font-size: 0.68rem;
+    }
 }
 
 /* ── Metric Grid (Performance Snapshot) ──────────────────── */
@@ -754,26 +901,36 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     padding: 0.5rem 0.65rem;
     border-radius: var(--rx);
     background: rgba(255,255,255,0.02);
     border: 1px solid rgba(255,255,255,0.04);
+    min-width: 0;
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 .alert-card:hover {
     background: rgba(255,255,255,0.04);
     border-color: rgba(255,255,255,0.08);
 }
+.alert-info {
+    min-width: 0;
+    flex: 1 1 auto;
+}
 .alert-info strong {
     display: block;
     font-size: 0.78rem;
     color: var(--t1);
     font-weight: 600;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 .alert-info p {
     margin: 0;
     font-size: 0.68rem;
     color: var(--t3);
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 .alert-chip {
     font-size: 0.66rem;
@@ -781,6 +938,7 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     padding: 0.2rem 0.5rem;
     border-radius: 999px;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 .alert-chip.danger { background: var(--red-d); color: var(--red); }
 .alert-chip.warn { background: var(--gold-d); color: var(--gold); }
@@ -816,12 +974,10 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     font-weight: 700;
     flex-shrink: 0;
     text-transform: uppercase;
+    background: #ffffff;
+    color: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.feed-avatar.av-completed { background: var(--green-d); color: var(--green); }
-.feed-avatar.av-confirmed { background: var(--blue-d); color: var(--blue); }
-.feed-avatar.av-pending { background: var(--gold-d); color: var(--gold); }
-.feed-avatar.av-cancelled, .feed-avatar.av-denied { background: var(--red-d); color: var(--red); }
-.feed-avatar.av-default { background: rgba(255,255,255,0.05); color: var(--t3); }
 
 .feed-text {
     flex: 1;
@@ -832,15 +988,33 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
     font-size: 0.76rem;
     color: var(--t1);
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .feed-text small {
+    display: block;
     font-size: 0.66rem;
     color: var(--t3);
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 .feed-time {
     font-size: 0.66rem;
     color: var(--t4);
     white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Empty states ────────────────────────────────────────── */
+.glass-panel > .empty {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    margin: 0;
+}
+.feed-item .empty {
+    text-align: center;
+    padding: 1rem;
 }
 
 /* ── Retention Stats ──────────────────────────────────────── */
@@ -866,12 +1040,102 @@ tbody tr:hover { background: rgba(255,255,255,0.025); }
 .ret-new .ret-val { color: var(--gold); }
 .ret-ret .ret-val { color: #8b5cf6; }
 
-/* ── Responsive additions ─────────────────────────────────── */
-@media (max-width: 1200px) {
-    .insights-row { grid-template-columns: 1fr; }
-    .metric-grid { grid-template-columns: repeat(2, 1fr); }
+/* ========================================================
+   LIGHT THEME OVERRIDES (analytics-specific)
+   ======================================================== */
+[data-theme="light"] {
+    --card-bg: #ffffff;
+    --card-bg-s: #f9fafb;
+    --card-bdr: rgba(0, 0, 0, 0.1);
+    --card-bdr-h: rgba(0, 0, 0, 0.2);
+    --t1: #111827;
+    --t2: #4b5563;
+    --t3: #6b7280;
+    --t4: #9ca3af;
 }
-@media (max-width: 640px) {
-    .metric-grid { grid-template-columns: 1fr; }
-    .export-row { flex-direction: column; align-items: stretch; }
+
+/* Filter bar pieces */
+[data-theme="light"] .filter-icon {
+    background: #f3f4f6 !important;
+    color: #4b5563 !important;
+}
+[data-theme="light"] .filter-sep { background: #e5e7eb; }
+
+/* Keep the active preset visible in light mode (dark chip, like dashboard) */
+[data-theme="light"] .btn-preset.is-active,
+[data-theme="light"] .btn-preset.is-active:hover,
+[data-theme="light"] .btn-preset.is-active:focus-visible,
+[data-theme="light"] .btn-preset.active,
+[data-theme="light"] .btn-preset.active:hover,
+[data-theme="light"] .btn-preset.active:focus-visible {
+    background: #111827 !important;
+    border-color: #111827 !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Cards, panels & table chrome */
+[data-theme="light"] .booking-summary-label {
+    color: #6b7280 !important;
+}
+[data-theme="light"] .tag { background: #f3f4f6; }
+[data-theme="light"] .table-wrap {
+    border-color: #e5e7eb;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+[data-theme="light"] .table-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+[data-theme="light"] thead { background: #f9fafb; }
+[data-theme="light"] th { border-bottom-color: #e5e7eb; }
+[data-theme="light"] td { border-bottom-color: #f3f4f6; }
+[data-theme="light"] tbody tr:hover { background: #f9fafb; }
+
+/* Status / feed / insight / alert tiles */
+[data-theme="light"] .insight-card,
+[data-theme="light"] .alert-card,
+[data-theme="light"] .feed-item,
+[data-theme="light"] .metric-tile {
+    background: #f9fafb;
+    border-color: #f3f4f6;
+}
+[data-theme="light"] .insight-card:hover,
+[data-theme="light"] .alert-card:hover,
+[data-theme="light"] .metric-tile:hover {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+}
+[data-theme="light"] .alert-chip.muted { background: #f3f4f6; color: #6b7280; }
+
+/* Activity avatars: high contrast inverse — black bg / white text in light mode */
+[data-theme="light"] .feed-avatar,
+[data-theme="light"] .feed-avatar.av-completed,
+[data-theme="light"] .feed-avatar.av-confirmed,
+[data-theme="light"] .feed-avatar.av-pending,
+[data-theme="light"] .feed-avatar.av-cancelled,
+[data-theme="light"] .feed-avatar.av-denied,
+[data-theme="light"] .feed-avatar.av-default {
+    background: #111827 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+/* No-data table rows: consistent spacing in both themes
+   (overrides the global 2rem !important light-mode rule) */
+[data-theme="light"] .table-wrap tbody tr td[colspan],
+[data-theme="light"] .table-wrap td.empty {
+    padding: 1.5rem 1rem !important;
+    text-align: center !important;
+    color: #6b7280 !important;
+    background-color: #ffffff !important;
+}
+
+/* Export button: outline style, matches the filter preset chip look */
+[data-theme="light"] .export-btn {
+    background: var(--light-surface) !important;
+    color: var(--light-text-sec) !important;
+    border: 1px solid var(--light-border) !important;
+}
+[data-theme="light"] .export-btn:hover {
+    background: var(--light-hover) !important;
+    color: var(--light-text) !important;
+    border-color: #d1d5db !important;
 }

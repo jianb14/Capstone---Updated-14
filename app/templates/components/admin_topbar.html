@@ -2,10 +2,35 @@
 
 <div class="admin-topbar">
     <div class="topbar-left">
-        <!-- Optional search or title here -->
+        <button class="mobile-menu-btn-topbar" onclick="toggleMobileSidebar()" aria-label="Toggle menu">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+        </button>
+        <a href="{% url 'dashboard' %}" class="topbar-logo-mobile">
+            <img src="{% static 'images/BalloorinaLogo1.png' %}" alt="Balloorina">
+        </a>
     </div>
 
     <div class="topbar-right">
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" aria-label="Toggle light/dark mode" title="Toggle light/dark mode">
+            <svg class="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
+
         <!-- Notification Dropdown -->
         <div class="notification-dropdown-container" id="adminNotifDropdown">
             <div class="notification-trigger">
@@ -120,6 +145,7 @@
 
                     {% else %}
                     <div class="notif-empty">
+                        <i class="fas fa-bell-slash" aria-hidden="true"></i>
                         <p>No recent bookings to show.</p>
                     </div>
                     {% endif %}
@@ -128,7 +154,7 @@
         </div>
 
         <!-- User Profile Dropdown -->
-        <div class="admin-profile-dropdown" id="adminProfileDropdown">
+        <div class="admin-profile-dropdown hide-on-mobile" id="adminProfileDropdown">
             <div class="admin-profile-trigger">
                 <div class="admin-avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</div>
                 <div class="admin-info-text">

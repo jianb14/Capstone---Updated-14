@@ -43,6 +43,9 @@ from .views import (
     admin_canvas_label_edit,
     admin_concern_update,
     admin_concerns,
+    admin_faq_create,
+    admin_faq_delete,
+    admin_faq_edit,
     admin_gallery,
     admin_gallery_category_create,
     admin_gallery_category_delete,
@@ -52,6 +55,10 @@ from .views import (
     admin_gallery_image_detail,
     admin_gallery_image_edit,
     admin_gcash_config,
+    admin_guidelines_content,
+    admin_hiw_step_create,
+    admin_hiw_step_delete,
+    admin_hiw_step_edit,
     admin_home_content,
     admin_home_feature_create,
     admin_home_feature_delete,
@@ -81,8 +88,25 @@ from .views import (
     change_password,
     chat_api,
     chat_clear,
+    chat_delete_message,
+    chat_edit_message,
     chat_history,
+    chat_mark_read,
+    chat_presence,
+    chat_reaction,
+    chat_request_admin,
     chat_sessions,
+    chat_toggle_reaction,
+    chat_typing,
+    chat_typing_ping,
+    client_chat_page,
+    admin_chat_close,
+    admin_chat_inbox,
+    admin_chat_poll,
+    admin_chat_thread,
+    admin_chat_unread_poll,
+
+
     clear_all_notifications,
     create_admin_account,
     create_booking,
@@ -268,6 +292,36 @@ urlpatterns = [
         admin_home_feature_delete,
         name="admin_home_feature_delete",
     ),
+    path(
+        "staff/content/home/steps/create/",
+        admin_hiw_step_create,
+        name="admin_hiw_step_create",
+    ),
+    path(
+        "staff/content/home/steps/<int:id>/edit/",
+        admin_hiw_step_edit,
+        name="admin_hiw_step_edit",
+    ),
+    path(
+        "staff/content/home/steps/<int:id>/delete/",
+        admin_hiw_step_delete,
+        name="admin_hiw_step_delete",
+    ),
+    path(
+        "staff/content/home/faqs/create/",
+        admin_faq_create,
+        name="admin_faq_create",
+    ),
+    path(
+        "staff/content/home/faqs/<int:id>/edit/",
+        admin_faq_edit,
+        name="admin_faq_edit",
+    ),
+    path(
+        "staff/content/home/faqs/<int:id>/delete/",
+        admin_faq_delete,
+        name="admin_faq_delete",
+    ),
 
     path("staff/content/about/", admin_about_content, name="admin_about_content"),
     path(
@@ -285,6 +339,8 @@ urlpatterns = [
         admin_about_value_delete,
         name="admin_about_value_delete",
     ),
+
+    path("staff/content/guidelines/", admin_guidelines_content, name="admin_guidelines_content"),
 
     path("staff/content/services/", admin_service_content, name="admin_service_content"),
     path(
@@ -357,6 +413,31 @@ urlpatterns = [
     path("api/chat/history/", chat_history, name="chat_history"),
     path("api/chat/sessions/", chat_sessions, name="chat_sessions"),
     path("api/chat/clear/", chat_clear, name="chat_clear"),
+    # Client-facing admin support chat APIs
+    path("chat/", client_chat_page, name="client_chat_page"),
+    path("api/chat/request-admin/", chat_request_admin, name="chat_request_admin"),
+    path("api/chat/mark-read/", chat_mark_read, name="chat_mark_read"),
+    path("api/chat/edit/", chat_edit_message, name="chat_edit_message"),
+    path("api/chat/delete/", chat_delete_message, name="chat_delete_message"),
+    path("api/chat/typing-ping/", chat_typing_ping, name="chat_typing_ping"),
+    path("api/chat/typing/", chat_typing, name="chat_typing"),
+    path("api/chat/presence/", chat_presence, name="chat_presence"),
+    path("api/chat/reaction/", chat_reaction, name="chat_reaction"),
+    path("api/chat/toggle-reaction/", chat_toggle_reaction, name="chat_toggle_reaction"),
+    # Admin chat inbox, threads, actions
+    path("staff/chat/", admin_chat_inbox, name="admin_chat_inbox"),
+    path("staff/chat/poll/", admin_chat_poll, name="admin_chat_poll"),
+    path("staff/chat/<int:session_id>/", admin_chat_thread, name="admin_chat_thread"),
+    path(
+        "staff/chat/<int:session_id>/close/",
+        admin_chat_close,
+        name="admin_chat_close",
+    ),
+    path(
+        "api/staff/chat/unread/",
+        admin_chat_unread_poll,
+        name="admin_chat_unread_poll",
+    ),
     # Customer Notifications
     path(
         "notifications/<int:id>/read/",

@@ -14,7 +14,9 @@
         rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+    <link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="{% static 'js/theme-toggle.js' %}"></script>
     {% block extra_css %}{% endblock %}
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -31,15 +33,54 @@
 
     {% include 'components/footer.html' %}
 
+    {% if user.is_authenticated and user.role == 'customer' %}
+    {% include 'components/client_admin_chat_widget.html' %}
+    {% endif %}
+
     <script>
 
         document.addEventListener("DOMContentLoaded", function () {
             const mobileMenu = document.querySelector(".mobile-menu");
             const navLinks = document.querySelector(".nav-links");
+            const navOverlay = document.querySelector(".nav-overlay");
 
-            mobileMenu.addEventListener("click", function () {
-                navLinks.classList.toggle("nav-active");
-                mobileMenu.classList.toggle("active");
+            // Close the mobile drawer (admin-sidebar style)
+            const closeMobileNav = function () {
+                if (navLinks) navLinks.classList.remove("nav-active");
+                if (mobileMenu) mobileMenu.classList.remove("active");
+                if (navOverlay) navOverlay.classList.remove("show");
+                document.body.classList.remove("nav-open");
+            };
+
+            if (mobileMenu && navLinks) {
+                mobileMenu.addEventListener("click", function () {
+                    const isOpen = navLinks.classList.toggle("nav-active");
+                    mobileMenu.classList.toggle("active", isOpen);
+                    if (navOverlay) navOverlay.classList.toggle("show", isOpen);
+                    document.body.classList.toggle("nav-open", isOpen);
+                });
+            }
+
+            // Tap outside (overlay) closes the drawer
+            if (navOverlay) {
+                navOverlay.addEventListener("click", closeMobileNav);
+            }
+
+            // Tapping any link inside the drawer closes it
+            if (navLinks) {
+                navLinks.querySelectorAll("a").forEach(function (link) {
+                    link.addEventListener("click", closeMobileNav);
+                });
+            }
+
+            // Escape key closes the drawer
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape") closeMobileNav();
+            });
+
+            // Reset state when resizing back to desktop
+            window.addEventListener("resize", function () {
+                if (window.innerWidth > 968) closeMobileNav();
             });
 
             // Profile Dropdown Toggle

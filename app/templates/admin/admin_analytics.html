@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_analytics.css' %}?v=12">
+<link rel="stylesheet" href="{% static 'css/admin_analytics.css' %}?v=16">
 {% endblock %}
 
 {% block content %}
@@ -13,17 +13,18 @@
             <h1>Report Analytics</h1>
             <p class="analytics-sub">Detailed reports on bookings, revenue, and customer insights.</p>
         </div>
-        <div class="export-row">
-            <a href="{% url 'admin_analytics_export_pdf' %}?filter_preset={{ filter_preset }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&event_type={{ selected_event_type }}" class="export-btn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                Export PDF
-            </a>
-        </div>
     </div>
 
-    <!-- Filter Bar -->
+    <!-- Filter Bar (matches Admin Dashboard) -->
     <form method="GET" class="dash-filter-row" id="analyticsFilterForm">
         <input type="hidden" name="filter_preset" id="filter_preset_input" value="{{ filter_preset }}">
+        <div class="filter-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+        </div>
+        <span class="filter-label">Filter</span>
+        <div class="filter-sep"></div>
         <div class="filter-fields">
             <div class="filter-group">
                 <label for="start_date">From</label>
@@ -33,103 +34,79 @@
                 <label for="end_date">To</label>
                 <input type="date" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
             </div>
-            <!--<div class="filter-group">
-                <label for="event_type_select">Event Type</label>
-                <select id="event_type_select" name="event_type">
-                    <option value="all" {% if selected_event_type == 'all' %}selected{% endif %}>All Events</option>
-                    {% for event in event_type_options %}
-                    <option value="{{ event }}" {% if selected_event_type == event %}selected{% endif %}>{{ event }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            -->
             <div class="filter-inline-actions">
                 <button type="submit" class="btn-apply">Apply</button>
                 <a href="{% url 'admin_analytics' %}" class="btn-reset">Reset</a>
             </div>
         </div>
         <div class="filter-actions">
-            <button type="button" class="btn-preset {% if filter_preset == 'today' %}active{% endif %}" data-preset="today">Today</button>
-            <button type="button" class="btn-preset {% if filter_preset == '7days' %}active{% endif %}" data-preset="7days">7 Days</button>
-            <button type="button" class="btn-preset {% if filter_preset == 'month' %}active{% endif %}" data-preset="month">This Month</button>
-            <button type="button" class="btn-preset {% if filter_preset == 'all' %}active{% endif %}" data-preset="all">All Time</button>
+            <button type="button" class="btn-preset{% if filter_preset == 'today' %} is-active{% endif %}" data-preset="today">Today</button>
+            <button type="button" class="btn-preset{% if filter_preset == '7days' %} is-active{% endif %}" data-preset="7days">7 Days</button>
+            <button type="button" class="btn-preset{% if filter_preset == 'month' %} is-active{% endif %}" data-preset="month">This Month</button>
+            <button type="button" class="btn-preset{% if filter_preset == 'all' %} is-active{% endif %}" data-preset="all">All Time</button>
+        </div>
+        <div class="filter-export">
+            <a href="{% url 'admin_analytics_export_pdf' %}?filter_preset={{ filter_preset }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&event_type={{ selected_event_type }}" class="export-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export PDF
+            </a>
         </div>
     </form>
 
-    <!-- Summary Cards -->
-    <div class="data-modules">
-        <div class="data-mod">
-            <div class="mod-row">
-                <div class="mod-info">
-                    <span class="mod-label">TOTAL BOOKINGS</span>
-                    <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
-                </div>
-                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
+    <!-- Summary Cards (same design as Admin Booking) -->
+    <div class="booking-summary-grid">
+        <div class="booking-summary-card booking-summary-card--total">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Total Bookings</span>
+                <span class="booking-summary-icon" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span>
             </div>
-            <div class="mod-footer">
-                <span class="{% if period_delta >= 0 %}pos{% else %}neg{% endif %}">
-                    {% if period_delta >= 0 %}+{% endif %}{{ period_delta_pct }}% vs previous period
-                </span>
-            </div>
+            <div class="booking-summary-value mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
+            <div class="booking-summary-sub"><span class="{% if period_delta >= 0 %}pos{% else %}neg{% endif %}">{% if period_delta >= 0 %}+{% endif %}{{ period_delta_pct }}% vs previous period</span></div>
         </div>
 
-        <div class="data-mod">
-            <div class="mod-row">
-                <div class="mod-info">
-                    <span class="mod-label">TOTAL REVENUE</span>
-                    <div class="mod-value" data-count="{{ total_revenue }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ total_revenue|floatformat:"-2"|intcomma }}</div>
-                </div>
-                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+        <div class="booking-summary-card booking-summary-card--completed">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Total Revenue</span>
+                <span class="booking-summary-icon" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></span>
             </div>
-            <div class="mod-footer">
-                <span class="{% if revenue_delta >= 0 %}pos{% else %}neg{% endif %}">
-                    {% if revenue_delta >= 0 %}+{% endif %}{{ revenue_delta_pct }}% vs previous
-                </span>
-            </div>
+            <div class="booking-summary-value mod-value" data-count="{{ total_revenue }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ total_revenue|floatformat:"-2"|intcomma }}</div>
+            <div class="booking-summary-sub"><span class="{% if revenue_delta >= 0 %}pos{% else %}neg{% endif %}">{% if revenue_delta >= 0 %}+{% endif %}{{ revenue_delta_pct }}% vs previous</span></div>
         </div>
 
-        <div class="data-mod">
-            <div class="mod-row">
-                <div class="mod-info">
-                    <span class="mod-label">COMPLETION RATE</span>
-                    <div class="mod-value" data-count="{{ completion_rate }}">{{ completion_rate }}%</div>
-                </div>
-                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 4 12 14.01 9 11.01"></polyline><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path></svg></div>
+        <div class="booking-summary-card booking-summary-card--confirmed">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Completion Rate</span>
+                <span class="booking-summary-icon" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 4 12 14.01 9 11.01"></polyline><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path></svg></span>
             </div>
-            <div class="mod-footer">{{ completed_count }} completed bookings</div>
+            <div class="booking-summary-value mod-value" data-count="{{ completion_rate }}">{{ completion_rate }}%</div>
+            <div class="booking-summary-sub">{{ completed_count }} completed bookings</div>
         </div>
 
-        <div class="data-mod">
-            <div class="mod-row">
-                <div class="mod-info">
-                    <span class="mod-label">CANCELLATION RATE</span>
-                    <div class="mod-value" data-count="{{ cancellation_rate }}">{{ cancellation_rate }}%</div>
-                </div>
-                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
+        <div class="booking-summary-card booking-summary-card--cancelled">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Cancellation Rate</span>
+                <span class="booking-summary-icon" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></span>
             </div>
-            <div class="mod-footer">{{ cancelled_count }} cancelled bookings</div>
+            <div class="booking-summary-value mod-value" data-count="{{ cancellation_rate }}">{{ cancellation_rate }}%</div>
+            <div class="booking-summary-sub">{{ cancelled_count }} cancelled bookings</div>
         </div>
 
-        <div class="data-mod">
-            <div class="mod-row">
-                <div class="mod-info">
-                    <span class="mod-label">AVG. BOOKING VALUE</span>
-                    <div class="mod-value" data-count="{{ avg_booking_value }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ avg_booking_value|floatformat:"-2"|intcomma }}</div>
-                </div>
-                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg></div>
+        <div class="booking-summary-card booking-summary-card--payment">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Avg. Booking Value</span>
+                <span class="booking-summary-icon" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg></span>
             </div>
-            <div class="mod-footer">Per completed booking</div>
+            <div class="booking-summary-value mod-value" data-count="{{ avg_booking_value }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ avg_booking_value|floatformat:"-2"|intcomma }}</div>
+            <div class="booking-summary-sub">Per completed booking</div>
         </div>
 
-        <div class="data-mod">
-            <div class="mod-row">
-                <div class="mod-info">
-                    <span class="mod-label">ACTIVE CUSTOMERS</span>
-                    <div class="mod-value" data-count="{{ active_users }}">{{ active_users }}</div>
-                </div>
-                <div class="mod-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+        <div class="booking-summary-card booking-summary-card--pending">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Active Customers</span>
+                <span class="booking-summary-icon" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
             </div>
-            <div class="mod-footer">Verified active accounts</div>
+            <div class="booking-summary-value mod-value" data-count="{{ active_users }}">{{ active_users }}</div>
+            <div class="booking-summary-sub">Verified active accounts</div>
         </div>
     </div>
 
@@ -142,7 +119,6 @@
                 <span class="tag">Bookings & Revenue</span>
             </div>
             <div class="chart-shell">
-                <div class="skeleton-shimmer" id="shimmer-trend"></div>
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
@@ -154,7 +130,6 @@
                 <span class="tag">Summary<span class="tag-count">{{ total_bookings }}</span></span>
             </div>
             <div class="chart-shell small" style="position: relative;">
-                <div class="skeleton-shimmer" id="shimmer-status"></div>
                 <canvas id="statusChart"></canvas>
             </div>
         </div>
@@ -169,7 +144,6 @@
                 <span class="tag">Weekly</span>
             </div>
             <div class="chart-shell small">
-                <div class="skeleton-shimmer" id="shimmer-busiest"></div>
                 <canvas id="busiestDaysChart"></canvas>
             </div>
         </div>
@@ -181,7 +155,6 @@
                 <span class="tag">New vs Returning</span>
             </div>
             <div class="chart-shell small">
-                <div class="skeleton-shimmer" id="shimmer-retention"></div>
                 <canvas id="retentionChart"></canvas>
             </div>
         </div>
@@ -474,11 +447,6 @@ document.addEventListener('DOMContentLoaded', function() {
         bodyFont: { size: 10.5 }
     };
 
-    function rmShim(id) {
-        const s = document.getElementById(id);
-        if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 600); }
-    }
-
     /* Counter Animation */
     function animateCounter(el) {
         const raw = el.getAttribute('data-count');
@@ -564,6 +532,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof Chart === 'undefined') return;
 
+    /* ── Theme-aware chart colors (matches Admin Dashboard behaviour) ── */
+    const isLightTheme = () => document.documentElement.getAttribute('data-theme') === 'light';
+    const chartTheme = () => isLightTheme()
+        ? { pointBdr: '#ffffff', tick: '#6b7280', grid: 'rgba(17, 24, 39, 0.07)', legend: '#4b5563', center: '#111827', centerSub: '#6b7280' }
+        : { pointBdr: '#111111', tick: '#555555', grid: 'rgba(255, 255, 255, 0.04)', legend: '#999999', center: '#ffffff', centerSub: '#888888' };
+
+    let trendChartInstance = null;
+    let statusChartInstance = null;
+    let busiestChartInstance = null;
+    let retentionChartInstance = null;
+
     // Trend Chart
     const tc = document.getElementById('trendChart');
     if (tc) {
@@ -574,8 +553,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const rg = ctx.createLinearGradient(0, 0, 0, 260);
         rg.addColorStop(0, 'rgba(20,184,166,0.18)');
         rg.addColorStop(1, 'rgba(20,184,166,0.01)');
+        const th = chartTheme();
 
-        new Chart(tc, {
+        trendChartInstance = new Chart(tc, {
             type: 'line',
             data: {
                 labels: {{ dashboard_trend_labels|safe }},
@@ -590,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         pointRadius: 4,
                         pointHoverRadius: 7,
                         pointBackgroundColor: '#3b82f6',
-                        pointBorderColor: '#111',
+                        pointBorderColor: th.pointBdr,
                         pointBorderWidth: 2,
                         pointHoverBackgroundColor: '#fff',
                         pointHoverBorderColor: '#3b82f6',
@@ -607,7 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         pointRadius: 4,
                         pointHoverRadius: 7,
                         pointBackgroundColor: '#14b8a6',
-                        pointBorderColor: '#111',
+                        pointBorderColor: th.pointBdr,
                         pointBorderWidth: 2,
                         pointHoverBackgroundColor: '#fff',
                         pointHoverBorderColor: '#14b8a6',
@@ -624,17 +604,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 animation: { duration: 1200, easing: 'easeOutQuart', delay: c => c.dataIndex * 60 + c.datasetIndex * 150 },
                 plugins: {
                     legend: {
-                        labels: { color: '#999', usePointStyle: true, pointStyle: 'circle', boxWidth: 7, padding: 14, font: { size: 11, weight: '500' } }
+                        labels: { color: th.legend, usePointStyle: true, pointStyle: 'circle', boxWidth: 7, padding: 14, font: { size: 11, weight: '500' } }
                     },
                     tooltip: { ...ttip, displayColors: true, boxPadding: 5, callbacks: { label: c => c.dataset.label.includes('Revenue') ? 'Revenue  &#8369;' + c.parsed.y.toLocaleString() : c.dataset.label + '  ' + c.parsed.y } }
                 },
                 scales: {
-                    x: { grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } },
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.025)', drawBorder: false }, ticks: { color: '#555', precision: 0, font: { size: 10 } } },
-                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false, drawBorder: false }, ticks: { color: '#555', font: { size: 10 } } }
+                    x: { grid: { color: th.grid, drawBorder: false }, ticks: { color: th.tick, font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: th.grid, drawBorder: false }, ticks: { color: th.tick, precision: 0, font: { size: 10 } } },
+                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false, drawBorder: false }, ticks: { color: th.tick, font: { size: 10 } } }
                 }
             },
-            plugins: [{ id: 's1', afterRender() { rmShim('shimmer-trend'); } }]
+            plugins: []
         });
     }
 
@@ -662,19 +642,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Total number
                 ctx.font = 'bold 24px Segoe UI, sans-serif';
-                ctx.fillStyle = '#fff';
+                ctx.fillStyle = chartTheme().center;
                 ctx.fillText(totalBookings.toString(), centerX, centerY - 8);
 
                 // Label
                 ctx.font = '500 11px Segoe UI, sans-serif';
-                ctx.fillStyle = '#888';
+                ctx.fillStyle = chartTheme().centerSub;
                 ctx.fillText('TOTAL', centerX, centerY + 14);
 
                 ctx.restore();
             }
         };
 
-        new Chart(sc, {
+        statusChartInstance = new Chart(sc, {
             type: 'doughnut',
             data: {
                 labels: labels,
@@ -697,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         position: 'right',
                         align: 'center',
                         fullSize: false,
-                        labels: { color: '#999', boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 11, font: { size: 11 } }
+                        labels: { color: chartTheme().legend, boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 11, font: { size: 11 } }
                     },
                     tooltip: {
                         ...ttip,
@@ -714,8 +694,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cutout: '70%'
             },
             plugins: [
-                centerTextPlugin,
-                { id: 's2', afterRender() { rmShim('shimmer-status'); } }
+                centerTextPlugin
             ]
         });
     }
@@ -728,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bGrad.addColorStop(0, 'rgba(59,130,246,0.6)');
         bGrad.addColorStop(1, 'rgba(59,130,246,0.1)');
 
-        new Chart(bc, {
+        busiestChartInstance = new Chart(bc, {
             type: 'bar',
             data: {
                 labels: {{ dashboard_busiest_days_labels|safe }},
@@ -751,11 +730,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip: ttip
                 },
                 scales: {
-                    x: { grid: { display: false, drawBorder: false }, ticks: { color: '#777', font: { size: 10 } } },
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }, ticks: { color: '#777', precision: 0, font: { size: 10 } } }
+                    x: { grid: { display: false, drawBorder: false }, ticks: { color: chartTheme().tick, font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: chartTheme().grid, drawBorder: false }, ticks: { color: chartTheme().tick, precision: 0, font: { size: 10 } } }
                 }
             },
-            plugins: [{ id: 's3', afterRender() { rmShim('shimmer-busiest'); } }]
+            plugins: []
         });
     }
 
@@ -781,19 +760,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Total number
                 ctx.font = 'bold 24px Segoe UI, sans-serif';
-                ctx.fillStyle = '#fff';
+                ctx.fillStyle = chartTheme().center;
                 ctx.fillText(totalCust.toString(), centerX, centerY - 8);
 
                 // Label
                 ctx.font = '500 11px Segoe UI, sans-serif';
-                ctx.fillStyle = '#888';
+                ctx.fillStyle = chartTheme().centerSub;
                 ctx.fillText('CUSTOMERS', centerX, centerY + 14);
 
                 ctx.restore();
             }
         };
 
-        new Chart(rc, {
+        retentionChartInstance = new Chart(rc, {
             type: 'doughnut',
             data: {
                 labels: ['New Customers', 'Returning Customers'],
@@ -816,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         position: 'right',
                         align: 'center',
                         fullSize: false,
-                        labels: { color: '#999', boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 11, font: { size: 11 } }
+                        labels: { color: chartTheme().legend, boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 11, font: { size: 11 } }
                     },
                     tooltip: {
                         ...ttip,
@@ -833,10 +812,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 cutout: '70%'
             },
             plugins: [
-                retentionCenterPlugin,
-                { id: 's4', afterRender() { rmShim('shimmer-retention'); } }
+                retentionCenterPlugin
             ]
         });
+    }
+
+    /* ── Live-update all chart colors when the theme toggles (matches dashboard) ── */
+    if ('MutationObserver' in window) {
+        const analyticsThemeWatcher = new MutationObserver(function () {
+            const th = chartTheme();
+            if (trendChartInstance) {
+                trendChartInstance.data.datasets.forEach(function (ds) { ds.pointBorderColor = th.pointBdr; });
+                ['x', 'y', 'y1'].forEach(function (ax) {
+                    const s = trendChartInstance.options.scales[ax];
+                    if (!s) return;
+                    if (s.ticks) s.ticks.color = th.tick;
+                    if (s.grid && s.grid.color) s.grid.color = th.grid;
+                });
+                if (trendChartInstance.options.plugins.legend && trendChartInstance.options.plugins.legend.labels) {
+                    trendChartInstance.options.plugins.legend.labels.color = th.legend;
+                }
+                trendChartInstance.update();
+            }
+            if (busiestChartInstance) {
+                ['x', 'y'].forEach(function (ax) {
+                    const s = busiestChartInstance.options.scales[ax];
+                    if (!s) return;
+                    if (s.ticks) s.ticks.color = th.tick;
+                    if (s.grid && s.grid.color) s.grid.color = th.grid;
+                });
+                busiestChartInstance.update();
+            }
+            [statusChartInstance, retentionChartInstance].forEach(function (ch) {
+                if (!ch) return;
+                if (ch.options.plugins.legend && ch.options.plugins.legend.labels) {
+                    ch.options.plugins.legend.labels.color = th.legend;
+                }
+                ch.update();
+            });
+        });
+        analyticsThemeWatcher.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     }
 });
 </script>

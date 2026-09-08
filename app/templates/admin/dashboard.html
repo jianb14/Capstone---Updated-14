@@ -19,6 +19,7 @@
     <!-- ═══ FILTER BAR — Dedicated Row ═══ -->
     <form method="GET" action="{% url 'dashboard' %}" class="dash-filter-row">
         <input type="hidden" id="event_type_filter" name="event_type" value="{{ selected_event_type }}">
+        <input type="hidden" id="filter_preset_input" name="filter_preset" value="{{ filter_preset }}">
         <div class="filter-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
@@ -42,10 +43,10 @@
         </div>
         <div class="filter-actions">
             <!-- Quick Presets -->
-            <button type="button" class="btn-preset" data-preset="today">Today</button>
-            <button type="button" class="btn-preset" data-preset="7days">7 Days</button>
-            <button type="button" class="btn-preset" data-preset="month">This Month</button>
-            <button type="button" class="btn-preset" data-preset="all">All Time</button>
+            <button type="button" class="btn-preset{% if filter_preset == 'today' %} is-active{% endif %}" data-preset="today">Today</button>
+            <button type="button" class="btn-preset{% if filter_preset == '7days' %} is-active{% endif %}" data-preset="7days">7 Days</button>
+            <button type="button" class="btn-preset{% if filter_preset == 'month' %} is-active{% endif %}" data-preset="month">This Month</button>
+            <button type="button" class="btn-preset{% if filter_preset == 'all' %} is-active{% endif %}" data-preset="all">All Time</button>
         </div>
     </form>
 
@@ -56,7 +57,6 @@
                 <div class="mod-title-wrap">
                     <span class="mod-title">Total Bookings</span>
                 </div>
-                <span class="mod-badge">Current Range</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
@@ -69,7 +69,6 @@
                 <div class="mod-title-wrap">
                     <span class="mod-title">Total Revenue</span>
                 </div>
-                <span class="mod-badge">Current Range</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ total_revenue }}" data-prefix="&#8369;" data-decimals="auto2">&#8369;{{ total_revenue|floatformat:"-2"|intcomma }}</div>
@@ -82,7 +81,6 @@
                 <div class="mod-title-wrap">
                     <span class="mod-title">Action Queue</span>
                 </div>
-                <span class="mod-badge">Current Range</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ action_queue_total }}">{{ action_queue_total }}</div>
@@ -97,7 +95,6 @@
                 <div class="mod-title-wrap">
                     <span class="mod-title">Period Trend</span>
                 </div>
-                <span class="mod-badge">Trend</span>
             </div>
             <div class="mod-body">
                 <div class="mod-value" data-count="{{ total_bookings }}">{{ total_bookings }}</div>
@@ -447,6 +444,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const dashboardStartInput = document.getElementById('start_date');
     const dashboardEndInput = document.getElementById('end_date');
+    const presetInput = document.getElementById('filter_preset_input');
     const presetButtons = document.querySelectorAll('.btn-preset');
 
     function formatPresetDate(d) {
@@ -474,7 +472,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updatePresetState() {
-        const activePreset = detectActivePreset(
+        // Prefer the server-rendered filter_preset so the active button always matches.
+        const urlPreset = new URL(window.location.href).searchParams.get('filter_preset');
+        const activePreset = urlPreset || detectActivePreset(
             dashboardStartInput ? dashboardStartInput.value : '',
             dashboardEndInput ? dashboardEndInput.value : ''
         );
@@ -493,9 +493,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const startInput = document.getElementById('start_date');
             const endInput = document.getElementById('end_date');
             const today = new Date();
-            
+
             endInput.value = formatPresetDate(today);
-            
+
             if (preset === 'today') {
                 startInput.value = formatPresetDate(today);
             } else if (preset === '7days') {
@@ -509,15 +509,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 startInput.value = '2000-01-01'; // Fallback far past
             }
 
+            if (presetInput) presetInput.value = preset;
             updatePresetState();
             this.closest('form').submit();
         });
     });
 
+    function clearPreset() {
+        if (presetInput) presetInput.value = '';
+        updatePresetState();
+    }
+
     if (dashboardStartInput && dashboardEndInput && presetButtons.length) {
         updatePresetState();
-        dashboardStartInput.addEventListener('change', updatePresetState);
-        dashboardEndInput.addEventListener('change', updatePresetState);
+        dashboardStartInput.addEventListener('change', clearPreset);
+        dashboardEndInput.addEventListener('change', clearPreset);
     }
 
     /* Shimmer */
@@ -537,12 +543,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* Ops Trend */
     const tc = document.getElementById('opsTrendChart');
+    let opsTrendChart = null;
     if (tc) {
         const ctx = tc.getContext('2d');
         const bg = ctx.createLinearGradient(0, 0, 0, 260); bg.addColorStop(0, 'rgba(59,130,246,0.22)'); bg.addColorStop(1, 'rgba(59,130,246,0.01)');
         const rg = ctx.createLinearGradient(0, 0, 0, 260); rg.addColorStop(0, 'rgba(20,184,166,0.18)'); rg.addColorStop(1, 'rgba(20,184,166,0.01)');
 
         function buildTrendDatasets(category) {
+            const pointBdr = document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#111111';
             const datasets = [];
             const includeBookings = category === 'all_metrics' || category === 'bookings';
             const includeRevenue = category === 'all_metrics' || category === 'revenue';
@@ -558,7 +566,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     pointRadius: 4,
                     pointHoverRadius: 7,
                     pointBackgroundColor: '#3b82f6',
-                    pointBorderColor: '#111',
+                    pointBorderColor: pointBdr,
                     pointBorderWidth: 2,
                     pointHoverBackgroundColor: '#fff',
                     pointHoverBorderColor: '#3b82f6',
@@ -578,7 +586,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     pointRadius: 4,
                     pointHoverRadius: 7,
                     pointBackgroundColor: '#14b8a6',
-                    pointBorderColor: '#111',
+                    pointBorderColor: pointBdr,
                     pointBorderWidth: 2,
                     pointHoverBackgroundColor: '#fff',
                     pointHoverBorderColor: '#14b8a6',
@@ -592,7 +600,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const initialTrendCategory = (trendCategory && trendCategory.value) ? trendCategory.value : 'all_metrics';
-        const opsTrendChart = new Chart(tc, {
+        opsTrendChart = new Chart(tc, {
             type: 'line',
             data: { labels: tLabels, datasets: buildTrendDatasets(initialTrendCategory) },
             options: {
@@ -618,7 +626,19 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
-    /* Status Donut */
+        /* Live-update the trend chart point borders when the theme toggles */
+        if ('MutationObserver' in window && opsTrendChart) {
+            const themeWatcher = new MutationObserver(function () {
+                const lightNow = document.documentElement.getAttribute('data-theme') === 'light';
+                opsTrendChart.data.datasets.forEach(function (ds) {
+                    if (ds.pointBorderColor) ds.pointBorderColor = lightNow ? '#ffffff' : '#111111';
+                });
+                opsTrendChart.update();
+            });
+            themeWatcher.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        }
+
+        /* Status Donut */
     const sc = document.getElementById('statusMixChart');
     if (sc) {
         const pm = { completed:'#10b981', confirmed:'#3b82f6', pending:'#f59e0b', pending_payment:'#fbbf24', cancelled:'#ef4444', denied:'#ef4444', expired:'#555' };

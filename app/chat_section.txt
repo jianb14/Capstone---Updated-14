@@ -1,0 +1,845 @@
+4056: def chat_api(request):
+4057:     """
+4058:     API endpoint for the chatbot.
+4059:     Expects JSON: { "message": "user message", "session_id": 123 }
+4060:     """
+4061:     try:
+4062:         uploaded_images = []
+4063:         if request.content_type and request.content_type.startswith("multipart/form-data"):
+4064:             data = request.POST
+4065:             uploaded_images = [f for f in request.FILES.getlist("image") if f]
+4066:         else:
+4067:             try:
+4068:                 data = json.loads(request.body)
+4069:             except json.JSONDecodeError:
+4070:                 return JsonResponse({"error": "Invalid JSON body"}, status=400)
+4071: 
+4072:         user_message = (data.get("message") or "").strip()
+4073:         session_id = data.get("session_id")
+4074: 
+4075:         if not user_message and not uploaded_images:
+4076:             return JsonResponse({"error": "Message or image is required"}, status=400)
+4077: 
+4078:         # Ensure user is authenticated to use sessions properly
+4079:         if not request.user.is_authenticated:
+4080:             return JsonResponse({"error": "Authentication required"}, status=403)
+4081: 
+4082:         # Handle ChatSession
+4083:         session = None
+4084:         is_new_session = False
+4085:         if session_id:
+4086:             try:
+4087:                 session = ChatSession.objects.get(id=session_id, user=request.user)
+4088:             except ChatSession.DoesNotExist:
+4089:                 pass  # If passed session_id is invalid, we will just create a new one
+4090: 
+4091:         if session and session.is_admin_support and session.status != "ai":
+4092:             if session.status == "closed":
+4093:                 session.status = "active_admin"
+4094: 
+4095:             for uploaded_image in uploaded_images:
+4096:                 image_error = _validate_chat_image(uploaded_image)
+4097:                 if image_error:
+4098:                     return JsonResponse({"error": image_error}, status=400)
+4099: 
+4100:             receiver = _get_client_chat_receiver(session)
+4101:             if not receiver:
+4102:                 return JsonResponse(
+4103:                     {"error": "System misconfiguration (no admin found)"}, status=500
+4104:                 )
+4105: 
+4106:             now = timezone.now()
+4107:             reply_to_obj = None
+4108:             raw_reply_to = data.get("reply_to_id")
+4109:             if raw_reply_to:
+4110:                 try:
+4111:                     reply_to_obj = session.messages.get(id=int(raw_reply_to))
+4112:                 except (ValueError, ChatMessage.DoesNotExist):
+4113:                     reply_to_obj = None
+4114:             if user_message:
+4115:                 ChatMessage.objects.create(
+4116:                     session=session,
+4117:                     sender=request.user,
+4118:                     receiver=receiver,
+4119:                     message=user_message,
+4120:                     reply_to=reply_to_obj,
+4121:                 )
+4122:             for uploaded_image in uploaded_images:
+4123:                 ChatMessage.objects.create(
+4124:                     session=session,
+4125:                     sender=request.user,
+4126:                     receiver=receiver,
+4127:                     message="",
+4128:                     image=uploaded_image,
+4129:                     image_original_name=uploaded_image.name[:255],
+4130:                 )
+4131:             session.last_client_message_at = now
+4132:             session.client_last_active_at = now
+4133:             update_fields = ["status", "last_client_message_at", "client_last_active_at", "updated_at"]
+4134:             if session.title == "Admin support":
+4135:                 title_source = user_message or (uploaded_images[0].name if uploaded_images else "Image attachment")
+4136:                 session.title = title_source[:60] + ("..." if len(title_source) > 60 else "")
+4137:                 update_fields.append("title")
+4138:             session.save(update_fields=update_fields)
+4139: 
+4140:             return JsonResponse(
+4141:                 {
+4142:                     "response": "Message sent to admin.",
+4143:                     "awaiting_admin": True,
+4144:                     "session_id": session.id,
+4145:                     "is_new_session": False,
+4146:                     "session_title": session.title,
+4147:                     "new_status": session.status,
+4148:                 }
+4149:             )
+4150: 
+4151:         if uploaded_images:
+4152:             return JsonResponse(
+4153:                 {"error": "Images can only be attached in admin support chat."},
+4154:                 status=400,
+4155:             )
+4156: 
+4157:         # --- 1. FETCH CONTEXT (HISTORY) FIRST ---
+4158:         history = []
+4159:         if session:
+4160:             recent_msgs = ChatMessage.objects.filter(session=session).order_by("-sent_at")[
+4161:                 :8
+4162:             ]
+4163: 
+4164:             # Reorder to chronological (oldest to newest) for the AI
+4165:             for msg in reversed(recent_msgs):
+4166:                 role = "user" if msg.sender == request.user else "assistant"
+4167:                 history.append({"role": role, "content": msg.message})
+4168: 
+4169:         # Get AI Response with History
+4170:         ai_result = get_chatbot_response(
+4171:             user_message,
+4172:             conversation_history=history,
+4173:             user=request.user,
+4174:         )
+4175: 
+4176:         # ai_result includes moderation metadata and response text.
+4177:         ai_text = ai_result.get("text", "")
+4178:         is_warning = ai_result.get("is_warning", False)
+4179:         is_banned = ai_result.get("is_banned", False)
+4180:         ban_remaining_seconds = int(ai_result.get("ban_remaining_seconds") or 0)
+4181:         moderation_action = ai_result.get("moderation_action", "")
+4182:         strike_count = int(ai_result.get("strike_count") or 0)
+4183:         should_save = ai_result.get("should_save", not is_warning)
+4184: 
+4185:         if should_save:
+4186:             # Default receiver for AI bot
+4187:             admin_user = _get_primary_admin_user()
+4188:             if not admin_user:
+4189:                 return JsonResponse(
+4190:                     {"error": "System misconfiguration (no admin found)"}, status=500
+4191:                 )
+4192: 
+4193:             if not session:
+4194:                 title = (
+4195:                     user_message[:30] + "..." if len(user_message) > 30 else user_message
+4196:                 )
+4197:                 session = ChatSession.objects.create(user=request.user, title=title)
+4198:                 is_new_session = True
+4199: 
+4200:             ChatMessage.objects.create(
+4201:                 session=session,
+4202:                 sender=request.user,
+4203:                 receiver=admin_user,
+4204:                 message=user_message,
+4205:                 is_flagged=is_warning,
+4206:             )
+4207: 
+4208:             ChatMessage.objects.create(
+4209:                 session=session,
+4210:                 sender=admin_user,
+4211:                 receiver=request.user,
+4212:                 message=ai_text,
+4213:             )
+4214:             session.save(update_fields=["updated_at"])
+4215:         elif ai_text and session:
+4216:             # Persist moderation/system assistant messages in the active session so
+4217:             # chat history remains consistent after reload.
+4218:             admin_user = _get_primary_admin_user()
+4219:             if admin_user:
+4220:                 ChatMessage.objects.create(
+4221:                     session=session,
+4222:                     sender=admin_user,
+4223:                     receiver=request.user,
+4224:                     message=ai_text,
+4225:                     is_flagged=True,
+4226:                 )
+4227:                 session.save(update_fields=["updated_at"])
+4228: 
+4229:         return JsonResponse(
+4230:             {
+4231:                 "response": ai_text,
+4232:                 "is_warning": is_warning,
+4233:                 "is_banned": is_banned,
+4234:                 "ban_remaining_seconds": ban_remaining_seconds,
+4235:                 "moderation_action": moderation_action,
+4236:                 "strike_count": strike_count,
+4237:                 "session_id": session.id if session else None,
+4238:                 "is_new_session": is_new_session,
+4239:                 "session_title": session.title if session else "",
+4240:             }
+4241:         )
+4242: 
+4243:     except Exception as e:
+4244:         print(f"Chat API Error: {e}")  # Debugging
+4245:         return JsonResponse({"error": str(e)}, status=500)
+4246: 
+4247: 
+4248: @login_required
+4249: @require_GET
+4250: def chat_sessions(request):
+4251:     """
+4252:     GET endpoint to fetch all chat sessions for the current user.
+4253:     """
+4254:     sessions = ChatSession.objects.filter(user=request.user)
+4255:     mode = (request.GET.get("mode") or "ai").strip().lower()
+4256:     if mode == "admin":
+4257:         sessions = sessions.filter(is_admin_support=True).exclude(status="ai")
+4258:     elif mode != "all":
+4259:         sessions = sessions.filter(status="ai", is_admin_support=False)
+4260:     sessions = sessions.order_by("-updated_at")
+4261:     # Client's device is polling sessions — admin messages have now been
+4262:     # received on their end, so mark them "Delivered" (not yet "Seen" until
+4263:     # the client actually opens the chat / marks them read).
+4264:     if mode == "admin":
+4265:         ChatMessage.objects.filter(
+4266:             session__user=request.user,
+4267:             session__is_admin_support=True,
+4268:             receiver=request.user,
+4269:             is_read=False,
+4270:             is_delivered=False,
+4271:         ).exclude(sender=request.user).update(
+4272:             is_delivered=True, delivered_at=timezone.now()
+4273:         )
+4274:     sessions_list = []
+4275:     for s in sessions:
+4276:         sessions_list.append(
+4277:             {
+4278:                 "id": s.id,
+4279:                 "title": s.title,
+4280:                 "status": s.status,
+4281:                 "status_label": s.get_status_display(),
+4282:                 "assigned_admin": (
+4283:                     s.assigned_admin.get_full_name()
+4284:                     or s.assigned_admin.username
+4285:                     if s.assigned_admin
+4286:                     else ""
+4287:                 ),
+4288:                 "unread_count": ChatMessage.objects.filter(
+4289:                     session=s,
+4290:                     receiver=request.user,
+4291:                     is_read=False,
+4292:                 ).exclude(sender=request.user).count(),
+4293:                 "updated_at": s.updated_at.strftime("%b %d, %Y"),
+4294:             }
+4295:         )
+4296:     ban_status = get_current_ban_status(request.user)
+4297:     return JsonResponse(
+4298:         {
+4299:             "sessions": sessions_list,
+4300:             "is_banned": ban_status["is_banned"],
+4301:             "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
+4302:         }
+4303:     )
+4304: 
+4305: 
+4306: @login_required
+4307: def chat_history(request):
+4308:     """
+4309:     GET endpoint to fetch recent chat messages for a specific session.
+4310:     Expects ?session_id=123
+4311:     """
+4312:     session_id = request.GET.get("session_id")
+4313: 
+4314:     ban_status = get_current_ban_status(request.user)
+4315: 
+4316:     if not session_id:
+4317:         return JsonResponse(
+4318:             {
+4319:                 "messages": [],
+4320:                 "is_banned": ban_status["is_banned"],
+4321:                 "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
+4322:             }
+4323:         )
+4324: 
+4325:     session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+4326:     # The client's device is actively viewing this chat — mark them online
+4327:     # and stamp their last activity (used for presence + offline emails).
+4328:     now = timezone.now()
+4329:     session.client_last_active_at = now
+4330:     session.save(update_fields=["client_last_active_at", "updated_at"])
+4331: 
+4332:     recent_msgs = (
+4333:         ChatMessage.objects.filter(session=session)
+4334:         .select_related("sender", "reply_to", "reply_to__sender")
+4335:         .prefetch_related("reactions")
+4336:         .order_by("-sent_at")[:50]
+4337:     )
+4338: 
+4339:     # The messages reached the client's device — mark inbound (admin-sent)
+4340:     # messages as delivered. They become "Seen" once the client opens the
+4341:     # chat and the widget marks them read.
+4342:     ChatMessage.objects.filter(
+4343:         session=session,
+4344:         receiver=request.user,
+4345:         is_read=False,
+4346:         is_delivered=False,
+4347:     ).exclude(sender=request.user).update(
+4348:         is_delivered=True, delivered_at=timezone.now()
+4349:     )
+4350:     messages_list = []
+4351:     for msg in reversed(list(recent_msgs)):
+4352:         messages_list.append(_chat_message_json(msg, request.user))
+4353: 
+4354:     return JsonResponse(
+4355:         {
+4356:             "messages": messages_list,
+4357:             "session": {
+4358:                 "id": session.id,
+4359:                 "admin_last_read_at": (
+4360:                     session.admin_last_read_at.isoformat() if session.admin_last_read_at else None
+4361:                 ),
+4362:                 "title": session.title,
+4363:                 "status": session.status,
+4364:                 "status_label": session.get_status_display(),
+4365:                 "assigned_admin": (
+4366:                     session.assigned_admin.get_full_name()
+4367:                     or session.assigned_admin.username
+4368:                     if session.assigned_admin
+4369:                     else ""
+4370:                 ),
+4371:                 "admin_online": bool(
+4372:                     session.admin_last_active_at
+4373:                     and now - session.admin_last_active_at
+4374:                     <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+4375:                 ),
+4376:                 "admin_typing": bool(
+4377:                     session.admin_typing_until and session.admin_typing_until > now
+4378:                 ),
+4379:                 "admin_last_active_at": (
+4380:                     session.admin_last_active_at.isoformat() if session.admin_last_active_at else None
+4381:                 ),
+4382:             },
+4383:             "is_banned": ban_status["is_banned"],
+4384:             "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
+4385:         }
+4386:     )
+4387: 
+4388: 
+4389: @login_required
+4390: @require_POST
+4391: def chat_clear(request):
+4392:     """
+4393:     POST endpoint to clear a specific chat session.
+4394:     Expects JSON: { "session_id": 123 }
+4395:     """
+4396:     try:
+4397:         data = json.loads(request.body)
+4398:         session_id = data.get("session_id")
+4399:         if session_id:
+4400:             ChatSession.objects.filter(
+4401:                 id=session_id,
+4402:                 user=request.user,
+4403:                 is_admin_support=False,
+4404:             ).delete()
+4405:             return JsonResponse({"success": True})
+4406:         return JsonResponse({"error": "session_id required"}, status=400)
+4407:     except Exception as e:
+4408:         return JsonResponse({"error": str(e)}, status=500)
+4409: 
+4410: 
+4411: # ────────────────────────────────────────────────────────────────
+4412: # CLIENT: Full chat page + session sidebar
+4413: # ────────────────────────────────────────────────────────────────
+4414: @login_required
+4415: def client_chat_page(request):
+4416:     if request.user.role != 'customer':
+4417:         return HttpResponseForbidden("Customers only")
+4418:     return redirect('home')
+4419: 
+4420: 
+4421: # ────────────────────────────────────────────────────────────────
+4422: # CLIENT API: Start or reopen a human admin support session
+4423: # ────────────────────────────────────────────────────────────────
+4424: @login_required
+4425: @require_POST
+4426: def chat_request_admin(request):
+4427:     try:
+4428:         data = json.loads(request.body)
+4429:         session_id = data.get("session_id")
+4430:         admin_user = _get_primary_admin_user()
+4431:         created_support_session = False
+4432:         if session_id:
+4433:             session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+4434:         else:
+4435:             # Reuse the client's most recent admin-support conversation so each
+4436:             # user only ever has one thread in the admin inbox (messenger-style).
+4437:             session = (
+4438:                 ChatSession.objects.filter(user=request.user, is_admin_support=True)
+4439:                 .exclude(status='ai')
+4440:                 .order_by('-updated_at')
+4441:                 .first()
+4442:             )
+4443:             if session is None:
+4444:                 session = ChatSession.objects.create(
+4445:                     user=request.user,
+4446:                     title="Admin support",
+4447:                     status="active_admin",
+4448:                     is_admin_support=True,
+4449:                     assigned_admin=admin_user,
+4450:                     last_client_message_at=timezone.now(),
+4451:                     client_last_active_at=timezone.now(),
+4452:                 )
+4453:                 created_support_session = True
+4454: 
+4455:         if created_support_session or session.status in ['ai', 'closed', 'pending_admin']:
+4456:             session.status = 'active_admin'
+4457:             session.is_admin_support = True
+4458:             if not session.assigned_admin:
+4459:                 session.assigned_admin = admin_user
+4460:             session.last_client_message_at = timezone.now()
+4461:             session.save(update_fields=[
+4462:                 'status',
+4463:                 'is_admin_support',
+4464:                 'assigned_admin',
+4465:                 'last_client_message_at',
+4466:                 'updated_at',
+4467:             ])
+4468:             try:
+4469:                 all_admins = []
+4470:                 for admin in all_admins:
+4471:                     try:
+4472:                         Notification.objects.create(
+4473:                             user=admin,
+4474:                             title="New Admin Chat Request",
+4475:                             message=f"{(request.user.first_name or request.user.username)} needs help — \"{session.title[:50]}\"",
+4476:                             message_type='chat_request',
+4477:                             related_id=session.id,
+4478:                         )
+4479:                     except Exception:
+4480:                         continue
+4481:             except Exception:
+4482:                 pass
+4483:             AdminNotification.objects.create(
+4484:                 user=request.user,
+4485:                 message=(
+4486:                     f"{request.user.get_full_name() or request.user.username} "
+4487:                     f"requested admin chat support: {session.title[:80]}"
+4488:                 ),
+4489:             )
+4490:             return JsonResponse({
+4491:                 "success": True,
+4492:                 "new_status": "active_admin",
+4493:                 "session_id": session.id,
+4494:                 "message": "Admin support chat is ready."
+4495:             })
+4496:         return JsonResponse({
+4497:             "success": True,
+4498:             "new_status": session.status,
+4499:             "session_id": session.id,
+4500:             "message": "Existing admin support chat restored."
+4501:         })
+4502:     except Exception as e:
+4503:         return JsonResponse({"error": str(e)}, status=500)
+4504: 
+4505: 
+4506: # ────────────────────────────────────────────────────────────────
+4507: # CLIENT API: Mark admin-received messages as read in a session
+4508: # ────────────────────────────────────────────────────────────────
+4509: @login_required
+4510: @require_POST
+4511: def chat_mark_read(request):
+4512:     try:
+4513:         data = json.loads(request.body)
+4514:         session_id = data.get("session_id")
+4515:         if not session_id:
+4516:             return JsonResponse({"error": "session_id required"}, status=400)
+4517:         session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+4518:         ChatMessage.objects.filter(
+4519:             session=session, is_read=False,
+4520:         ).exclude(sender=request.user).update(
+4521:             is_read=True,
+4522:             read_at=timezone.now(),
+4523:             is_delivered=True,
+4524:             delivered_at=timezone.now(),
+4525:         )
+4526:         return JsonResponse({"success": True})
+4527:     except Exception as e:
+4528:         return JsonResponse({"error": str(e)}, status=500)
+4529: 
+4530: 
+4531: # ────────────────────────────────────────────────────────────────
+4532: # CHAT API: Edit an own text message (admin or client)
+4533: # ────────────────────────────────────────────────────────────────
+4534: @login_required
+4535: @require_POST
+4536: def chat_edit_message(request):
+4537:     try:
+4538:         data = json.loads(request.body)
+4539:         message_id = data.get("message_id")
+4540:         new_text = (data.get("message") or "").strip()
+4541:         if not message_id:
+4542:             return JsonResponse({"error": "message_id required"}, status=400)
+4543:         if not new_text:
+4544:             return JsonResponse({"error": "Message cannot be empty"}, status=400)
+4545:         message = get_object_or_404(ChatMessage, id=message_id, sender=request.user)
+4546:         message.message = new_text
+4547:         message.is_edited = True
+4548:         message.edited_at = timezone.now()
+4549:         message.save(update_fields=["message", "is_edited", "edited_at"])
+4550:         return JsonResponse({
+4551:             "success": True,
+4552:             "updated": _chat_message_json(message, request.user),
+4553:         })
+4554:     except Http404:
+4555:         raise
+4556:     except Exception as e:
+4557:         return JsonResponse({"error": str(e)}, status=500)
+4558: 
+4559: # ────────────────────────────────────────────────────────────────
+4560: # CHAT API: Typing indicator ping (client OR admin)
+4561: # ────────────────────────────────────────────────────────────────
+4562: @login_required
+4563: @require_POST
+4564: def chat_typing(request):
+4565:     try:
+4566:         data = json.loads(request.body)
+4567:         session_id = data.get("session_id")
+4568:         if not session_id:
+4569:             return JsonResponse({"error": "session_id required"}, status=400)
+4570:         session = get_object_or_404(ChatSession, id=session_id)
+4571:         is_admin = _is_admin_user(request.user)
+4572:         is_client = session.user_id == request.user.id
+4573:         if not (is_admin or is_client):
+4574:             return JsonResponse({"error": "Forbidden"}, status=403)
+4575:         session.client_last_active_at = timezone.now()
+4576:         if is_admin:
+4577:             session.admin_typing_until = timezone.now() + timedelta(seconds=CHAT_TYPING_SECONDS)
+4578:         else:
+4579:             session.client_typing_until = timezone.now() + timedelta(seconds=CHAT_TYPING_SECONDS)
+4580:         session.save(
+4581:             update_fields=[
+4582:                 "client_last_active_at",
+4583:                 "admin_typing_until" if is_admin else "client_typing_until",
+4584:                 "updated_at",
+4585:             ]
+4586:         )
+4587:         return JsonResponse({"success": True})
+4588:     except Exception as e:
+4589:         return JsonResponse({"error": str(e)}, status=500)
+4590: 
+4591: 
+4592: # ────────────────────────────────────────────────────────────────
+4593: # CHAT API: Presence — who is online / typing right now
+4594: # ────────────────────────────────────────────────────────────────
+4595: @login_required
+4596: def chat_presence(request):
+4597:     session_id = request.GET.get("session_id")
+4598:     if not session_id:
+4599:         return JsonResponse({"error": "session_id required"}, status=400)
+4600:     session = get_object_or_404(ChatSession, id=session_id)
+4601:     is_admin = _is_admin_user(request.user)
+4602:     is_client = session.user_id == request.user.id
+4603:     if not (is_admin or is_client):
+4604:         return JsonResponse({"error": "Forbidden"}, status=403)
+4605:     now = timezone.now()
+4606:     delta = timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+4607:     return JsonResponse(
+4608:         {
+4609:             "client_online": bool(session.client_last_active_at and now - session.client_last_active_at <= delta),
+4610:             "client_typing": bool(session.client_typing_until and session.client_typing_until > now),
+4611:             "admin_online": bool(session.admin_last_active_at and now - session.admin_last_active_at <= delta),
+4612:             "admin_typing": bool(session.admin_typing_until and session.admin_typing_until > now),
+4613:             "client_last_active_at": session.client_last_active_at.isoformat() if session.client_last_active_at else None,
+4614:             "admin_last_active_at": session.admin_last_active_at.isoformat() if session.admin_last_active_at else None,
+4615:         }
+4616:     )
+4617: 
+4618: 
+4619: # ────────────────────────────────────────────────────────────────
+4620: # CHAT API: Delete a message (soft delete — "This message was deleted")
+4621: # ────────────────────────────────────────────────────────────────
+4622: @login_required
+4623: @require_POST
+4624: def chat_delete_message(request):
+4625:     try:
+4626:         data = json.loads(request.body)
+4627:         message_id = data.get("message_id")
+4628:         message = get_object_or_404(ChatMessage, id=message_id)
+4629:         is_admin = _is_admin_user(request.user)
+4630:         session = message.session
+4631:         allowed = (
+4632:             message.sender_id == request.user.id
+4633:             or (is_admin and session is not None and session.is_admin_support)
+4634:         )
+4635:         if not allowed:
+4636:             return JsonResponse({"error": "Forbidden"}, status=403)
+4637:         if not message.is_deleted:
+4638:             message.is_deleted = True
+4639:             message.deleted_at = timezone.now()
+4640:             message.save(update_fields=["is_deleted", "deleted_at"])
+4641:         return JsonResponse({"success": True})
+4642:     except Exception as e:
+4643:         return JsonResponse({"error": str(e)}, status=500)
+4644: 
+4645: 
+4646: # ────────────────────────────────────────────────────────────────
+4647: # CHAT API: Toggle a reaction (👍 ❤️ 😮 …) on a message
+4648: # ────────────────────────────────────────────────────────────────
+4649: @login_required
+4650: @require_POST
+4651: def chat_toggle_reaction(request):
+4652:     try:
+4653:         data = json.loads(request.body)
+4654:         message_id = data.get("message_id")
+4655:         emoji = (data.get("emoji") or "").strip()
+4656:         if not message_id:
+4657:             return JsonResponse({"error": "message_id required"}, status=400)
+4658:         if emoji not in CHAT_REACTION_EMOJIS:
+4659:             return JsonResponse({"error": "Invalid emoji"}, status=400)
+4660:         message = get_object_or_404(ChatMessage, id=message_id)
+4661:         existing = MessageReaction.objects.filter(
+4662:             message=message, user=request.user, emoji=emoji
+4663:         ).first()
+4664:         if existing:
+4665:             existing.delete()
+4666:         else:
+4667:             MessageReaction.objects.create(
+4668:                 message=message, user=request.user, emoji=emoji
+4669:             )
+4670:         counts, my = _chat_object_reactions_json(message, request.user)
+4671:         return JsonResponse(
+4672:             {"success": True, "reactions": counts, "my_reactions": my}
+4673:         )
+4674:     except Exception as e:
+4675:         return JsonResponse({"error": str(e)}, status=500)
+4676: 
+4677: # ────────────────────────────────────────────────────────────────
+4678: # ADMIN: Chat Inbox — list all client chat sessions grouped by status
+4679: # ────────────────────────────────────────────────────────────────
+4680: @login_required
+4681: def admin_chat_inbox(request):
+4682:     if not _is_admin_user(request.user):
+4683:         return HttpResponseForbidden("Admins only")
+4684:     stats, sessions = _admin_support_chat_stats(
+4685:         _admin_support_chat_sessions(), request.user
+4686:     )
+4687:     return render(request, 'admin/admin_chat_inbox.html', {
+4688:         'sessions': sessions,
+4689:         'stats': stats,
+4690:     })
+4691: 
+4692: 
+4693: # ────────────────────────────────────────────────────────────────
+4694: # CHAT API: Admin quick replies (list + create)
+4695: # ────────────────────────────────────────────────────────────────
+4696: @login_required
+4697: def chat_quick_replies(request):
+4698:     if not _is_admin_user(request.user):
+4699:         return HttpResponseForbidden("Admins only")
+4700:     replies = list(
+4701:         QuickReply.objects.filter(is_active=True).values_list("text", flat=True)
+4702:     )
+4703:     return JsonResponse({"quick_replies": replies})
+4704: 
+4705: 
+4706: @login_required
+4707: @require_POST
+4708: def chat_quick_reply_create(request):
+4709:     if not _is_admin_user(request.user):
+4710:         return HttpResponseForbidden("Admins only")
+4711:     try:
+4712:         data = json.loads(request.body)
+4713:         text = (data.get("text") or "").strip()[:300]
+4714:         if not text:
+4715:             return JsonResponse({"error": "Quick reply text required"}, status=400)
+4716:         last_order = QuickReply.objects.aggregate(m=Max("order"))["m"] or 0
+4717:         QuickReply.objects.create(text=text, order=last_order + 1)
+4718:         return JsonResponse({"success": True})
+4719:     except Exception as e:
+4720:         return JsonResponse({"error": str(e)}, status=500)
+4721: 
+4722: 
+4723: # ────────────────────────────────────────────────────────────────
+4724: # ADMIN API: Live thread poll — JSON messages + presence, no page reload
+4725: # ────────────────────────────────────────────────────────────────
+4726: @login_required
+4727: def chat_admin_poll(request):
+4728:     if not _is_admin_user(request.user):
+4729:         return HttpResponseForbidden("Admins only")
+4730:     session_id = request.GET.get("session_id")
+4731:     if not session_id:
+4732:         return JsonResponse({"error": "session_id required"}, status=400)
+4733:     try:
+4734:         session = ChatSession.objects.select_related(
+4735:             "user", "assigned_admin"
+4736:         ).get(id=session_id, is_admin_support=True)
+4737:     except ChatSession.DoesNotExist:
+4738:         return JsonResponse({"error": "session not found"}, status=404)
+4739: 
+4740:     now = timezone.now()
+4741:     ChatMessage.objects.filter(session=session, sender=session.user, is_read=False).update(
+4742:         is_read=True,
+4743:         read_at=now,
+4744:         is_delivered=True,
+4745:         delivered_at=now,
+4746:     )
+4747:     session.admin_last_read_at = now
+4748:     session.admin_last_active_at = now
+4749:     session.save(
+4750:         update_fields=["admin_last_read_at", "admin_last_active_at", "updated_at"]
+4751:     )
+4752: 
+4753:     msgs = list(
+4754:         session.messages.select_related("sender", "reply_to", "reply_to__sender")
+4755:         .prefetch_related("reactions")
+4756:         .order_by("sent_at")[:150]
+4757:     )
+4758:     return JsonResponse(
+4759:         {
+4760:             "messages": [_chat_message_json(msg, request.user) for msg in msgs],
+4761:             "session_id": session.id,
+4762:             "client_online": bool(
+4763:                 session.client_last_active_at
+4764:                 and now - session.client_last_active_at
+4765:                 <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+4766:             ),
+4767:             "client_typing": bool(
+4768:                 session.client_typing_until and session.client_typing_until > now
+4769:             ),
+4770:             "unread_admin_count": ChatMessage.objects.filter(
+4771:                 session=session, sender=session.user, is_read=False
+4772:             ).count(),
+4773:         }
+4774:     )
+4775: 
+4776: 
+4777: # ────────────────────────────────────────────────────────────────
+4778: # ADMIN: Chat Thread — view full conversation + post reply
+4779: # ────────────────────────────────────────────────────────────────
+4780: @login_required
+4781: def admin_chat_thread(request, session_id):
+4782:     if not _is_admin_user(request.user):
+4783:         return HttpResponseForbidden("Admins only")
+4784:     session = get_object_or_404(
+4785:         ChatSession.objects.select_related('user', 'assigned_admin'),
+4786:         id=session_id,
+4787:         is_admin_support=True,
+4788:     )
+4789:     ChatMessage.objects.filter(
+4790:         session=session, sender=session.user, is_read=False
+4791:     ).update(
+4792:         is_read=True,
+4793:         read_at=timezone.now(),
+4794:         is_delivered=True,
+4795:         delivered_at=timezone.now(),
+4796:     )
+4797:     now = timezone.now()
+4798:     session.admin_last_read_at = now
+4799:     session.admin_last_active_at = now
+4800:     session.save(update_fields=['admin_last_read_at', 'admin_last_active_at'])
+4801: 
+4802:     if request.method == 'POST':
+4803:         reply_text = request.POST.get('message', '').strip()
+4804:         uploaded_images = [f for f in request.FILES.getlist('image') if f]
+4805:         for uploaded_image in uploaded_images:
+4806:             image_error = _validate_chat_image(uploaded_image)
+4807:             if image_error:
+4808:                 messages.error(request, image_error)
+4809:                 return redirect('admin_chat_thread', session_id=session.id)
+4810:         if reply_text or uploaded_images:
+4811:             reply_to_obj = None
+4812:             raw_reply_to = request.POST.get('reply_to_id', '')
+4813:             if raw_reply_to:
+4814:                 try:
+4815:                     reply_to_obj = session.messages.get(id=int(raw_reply_to))
+4816:                 except (ValueError, ChatMessage.DoesNotExist):
+4817:                     reply_to_obj = None
+4818:             if reply_text:
+4819:                 ChatMessage.objects.create(
+4820:                     session=session,
+4821:                     sender=request.user,
+4822:                     receiver=session.user,
+4823:                     message=reply_text,
+4824:                     reply_to=reply_to_obj,
+4825:                     is_flagged=False,
+4826:                 )
+4827:             for uploaded_image in uploaded_images:
+4828:                 ChatMessage.objects.create(
+4829:                     session=session,
+4830:                     sender=request.user,
+4831:                     receiver=session.user,
+4832:                     message="",
+4833:                     image=uploaded_image,
+4834:                     image_original_name=uploaded_image.name[:255],
+4835:                     is_flagged=False,
+4836:                 )
+4837:             if session.status in ['pending_admin', 'closed']:
+4838:                 session.status = 'active_admin'
+4839:             session.assigned_admin = request.user
+4840:             session.admin_last_active_at = now
+4841:             session.save(update_fields=['status', 'assigned_admin', 'updated_at', 'admin_last_active_at'])
+4842: 
+4843:             # Notify an offline client (in-app ChatNotification + best-effort email).
+4844:             client_offline = not (
+4845:                 session.client_last_active_at
+4846:                 and now - session.client_last_active_at
+4847:                 <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+4848:             )
+4849:             if client_offline:
+4850:                 try:
+4851:                     ChatNotification.objects.create(
+4852:                         user=session.user,
+4853:                         session=session,
+4854:                         message=reply_text or "You received a new image message from Balloorina support.",
+4855:                     )
+4856:                 except Exception:
+4857:                     pass
+4858:                 if session.user.email:
+4859:                     try:
+4860:                         send_mail(
+4861:                             subject="New message from Balloorina support",
+4862:                             body=(
+4863:                                 f"Hi {session.user.first_name or session.user.username},\n\n"
+4864:                                 "You have a new message from our support team:\n\n"
+4865:                                 f"{(reply_text or '(Image attachment)')}\n\n"
+4866:                                 "Open your chat to reply.\n\n— Balloorina"
+4867:                             ),
+4868:                             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@balloorina.local"),
+4869:                             recipient_list=[session.user.email],
+4870:                             fail_silently=True,
+4871:                         )
+4872:                     except Exception:
+4873:                         pass
+4874:         return redirect('admin_chat_thread', session_id=session.id)
+4875: 
+4876:     chat_messages = (
+4877:         session.messages.all()
+4878:         .select_related('sender', 'reply_to', 'reply_to__sender')
+4879:         .prefetch_related('reactions')
+4880:         .order_by('sent_at')
+4881:     )
+4882:     stats, all_sessions = _admin_support_chat_stats(
+4883:         _admin_support_chat_sessions(), request.user
+4884:     )
+4885:     return render(request, 'admin/admin_chat_thread.html', {
+4886:         'session': session,
+4887:         'chat_messages': chat_messages,
+4888:         'all_sessions': all_sessions,
+4889:         'stats': stats,
+4890:     })
+4891: 
+4892: 
+4893: # ────────────────────────────────────────────────────────────────
+4894: # ADMIN: Close / archive support chat without deleting history
+4895: # ────────────────────────────────────────────────────────────────
+4896: # ────────────────────────────────────────────────────────────────
+4897: # ADMIN: Close / Archive chat session
+4898: # ────────────────────────────────────────────────────────────────
+4899: @login_required
+4900: @require_POST

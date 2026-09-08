@@ -24,20 +24,20 @@
     </a>
 </div>
 
-<div class="table-container" style="padding: 1.5rem; max-width: 600px;">
+<div class="table-container" style="padding: 1.5rem; max-width: 600px; margin: 0 auto;">
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div style="margin-bottom: 1.25rem;">
-            <div style="margin-bottom: 0.35rem; font-size: 0.95rem; font-weight: 600; color: #fff;">Required Initial Payment</div>
-            <p style="margin: 0 0 0.8rem; font-size: 0.82rem; line-height: 1.55; color: #8a8a8a;">
+            <div style="margin-bottom: 0.35rem; font-size: 0.95rem; font-weight: 600;" class="text-heading">Required Initial Payment</div>
+            <p style="margin: 0 0 0.8rem; font-size: 0.82rem; line-height: 1.55;" class="text-secondary">
                 Set the percentage customers must pay first before they can settle the remaining balance.
             </p>
-            <label for="downpayment_percent" style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500; color: #ccc;">Downpayment Percent (%)</label>
-            <input id="downpayment_percent" type="number" name="downpayment_percent" min="1" max="100" step="1" value="{{ config.downpayment_percent|floatformat:0 }}" required style="width: 100%; padding: 0.75rem 1rem; background: #0f0f0f; border: 1px solid #2a2a2a; color: #fff; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none; transition: all 0.2s ease;">
-            <small style="display: block; margin-top: 0.35rem; font-size: 0.8rem; color: #666;">Example: if you set this to 20, the customer must pay 20% of the total booking price first.</small>
+            <label for="downpayment_percent" style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;" class="text-secondary">Downpayment Percent (%)</label>
+            <input id="downpayment_percent" type="number" name="downpayment_percent" min="1" max="100" step="1" value="{{ config.downpayment_percent|floatformat:0 }}" required class="form-control" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none; transition: all 0.2s ease;">
+            <small style="display: block; margin-top: 0.35rem; font-size: 0.8rem;" class="text-muted">Example: if you set this to 20, the customer must pay 20% of the total booking price first.</small>
         </div>
 
-        <button type="submit" style="width: 100%; padding: 0.875rem 1.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">Save Settings</button>
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 0.875rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: none;">Save Settings</button>
     </form>
 </div>
 {% endblock %}

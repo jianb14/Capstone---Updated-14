@@ -23,46 +23,54 @@
     font-size: 0.9rem;
 }
 
-/* Summary Stats */
+/* Summary Stats (same design as Admin Booking) */
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 1rem;
     margin-bottom: 1.5rem;
 }
 
+/* 3 cards: each spans 4 columns (3 x 4 = 12) */
+.summary-card:nth-child(1),
+.summary-card:nth-child(2),
+.summary-card:nth-child(3) {
+    grid-column: span 4;
+}
+
 .summary-card {
     position: relative;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 1rem;
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
     border-radius: 12px;
+    padding: 0.8rem 1.1rem;
     overflow: hidden;
 }
 
 .summary-card::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0 auto auto 0;
     width: 100%;
-    height: 3px;
+    height: 2px;
+    opacity: 0.95;
 }
 
-.summary-card--total::before { background: #3b82f6; }
-.summary-card--rating::before { background: #f59e0b; }
-.summary-card--featured::before { background: #10b981; }
+.summary-card--total::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.summary-card--rating::before { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.summary-card--featured::before { background: linear-gradient(90deg, #059669, #10b981); }
 
 .summary-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
 }
 
 .summary-label {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    font-weight: 500;
+    color: #8a8a8a;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .summary-icon {
@@ -81,19 +89,22 @@
     font-size: 1rem;
 }
 
-.summary-card--total .summary-icon { color: #3b82f6; }
+.summary-card--total .summary-icon { color: #60a5fa; }
 .summary-card--rating .summary-icon { color: #f59e0b; }
 .summary-card--featured .summary-icon { color: #10b981; }
 
 .summary-value {
     font-size: 2rem;
+    line-height: 1;
     font-weight: 700;
-    margin-bottom: 0.25rem;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+    margin-bottom: 0.45rem;
 }
 
 .summary-sub {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 0.82rem;
+    color: #777;
 }
 
 /* Filters */
@@ -107,15 +118,26 @@
 
 .filter-form {
     display: flex;
-    gap: 0.75rem;
-    align-items: center;
     flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
     margin-bottom: 1rem;
 }
 
+/* Filter group (rating + sort) — sits right beside the search bar, right-aligned */
+.filter-actions {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
 .search-input-wrapper {
-    flex: 1;
-    min-width: 250px;
+    width: 320px;
+    flex: 0 1 auto;
+    min-width: 230px;
     position: relative;
 }
 
@@ -148,7 +170,8 @@
 /* Custom Dropdown (Matching Client Side) */
 .custom-filter-dropdown {
     position: relative;
-    min-width: 160px;
+    min-width: 180px;
+    flex: 0 1 auto;
 }
 
 .dropdown-trigger {
@@ -192,7 +215,7 @@
     padding: 0.4rem;
     z-index: 100;
     display: none;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
 }
 
 .custom-filter-dropdown.open .dropdown-options {
@@ -536,6 +559,11 @@ tr:last-child td {
     font-size: 0.85rem;
 }
 
+/* Meta icons keep their own brand color in both themes */
+.meta-icon i.fa-calendar-alt { color: #3b82f6; }
+.meta-icon i.fa-glass-cheers { color: #f59e0b; }
+.meta-icon i.fa-clock { color: #8b5cf6; }
+
 .meta-content {
     display: flex;
     flex-direction: column;
@@ -737,6 +765,37 @@ tr:last-child td {
     background-color: rgba(255, 255, 255, 0.9);
 }
 
+@media (max-width: 1024px) {
+    /* Summary cards: 2 per row, last card spans full row (booking pattern) */
+    .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .summary-card:nth-child(n) {
+        grid-column: span 1 !important;
+    }
+    .summary-card:nth-last-child(1) {
+        grid-column: span 2 !important;
+    }
+
+    /* Keep search + dropdowns side by side, right-aligned (override admin_base.css universal !important) */
+    .filter-form {
+        flex-wrap: wrap !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 0.6rem !important;
+    }
+    .filter-form .search-input-wrapper {
+        flex: 1 1 220px !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+    .filter-form .filter-actions .custom-filter-dropdown {
+        flex: 0 1 200px !important;
+        min-width: 170px !important;
+        width: auto !important;
+    }
+}
 @media (max-width: 850px) {
     .detail-grid { grid-template-columns: 1fr; }
     .profile-card { position: static; }
@@ -744,13 +803,324 @@ tr:last-child td {
 
 @media (max-width: 768px) {
     .filter-form {
-        flex-direction: column;
-        align-items: stretch;
+        flex-wrap: wrap !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 0.6rem !important;
     }
-    .search-input-wrapper {
-        min-width: 100%;
+
+    /* Keep search + dropdowns side by side on tablets (override admin_base.css !important) */
+    .filter-form .search-input-wrapper,
+    .filter-form .filter-actions .custom-filter-dropdown {
+        flex: 1 1 200px !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: none !important;
     }
+
     .review-comment {
         max-width: 200px;
     }
+}
+
+@media (max-width: 640px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+    .summary-card:nth-child(n) {
+        grid-column: span 1 !important;
+    }
+
+    /* Stack search + filters vertically, full width (booking pattern) */
+    .filter-form {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        gap: 0.6rem !important;
+    }
+
+    .filter-form .search-input-wrapper,
+    .filter-form .filter-actions .custom-filter-dropdown {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 0 0 auto !important;
+    }
+
+    .filter-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+}
+
+
+/* ========================================================
+   LIGHT THEME OVERRIDES
+   ======================================================== */
+[data-theme="light"] {
+    --card-bg: #ffffff;
+    --card-bg-s: #f9fafb;
+    --card-bdr: rgba(0, 0, 0, 0.1);
+    --card-bdr-h: rgba(0, 0, 0, 0.2);
+    --t1: #111827;
+    --t2: #4b5563;
+    --t3: #6b7280;
+    --t4: #9ca3af;
+}
+
+[data-theme="light"] .container,
+[data-theme="light"] .wrapper,
+[data-theme="light"] .card,
+[data-theme="light"] .box,
+[data-theme="light"] .panel,
+[data-theme="light"] .modal-content,
+[data-theme="light"] .auth-container,
+[data-theme="light"] .profile-card,
+[data-theme="light"] .booking-card,
+[data-theme="light"] .review-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .dashboard-card,
+[data-theme="light"] .table-container {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .table th,
+[data-theme="light"] table th,
+[data-theme="light"] .data-table th {
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .table td,
+[data-theme="light"] table td,
+[data-theme="light"] .data-table td {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] tr:hover td {
+    background-color: #f9fafb !important;
+}
+
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="number"],
+[data-theme="light"] input[type="date"],
+[data-theme="light"] input[type="time"],
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+    background-color: #f9fafb !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+    background-color: #ffffff !important;
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .text-muted,
+[data-theme="light"] .help-text,
+[data-theme="light"] .sub-text,
+[data-theme="light"] small {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .btn-outline {
+    border-color: #d1d5db !important;
+    color: #374151 !important;
+}
+[data-theme="light"] .btn-outline:hover {
+    background-color: #f3f4f6 !important;
+}
+
+[data-theme="light"] .notification-dropdown,
+[data-theme="light"] .notif-header,
+[data-theme="light"] .notif-item {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-item:hover {
+    background-color: #f9fafb !important;
+}
+
+[data-theme="light"] .notif-date-header {
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .notif-content p {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-empty {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .canvas-container {
+    background-color: #f3f4f6 !important;
+}
+
+/* ========================================================
+   REVIEW PAGE SPECIFIC LIGHT THEME FIXES
+   ======================================================== */
+
+/* Summary cards: white in light mode (were stuck on dark --bg-card) */
+[data-theme="light"] .summary-card {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .summary-label,
+[data-theme="light"] .summary-sub {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .summary-value {
+    color: #111827 !important;
+}
+
+/* Summary icons: keep brand colors, give them tinted chips in light mode */
+[data-theme="light"] .summary-icon {
+    background: #f3f4f6 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+[data-theme="light"] .summary-card--total .summary-icon {
+    background: #dbeafe !important;
+    border-color: #bfdbfe !important;
+    color: #3b82f6 !important;
+}
+
+[data-theme="light"] .summary-card--rating .summary-icon {
+    background: #fef3c7 !important;
+    border-color: #fde68a !important;
+    color: #d97706 !important;
+}
+
+[data-theme="light"] .summary-card--featured .summary-icon {
+    background: #d1fae5 !important;
+    border-color: #a7f3d0 !important;
+    color: #059669 !important;
+}
+
+/* Table text that was hardcoded white */
+[data-theme="light"] .user-name {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .user-email {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .no-results h3 {
+    color: #111827 !important;
+}
+
+/* Row action buttons (view / testimonial toggle) */
+[data-theme="light"] .action-buttons a {
+    background: #ffffff !important;
+    color: #4b5563 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .action-buttons a.toggle-btn.active {
+    background: #d1fae5 !important;
+    color: #15803d !important;
+    border-color: #a7f3d0 !important;
+}
+
+/* Dropdown: keep the chevron/caret visible in light mode
+   (base rule forced it white = invisible on white) */
+[data-theme="light"] .dropdown-trigger i {
+    color: #6b7280 !important;
+}
+
+/* Dropdown: soft shadow in light mode (no heavy dark shadow) */
+[data-theme="light"] .custom-filter-dropdown .dropdown-options {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Search bar focus: gray border only (no blue border, no glow ring)
+   — same treatment as the admin booking page */
+[data-theme="light"] .search-input-wrapper input.search-input:focus {
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+}
+
+/* ── Review detail page (glass boxes, profile, text) ── */
+[data-theme="light"] .glass-box {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .box-title,
+[data-theme="light"] .profile-info h2,
+[data-theme="light"] .rating-number-badge {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .comment-text,
+[data-theme="light"] .meta-value {
+    color: #374151 !important;
+}
+
+[data-theme="light"] .review-id-badge {
+    background: #f3f4f6 !important;
+    border-color: #e5e7eb !important;
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .meta-icon {
+    background: #f3f4f6 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+[data-theme="light"] .star-empty {
+    color: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .btn-back {
+    color: #4b5563 !important;
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+}
+
+[data-theme="light"] .btn-back:hover {
+    color: #111827 !important;
+    background: #f3f4f6 !important;
+    border-color: #9ca3af !important;
 }

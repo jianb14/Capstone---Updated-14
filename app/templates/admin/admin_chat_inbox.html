@@ -1,0 +1,133 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Admin Chat - Balloorina{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260906f">
+{% endblock %}
+
+{% block content %}
+<div class="admin-chat-shell">
+    <div class="admin-chat-page-head">
+        <div>
+            <h1>Client Support Center</h1>
+            <p>One inbox for all client support requests &mdash; review conversations, respond to inquiries, and resolve issues in real time.</p>
+        </div>
+    </div>
+
+    <div class="admin-chat-wrap">
+        <aside class="admin-chat-sidebar">
+            <div class="chat-sidebar-head">
+                <h2>Support Inbox</h2>
+                <div class="admin-chat-tools">
+                    <label class="admin-chat-search" for="adminChatSearch">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </svg>
+                        <input id="adminChatSearch" type="search" placeholder="Search client or message">
+                    </label>
+                </div>
+            </div>
+        <div class="chat-session-scroll">
+            {% for item in sessions %}
+            <a href="{% url 'admin_chat_thread' item.id %}"
+               class="session-card {% if item.has_unread_for_admin %}has-unread{% endif %}"
+               data-search="{{ item.user.get_full_name|default:item.user.username }} {{ item.user.email }} {{ item.title }} {{ item.last_msg_text|default:'' }}">
+                <div class="sc-avatar">{{ item.user.first_name|default:item.user.username|slice:":1"|upper }}</div>
+                <div class="sc-info">
+                    <div class="sc-name">{{ item.user.get_full_name|default:item.user.username }}</div>
+                    <div class="sc-preview">
+                        {% if item.last_msg_has_image %}
+                        📷 Image sent
+                        {% elif item.last_msg_text %}
+                        {{ item.last_msg_text|striptags|truncatechars:88 }}
+                        {% else %}
+                        No messages yet
+                        {% endif %}
+                    </div>
+                    <div class="sc-meta-line">
+                        {% if item.last_msg_time %}
+                        <span class="sc-time">{{ item.last_msg_time|date:"M d, g:i A" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if item.unread_admin_count %}
+                <span class="sc-unread-badge">{{ item.unread_admin_count }} new message{{ item.unread_admin_count|pluralize }}</span>
+                {% endif %}
+            </a>
+            {% empty %}
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fa-regular fa-comments"></i></div>
+                <h2>No admin support chats yet</h2>
+                <p>Client messages from the floating support button will show here.</p>
+            </div>
+            {% endfor %}
+            <div class="admin-chat-no-results" hidden>
+                <div class="empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                </div>
+                <h2>No matching chats</h2>
+                <p>Try another search term or filter.</p>
+            </div>
+        </div>
+    </aside>
+
+    <main class="admin-chat-main empty-select">
+        <div class="empty-placeholder">
+            <div class="empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
+            <h2>Select a client chat</h2>
+            <p>Select a conversation and reply like a regular messenger thread.</p>
+            <div class="quick-tips">
+                <p>Client conversations stay in this inbox.</p>
+                <p>New client messages show a red dot.</p>
+                <p>Use search to find a client or message.</p>
+            </div>
+        </div>
+    </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("adminChatSearch");
+    const cards = Array.from(document.querySelectorAll(".session-card"));
+    const noResults = document.querySelector(".admin-chat-no-results");
+
+    function applyChatFilters() {
+        const query = (searchInput?.value || "").trim().toLowerCase();
+        let visibleCount = 0;
+
+        cards.forEach(function (card) {
+            const matchesQuery = !query || (card.dataset.search || "").toLowerCase().includes(query);
+            card.hidden = !matchesQuery;
+            if (matchesQuery) visibleCount += 1;
+        });
+
+        if (noResults) noResults.hidden = visibleCount !== 0 || cards.length === 0;
+    }
+
+    if (searchInput) searchInput.addEventListener("input", applyChatFilters);
+
+    setInterval(async function () {
+        try {
+            const response = await fetch("{% url 'admin_chat_unread_poll' %}", {
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            });
+            const data = await response.json();
+            const currentPending = Number("{{ stats.pending|default:0 }}");
+            const currentUnread = Number("{{ stats.unread_total|default:0 }}");
+            if (Number(data.pending_count) !== currentPending || Number(data.unread_total) !== currentUnread) {
+                window.location.reload();
+            }
+        } catch (error) {}
+    }, 10000);
+});
+</script>
+{% endblock %}

@@ -190,24 +190,127 @@ class ReviewImage(models.Model):
 # 6️⃣ ChatSession & ChatMessage
 # -----------------------------
 class ChatSession(models.Model):
+    STATUS_CHOICES = (
+        ('ai', 'AI Bot'),
+        ('pending_admin', 'Pending Admin Handoff'),
+        ('active_admin', 'Active with Admin'),
+        ('closed', 'Closed'),
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_sessions')
     title = models.CharField(max_length=255, default="New Chat")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ai')
+    is_admin_support = models.BooleanField(default=False, db_index=True)
+    assigned_admin = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='assigned_chats',
+        null=True,
+        blank=True,
+    )
+    last_client_message_at = models.DateTimeField(null=True, blank=True)
+    admin_last_read_at = models.DateTimeField(null=True, blank=True)
+    client_typing_until = models.DateTimeField(null=True, blank=True)
+    admin_typing_until = models.DateTimeField(null=True, blank=True)
+    client_last_active_at = models.DateTimeField(null=True, blank=True)
+    admin_last_active_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def has_unread_for_admin(self):
+        if not self.last_client_message_at:
+            return False
+        if not self.admin_last_read_at:
+            return True
+        return self.last_client_message_at > self.admin_last_read_at
 
     def __str__(self):
-        return f"{self.title} - {self.user.username}"
+        return f"{self.title} - {self.user.username} ({self.get_status_display()})"
 
 class ChatMessage(models.Model):
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages', null=True, blank=True)
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
-    message = models.TextField()
+    message = models.TextField(blank=True, default='')
+    image = models.ImageField(upload_to='chat_attachments/%Y/%m/', null=True, blank=True)
+    image_original_name = models.CharField(max_length=255, blank=True, default='')
     is_flagged = models.BooleanField(default=False)
     sent_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    is_delivered = models.BooleanField(default=False)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    is_edited = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    reply_to = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
+
+    @property
+    def is_from_admin(self):
+        return (
+            getattr(self.sender, 'role', None) in ['admin', 'staff']
+            or getattr(self.sender, 'is_superuser', False)
+        )
 
     def __str__(self):
         return f"Message {self.id} from {self.sender.username} to {self.receiver.username}"
+
+
+class MessageReaction(models.Model):
+    message = models.ForeignKey(
+        ChatMessage, on_delete=models.CASCADE, related_name="reactions"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_reactions")
+    emoji = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("message", "user", "emoji")
+
+    def __str__(self):
+        return f"{self.user.username} reacted {self.emoji}"
+
+
+class ChatNotification(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="chat_notifications"
+    )
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Chat notification for {self.user.username}: {self.message[:40]}"
+
+
+class QuickReply(models.Model):
+    text = models.CharField(max_length=300)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.text[:50]
 
 
 class ChatModerationState(models.Model):
@@ -535,6 +638,21 @@ class HomeContent(models.Model):
     stat_response_time = models.CharField(max_length=50, blank=True, default='')
     why_choose_title = models.CharField(max_length=255, blank=True, default='')
     why_choose_subtitle = models.TextField(blank=True, default='')
+    occasion_chips = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text="Comma-separated list, e.g. Birthdays, Weddings, Corporate Events",
+    )
+    how_it_works_label = models.CharField(max_length=100, blank=True, default='')
+    how_it_works_title = models.CharField(max_length=255, blank=True, default='')
+    how_it_works_title_accent = models.CharField(max_length=255, blank=True, default='')
+    faq_title = models.CharField(max_length=255, blank=True, default='')
+    faq_subtitle = models.TextField(blank=True, default='')
+    cta_title = models.CharField(max_length=255, blank=True, default='')
+    cta_subtitle = models.TextField(blank=True, default='')
+    cta_primary_text = models.CharField(max_length=100, blank=True, default='')
+    cta_secondary_text = models.CharField(max_length=100, blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -559,6 +677,43 @@ class HomeFeatureItem(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class HomeHowItWorksStep(models.Model):
+    home_content = models.ForeignKey(
+        HomeContent, on_delete=models.CASCADE, related_name='how_it_works_steps'
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    icon_class = models.CharField(max_length=100, blank=True, default='fas fa-star')
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+        verbose_name_plural = 'Home How It Works Steps'
+
+    def __str__(self):
+        return self.title
+
+
+class HomeFaqItem(models.Model):
+    home_content = models.ForeignKey(HomeContent, on_delete=models.CASCADE, related_name='faqs')
+    question = models.CharField(max_length=255)
+    answer = models.TextField(blank=True, default='')
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+        verbose_name_plural = 'Home FAQ Items'
+
+    def __str__(self):
+        return self.question
 
 
 # -----------------------------
@@ -618,6 +773,48 @@ class AboutValueItem(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class GuidelinePageContent(models.Model):
+    PAGE_GUIDELINES = "guidelines"
+    PAGE_TERMS = "terms"
+    PAGE_PRIVACY = "privacy"
+    PAGE_CHOICES = (
+        (PAGE_GUIDELINES, "Booking Guidelines"),
+        (PAGE_TERMS, "Terms & Conditions"),
+        (PAGE_PRIVACY, "Privacy Policy"),
+    )
+    page_key = models.CharField(max_length=20, choices=PAGE_CHOICES, unique=True)
+    title = models.CharField(max_length=255, blank=True, default='')
+    intro = models.TextField(blank=True, default='')
+    attachment_label = models.CharField(max_length=255, blank=True, default='')
+    attachment_url = models.CharField(max_length=255, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Guideline Page Content'
+        verbose_name_plural = 'Guideline Page Contents'
+
+    def __str__(self):
+        return f"{self.get_page_key_display()} Content"
+
+
+class GuidelineItem(models.Model):
+    page_content = models.ForeignKey(
+        GuidelinePageContent, on_delete=models.CASCADE, related_name='items'
+    )
+    heading = models.CharField(max_length=255, blank=True, default='')
+    body = models.TextField(blank=True, default='')
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return self.heading or f'Guideline Item #{self.pk}'
 
 
 class GCashConfig(models.Model):

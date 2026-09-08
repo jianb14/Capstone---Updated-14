@@ -1,0 +1,157 @@
+﻿    }
+
+    function validateImages(fileList) {
+        const files = Array.from(fileList || []);
+        if (!files.length) return [];
+        for (const file of files) {
+            if (!validateImage(file)) return null;
+        }
+        return files;
+    }
+
+    function setError(message) {
+        errorEl.textContent = message || "";
+        errorEl.classList.toggle("show", Boolean(message));
+    }
+
+    function setBadge(count) {
+        const value = Number(count || 0);
+        badgeEl.textContent = String(value);
+        badgeEl.hidden = value <= 0;
+    }
+
+    function statusText(status, assignedAdmin) {
+        if (status === "pending_admin" || status === "active_admin") return "Our support team is here to help. We usually reply within a few minutes.";
+        if (status === "closed") return "Send a message to continue this chat.";
+        return "Send a message to start.";
+    }
+
+    function setStatus(status, assignedAdmin) {
+        currentStatus = status || "idle";
+        statusEl.textContent = statusText(currentStatus, assignedAdmin);
+        input.disabled = false;
+        if (imageInput) imageInput.disabled = false;
+        sendBtn.disabled = isSending;
+    }
+
+    function scrollBottom() {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function renderMessages(messages) {
+        const signature = JSON.stringify((messages || []).map(msg => [msg.id, msg.role, msg.content, msg.image_url, msg.sent_at, msg.is_edited, msg.seen, msg.delivered]));
+        if (signature === lastMessageSignature) return;
+        lastMessageSignature = signature;
+        messagesEl.innerHTML = "";
+
+        if (!messages || messages.length === 0) {
+            messagesEl.appendChild(emptyEl);
+            emptyEl.hidden = false;
+            return;
+        }
+
+        emptyEl.hidden = true;
+        messages.forEach(msg => {
+            const isClient = msg.role === "user";
+            const row = document.createElement("div");
+            row.className = `admin-chat-msg ${isClient ? "client" : "admin"}`;
+            const imageHtml = msg.image_url
+                ? `<div class="admin-chat-image-wrap"><a href="${escapeHtml(msg.image_url)}" target="_blank" rel="noopener" class="admin-chat-image-link"><img src="${escapeHtml(msg.image_url)}" alt="${escapeHtml(msg.image_name || "Chat image")}"></a><a href="${escapeHtml(msg.image_url)}" download="${escapeHtml(msg.image_name || "chat-image")}" class="admin-chat-image-download" title="Save image" aria-label="Save image"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a></div>`
+                : "";
+            const editedHtml = msg.is_edited ? `<span class="admin-chat-edited">(Edited)</span>` : "";
+            const textHtml = msg.content ? `<div class="admin-chat-text">${escapeHtml(msg.content)}</div>` : "";
+            const editBtn = (isClient && msg.content)
+                ? `<button type="button" class="admin-chat-edit-btn" title="Edit message" aria-label="Edit message"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>`
+                : "";
+            const receipt = isClient
+                ? `<span class="admin-chat-receipt ${msg.seen ? "seen" : msg.delivered ? "delivered" : ""}">${msg.seen ? "âœ“âœ“ Seen" : msg.delivered ? "âœ“âœ“ Delivered" : "âœ“ Sent"}</span>`
+                : "";
+            row.innerHTML = `
+                <div class="admin-chat-bubble">${editBtn}${textHtml}${imageHtml}</div>
+                <div class="admin-chat-time">${escapeHtml(msg.sent_at || "")} ${editedHtml} ${receipt}</div>
+            `;
+            if (msg.id) row.dataset.id = msg.id;
+            messagesEl.appendChild(row);
+        });
+        scrollBottom();
+    }
+
+    async function markRead() {
+        if (!currentSessionId) return;
+        try {
+            await fetch(urls.markRead, {
+                method: "POST",
+                headers: headers(),
+                body: JSON.stringify({ session_id: currentSessionId }),
+            });
+            if (widget.classList.contains("open")) setBadge(0);
+        } catch (error) {}
+    }
+
+    function pickAdminSession(sessions) {
+        const adminSessions = (sessions || []).filter(session => {
+            return session.status === "pending_admin" || session.status === "active_admin" || session.status === "closed";
+        });
+        return adminSessions[0] || null;
+    }
+
+    async function loadSessions() {
+        const response = await fetch(urls.sessions, {
+            headers: { "X-CSRFToken": csrfToken },
+        });
+        const data = await response.json();
+        const session = pickAdminSession(data.sessions);
+
+        const unreadTotal = (data.sessions || [])
+            .filter(item => item.status === "pending_admin" || item.status === "active_admin")
+            .reduce((total, item) => total + Number(item.unread_count || 0), 0);
+        setBadge(unreadTotal);
+
+        if (session) {
+            currentSessionId = String(session.id);
+            setStatus(session.status, session.assigned_admin);
+            return session;
+        }
+
+        currentSessionId = null;
+        setStatus("idle");
+        renderMessages([]);
+        return null;
+    }
+
+    async function loadHistory() {
+        if (!currentSessionId) {
+            await loadSessions();
+        }
+        if (!currentSessionId) return;
+
+        const url = `${urls.history}?session_id=${encodeURIComponent(currentSessionId)}`;
+        const response = await fetch(url, {
+            headers: { "X-CSRFToken": csrfToken },
+        });
+        const data = await response.json();
+        if (data.session) {
+            setStatus(data.session.status, data.session.assigned_admin);
+        }
+        renderMessages(data.messages || []);
+        if (widget.classList.contains("open")) await markRead();
+    }
+
+    async function ensureAdminSession() {
+        if (currentSessionId && (currentStatus === "pending_admin" || currentStatus === "active_admin" || currentStatus === "closed")) {
+            return currentSessionId;
+        }
+
+        const response = await fetch(urls.request, {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify(currentSessionId ? { session_id: currentSessionId } : {}),
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        if (data.session_id) {
+            currentSessionId = String(data.session_id);
+            setStatus(data.new_status || "active_admin");
+        }
+        return currentSessionId;
+    }

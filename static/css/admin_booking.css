@@ -227,6 +227,7 @@ table {
 }
 
 thead {
+    /* Matches admin payment table header color (admin_payment.css) */
     background: #141414;
     border-bottom: 1px solid #1f1f1f;
 }
@@ -400,6 +401,37 @@ td:last-child {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .booking-summary-card:nth-child(n) {
+        grid-column: span 1 !important;
+    }
+
+    /* Last (7th) card spans the full row so nothing is left uneven */
+    .booking-summary-card:nth-last-child(1) {
+        grid-column: span 2 !important;
+    }
+
+    /* Search + dropdown: shrink gradually instead of wrapping to full width.
+       !important needed to override admin_base.css universal !important rules. */
+    .search-controls {
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 0.6rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    .search-input-wrapper {
+        flex: 1 1 220px !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+
+    .custom-filter-dropdown {
+        flex: 0 1 220px !important;
+        min-width: 170px !important;
+        width: auto !important;
+    }
+
     th,
     td {
         padding: 0.75rem 0.875rem;
@@ -421,166 +453,204 @@ td:last-child {
 
 @media (max-width: 768px) {
     .page-header {
-        margin: 60px 0 1rem 0;
+        margin: 0 0 1rem 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
     }
 
     .booking-summary-grid {
-        grid-template-columns: 1fr;
-        gap: 0.85rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+    }
+
+    .booking-summary-card:nth-child(n) {
+        grid-column: span 1 !important;
+    }
+
+    /* Last (7th) card spans the full row so nothing is left uneven */
+    .booking-summary-card:nth-last-child(1) {
+        grid-column: span 2 !important;
     }
 
     .booking-summary-card {
-        padding: 0.95rem 1rem;
+        padding: 0.8rem 0.9rem;
     }
 
     .booking-summary-value {
-        font-size: 1.8rem;
+        font-size: 1.55rem;
+    }
+
+    .booking-summary-label {
+        font-size: 0.72rem;
     }
 
     .detail-page-header {
-        margin: 60px 0 1rem 0;
+        margin: 0 0 1rem 0;
         flex-direction: column;
         align-items: stretch;
+        gap: 0.5rem;
     }
 
     .btn-top-back {
         margin-top: 0.35rem;
         width: auto;
+        align-self: flex-start;
     }
 
     .page-header h1 {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
+        font-size: 1.4rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .page-header .page-subtitle {
+        font-size: 0.8rem;
+    }
+
+    .search-bar {
+        margin-bottom: 1rem;
+    }
+
+    /* Keep search + dropdown side by side on tablets (even widths).
+       Overrides admin_base.css which forced the search bar to 100% width. */
+    .search-bar .search-controls {
+        justify-content: flex-end !important;
+        align-items: center !important;
+    }
+
+    .search-bar .search-input-wrapper,
+    .search-bar .custom-filter-dropdown {
+        flex: 1 1 200px !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: none !important;
     }
 
     .table-container {
         border-radius: 8px;
-        border: none;
-        background: transparent;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
     }
 
-    /* Stack table for mobile */
-    table,
-    thead,
-    tbody,
-    th,
-    td,
-    tr {
-        display: block;
+    table {
+        display: table;
+        min-width: 780px;
+        width: 100%;
     }
 
     thead {
-        display: none;
+        display: table-header-group;
     }
 
     tbody tr {
-        background: #0f0f0f;
-        border: 1px solid #1f1f1f;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        padding: 1rem;
+        display: table-row;
     }
 
-    tbody tr:hover {
-        background: #141414;
-    }
-
-    tbody tr:last-child {
-        margin-bottom: 0;
-    }
-
+    th,
     td {
-        padding: 0.625rem 0;
-        border-bottom: 1px solid #1a1a1a;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        text-align: right;
-    }
-
-    td:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-
-    td::before {
-        content: attr(data-label);
-        font-weight: 600;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        color: #888888;
-        letter-spacing: 0.05em;
-        text-align: left;
-    }
-
-    td[data-label="Actions"] {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    td[data-label="Actions"]::before {
-        margin-bottom: 0.5rem;
-        text-align: center;
+        display: table-cell;
+        padding: 0.6rem 0.7rem;
+        font-size: 0.78rem;
     }
 
     .action-buttons {
-        flex-direction: column;
-        gap: 0.5rem;
-        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        width: auto;
     }
 
     .action-buttons a,
     .action-buttons button {
-        width: 100%;
-        padding: 0.625rem;
-        font-size: 0.8rem;
-        text-align: center;
-        justify-content: center;
+        width: auto;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
     }
 
     .action-icon-btn {
         height: auto;
+        min-width: 30px;
     }
 
     .action-icon-btn span {
-        display: inline;
+        display: none;
     }
 
-    .action-icon-btn svg {
-        margin-right: 0.5rem;
+    .pagination {
+        justify-content: center;
+        margin: 0.75rem 0 0 0;
     }
 
-    td {
-        position: relative;
-    }
-
-    td::before {
-        pointer-events: none;
-    }
-
-    .action-buttons a,
-    .action-buttons button {
-        position: relative;
-        z-index: 5;
+    .page-numbers button {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
     }
 }
 
-/* Custom Scrollbar */
+@media (max-width: 480px) {
+    .booking-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .booking-summary-card:nth-child(n) {
+        grid-column: span 1 !important;
+    }
+
+    .booking-summary-card {
+        padding: 0.7rem 0.8rem;
+    }
+
+    .booking-summary-value {
+        font-size: 1.35rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.2rem;
+    }
+
+    .search-bar {
+        margin-bottom: 0.9rem;
+    }
+
+    table {
+        min-width: 720px;
+    }
+
+    th,
+    td {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.74rem;
+    }
+}
+
+/* Custom Scrollbar — slim rounded pill style (matches admin payment detail) */
+.table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a #141414;
+}
+
 .table-container::-webkit-scrollbar {
-    height: 8px;
+    height: 10px;
+    width: 10px;
 }
 
 .table-container::-webkit-scrollbar-track {
     background: #141414;
+    border-radius: 999px;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
-    border-radius: 4px;
+    background: #3a3a3a;
+    border-radius: 999px;
+    border: 2px solid #141414;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #4a4a4a;
 }
 
 /* Search Bar & Filters */
@@ -588,8 +658,18 @@ td:last-child {
     margin-bottom: 1.5rem;
 }
 
+/* admin_base.css turns .search-bar into a flex container on <=1024px, which
+   shrink-to-fits this form and leaves a dead gap on the right side.
+   Stretch the form so the filters always reach the right edge. */
+.search-bar > form {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 1 100% !important;
+}
+
 .search-controls {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     justify-content: flex-end;
     align-items: center;
@@ -603,6 +683,7 @@ td:last-child {
     position: relative;
     user-select: none;
     min-width: 180px;
+    flex: 0 1 auto;
 }
 
 .custom-filter-dropdown .dropdown-trigger {
@@ -658,7 +739,7 @@ td:last-child {
     max-height: 250px;
     overflow-y: auto;
     display: none;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
 }
 
 .custom-filter-dropdown .dropdown-options::-webkit-scrollbar {
@@ -716,6 +797,8 @@ td:last-child {
 
 .search-input-wrapper {
     width: 350px;
+    flex: 0 1 auto;
+    min-width: 230px;
     position: relative;
 }
 
@@ -726,7 +809,7 @@ td:last-child {
     transform: translateY(-50%);
     width: 18px;
     height: 18px;
-    color: #666;
+    color: #6b7280;
     pointer-events: none;
     display: flex;
     align-items: center;
@@ -747,23 +830,64 @@ td:last-child {
     border-radius: 6px;
     font-family: inherit;
     font-size: 0.9rem;
+    caret-color: #fff;
     outline: none;
     transition: all 0.2s ease;
 }
 
-.search-input-wrapper input:focus {
-    border-color: rgba(255, 255, 255, 0.3);
+.search-input-wrapper input::placeholder {
+    color: #6b7280;
 }
 
-@media (max-width: 768px) {
-    .search-controls {
-        flex-direction: column;
-        align-items: stretch;
+.search-input-wrapper input:focus {
+    /* Gray focus border only (no blue, no glow ring) */
+    border-color: #6b7280;
+    box-shadow: none;
+    outline: none;
+}
+
+/* Light mode: white search bar with dark text, still gray focus border
+   (dark mode keeps the dark search bar above) */
+[data-theme="light"] .search-input-wrapper input#searchInput {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .search-input-wrapper input#searchInput:focus {
+    background-color: #ffffff !important;
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .search-icon {
+    color: #6b7280 !important;
+}
+
+@media (max-width: 640px) {
+    .search-bar .search-controls {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        gap: 0.6rem !important;
     }
 
-    .custom-filter-dropdown,
-    .search-input-wrapper {
-        width: 100%;
+    .search-bar {
+        margin-bottom: 1rem !important;
+    }
+
+    /* flex: 0 0 auto (NOT "1 1 100%") — inside a column flex container the
+       percentage flex-basis becomes HEIGHT, which stretched every control to
+       ~250px tall: the search icon drifted away from the input and the
+       dropdown menu opened far below its trigger. Content height + width:100%
+       keeps the stack compact. */
+    .search-bar .search-input-wrapper,
+    .search-bar .custom-filter-dropdown {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 0 0 auto !important;
     }
 }
 
@@ -1202,4 +1326,153 @@ td[data-label="Date"] {
     .btn-action {
         width: 100%;
     }
+}
+
+
+/* ========================================================
+   LIGHT THEME OVERRIDES
+   ======================================================== */
+[data-theme="light"] {
+    --card-bg: #ffffff;
+    --card-bg-s: #f9fafb;
+    --card-bdr: rgba(0, 0, 0, 0.1);
+    --card-bdr-h: rgba(0, 0, 0, 0.2);
+    --t1: #111827;
+    --t2: #4b5563;
+    --t3: #6b7280;
+    --t4: #9ca3af;
+}
+
+[data-theme="light"] .container,
+[data-theme="light"] .wrapper,
+[data-theme="light"] .card,
+[data-theme="light"] .box,
+[data-theme="light"] .panel,
+[data-theme="light"] .modal-content,
+[data-theme="light"] .auth-container,
+[data-theme="light"] .profile-card,
+[data-theme="light"] .booking-card,
+[data-theme="light"] .review-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .dashboard-card,
+[data-theme="light"] .table-container {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .table th,
+[data-theme="light"] table thead,
+[data-theme="light"] table th,
+[data-theme="light"] .data-table th {
+    /* Matches admin payment table header color (admin_payment.css) */
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .table td,
+[data-theme="light"] table td,
+[data-theme="light"] .data-table td {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] tr:hover td {
+    background-color: #f9fafb !important;
+}
+
+/* Light-mode table scrollbar */
+[data-theme="light"] .table-container {
+    scrollbar-color: #9ca3af #e5e7eb;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-track {
+    background: #e5e7eb;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="number"],
+[data-theme="light"] input[type="date"],
+[data-theme="light"] input[type="time"],
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+    background-color: #f9fafb !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+    background-color: #ffffff !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+[data-theme="light"] .text-muted,
+[data-theme="light"] .help-text,
+[data-theme="light"] .sub-text,
+[data-theme="light"] small {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .btn-outline {
+    border-color: #d1d5db !important;
+    color: #374151 !important;
+}
+[data-theme="light"] .btn-outline:hover {
+    background-color: #f3f4f6 !important;
+}
+
+[data-theme="light"] .notification-dropdown,
+[data-theme="light"] .notif-header,
+[data-theme="light"] .notif-item {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-item:hover {
+    background-color: #f9fafb !important;
+}
+
+[data-theme="light"] .notif-date-header {
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .notif-content p {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .notif-empty {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .canvas-container {
+    background-color: #f3f4f6 !important;
 }

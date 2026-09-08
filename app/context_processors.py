@@ -1,4 +1,4 @@
-from .models import Booking, Notification, AdminNotification
+from .models import Booking, ChatMessage, ChatSession, Notification, AdminNotification
 
 
 def admin_notifications(request):
@@ -66,6 +66,32 @@ def admin_notifications(request):
             'notif_earlier': notif_earlier,
             'notif_count': unread_count,
         }
+    return {}
+
+
+def chat_notifications(request):
+    """Inject chat counters for customer and admin navigation."""
+    if not request.user.is_authenticated:
+        return {}
+
+    if request.user.role == 'customer':
+        unread_chat_count = ChatMessage.objects.filter(
+            receiver=request.user,
+            is_read=False,
+            session__is_admin_support=True,
+        ).exclude(sender=request.user).count()
+        return {'unread_chat_count': unread_chat_count}
+
+    if request.user.role == 'admin' or request.user.is_superuser:
+        sessions = ChatSession.objects.filter(is_admin_support=True).exclude(status='ai')
+        return {
+            'admin_chat_pending_count': 0,
+            'admin_chat_unread_count': sum(
+                1 for session in sessions
+                if session.status != 'closed' and session.has_unread_for_admin
+            ),
+        }
+
     return {}
 
 

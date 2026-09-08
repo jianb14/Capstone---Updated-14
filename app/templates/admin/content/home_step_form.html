@@ -1,0 +1,65 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/admin_content.css' %}">
+
+<div class="page-header">
+    <h1>{{ action }} "How It Works" Step</h1>
+    <div class="breadcrumb">
+        <a href="{% url 'admin_home_content' %}">Home Page</a>
+        <span class="separator">/</span>
+        <span>{{ action }}</span>
+    </div>
+</div>
+
+<div class="form-container">
+    <form method="POST" class="form-card" id="stepForm" novalidate>
+        {% csrf_token %}
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" name="title" id="title"
+                    value="{% if step.title %}{{ step.title }}{% elif post_data.title %}{{ post_data.title }}{% endif %}"
+                    placeholder="e.g. Choose a Package" required>
+                <p class="field-error" data-error-for="title"></p>
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" id="description" rows="6"
+                    placeholder="Enter step description...">{% if step.description %}{{ step.description }}{% elif post_data.description %}{{ post_data.description }}{% endif %}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Icon Class (FontAwesome)</label>
+                <input type="text" name="icon_class" id="icon_class"
+                    value="{% if step.icon_class %}{{ step.icon_class }}{% elif post_data.icon_class %}{{ post_data.icon_class }}{% else %}fas fa-star{% endif %}"
+                    placeholder="e.g. fas fa-box-open">
+                <small class="help-text">Example: <code>fas fa-box-open</code>, <code>fas fa-palette</code>, <code>fas fa-mobile-screen</code></small>
+            </div>
+
+            <div class="form-group">
+                <label>Display Order</label>
+                <input type="number" name="display_order" id="display_order"
+                    value="{% if step.display_order %}{{ step.display_order }}{% elif post_data.display_order %}{{ post_data.display_order }}{% else %}0{% endif %}"
+                    placeholder="0">
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label for="is_active">Status</label>
+                <label for="is_active" class="active-toggle-box">
+                    <input type="checkbox" name="is_active" id="is_active" {% if step.is_active or post_data.is_active == 'on' or action == 'Create' %}checked{% endif %}>
+                    <span>Active (Show on home page)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'admin_home_content' %}" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-save">Save Step</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

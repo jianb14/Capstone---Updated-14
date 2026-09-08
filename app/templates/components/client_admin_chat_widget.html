@@ -1,0 +1,102 @@
+{% load static %}
+
+<div
+    class="admin-chat-float"
+    id="adminChatWidget"
+    data-sessions-url="{% url 'chat_sessions' %}?mode=admin"
+    data-history-url="{% url 'chat_history' %}"
+    data-request-url="{% url 'chat_request_admin' %}"
+    data-send-url="{% url 'chat_api' %}"
+    data-mark-read-url="{% url 'chat_mark_read' %}"
+    data-edit-url="{% url 'chat_edit_message' %}"
+    data-typing-ping-url="{% url 'chat_typing_ping' %}"
+    data-reaction-url="{% url 'chat_reaction' %}"
+    data-delete-url="{% url 'chat_delete_message' %}"
+    data-csrf-token="{{ csrf_token }}"
+>
+    <button type="button" class="admin-chat-toggle" id="adminChatToggle" aria-label="Chat with admin">
+        <i class="fa-solid fa-headset"></i>
+        {% if unread_chat_count > 0 %}
+        <span class="admin-chat-badge" id="adminChatBadge">{{ unread_chat_count }}</span>
+        {% else %}
+        <span class="admin-chat-badge" id="adminChatBadge" hidden>0</span>
+        {% endif %}
+    </button>
+
+    <section class="admin-chat-panel" id="adminChatPanel" aria-label="Admin chat">
+        <header class="admin-chat-panel-head">
+            <div class="admin-chat-title">
+                <div class="admin-chat-title-icon">
+                    <i class="fa-solid fa-headset"></i>
+                </div>
+                <div>
+                    <strong>Admin Support</strong>
+                    <span class="admin-chat-status" id="adminChatStatus">
+                        <span class="admin-chat-presence offline"><span class="admin-chat-presence-dot"></span> Offline</span>
+                    </span>
+                </div>
+            </div>
+            <button type="button" class="admin-chat-close" id="adminChatClose" aria-label="Close admin chat">&times;</button>
+        </header>
+
+        <div class="admin-chat-messages" id="adminChatMessages">
+            <div class="admin-chat-empty" id="adminChatEmpty">
+                Message our admin team here. This is separate from the AI assistant.
+            </div>
+        </div>
+
+        <!-- Typing indicator sits BELOW the messages (Messenger-style, just above the composer) -->
+        <div class="admin-chat-typing" id="adminChatTyping" hidden>
+            <span class="admin-chat-typing-dots"><span></span><span></span><span></span></span>
+        </div>
+
+        <div class="chat-confirm-overlay chat-confirm-overlay-panel" id="adminChatConfirmOverlay" hidden>
+            <div class="chat-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="adminChatConfirmTitle">
+                <h4 id="adminChatConfirmTitle">Delete message?</h4>
+                <p>This message will be permanently removed for both of you. This action can&rsquo;t be undone.</p>
+                <div class="chat-confirm-actions">
+                    <button type="button" class="chat-confirm-cancel" id="adminChatConfirmCancel">Cancel</button>
+                    <button type="button" class="chat-confirm-delete" id="adminChatConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-lightbox" id="adminChatLightbox" hidden>
+            <button type="button" class="lightbox-close" id="adminChatLightboxClose" aria-label="Close preview">&times;</button>
+            <button type="button" class="lightbox-nav lightbox-prev" id="adminChatLightboxPrev" aria-label="Previous image">&#8249;</button>
+            <img class="lightbox-img" id="adminChatLightboxImg" src="" alt="Attachment preview">
+            <button type="button" class="lightbox-nav lightbox-next" id="adminChatLightboxNext" aria-label="Next image">&#8250;</button>
+            <div class="lightbox-caption" id="adminChatLightboxCaption"></div>
+        </div>
+
+        <form class="admin-chat-form" id="adminChatForm">
+            <div class="admin-chat-error" id="adminChatError"></div>
+            <div class="admin-chat-editing-bar" id="adminChatReplyBar" hidden>
+                <span class="admin-chat-editing-label">Replying to</span>
+                <span class="admin-chat-editing-text" id="adminChatReplyText"></span>
+                <button type="button" class="admin-chat-editing-cancel" id="adminChatCancelReply" aria-label="Cancel reply">&times;</button>
+            </div>
+            <div class="admin-chat-editing-bar" id="adminChatEditingBar" hidden>
+                <span class="admin-chat-editing-label">Edit message</span>
+                <span class="admin-chat-editing-text" id="adminChatEditingText"></span>
+                <button type="button" class="admin-chat-editing-cancel" id="adminChatCancelEdit" aria-label="Cancel edit">&times;</button>
+            </div>
+            <div class="admin-chat-attachment-preview" id="adminChatAttachmentPreview" hidden></div>
+            <div class="admin-chat-input-row">
+                <label class="admin-chat-attach" for="adminChatImage" aria-label="Attach image" title="Attach image">
+                    <i class="fas fa-image"></i>
+                </label>
+                <input type="file" id="adminChatImage" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
+                <textarea class="admin-chat-input" id="adminChatInput" rows="1" placeholder="Type your message to admin..."></textarea>
+                <button type="submit" class="admin-chat-send" id="adminChatSend" aria-label="Send to admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 19V5"></path>
+                        <path d="M5 12l7-7 7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script src="{% static 'js/client_admin_chat_widget.js' %}"></script>

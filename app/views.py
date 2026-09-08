@@ -27,12 +27,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.files.images import get_image_dimensions
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.contrib.staticfiles import finders
-from django.db.models import Avg, Count, DecimalField, Exists, Max, OuterRef, Q, Sum, Value, Model, QuerySet
+from django.db.models import Avg, Count, DecimalField, Exists, Max, OuterRef, Q, Subquery, Sum, Value, Model, QuerySet
 from django.db.models.functions import Coalesce
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template, render_to_string
 from xhtml2pdf import pisa
@@ -60,6 +61,7 @@ from .models import (
     CanvasCategory,
     CanvasLabel,
     ChatMessage,
+    ChatNotification,
     ChatSession,
     ConcernTicket,
     ConcernImage,
@@ -67,8 +69,13 @@ from .models import (
     GalleryCategory,
     GalleryImage,
     GCashConfig,
+    GuidelineItem,
+    GuidelinePageContent,
     HomeContent,
+    HomeFaqItem,
     HomeFeatureItem,
+    HomeHowItWorksStep,
+    MessageReaction,
     Notification,
     Package,
     Payment,
@@ -90,6 +97,187 @@ from .services import (
 )
 
 logger = logging.getLogger(__name__)
+
+CHAT_IMAGE_MAX_BYTES = 15 * 1024 * 1024
+CHAT_IMAGE_ALLOWED_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+}
+CHAT_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+CHAT_REACTION_EMOJIS = ("👍", "❤️", "😮", "😂", "😢")
+CHAT_PRESENCE_ONLINE_SECONDS = 90
+CHAT_TYPING_SECONDS = 8
+
+
+def _chat_object_reactions_json(message, current_user):
+    """Summarize reactions on a message as {emoji: count} + my emojis."""
+    counts = {}
+    my_emojis = []
+    for reaction in message.reactions.all():
+        counts[reaction.emoji] = counts.get(reaction.emoji, 0) + 1
+        if reaction.user_id == current_user.id:
+            my_emojis.append(reaction.emoji)
+    return counts, my_emojis
+
+
+def _chat_reply_snippet(message):
+    reply = getattr(message, "reply_to", None)
+    if reply is None:
+        return None
+    return {
+        "id": reply.id,
+        "text": "" if reply.is_deleted else (reply.message or ""),
+        "is_deleted": reply.is_deleted,
+        "has_image": bool(reply.image),
+        "sender_name": reply.sender.get_full_name() or reply.sender.username,
+    }
+
+
+def _is_admin_user(user):
+    return (
+        getattr(user, "is_authenticated", False)
+        and (
+            getattr(user, "role", None) in ["admin", "staff"]
+            or getattr(user, "is_superuser", False)
+        )
+    )
+
+
+def _get_primary_admin_user():
+    return (
+        User.objects.filter(role="admin").first()
+        or User.objects.filter(is_superuser=True).first()
+    )
+
+
+def _get_client_chat_receiver(session):
+    return session.assigned_admin or _get_primary_admin_user()
+
+
+def _validate_chat_image(uploaded_file):
+    if not uploaded_file:
+        return ""
+    if uploaded_file.size > CHAT_IMAGE_MAX_BYTES:
+        return "Image must be 15MB or smaller."
+
+    content_type = (getattr(uploaded_file, "content_type", "") or "").lower()
+    extension = os.path.splitext(uploaded_file.name or "")[1].lower()
+    if content_type not in CHAT_IMAGE_ALLOWED_CONTENT_TYPES or extension not in CHAT_IMAGE_ALLOWED_EXTENSIONS:
+        return "Only JPG, PNG, GIF, or WEBP images are allowed."
+
+    try:
+        position = uploaded_file.tell()
+    except Exception:
+        position = None
+
+    try:
+        width, height = get_image_dimensions(uploaded_file)
+    except Exception:
+        return "Upload a valid image file."
+    finally:
+        if position is not None:
+            try:
+                uploaded_file.seek(position)
+            except Exception:
+                pass
+
+    if not width or not height:
+        return "Upload a valid image file."
+    return ""
+
+
+def _chat_message_json(message, current_user):
+    role = "user" if message.sender == current_user else "assistant"
+    seen_at = None
+    if getattr(message, "is_from_admin", False):
+        # Admin messages are "seen" once the client marks them read in the widget.
+        seen = bool(message.is_read)
+        delivered = bool(message.is_delivered or message.is_read)
+        if seen and message.read_at:
+            seen_at = message.read_at
+    else:
+        # Client messages are "seen" once the admin opens the thread.
+        admin_read = message.session.admin_last_read_at if message.session else None
+        seen = bool(admin_read and message.sent_at <= admin_read)
+        delivered = bool(message.is_delivered or message.is_read or seen)
+        if seen:
+            seen_at = admin_read
+
+    reactions, my_reactions = _chat_object_reactions_json(message, current_user)
+
+    return {
+        "id": message.id,
+        "role": role,
+        "content": "" if message.is_deleted else message.message,
+        "sender_name": message.sender.get_full_name() or message.sender.username,
+        "is_from_admin": message.is_from_admin,
+        "is_edited": message.is_edited,
+        "edited_at": message.edited_at.strftime("%I:%M %p") if message.edited_at else "",
+        "is_deleted": message.is_deleted,
+        "deleted_at": message.deleted_at.strftime("%I:%M %p") if message.deleted_at else "",
+        "delivered": delivered,
+        "delivered_at": message.delivered_at.strftime("%I:%M %p") if message.delivered_at else "",
+        "seen": seen,
+        "seen_at": seen_at.strftime("%I:%M %p") if seen_at else "",
+        "reactions": reactions,
+        "my_reactions": my_reactions,
+        "reply_to": _chat_reply_snippet(message),
+        "image_url": message.image.url if message.image else "",
+        "image_name": message.image_original_name if message.image else "",
+        "sent_at": message.sent_at.strftime("%b %d, %I:%M %p"),
+    }
+
+
+def _admin_support_chat_sessions():
+    latest_message = ChatMessage.objects.filter(session=OuterRef('pk')).order_by('-sent_at')
+    return (
+        ChatSession.objects.filter(is_admin_support=True)
+        .exclude(status='ai')
+        .annotate(
+            last_msg_time=Subquery(latest_message.values('sent_at')[:1]),
+            last_msg_text=Subquery(latest_message.values('message')[:1]),
+            last_msg_id=Subquery(latest_message.values('pk')[:1]),
+            message_count=Count('messages'),
+            unread_admin_count=Count(
+                'messages',
+                filter=Q(messages__is_read=False)
+                & ~Q(messages__sender__role__in=['admin', 'staff'])
+                & ~Q(messages__sender__is_superuser=True),
+            ),
+        )
+        .select_related('user', 'assigned_admin')
+        .order_by('status', '-last_msg_time', '-updated_at')
+    )
+
+
+def _admin_support_chat_stats(sessions, admin_user):
+    session_list = list(sessions)
+
+    # Flag whether each session's latest message is an image (for "Image sent" preview)
+    last_msg_ids = [s.last_msg_id for s in session_list if s.last_msg_id]
+    image_msg_ids = set()
+    if last_msg_ids:
+        image_msg_ids = set(
+            ChatMessage.objects.filter(pk__in=last_msg_ids)
+            .exclude(image='')
+            .exclude(image__isnull=True)
+            .values_list('pk', flat=True)
+        )
+    for session in session_list:
+        session.last_msg_has_image = session.last_msg_id in image_msg_ids
+    return {
+        'pending': sum(1 for session in session_list if session.status == 'pending_admin'),
+        'active_admin': sum(1 for session in session_list if session.status == 'active_admin'),
+        'assigned_to_me': sum(1 for session in session_list if session.assigned_admin_id == admin_user.id),
+        'closed': sum(1 for session in session_list if session.status == 'closed'),
+        'unread_total': sum(
+            1 for session in session_list
+            if session.status != 'closed' and session.has_unread_for_admin
+        ),
+        'total': len(session_list),
+    }, session_list
 
 
 def _increase_rate_limit_counter(key, timeout_seconds):
@@ -401,6 +589,17 @@ class HomePageView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["home_content"] = HomeContent.objects.first()
         context["home_features"] = HomeFeatureItem.objects.filter(is_active=True)
+        context["home_hiw_steps"] = HomeHowItWorksStep.objects.filter(is_active=True)
+        context["home_faqs"] = HomeFaqItem.objects.filter(is_active=True)
+
+        content = context["home_content"]
+        chips_raw = content.occasion_chips.strip() if content else ""
+        if not chips_raw:
+            chips_raw = "Birthdays, Weddings, Corporate Events, Christenings, Graduation"
+        context["home_occasion_chips"] = [
+            chip.strip() for chip in chips_raw.split(",") if chip.strip()
+        ]
+
         context["top_reviews"] = get_top_reviews()
         context["latest_creations"] = GalleryImage.objects.filter(
             is_active=True
@@ -429,16 +628,52 @@ class ServicesPageView(TemplateView):
         return context
 
 
+def _policy_page_context(page_key):
+    """Shared helper: loads a GuidelinePageContent document and its active items."""
+    content = (
+        GuidelinePageContent.objects.filter(page_key=page_key)
+        .prefetch_related("items")
+        .first()
+    )
+    items = (
+        content.items.filter(is_active=True).order_by("display_order", "id")
+        if content
+        else []
+    )
+    return content, items
+
+
 class GuidelinesPageView(TemplateView):
     template_name = "client/guidelines.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["policy"], context["policy_items"] = _policy_page_context(
+            GuidelinePageContent.PAGE_GUIDELINES
+        )
+        return context
 
 
 class TermsConditionsPageView(TemplateView):
     template_name = "client/terms_conditions.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["policy"], context["policy_items"] = _policy_page_context(
+            GuidelinePageContent.PAGE_TERMS
+        )
+        return context
+
 
 class DataPrivacyPageView(TemplateView):
     template_name = "client/data_privacy.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["policy"], context["policy_items"] = _policy_page_context(
+            GuidelinePageContent.PAGE_PRIVACY
+        )
+        return context
 
 
 class PackagePageView(TemplateView):
@@ -2510,12 +2745,27 @@ def admin_user_list(request):
             | Q(email__icontains=search_query)
         )
 
-    # 4. Pagination Logic (10 items per page)
+    # 4. Summary cards (mirrors admin booking summary grid)
+    all_users = User.objects.all()
+    user_summary = {
+        "total": all_users.count(),
+        "active": all_users.filter(is_active=True).count(),
+        "inactive": all_users.filter(is_active=False).count(),
+        "admins": all_users.filter(role="admin").count(),
+        "staff": all_users.filter(role="staff").count(),
+        "customers": all_users.filter(role="customer").count(),
+    }
+
+    # 5. Pagination Logic (10 items per page)
     paginator = Paginator(users_list, 10)
     page_number = request.GET.get("page")
     users = paginator.get_page(page_number)
 
-    return render(request, "admin/user/admin_user_list.html", {"users": users})
+    return render(
+        request,
+        "admin/user/admin_user_list.html",
+        {"users": users, "user_summary": user_summary},
+    )
 
 
 @login_required
@@ -2614,152 +2864,6 @@ def admin_user_delete(request, id):
     return redirect("admin_user_list")
 
 
-@login_required
-def admin_about_content(request):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Not allowed")
-
-    content = AboutContent.objects.first()
-    if content is None:
-        content = AboutContent.objects.create()
-
-    if request.method == "POST":
-        content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
-        content.hero_subtitle = request.POST.get("hero_subtitle", content.hero_subtitle).strip()
-        
-        content.story_label = request.POST.get("story_label", content.story_label).strip()
-        content.story_title = request.POST.get("story_title", content.story_title).strip()
-        content.story_paragraph_1 = request.POST.get("story_paragraph_1", content.story_paragraph_1).strip()
-        content.story_paragraph_2 = request.POST.get("story_paragraph_2", content.story_paragraph_2).strip()
-        
-        content.stat_events_styled = request.POST.get("stat_events_styled", content.stat_events_styled).strip()
-        content.stat_year_founded = request.POST.get("stat_year_founded", content.stat_year_founded).strip()
-        content.stat_satisfaction = request.POST.get("stat_satisfaction", content.stat_satisfaction).strip()
-        
-        content.mission_label = request.POST.get("mission_label", content.mission_label).strip()
-        content.mission_title = request.POST.get("mission_title", content.mission_title).strip()
-        content.mission_paragraph_1 = request.POST.get("mission_paragraph_1", content.mission_paragraph_1).strip()
-        content.mission_paragraph_2 = request.POST.get("mission_paragraph_2", content.mission_paragraph_2).strip()
-        
-        content.values_title = request.POST.get("values_title", content.values_title).strip()
-        content.values_subtitle = request.POST.get("values_subtitle", content.values_subtitle).strip()
-
-        if request.FILES.get("story_image"):
-            content.story_image = request.FILES["story_image"]
-        if request.FILES.get("mission_image"):
-            content.mission_image = request.FILES["mission_image"]
-
-        content.save()
-        log_action(request.user, "Updated About page content.")
-        messages.success(request, "About content updated successfully.")
-        return redirect("admin_about_content")
-
-    values = AboutValueItem.objects.all()
-    return render(
-        request,
-        "admin/content/about_content.html",
-        {
-            "content": content,
-            "values": values,
-        },
-    )
-
-
-@login_required
-def admin_about_value_create(request):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Not allowed")
-
-    content = AboutContent.objects.first()
-    if content is None:
-        content = AboutContent.objects.create()
-
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        icon_class = request.POST.get("icon_class", "fas fa-star").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
-
-        if not title:
-            messages.error(request, "Title is required.")
-            return render(
-                request,
-                "admin/content/about_value_form.html",
-                {
-                    "action": "Create",
-                    "feature": {},
-                    "post_data": request.POST,
-                },
-            )
-
-        AboutValueItem.objects.create(
-            about_content=content,
-            title=title,
-            description=description,
-            icon_class=icon_class,
-            display_order=display_order,
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created about value item '{title}'.")
-        messages.success(request, "Value item created successfully.")
-        return redirect("admin_about_content")
-
-    return render(request, "admin/content/about_value_form.html", {"action": "Create", "feature": {}, "post_data": {}})
-
-
-@login_required
-def admin_about_value_edit(request, id):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Not allowed")
-
-    value = get_object_or_404(AboutValueItem, id=id)
-
-    if request.method == "POST":
-        value.title = request.POST.get("title", value.title).strip()
-        value.description = request.POST.get("description", value.description).strip()
-        value.icon_class = request.POST.get("icon_class", value.icon_class).strip()
-        value.is_active = request.POST.get("is_active") == "on"
-
-        try:
-            value.display_order = int(request.POST.get("display_order", value.display_order))
-        except (ValueError, TypeError):
-            pass
-
-        value.save()
-        log_action(request.user, f"Updated about value item '{value.title}' (ID #{value.id}).")
-        messages.success(request, "Value item updated successfully.")
-        return redirect("admin_about_content")
-
-    return render(
-        request,
-        "admin/content/about_value_form.html",
-        {
-            "action": "Edit",
-            "feature": value,
-            "post_data": {},
-        },
-    )
-
-
-@login_required
-def admin_about_value_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    value = get_object_or_404(AboutValueItem, id=id)
-    value_title = value.title
-    value.delete()
-    log_action(request.user, f"Deleted about value item '{value_title}' (ID #{id}).")
-    messages.success(request, "Value item deleted successfully.")
-    return redirect("admin_about_content")
-
-
-@login_required
 @login_required
 def admin_audit_log_list(request):
     if request.user.role not in ["admin"]:
@@ -3881,16 +3985,21 @@ def chat_api(request):
     Expects JSON: { "message": "user message", "session_id": 123 }
     """
     try:
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON body"}, status=400)
+        uploaded_images = []
+        if request.content_type and request.content_type.startswith("multipart/form-data"):
+            data = request.POST
+            uploaded_images = [f for f in request.FILES.getlist("image") if f]
+        else:
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
-        user_message = data.get("message")
+        user_message = (data.get("message") or "").strip()
         session_id = data.get("session_id")
 
-        if not user_message:
-            return JsonResponse({"error": "Message is required"}, status=400)
+        if not user_message and not uploaded_images:
+            return JsonResponse({"error": "Message or image is required"}, status=400)
 
         # Ensure user is authenticated to use sessions properly
         if not request.user.is_authenticated:
@@ -3904,6 +4013,72 @@ def chat_api(request):
                 session = ChatSession.objects.get(id=session_id, user=request.user)
             except ChatSession.DoesNotExist:
                 pass  # If passed session_id is invalid, we will just create a new one
+
+        if session and session.is_admin_support and session.status != "ai":
+            if session.status == "closed":
+                session.status = "active_admin"
+
+            for uploaded_image in uploaded_images:
+                image_error = _validate_chat_image(uploaded_image)
+                if image_error:
+                    return JsonResponse({"error": image_error}, status=400)
+
+            receiver = _get_client_chat_receiver(session)
+            if not receiver:
+                return JsonResponse(
+                    {"error": "System misconfiguration (no admin found)"}, status=500
+                )
+
+            now = timezone.now()
+            reply_to_obj = None
+            raw_reply_to = data.get("reply_to_id")
+            if raw_reply_to:
+                try:
+                    reply_to_obj = session.messages.get(id=int(raw_reply_to))
+                except (ValueError, ChatMessage.DoesNotExist):
+                    reply_to_obj = None
+            if user_message:
+                ChatMessage.objects.create(
+                    session=session,
+                    sender=request.user,
+                    receiver=receiver,
+                    message=user_message,
+                    reply_to=reply_to_obj,
+                )
+            for uploaded_image in uploaded_images:
+                ChatMessage.objects.create(
+                    session=session,
+                    sender=request.user,
+                    receiver=receiver,
+                    message="",
+                    image=uploaded_image,
+                    image_original_name=uploaded_image.name[:255],
+                )
+            session.last_client_message_at = now
+            session.client_last_active_at = now
+            update_fields = ["status", "last_client_message_at", "client_last_active_at", "updated_at"]
+            if session.title == "Admin support":
+                title_source = user_message or (uploaded_images[0].name if uploaded_images else "Image attachment")
+                session.title = title_source[:60] + ("..." if len(title_source) > 60 else "")
+                update_fields.append("title")
+            session.save(update_fields=update_fields)
+
+            return JsonResponse(
+                {
+                    "response": "Message sent to admin.",
+                    "awaiting_admin": True,
+                    "session_id": session.id,
+                    "is_new_session": False,
+                    "session_title": session.title,
+                    "new_status": session.status,
+                }
+            )
+
+        if uploaded_images:
+            return JsonResponse(
+                {"error": "Images can only be attached in admin support chat."},
+                status=400,
+            )
 
         # --- 1. FETCH CONTEXT (HISTORY) FIRST ---
         history = []
@@ -3935,10 +4110,7 @@ def chat_api(request):
 
         if should_save:
             # Default receiver for AI bot
-            admin_user = (
-                User.objects.filter(role="admin").first()
-                or User.objects.filter(is_superuser=True).first()
-            )
+            admin_user = _get_primary_admin_user()
             if not admin_user:
                 return JsonResponse(
                     {"error": "System misconfiguration (no admin found)"}, status=500
@@ -3965,13 +4137,11 @@ def chat_api(request):
                 receiver=request.user,
                 message=ai_text,
             )
+            session.save(update_fields=["updated_at"])
         elif ai_text and session:
             # Persist moderation/system assistant messages in the active session so
             # chat history remains consistent after reload.
-            admin_user = (
-                User.objects.filter(role="admin").first()
-                or User.objects.filter(is_superuser=True).first()
-            )
+            admin_user = _get_primary_admin_user()
             if admin_user:
                 ChatMessage.objects.create(
                     session=session,
@@ -3980,6 +4150,7 @@ def chat_api(request):
                     message=ai_text,
                     is_flagged=True,
                 )
+                session.save(update_fields=["updated_at"])
 
         return JsonResponse(
             {
@@ -4006,13 +4177,45 @@ def chat_sessions(request):
     """
     GET endpoint to fetch all chat sessions for the current user.
     """
-    sessions = ChatSession.objects.filter(user=request.user).order_by("-updated_at")
+    sessions = ChatSession.objects.filter(user=request.user)
+    mode = (request.GET.get("mode") or "ai").strip().lower()
+    if mode == "admin":
+        sessions = sessions.filter(is_admin_support=True).exclude(status="ai")
+    elif mode != "all":
+        sessions = sessions.filter(status="ai", is_admin_support=False)
+    sessions = sessions.order_by("-updated_at")
+    # Client's device is polling sessions — admin messages have now been
+    # received on their end, so mark them "Delivered" (not yet "Seen" until
+    # the client actually opens the chat / marks them read).
+    if mode == "admin":
+        ChatMessage.objects.filter(
+            session__user=request.user,
+            session__is_admin_support=True,
+            receiver=request.user,
+            is_read=False,
+            is_delivered=False,
+        ).exclude(sender=request.user).update(
+            is_delivered=True, delivered_at=timezone.now()
+        )
     sessions_list = []
     for s in sessions:
         sessions_list.append(
             {
                 "id": s.id,
                 "title": s.title,
+                "status": s.status,
+                "status_label": s.get_status_display(),
+                "assigned_admin": (
+                    s.assigned_admin.get_full_name()
+                    or s.assigned_admin.username
+                    if s.assigned_admin
+                    else ""
+                ),
+                "unread_count": ChatMessage.objects.filter(
+                    session=s,
+                    receiver=request.user,
+                    is_read=False,
+                ).exclude(sender=request.user).count(),
                 "updated_at": s.updated_at.strftime("%b %d, %Y"),
             }
         )
@@ -4045,24 +4248,64 @@ def chat_history(request):
             }
         )
 
-    recent_msgs = ChatMessage.objects.filter(
-        session_id=session_id, session__user=request.user
-    ).order_by("-sent_at")[:50]
+    session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+    # The client's device is actively viewing this chat — mark them online
+    # and stamp their last activity (used for presence + offline emails).
+    now = timezone.now()
+    session.client_last_active_at = now
+    session.save(update_fields=["client_last_active_at", "updated_at"])
 
+    recent_msgs = (
+        ChatMessage.objects.filter(session=session)
+        .select_related("sender", "reply_to", "reply_to__sender")
+        .prefetch_related("reactions")
+        .order_by("-sent_at")[:50]
+    )
+
+    # The messages reached the client's device — mark inbound (admin-sent)
+    # messages as delivered. They become "Seen" once the client opens the
+    # chat and the widget marks them read.
+    ChatMessage.objects.filter(
+        session=session,
+        receiver=request.user,
+        is_read=False,
+        is_delivered=False,
+    ).exclude(sender=request.user).update(
+        is_delivered=True, delivered_at=timezone.now()
+    )
     messages_list = []
     for msg in reversed(list(recent_msgs)):
-        role = "user" if msg.sender == request.user else "assistant"
-        messages_list.append(
-            {
-                "role": role,
-                "content": msg.message,
-                "sent_at": msg.sent_at.strftime("%I:%M %p"),
-            }
-        )
+        messages_list.append(_chat_message_json(msg, request.user))
 
     return JsonResponse(
         {
             "messages": messages_list,
+            "session": {
+                "id": session.id,
+                "admin_last_read_at": (
+                    session.admin_last_read_at.isoformat() if session.admin_last_read_at else None
+                ),
+                "title": session.title,
+                "status": session.status,
+                "status_label": session.get_status_display(),
+                "assigned_admin": (
+                    session.assigned_admin.get_full_name()
+                    or session.assigned_admin.username
+                    if session.assigned_admin
+                    else ""
+                ),
+                "admin_online": bool(
+                    session.admin_last_active_at
+                    and now - session.admin_last_active_at
+                    <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+                ),
+                "admin_typing": bool(
+                    session.admin_typing_until and session.admin_typing_until > now
+                ),
+                "admin_last_active_at": (
+                    session.admin_last_active_at.isoformat() if session.admin_last_active_at else None
+                ),
+            },
             "is_banned": ban_status["is_banned"],
             "ban_remaining_seconds": ban_status["ban_remaining_seconds"],
         }
@@ -4080,11 +4323,600 @@ def chat_clear(request):
         data = json.loads(request.body)
         session_id = data.get("session_id")
         if session_id:
-            ChatSession.objects.filter(id=session_id, user=request.user).delete()
+            ChatSession.objects.filter(
+                id=session_id,
+                user=request.user,
+                is_admin_support=False,
+            ).delete()
             return JsonResponse({"success": True})
         return JsonResponse({"error": "session_id required"}, status=400)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CLIENT: Full chat page + session sidebar
+# ────────────────────────────────────────────────────────────────
+@login_required
+def client_chat_page(request):
+    if request.user.role != 'customer':
+        return HttpResponseForbidden("Customers only")
+    return redirect('home')
+
+
+# ────────────────────────────────────────────────────────────────
+# CLIENT API: Start or reopen a human admin support session
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_request_admin(request):
+    try:
+        data = json.loads(request.body)
+        session_id = data.get("session_id")
+        admin_user = _get_primary_admin_user()
+        created_support_session = False
+        if session_id:
+            session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        else:
+            # Reuse the client's most recent admin-support conversation so each
+            # user only ever has one thread in the admin inbox (messenger-style).
+            session = (
+                ChatSession.objects.filter(user=request.user, is_admin_support=True)
+                .exclude(status='ai')
+                .order_by('-updated_at')
+                .first()
+            )
+            if session is None:
+                session = ChatSession.objects.create(
+                    user=request.user,
+                    title="Admin support",
+                    status="active_admin",
+                    is_admin_support=True,
+                    assigned_admin=admin_user,
+                    last_client_message_at=timezone.now(),
+                    client_last_active_at=timezone.now(),
+                )
+                created_support_session = True
+
+        if created_support_session or session.status in ['ai', 'closed', 'pending_admin']:
+            session.status = 'active_admin'
+            session.is_admin_support = True
+            if not session.assigned_admin:
+                session.assigned_admin = admin_user
+            session.last_client_message_at = timezone.now()
+            session.save(update_fields=[
+                'status',
+                'is_admin_support',
+                'assigned_admin',
+                'last_client_message_at',
+                'updated_at',
+            ])
+            try:
+                all_admins = []
+                for admin in all_admins:
+                    try:
+                        Notification.objects.create(
+                            user=admin,
+                            title="New Admin Chat Request",
+                            message=f"{(request.user.first_name or request.user.username)} needs help — \"{session.title[:50]}\"",
+                            message_type='chat_request',
+                            related_id=session.id,
+                        )
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+            AdminNotification.objects.create(
+                user=request.user,
+                message=(
+                    f"{request.user.get_full_name() or request.user.username} "
+                    f"requested admin chat support: {session.title[:80]}"
+                ),
+            )
+            return JsonResponse({
+                "success": True,
+                "new_status": "active_admin",
+                "session_id": session.id,
+                "message": "Admin support chat is ready."
+            })
+        return JsonResponse({
+            "success": True,
+            "new_status": session.status,
+            "session_id": session.id,
+            "message": "Existing admin support chat restored."
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CLIENT API: Mark admin-received messages as read in a session
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_mark_read(request):
+    try:
+        data = json.loads(request.body)
+        session_id = data.get("session_id")
+        if not session_id:
+            return JsonResponse({"error": "session_id required"}, status=400)
+        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        ChatMessage.objects.filter(
+            session=session, is_read=False,
+        ).exclude(sender=request.user).update(
+            is_read=True,
+            read_at=timezone.now(),
+            is_delivered=True,
+            delivered_at=timezone.now(),
+        )
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Edit an own text message (admin or client)
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_edit_message(request):
+    try:
+        data = json.loads(request.body)
+        message_id = data.get("message_id")
+        new_text = (data.get("message") or "").strip()
+        if not message_id:
+            return JsonResponse({"error": "message_id required"}, status=400)
+        if not new_text:
+            return JsonResponse({"error": "Message cannot be empty"}, status=400)
+        message = get_object_or_404(ChatMessage, id=message_id, sender=request.user)
+        message.message = new_text
+        message.is_edited = True
+        message.edited_at = timezone.now()
+        message.save(update_fields=["message", "is_edited", "edited_at"])
+        return JsonResponse({
+            "success": True,
+            "updated": _chat_message_json(message, request.user),
+        })
+    except Http404:
+        raise
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Typing indicator ping (client OR admin)
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_typing(request):
+    try:
+        data = json.loads(request.body)
+        session_id = data.get("session_id")
+        if not session_id:
+            return JsonResponse({"error": "session_id required"}, status=400)
+        session = get_object_or_404(ChatSession, id=session_id)
+        is_admin = _is_admin_user(request.user)
+        is_client = session.user_id == request.user.id
+        if not (is_admin or is_client):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        session.client_last_active_at = timezone.now()
+        if is_admin:
+            session.admin_typing_until = timezone.now() + timedelta(seconds=CHAT_TYPING_SECONDS)
+        else:
+            session.client_typing_until = timezone.now() + timedelta(seconds=CHAT_TYPING_SECONDS)
+        session.save(
+            update_fields=[
+                "client_last_active_at",
+                "admin_typing_until" if is_admin else "client_typing_until",
+                "updated_at",
+            ]
+        )
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Presence — who is online / typing right now
+# ────────────────────────────────────────────────────────────────
+@login_required
+def chat_presence(request):
+    session_id = request.GET.get("session_id")
+    if not session_id:
+        return JsonResponse({"error": "session_id required"}, status=400)
+    session = get_object_or_404(ChatSession, id=session_id)
+    is_admin = _is_admin_user(request.user)
+    is_client = session.user_id == request.user.id
+    if not (is_admin or is_client):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    now = timezone.now()
+    delta = timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+    return JsonResponse(
+        {
+            "client_online": bool(session.client_last_active_at and now - session.client_last_active_at <= delta),
+            "client_typing": bool(session.client_typing_until and session.client_typing_until > now),
+            "admin_online": bool(session.admin_last_active_at and now - session.admin_last_active_at <= delta),
+            "admin_typing": bool(session.admin_typing_until and session.admin_typing_until > now),
+            "client_last_active_at": session.client_last_active_at.isoformat() if session.client_last_active_at else None,
+            "admin_last_active_at": session.admin_last_active_at.isoformat() if session.admin_last_active_at else None,
+        }
+    )
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Delete a message (soft delete — "This message was deleted")
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_delete_message(request):
+    try:
+        data = json.loads(request.body)
+        message_id = data.get("message_id")
+        message = get_object_or_404(ChatMessage, id=message_id)
+        is_admin = _is_admin_user(request.user)
+        session = message.session
+        allowed = (
+            message.sender_id == request.user.id
+            or (is_admin and session is not None and session.is_admin_support)
+        )
+        if not allowed:
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        if not message.is_deleted:
+            message.is_deleted = True
+            message.deleted_at = timezone.now()
+            message.save(update_fields=["is_deleted", "deleted_at"])
+            # Unsent messages drop their reactions (Messenger behaviour).
+            message.reactions.all().delete()
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CLIENT: Typing indicator ping
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_typing_ping(request):
+    """Update the typing timestamp for the current user in a session."""
+    try:
+        data = json.loads(request.body)
+        session_id = data.get("session_id")
+        is_typing = data.get("is_typing", True)
+        if not session_id:
+            return JsonResponse({"error": "session_id required"}, status=400)
+        session = get_object_or_404(ChatSession, id=session_id)
+        is_admin = _is_admin_user(request.user)
+        is_client = session.user_id == request.user.id
+        if not (is_admin or is_client):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        now = timezone.now()
+        if is_client:
+            if is_typing:
+                session.client_typing_until = now + timedelta(seconds=CHAT_TYPING_SECONDS)
+            else:
+                session.client_typing_until = None
+            session.client_last_active_at = now
+            update_fields = ["client_last_active_at", "client_typing_until"]
+            session.save(update_fields=update_fields)
+        elif is_admin:
+            if is_typing:
+                session.admin_typing_until = now + timedelta(seconds=CHAT_TYPING_SECONDS)
+            else:
+                session.admin_typing_until = None
+            session.admin_last_active_at = now
+            update_fields = ["admin_last_active_at", "admin_typing_until"]
+            session.save(update_fields=update_fields)
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CLIENT/ADMIN: Add or remove reaction on a message
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_reaction(request):
+    """Toggle a reaction on a message."""
+    try:
+        data = json.loads(request.body)
+        message_id = data.get("message_id")
+        emoji = data.get("emoji")
+        if not message_id or not emoji:
+            return JsonResponse({"error": "message_id and emoji required"}, status=400)
+        if emoji not in CHAT_REACTION_EMOJIS:
+            return JsonResponse({"error": "Invalid emoji"}, status=400)
+        message = get_object_or_404(ChatMessage, id=message_id)
+        session = message.session
+        is_admin = _is_admin_user(request.user)
+        is_client = session.user_id == request.user.id
+        if not (is_admin or is_client):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        # Only ONE reaction per user per message (Messenger-style):
+        # reacting with a different emoji replaces the previous one,
+        # reacting with the same emoji removes it.
+        mine = MessageReaction.objects.filter(message=message, user=request.user)
+        if mine.filter(emoji=emoji).exists():
+            mine.delete()
+        else:
+            mine.delete()
+            MessageReaction.objects.create(
+                message=message, user=request.user, emoji=emoji
+            )
+        counts, my = _chat_object_reactions_json(message, request.user)
+        return JsonResponse({
+            "success": True,
+            "reactions": counts,
+            "my_reactions": my,
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# ADMIN: Poll for new messages + presence (replaces full-page reload)
+# ────────────────────────────────────────────────────────────────
+@login_required
+def admin_chat_poll(request):
+    """Return new messages and presence data for the admin thread."""
+    if not _is_admin_user(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    session_id = request.GET.get("session_id")
+    after_id = request.GET.get("after_id", 0)
+    if not session_id:
+        return JsonResponse({"error": "session_id required"}, status=400)
+    session = get_object_or_404(ChatSession, id=session_id, is_admin_support=True)
+    now = timezone.now()
+    # Update admin presence
+    session.admin_last_active_at = now
+    session.save(update_fields=["admin_last_active_at"])
+    # Fetch new messages
+    new_messages = (
+        session.messages.filter(id__gt=after_id)
+        .select_related("sender", "reply_to", "reply_to__sender")
+        .prefetch_related("reactions", "reactions__user")
+        .order_by("sent_at")
+    )
+    messages_data = [_chat_message_json(msg, request.user) for msg in new_messages]
+    # Presence data
+    client_online = bool(
+        session.client_last_active_at
+        and now - session.client_last_active_at
+        <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+    )
+    client_typing = bool(
+        session.client_typing_until and session.client_typing_until > now
+    )
+    return JsonResponse({
+        "messages": messages_data,
+        "client_online": client_online,
+        "client_typing": client_typing,
+        "session_status": session.status,
+    })
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Toggle a reaction (👍 ❤️ 😮 …) on a message
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_toggle_reaction(request):
+    try:
+        data = json.loads(request.body)
+        message_id = data.get("message_id")
+        emoji = (data.get("emoji") or "").strip()
+        if not message_id:
+            return JsonResponse({"error": "message_id required"}, status=400)
+        if emoji not in CHAT_REACTION_EMOJIS:
+            return JsonResponse({"error": "Invalid emoji"}, status=400)
+        message = get_object_or_404(ChatMessage, id=message_id)
+        # Only ONE reaction per user per message (Messenger-style):
+        # reacting with a different emoji replaces the previous one,
+        # reacting with the same emoji removes it.
+        mine = MessageReaction.objects.filter(message=message, user=request.user)
+        if mine.filter(emoji=emoji).exists():
+            mine.delete()
+        else:
+            mine.delete()
+            MessageReaction.objects.create(
+                message=message, user=request.user, emoji=emoji
+            )
+        counts, my = _chat_object_reactions_json(message, request.user)
+        return JsonResponse(
+            {"success": True, "reactions": counts, "my_reactions": my}
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+# ────────────────────────────────────────────────────────────────
+# ADMIN: Chat Inbox — list all client chat sessions grouped by status
+# ────────────────────────────────────────────────────────────────
+@login_required
+def admin_chat_inbox(request):
+    if not _is_admin_user(request.user):
+        return HttpResponseForbidden("Admins only")
+    stats, sessions = _admin_support_chat_stats(
+        _admin_support_chat_sessions(), request.user
+    )
+    return render(request, 'admin/admin_chat_inbox.html', {
+        'sessions': sessions,
+        'stats': stats,
+    })
+
+
+# ────────────────────────────────────────────────────────────────
+# ADMIN: Chat Thread — view full conversation + post reply
+# ────────────────────────────────────────────────────────────────
+@login_required
+def admin_chat_thread(request, session_id):
+    if not _is_admin_user(request.user):
+        return HttpResponseForbidden("Admins only")
+    session = get_object_or_404(
+        ChatSession.objects.select_related('user', 'assigned_admin'),
+        id=session_id,
+        is_admin_support=True,
+    )
+    ChatMessage.objects.filter(
+        session=session, sender=session.user, is_read=False
+    ).update(
+        is_read=True,
+        read_at=timezone.now(),
+        is_delivered=True,
+        delivered_at=timezone.now(),
+    )
+    now = timezone.now()
+    session.admin_last_read_at = now
+    session.admin_last_active_at = now
+    session.save(update_fields=['admin_last_read_at', 'admin_last_active_at'])
+
+    if request.method == 'POST':
+        reply_text = request.POST.get('message', '').strip()
+        uploaded_images = [f for f in request.FILES.getlist('image') if f]
+        for uploaded_image in uploaded_images:
+            image_error = _validate_chat_image(uploaded_image)
+            if image_error:
+                messages.error(request, image_error)
+                return redirect('admin_chat_thread', session_id=session.id)
+        if reply_text or uploaded_images:
+            reply_to_obj = None
+            raw_reply_to = request.POST.get('reply_to_id', '')
+            if raw_reply_to:
+                try:
+                    reply_to_obj = session.messages.get(id=int(raw_reply_to))
+                except (ValueError, ChatMessage.DoesNotExist):
+                    reply_to_obj = None
+            if reply_text:
+                ChatMessage.objects.create(
+                    session=session,
+                    sender=request.user,
+                    receiver=session.user,
+                    message=reply_text,
+                    reply_to=reply_to_obj,
+                    is_flagged=False,
+                )
+            for uploaded_image in uploaded_images:
+                ChatMessage.objects.create(
+                    session=session,
+                    sender=request.user,
+                    receiver=session.user,
+                    message="",
+                    image=uploaded_image,
+                    image_original_name=uploaded_image.name[:255],
+                    is_flagged=False,
+                )
+            if session.status in ['pending_admin', 'closed']:
+                session.status = 'active_admin'
+            session.assigned_admin = request.user
+            session.admin_last_active_at = now
+            session.save(update_fields=['status', 'assigned_admin', 'updated_at', 'admin_last_active_at'])
+
+            # Notify an offline client (in-app ChatNotification + best-effort email).
+            client_offline = not (
+                session.client_last_active_at
+                and now - session.client_last_active_at
+                <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+            )
+            if client_offline:
+                try:
+                    ChatNotification.objects.create(
+                        user=session.user,
+                        session=session,
+                        message=reply_text or "You received a new image message from Balloorina support.",
+                    )
+                except Exception:
+                    pass
+                if session.user.email:
+                    try:
+                        send_mail(
+                            subject="New message from Balloorina support",
+                            body=(
+                                f"Hi {session.user.first_name or session.user.username},\n\n"
+                                "You have a new message from our support team:\n\n"
+                                f"{(reply_text or '(Image attachment)')}\n\n"
+                                "Open your chat to reply.\n\n— Balloorina"
+                            ),
+                            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@balloorina.local"),
+                            recipient_list=[session.user.email],
+                            fail_silently=True,
+                        )
+                    except Exception:
+                        pass
+        return redirect('admin_chat_thread', session_id=session.id)
+
+    chat_messages = list(
+        session.messages.all()
+        .select_related('sender', 'reply_to', 'reply_to__sender')
+        .prefetch_related('reactions', 'reactions__user')
+        .order_by('sent_at')
+    )
+    # Build reaction summaries for each message so the template can render a
+    # single merged pill (emojis + total count) without extra queries.
+    for message in chat_messages:
+        counts = {}
+        mine = []
+        for reaction in message.reactions.all():
+            counts[reaction.emoji] = counts.get(reaction.emoji, 0) + 1
+            if reaction.user_id == request.user.id:
+                mine.append(reaction.emoji)
+        message.reaction_summary = [
+            {"emoji": emoji, "count": count, "mine": emoji in mine}
+            for emoji, count in counts.items()
+        ]
+        message.reaction_emojis = "".join(counts.keys())
+        message.reaction_total = sum(counts.values())
+        message.reaction_mine = mine[0] if mine else ""
+    stats, all_sessions = _admin_support_chat_stats(
+        _admin_support_chat_sessions(), request.user
+    )
+    return render(request, 'admin/admin_chat_thread.html', {
+        'session': session,
+        'chat_messages': chat_messages,
+        'all_sessions': all_sessions,
+        'stats': stats,
+        'now': timezone.now(),
+        'client_is_online': bool(
+            session.client_last_active_at
+            and now - session.client_last_active_at
+            <= timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
+        ),
+    })
+
+
+# ────────────────────────────────────────────────────────────────
+# ADMIN: Close / archive support chat without deleting history
+# ────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────
+# ADMIN: Close / Archive chat session
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def admin_chat_close(request, session_id):
+    if not _is_admin_user(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    session = get_object_or_404(ChatSession, id=session_id, is_admin_support=True)
+    session.status = 'closed'
+    session.save(update_fields=['status', 'updated_at'])
+    return redirect('admin_chat_inbox')
+
+
+# ────────────────────────────────────────────────────────────────
+# ADMIN API: Poll unread / pending counts for topbar badge
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_GET
+def admin_chat_unread_poll(request):
+    if not _is_admin_user(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    sessions = ChatSession.objects.filter(is_admin_support=True).exclude(status='ai')
+    unread_count = sum(
+        1 for s in sessions
+        if s.status != 'closed' and s.has_unread_for_admin
+    )
+    pending_count = sessions.filter(status='pending_admin').count()
+    return JsonResponse({
+        'unread_total': unread_count,
+        'pending_count': pending_count,
+    })
 
 
 @login_required
@@ -5654,6 +6486,32 @@ def admin_home_content(request):
         content.why_choose_subtitle = request.POST.get(
             "why_choose_subtitle", content.why_choose_subtitle
         ).strip()
+        content.occasion_chips = request.POST.get(
+            "occasion_chips", content.occasion_chips
+        ).strip()
+        content.how_it_works_label = request.POST.get(
+            "how_it_works_label", content.how_it_works_label
+        ).strip()
+        content.how_it_works_title = request.POST.get(
+            "how_it_works_title", content.how_it_works_title
+        ).strip()
+        content.how_it_works_title_accent = request.POST.get(
+            "how_it_works_title_accent", content.how_it_works_title_accent
+        ).strip()
+        content.faq_title = request.POST.get("faq_title", content.faq_title).strip()
+        content.faq_subtitle = request.POST.get(
+            "faq_subtitle", content.faq_subtitle
+        ).strip()
+        content.cta_title = request.POST.get("cta_title", content.cta_title).strip()
+        content.cta_subtitle = request.POST.get(
+            "cta_subtitle", content.cta_subtitle
+        ).strip()
+        content.cta_primary_text = request.POST.get(
+            "cta_primary_text", content.cta_primary_text
+        ).strip()
+        content.cta_secondary_text = request.POST.get(
+            "cta_secondary_text", content.cta_secondary_text
+        ).strip()
 
         if request.FILES.get("hero_main_image"):
             content.hero_main_image = request.FILES["hero_main_image"]
@@ -5668,12 +6526,16 @@ def admin_home_content(request):
         return redirect("admin_home_content")
 
     features = HomeFeatureItem.objects.all()
+    hiw_steps = HomeHowItWorksStep.objects.all()
+    faqs = HomeFaqItem.objects.all()
     return render(
         request,
         "admin/content/home_content.html",
         {
             "content": content,
             "features": features,
+            "hiw_steps": hiw_steps,
+            "faqs": faqs,
         },
     )
 
@@ -5789,6 +6651,217 @@ def admin_home_feature_delete(request, id):
     return redirect("admin_home_content")
 
 
+@login_required
+def admin_hiw_step_create(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    content = HomeContent.objects.first()
+    if content is None:
+        content = HomeContent.objects.create()
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        icon_class = request.POST.get("icon_class", "fas fa-star").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            display_order = int(request.POST.get("display_order", 0))
+        except (ValueError, TypeError):
+            display_order = 0
+
+        if not title:
+            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+                return JsonResponse({"ok": False, "message": "Title is required."}, status=400)
+            messages.error(request, "Title is required.")
+            return render(
+                request,
+                "admin/content/home_step_form.html",
+                {
+                    "action": "Create",
+                    "step": {},
+                    "post_data": request.POST,
+                },
+            )
+
+        HomeHowItWorksStep.objects.create(
+            home_content=content,
+            title=title,
+            description=description,
+            icon_class=icon_class,
+            display_order=display_order,
+            is_active=is_active,
+        )
+        log_action(request.user, f"Created 'How It Works' step '{title}'.")
+
+        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+            return JsonResponse({"ok": True, "message": "Step created successfully."})
+
+        messages.success(request, "Step created successfully.")
+        return redirect("admin_home_content")
+
+    return render(request, "admin/content/home_step_form.html", {"action": "Create", "step": {}, "post_data": {}})
+
+
+@login_required
+def admin_hiw_step_edit(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    step = get_object_or_404(HomeHowItWorksStep, id=id)
+
+    if request.method == "POST":
+        step.title = request.POST.get("title", step.title).strip()
+        step.description = request.POST.get("description", step.description).strip()
+        step.icon_class = request.POST.get("icon_class", step.icon_class).strip()
+        step.is_active = request.POST.get("is_active") == "on"
+
+        try:
+            step.display_order = int(request.POST.get("display_order", step.display_order))
+        except (ValueError, TypeError):
+            pass
+
+        step.save()
+        log_action(
+            request.user,
+            f"Updated 'How It Works' step '{step.title}' (ID #{step.id}).",
+        )
+
+        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+            return JsonResponse({"ok": True, "message": "Step updated successfully."})
+
+        messages.success(request, "Step updated successfully.")
+        return redirect("admin_home_content")
+
+    return render(
+        request,
+        "admin/content/home_step_form.html",
+        {
+            "action": "Edit",
+            "step": step,
+            "post_data": {},
+        },
+    )
+
+
+@login_required
+def admin_hiw_step_delete(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    step = get_object_or_404(HomeHowItWorksStep, id=id)
+    step_title = step.title
+    step.delete()
+    log_action(request.user, f"Deleted 'How It Works' step '{step_title}' (ID #{id}).")
+    messages.success(request, "Step deleted successfully.")
+    return redirect("admin_home_content")
+
+
+@login_required
+def admin_faq_create(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    content = HomeContent.objects.first()
+    if content is None:
+        content = HomeContent.objects.create()
+
+    if request.method == "POST":
+        question = request.POST.get("question", "").strip()
+        answer = request.POST.get("answer", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            display_order = int(request.POST.get("display_order", 0))
+        except (ValueError, TypeError):
+            display_order = 0
+
+        if not question:
+            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+                return JsonResponse({"ok": False, "message": "Question is required."}, status=400)
+            messages.error(request, "Question is required.")
+            return render(
+                request,
+                "admin/content/home_faq_form.html",
+                {
+                    "action": "Create",
+                    "faq": {},
+                    "post_data": request.POST,
+                },
+            )
+
+        HomeFaqItem.objects.create(
+            home_content=content,
+            question=question,
+            answer=answer,
+            display_order=display_order,
+            is_active=is_active,
+        )
+        log_action(request.user, f"Created home FAQ item '{question}'.")
+
+        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+            return JsonResponse({"ok": True, "message": "FAQ item created successfully."})
+
+        messages.success(request, "FAQ item created successfully.")
+        return redirect("admin_home_content")
+
+    return render(request, "admin/content/home_faq_form.html", {"action": "Create", "faq": {}, "post_data": {}})
+
+
+@login_required
+def admin_faq_edit(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    faq = get_object_or_404(HomeFaqItem, id=id)
+
+    if request.method == "POST":
+        faq.question = request.POST.get("question", faq.question).strip()
+        faq.answer = request.POST.get("answer", faq.answer).strip()
+        faq.is_active = request.POST.get("is_active") == "on"
+
+        try:
+            faq.display_order = int(request.POST.get("display_order", faq.display_order))
+        except (ValueError, TypeError):
+            pass
+
+        faq.save()
+        log_action(
+            request.user,
+            f"Updated home FAQ item '{faq.question}' (ID #{faq.id}).",
+        )
+
+        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+            return JsonResponse({"ok": True, "message": "FAQ item updated successfully."})
+
+        messages.success(request, "FAQ item updated successfully.")
+        return redirect("admin_home_content")
+
+    return render(
+        request,
+        "admin/content/home_faq_form.html",
+        {
+            "action": "Edit",
+            "faq": faq,
+            "post_data": {},
+        },
+    )
+
+
+@login_required
+def admin_faq_delete(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    faq = get_object_or_404(HomeFaqItem, id=id)
+    faq_question = faq.question
+    faq.delete()
+    log_action(request.user, f"Deleted home FAQ item '{faq_question}' (ID #{id}).")
+    messages.success(request, "FAQ item deleted successfully.")
+    return redirect("admin_home_content")
+
+
 # =============================================================================
 # ADMIN ABOUT CONTENT MANAGEMENT
 # =============================================================================
@@ -5866,6 +6939,89 @@ def admin_about_content(request):
             "content": content,
             "values": values,
         },
+    )
+
+
+GUIDELINE_PAGE_KEYS = [
+    GuidelinePageContent.PAGE_GUIDELINES,
+    GuidelinePageContent.PAGE_TERMS,
+    GuidelinePageContent.PAGE_PRIVACY,
+]
+
+
+@login_required
+def admin_guidelines_content(request):
+    """Manage Guidelines, Terms & Conditions, and Privacy Policy page content."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    pages = []
+    for key in GUIDELINE_PAGE_KEYS:
+        content, _created = GuidelinePageContent.objects.prefetch_related(
+            "items"
+        ).get_or_create(page_key=key)
+        pages.append(
+            {
+                "obj": content,
+                "items": list(content.items.order_by("display_order", "id")),
+            }
+        )
+
+    if request.method == "POST":
+        for key in GUIDELINE_PAGE_KEYS:
+            content = GuidelinePageContent.objects.filter(page_key=key).first()
+            if content is None:
+                continue
+
+            content.title = request.POST.get(f"{key}_title", content.title).strip()
+            content.intro = request.POST.get(f"{key}_intro", content.intro).strip()
+            content.attachment_label = request.POST.get(
+                f"{key}_attachment_label", content.attachment_label
+            ).strip()
+            content.attachment_url = request.POST.get(
+                f"{key}_attachment_url", content.attachment_url
+            ).strip()
+
+            for item in content.items.all():
+                if request.POST.get(f"item_delete_{item.id}"):
+                    item.delete()
+                    continue
+                item.heading = request.POST.get(
+                    f"item_heading_{item.id}", item.heading
+                ).strip()
+                item.body = request.POST.get(f"item_body_{item.id}", item.body).strip()
+                try:
+                    item.display_order = int(request.POST.get(f"item_order_{item.id}", item.display_order))
+                except (TypeError, ValueError):
+                    pass
+                item.is_active = request.POST.get(f"item_active_{item.id}") == "on"
+                item.save()
+
+            new_heading = request.POST.get(f"new_heading_{key}", "").strip()
+            new_body = request.POST.get(f"new_body_{key}", "").strip()
+            if new_heading or new_body:
+                try:
+                    new_order = int(request.POST.get(f"new_order_{key}", ""))
+                except (TypeError, ValueError):
+                    new_order = content.items.count() + 1
+                GuidelineItem.objects.create(
+                    page_content=content,
+                    heading=new_heading,
+                    body=new_body,
+                    display_order=max(new_order, 0),
+                    is_active=True,
+                )
+
+            content.save()
+
+        log_action(request.user, "Updated Guidelines, Terms & Privacy content.")
+        messages.success(request, "Policies content updated successfully.")
+        return redirect("admin_guidelines_content")
+
+    return render(
+        request,
+        "admin/content/guidelines_content.html",
+        {"pages": pages},
     )
 
 

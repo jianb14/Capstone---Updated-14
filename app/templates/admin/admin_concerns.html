@@ -14,42 +14,84 @@
         </div>
     </div>
 
-    <section class="filter-card">
-        <form method="GET" action="{% url 'admin_concerns' %}" class="filter-form">
+    <form method="GET" action="{% url 'admin_concerns' %}" class="dash-filter-row">
+        <div class="filter-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+        </div>
+        <span class="filter-label">Filter</span>
+        <div class="filter-sep"></div>
+        <div class="filter-fields">
             <div class="filter-group">
-                <label for="start_date">Start Date</label>
+                <label for="start_date">From</label>
                 <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
             </div>
             <div class="filter-group">
-                <label for="end_date">End Date</label>
+                <label for="end_date">To</label>
                 <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
             </div>
-            <button type="submit" class="btn-filter"><i class="fas fa-filter"></i> Apply</button>
-            <a href="{% url 'admin_concerns' %}" class="btn-reset"><i class="fas fa-undo"></i> Reset</a>
-        </form>
-    </section>
+            <div class="filter-inline-actions">
+                <button type="submit" class="btn-apply">Apply</button>
+                <a href="{% url 'admin_concerns' %}" class="btn-reset">Reset</a>
+            </div>
+        </div>
+    </form>
 
-    <section class="kpi-grid">
-        <article class="kpi-card">
-            <span class="kpi-label">Total Concerns</span>
-            <strong class="kpi-value">{{ total_concerns }}</strong>
-            <small class="kpi-note">All concern items in selected period</small>
-        </article>
-        <article class="kpi-card">
-            <span class="kpi-label">New</span>
-            <strong class="kpi-value">{{ new_concerns }}</strong>
-            <small class="kpi-note">Newly submitted tickets</small>
-        </article>
-        <article class="kpi-card">
-            <span class="kpi-label">In Progress</span>
-            <strong class="kpi-value">{{ in_progress_concerns }}</strong>
-            <small class="kpi-note">Currently under review</small>
-        </article>
-        <article class="kpi-card">
-            <span class="kpi-label">Resolved</span>
-            <strong class="kpi-value">{{ resolved_concerns }}</strong>
-            <small class="kpi-note">Completed concerns</small>
-        </article>
+    <section class="booking-summary-grid">
+        <div class="booking-summary-card booking-summary-card--total">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Total Concerns</span>
+                <span class="booking-summary-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                        <line x1="8" y1="2.5" x2="8" y2="6"></line>
+                        <line x1="16" y1="2.5" x2="16" y2="6"></line>
+                    </svg>
+                </span>
+            </div>
+            <div class="booking-summary-value">{{ total_concerns }}</div>
+            <div class="booking-summary-sub">All concern items in selected period</div>
+        </div>
+        <div class="booking-summary-card booking-summary-card--pending">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">New</span>
+                <span class="booking-summary-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M12 7v5l3 2"></path>
+                    </svg>
+                </span>
+            </div>
+            <div class="booking-summary-value">{{ new_concerns }}</div>
+            <div class="booking-summary-sub">Newly submitted tickets</div>
+        </div>
+        <div class="booking-summary-card booking-summary-card--confirmed">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">In Progress</span>
+                <span class="booking-summary-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M21 12a9 9 0 1 1-6.2-8.56"></path>
+                    </svg>
+                </span>
+            </div>
+            <div class="booking-summary-value">{{ in_progress_concerns }}</div>
+            <div class="booking-summary-sub">Currently under review</div>
+        </div>
+        <div class="booking-summary-card booking-summary-card--completed">
+            <div class="booking-summary-head">
+                <span class="booking-summary-label">Resolved</span>
+                <span class="booking-summary-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                </span>
+            </div>
+            <div class="booking-summary-value">{{ resolved_concerns }}</div>
+            <div class="booking-summary-sub">Completed concerns</div>
+        </div>
     </section>
 
     <section class="panel">

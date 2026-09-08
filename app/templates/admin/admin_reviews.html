@@ -56,46 +56,48 @@
             <input type="text" id="adminSearchInput" name="search" class="search-input" placeholder="Search comments or users..." value="{{ search_query }}">
         </div>
         
-        <div class="custom-filter-dropdown" id="ratingDropdown">
-            <div class="dropdown-trigger">
-                <span id="ratingDropdownText">All Ratings</span>
-                <i class="fas fa-chevron-down"></i>
+        <div class="filter-actions">
+            <div class="custom-filter-dropdown" id="ratingDropdown">
+                <div class="dropdown-trigger">
+                    <span id="ratingDropdownText">All Ratings</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="" {% if not rating_filter %}class="selected"{% endif %}>All Ratings</li>
+                    <li data-value="5" {% if rating_filter == '5' %}class="selected"{% endif %}>5 Stars</li>
+                    <li data-value="4" {% if rating_filter == '4' %}class="selected"{% endif %}>4 Stars</li>
+                    <li data-value="3" {% if rating_filter == '3' %}class="selected"{% endif %}>3 Stars</li>
+                    <li data-value="2" {% if rating_filter == '2' %}class="selected"{% endif %}>2 Stars</li>
+                    <li data-value="1" {% if rating_filter == '1' %}class="selected"{% endif %}>1 Star</li>
+                </ul>
+                <select name="rating" id="ratingFilterSelect" style="display: none;">
+                    <option value="">All Ratings</option>
+                    <option value="5" {% if rating_filter == '5' %}selected{% endif %}>5 Stars</option>
+                    <option value="4" {% if rating_filter == '4' %}selected{% endif %}>4 Stars</option>
+                    <option value="3" {% if rating_filter == '3' %}selected{% endif %}>3 Stars</option>
+                    <option value="2" {% if rating_filter == '2' %}selected{% endif %}>2 Stars</option>
+                    <option value="1" {% if rating_filter == '1' %}selected{% endif %}>1 Star</option>
+                </select>
             </div>
-            <ul class="dropdown-options">
-                <li data-value="" {% if not rating_filter %}class="selected"{% endif %}>All Ratings</li>
-                <li data-value="5" {% if rating_filter == '5' %}class="selected"{% endif %}>5 Stars</li>
-                <li data-value="4" {% if rating_filter == '4' %}class="selected"{% endif %}>4 Stars</li>
-                <li data-value="3" {% if rating_filter == '3' %}class="selected"{% endif %}>3 Stars</li>
-                <li data-value="2" {% if rating_filter == '2' %}class="selected"{% endif %}>2 Stars</li>
-                <li data-value="1" {% if rating_filter == '1' %}class="selected"{% endif %}>1 Star</li>
-            </ul>
-            <select name="rating" id="ratingFilterSelect" style="display: none;">
-                <option value="">All Ratings</option>
-                <option value="5" {% if rating_filter == '5' %}selected{% endif %}>5 Stars</option>
-                <option value="4" {% if rating_filter == '4' %}selected{% endif %}>4 Stars</option>
-                <option value="3" {% if rating_filter == '3' %}selected{% endif %}>3 Stars</option>
-                <option value="2" {% if rating_filter == '2' %}selected{% endif %}>2 Stars</option>
-                <option value="1" {% if rating_filter == '1' %}selected{% endif %}>1 Star</option>
-            </select>
-        </div>
 
-        <div class="custom-filter-dropdown" id="sortDropdown">
-            <div class="dropdown-trigger">
-                <span id="sortDropdownText">Newest First</span>
-                <i class="fas fa-chevron-down"></i>
+            <div class="custom-filter-dropdown" id="sortDropdown">
+                <div class="dropdown-trigger">
+                    <span id="sortDropdownText">Newest First</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="-created_at" {% if sort_filter == '-created_at' or not sort_filter %}class="selected"{% endif %}>Newest First</li>
+                    <li data-value="created_at" {% if sort_filter == 'created_at' %}class="selected"{% endif %}>Oldest First</li>
+                    <li data-value="-rating" {% if sort_filter == '-rating' %}class="selected"{% endif %}>Highest Rated</li>
+                    <li data-value="rating" {% if sort_filter == 'rating' %}class="selected"{% endif %}>Lowest Rated</li>
+                </ul>
+                <select name="sort" id="sortFilterSelect" style="display: none;">
+                    <option value="-created_at" {% if sort_filter == '-created_at' or not sort_filter %}selected{% endif %}>Newest First</option>
+                    <option value="created_at" {% if sort_filter == 'created_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="-rating" {% if sort_filter == '-rating' %}selected{% endif %}>Highest Rated</option>
+                    <option value="rating" {% if sort_filter == 'rating' %}selected{% endif %}>Lowest Rated</option>
+                </select>
             </div>
-            <ul class="dropdown-options">
-                <li data-value="-created_at" {% if sort_filter == '-created_at' or not sort_filter %}class="selected"{% endif %}>Newest First</li>
-                <li data-value="created_at" {% if sort_filter == 'created_at' %}class="selected"{% endif %}>Oldest First</li>
-                <li data-value="-rating" {% if sort_filter == '-rating' %}class="selected"{% endif %}>Highest Rated</li>
-                <li data-value="rating" {% if sort_filter == 'rating' %}class="selected"{% endif %}>Lowest Rated</li>
-            </ul>
-            <select name="sort" id="sortFilterSelect" style="display: none;">
-                <option value="-created_at" {% if sort_filter == '-created_at' or not sort_filter %}selected{% endif %}>Newest First</option>
-                <option value="created_at" {% if sort_filter == 'created_at' %}selected{% endif %}>Oldest First</option>
-                <option value="-rating" {% if sort_filter == '-rating' %}selected{% endif %}>Highest Rated</option>
-                <option value="rating" {% if sort_filter == 'rating' %}selected{% endif %}>Lowest Rated</option>
-            </select>
         </div>
     </div>
 

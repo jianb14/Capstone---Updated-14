@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_user.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_user.css' %}?v=20260907b">
 
 <!-- Page Header with Breadcrumb -->
 <div class="page-header">
@@ -11,6 +11,66 @@
         <span>Admin</span>
         <span class="separator">/</span>
         <span>Users</span>
+    </div>
+</div>
+
+<!-- User Summary Cards (same design as Admin Booking) -->
+<div class="booking-summary-grid user-summary-grid">
+    <div class="booking-summary-card booking-summary-card--total">
+        <div class="booking-summary-head">
+            <span class="booking-summary-label">Total Users</span>
+            <span class="booking-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+            </span>
+        </div>
+        <div class="booking-summary-value">{{ user_summary.total }}</div>
+        <div class="booking-summary-sub">All registered users</div>
+    </div>
+    <div class="booking-summary-card booking-summary-card--confirmed">
+        <div class="booking-summary-head">
+            <span class="booking-summary-label">Active</span>
+            <span class="booking-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <path d="M22 4 12 14.01l-3-3"></path>
+                </svg>
+            </span>
+        </div>
+        <div class="booking-summary-value">{{ user_summary.active }}</div>
+        <div class="booking-summary-sub">Active user accounts</div>
+    </div>
+    <div class="booking-summary-card booking-summary-card--cancelled">
+        <div class="booking-summary-head">
+            <span class="booking-summary-label">Inactive</span>
+            <span class="booking-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="m15 9-6 6"></path>
+                    <path d="m9 9 6 6"></path>
+                </svg>
+            </span>
+        </div>
+        <div class="booking-summary-value">{{ user_summary.inactive }}</div>
+        <div class="booking-summary-sub">Deactivated accounts</div>
+    </div>
+    
+    <div class="booking-summary-card booking-summary-card--expired">
+        <div class="booking-summary-head">
+            <span class="booking-summary-label">Customers</span>
+            <span class="booking-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </span>
+        </div>
+        <div class="booking-summary-value">{{ user_summary.customers }}</div>
+        <div class="booking-summary-sub">Customer accounts</div>
     </div>
 </div>
 
