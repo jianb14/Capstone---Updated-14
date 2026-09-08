@@ -3,71 +3,168 @@
 
 {% block content %}
 
+<!-- Thin outline icon sprite (same stroke style as the home "Why Choose" icons) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="ic-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </symbol>
+    <symbol id="ic-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+    </symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>
+    </symbol>
+    <symbol id="ic-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+    </symbol>
+    <symbol id="ic-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+    </symbol>
+</svg>
+
 <div id="about" class="page">
     <section class="about-hero">
-        <h1>{{ about_content.hero_title|default:"About Balloorina.ph" }}</h1>
+        <span class="about-tagline">{{ about_content.hero_label|default:"About Balloorina.ph" }}</span>
+        <h1>
+            {{ hero_title_main|default:"Celebrating Moments," }}
+            <span class="about-hero-accent">{{ hero_title_accent|default:"The Balloorina Way" }}</span>
+        </h1>
         <p>{{ about_content.hero_subtitle|default:"We create clean and elegant event setups through professional balloon styling." }}</p>
+
+        <a href="#story" class="scroll-down" aria-label="Scroll down to Our Story">
+            <span>Scroll Down</span>
+            <i class="fas fa-chevron-down"></i>
+        </a>
     </section>
 
-    <section class="story-section">
+    <section class="story-section" id="story">
         <div class="story-content">
-            <div class="story-text">
-                <span class="story-label">{{ about_content.story_label|default:"OUR STORY" }}</span>
-                <h2>{{ about_content.story_title|default:"From Passion to Premium" }}</h2>
-                <p>{{ about_content.story_paragraph_1|default:"Balloorina.ph started in 2020 as a home studio. Today, we serve clients across Metro Manila for birthdays, weddings, and corporate events." }}</p>
-                <p>{{ about_content.story_paragraph_2|default:"Every arch, centerpiece, and installation is designed to look beautiful in person and in photos." }}</p>
-                <div class="story-stats">
-                    <div class="story-stat">
-                        <strong>{{ about_content.stat_events_styled|default:"500+" }}</strong>
-                        <span>Events Styled</span>
-                    </div>
-                    <div class="story-stat">
-                        <strong>{{ about_content.stat_year_founded|default:"2020" }}</strong>
-                        <span>Year Founded</span>
-                    </div>
-                    <div class="story-stat">
-                        <strong>{{ about_content.stat_satisfaction|default:"100%" }}</strong>
-                        <span>Satisfaction</span>
-                    </div>
-                </div>
-            </div>
-            <div class="story-image">
+            <div class="story-media">
                 {% if about_content.story_image %}
                     <img src="{{ about_content.story_image.url }}" alt="Our Journey">
                 {% else %}
                     <img src="{% static 'images/about_journey.png' %}" alt="Our Journey">
                 {% endif %}
-            </div>
-        </div>
-
-        <div class="story-content">
-            <div class="story-image">
-                {% if about_content.mission_image %}
-                    <img src="{{ about_content.mission_image.url }}" alt="Our Mission">
-                {% else %}
-                    <img src="{% static 'images/about_mission.png' %}" alt="Our Mission">
-                {% endif %}
+                <div class="story-stat-card">
+                    <strong>{{ about_content.story_stat_number|default:"1,000+" }}</strong>
+                    <span>{{ about_content.story_stat_text|default:"People trust Balloorina.ph." }}</span>
+                </div>
             </div>
             <div class="story-text">
-                <span class="story-label">{{ about_content.mission_label|default:"WHAT DRIVES US" }}</span>
-                <h2>{{ about_content.mission_title|default:"Your Joy, Our Mission" }}</h2>
-                <p>{{ about_content.mission_paragraph_1|default:"We love seeing clients happy when they first see the final setup." }}</p>
-                <p>{{ about_content.mission_paragraph_2|default:"We continuously improve our skills, follow current design trends, and use quality materials for consistent results." }}</p>
+                <span class="story-label">{{ about_content.story_label|default:"OUR STORY" }}</span>
+                <h2>{{ about_content.story_title|default:"From Passion to Premium" }}</h2>
+                <p>{{ about_content.story_paragraph_1|default:"Balloorina.ph empowers people to celebrate life's biggest moments through premium, custom balloon styling. What started in 2020 as a small home studio has grown into a trusted team serving clients across Metro Manila." }}</p>
+                <p>{{ about_content.story_paragraph_2|default:"From birthdays and weddings to corporate launches, every arch, centerpiece, and installation is crafted to look stunning in person and in photos." }}</p>
+                {% if story_points_list %}
+                <ul class="story-points">
+                    {% for point in story_points_list %}
+                    <li>
+                        <span class="point-check"><i class="fas fa-check"></i></span>
+                        <span>{{ point }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
             </div>
+        </div>
+    </section>
+
+    <section class="journey-section" id="journey">
+        <div class="section-header">
+            <span class="journey-label">Our Journey</span>
+            <h2>{{ about_content.journey_title|default:"The Story Behind Balloorina.ph" }}</h2>
+            <p>{{ about_content.journey_subtitle|default:"Discover the journey behind Balloorina.ph and our mission to make every celebration memorable." }}</p>
+        </div>
+        <div class="journey-list">
+            {% for item in journey_items %}
+            <div class="journey-item {% cycle 'num-left' 'num-right' %}">
+                <div class="journey-num-wrap">
+                    <div class="journey-num">{{ forloop.counter|stringformat:"02d" }}.</div>
+                    {% if item.caption %}
+                    <div class="journey-caption">{{ item.caption }}</div>
+                    {% endif %}
+                </div>
+                <div class="journey-copy">
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                </div>
+            </div>
+            {% empty %}
+            <div class="journey-item num-left">
+                <div class="journey-num-wrap">
+                    <div class="journey-num">01.</div>
+                    <div class="journey-caption">The Beginning</div>
+                </div>
+                <div class="journey-copy">
+                    <h3>Every celebration starts with a spark.</h3>
+                    <p>Balloorina.ph was created from a simple love for styling celebrations. What began in 2020 as a small home studio grew from one wish — to make every moment feel special, no matter the size of the event.</p>
+                </div>
+            </div>
+            <div class="journey-item num-right">
+                <div class="journey-num-wrap">
+                    <div class="journey-num">02.</div>
+                    <div class="journey-caption">Learning the Craft</div>
+                </div>
+                <div class="journey-copy">
+                    <h3>Listening before styling.</h3>
+                    <p>Before every setup, we take time to understand the occasion — the theme, the colors, and the story behind the celebration — so every balloon design feels personal and true to the client.</p>
+                </div>
+            </div>
+            <div class="journey-item num-left">
+                <div class="journey-num-wrap">
+                    <div class="journey-num">03.</div>
+                    <div class="journey-caption">Growing the Dream</div>
+                </div>
+                <div class="journey-copy">
+                    <h3>From a small studio to a trusted team.</h3>
+                    <p>Word of mouth carried our work from intimate family parties to weddings and corporate events across Metro Manila — one beautifully styled setup at a time.</p>
+                </div>
+            </div>
+            <div class="journey-item num-right">
+                <div class="journey-num-wrap">
+                    <div class="journey-num">04.</div>
+                    <div class="journey-caption">Where We Are Now</div>
+                </div>
+                <div class="journey-copy">
+                    <h3>Styling moments that matter.</h3>
+                    <p>Today, Balloorina.ph continues to craft clean, elegant, and photo-worthy setups, helping hundreds of clients celebrate life's biggest moments with confidence and style.</p>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </section>
 
     <section class="values-section">
         <div class="section-header">
-            <h2>{{ about_content.values_title|default:"Our Core Values" }}</h2>
-            <p>{{ about_content.values_subtitle|default:"The principles behind every event we style." }}</p>
+            <span class="values-label">Our Promise</span>
+            <h2>{{ about_content.values_title|default:"More Than Just Balloons." }}</h2>
+            <p>{{ about_content.values_subtitle|default:"Every celebration we style carries the heart, hustle, and high standards we're known for." }}</p>
         </div>
         <div class="values-grid">
             {% for value in about_values %}
             <div class="value-card">
                 <div class="tape"></div>
                 <div class="value-icon-wrap">
-                    <i class="{{ value.icon_class|default:'fas fa-star' }}"></i>
+                    <svg class="feature-icon" aria-hidden="true">
+                        {% if 'trophy' in value.icon_class or 'star' in value.icon_class %}
+                            <use href="#ic-star"/>
+                        {% elif 'palette' in value.icon_class or 'paint' in value.icon_class or 'lightbulb' in value.icon_class or 'wand' in value.icon_class %}
+                            <use href="#ic-palette"/>
+                        {% elif 'handshake' in value.icon_class or 'shield' in value.icon_class or 'check' in value.icon_class %}
+                            <use href="#ic-shield"/>
+                        {% elif 'heart' in value.icon_class %}
+                            <use href="#ic-heart"/>
+                        {% elif 'clock' in value.icon_class or 'briefcase' in value.icon_class %}
+                            <use href="#ic-clock"/>
+                        {% elif 'leaf' in value.icon_class or 'eco' in value.icon_class %}
+                            <use href="#ic-leaf"/>
+                        {% else %}
+                            <use href="#ic-star"/>
+                        {% endif %}
+                    </svg>
                 </div>
                 <h3>{{ value.title }}</h3>
                 <p>{{ value.description }}</p>
@@ -75,49 +172,37 @@
             {% empty %}
             <div class="value-card">
                 <div class="tape"></div>
-                <div class="value-icon-wrap">
-                    <i class="fas fa-trophy"></i>
-                </div>
+                <div class="value-icon-wrap"><svg class="feature-icon" aria-hidden="true"><use href="#ic-star"/></svg></div>
                 <h3>Excellence</h3>
                 <p>We keep high standards in materials, styling, and setup quality.</p>
             </div>
             <div class="value-card">
                 <div class="tape"></div>
-                <div class="value-icon-wrap">
-                    <i class="fas fa-lightbulb"></i>
-                </div>
+                <div class="value-icon-wrap"><svg class="feature-icon" aria-hidden="true"><use href="#ic-palette"/></svg></div>
                 <h3>Creativity</h3>
                 <p>Every event is a unique canvas. We bring fresh, custom ideas that reflect your personal style.</p>
             </div>
             <div class="value-card">
                 <div class="tape"></div>
-                <div class="value-icon-wrap">
-                    <i class="fas fa-handshake"></i>
-                </div>
+                <div class="value-icon-wrap"><svg class="feature-icon" aria-hidden="true"><use href="#ic-shield"/></svg></div>
                 <h3>Integrity</h3>
                 <p>We provide clear pricing, realistic timelines, and transparent updates.</p>
             </div>
             <div class="value-card">
                 <div class="tape"></div>
-                <div class="value-icon-wrap">
-                    <i class="fas fa-heart"></i>
-                </div>
+                <div class="value-icon-wrap"><svg class="feature-icon" aria-hidden="true"><use href="#ic-heart"/></svg></div>
                 <h3>Customer Focus</h3>
                 <p>Your celebration is our priority. We listen, understand, and deliver exactly what you envision.</p>
             </div>
             <div class="value-card">
                 <div class="tape"></div>
-                <div class="value-icon-wrap">
-                    <i class="fas fa-briefcase"></i>
-                </div>
+                <div class="value-icon-wrap"><svg class="feature-icon" aria-hidden="true"><use href="#ic-clock"/></svg></div>
                 <h3>Professionalism</h3>
                 <p>On time, every time. Reliable service from first consultation to final breakdown.</p>
             </div>
             <div class="value-card">
                 <div class="tape"></div>
-                <div class="value-icon-wrap">
-                    <i class="fas fa-leaf"></i>
-                </div>
+                <div class="value-icon-wrap"><svg class="feature-icon" aria-hidden="true"><use href="#ic-leaf"/></svg></div>
                 <h3>Sustainability</h3>
                 <p>We use biodegradable materials and responsible styling practices when possible.</p>
             </div>
@@ -180,6 +265,18 @@
             <p>No reviews yet. Be the first to leave one!</p>
         </div>
         {% endif %}
+    </section>
+
+    <!-- CTA Banner -->
+    <section class="cta-banner-section">
+        <div class="cta-banner">
+            <h2>Let's Style Your Next Celebration.</h2>
+            <p>You've seen our story — now let us be part of yours. Book your event today and leave the styling to us.</p>
+            <div class="cta-banner-buttons">
+                <a href="{% url 'create_booking' %}" class="cta-btn cta-btn-primary">Book Your Event Now</a>
+                <a href="{% url 'package' %}" class="cta-btn cta-btn-secondary">View Our Packages</a>
+            </div>
+        </div>
     </section>
 </div>
 

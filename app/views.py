@@ -50,6 +50,7 @@ from reportlab.lib import colors
 
 from .models import (
     AboutContent,
+    AboutJourneyItem,
     AboutValueItem,
     AdditionalOnly,
     AddOn,
@@ -612,8 +613,28 @@ class AboutPageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["about_content"] = AboutContent.objects.first()
+        about_content = AboutContent.objects.first()
+        context["about_content"] = about_content
+
+        # Split hero title into main + accent lines using "|" as separator
+        # e.g. "Turning Moments Into | Elegant Celebrations."
+        raw_title = (about_content.hero_title if about_content else "") or ""
+        if "|" in raw_title:
+            title_main, title_accent = raw_title.split("|", 1)
+        else:
+            title_main, title_accent = raw_title, ""
+        context["hero_title_main"] = title_main.strip()
+        context["hero_title_accent"] = title_accent.strip()
+
+        # Story checklist points: one item per line in the CMS textarea
+        raw_points = (about_content.story_points if about_content else "") or ""
+        context["story_points_list"] = [
+            line.strip() for line in raw_points.splitlines() if line.strip()
+        ]
+
         context["about_values"] = AboutValueItem.objects.filter(is_active=True)
+        # "Our Journey" timeline steps (max 4 are rendered on the page)
+        context["journey_items"] = AboutJourneyItem.objects.filter(is_active=True)[:4]
         context["top_reviews"] = get_top_reviews()
         return context
 
@@ -6877,6 +6898,9 @@ def admin_about_content(request):
         content = AboutContent.objects.create()
 
     if request.method == "POST":
+        content.hero_label = request.POST.get(
+            "hero_label", content.hero_label
+        ).strip()
         content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
         content.hero_subtitle = request.POST.get(
             "hero_subtitle", content.hero_subtitle
@@ -6893,14 +6917,14 @@ def admin_about_content(request):
         content.story_paragraph_2 = request.POST.get(
             "story_paragraph_2", content.story_paragraph_2
         ).strip()
-        content.stat_events_styled = request.POST.get(
-            "stat_events_styled", content.stat_events_styled
+        content.story_stat_number = request.POST.get(
+            "story_stat_number", content.story_stat_number
         ).strip()
-        content.stat_year_founded = request.POST.get(
-            "stat_year_founded", content.stat_year_founded
+        content.story_stat_text = request.POST.get(
+            "story_stat_text", content.story_stat_text
         ).strip()
-        content.stat_satisfaction = request.POST.get(
-            "stat_satisfaction", content.stat_satisfaction
+        content.story_points = request.POST.get(
+            "story_points", content.story_points
         ).strip()
         content.mission_label = request.POST.get(
             "mission_label", content.mission_label
@@ -6920,6 +6944,12 @@ def admin_about_content(request):
         content.values_subtitle = request.POST.get(
             "values_subtitle", content.values_subtitle
         ).strip()
+        content.journey_title = request.POST.get(
+            "journey_title", content.journey_title
+        ).strip()
+        content.journey_subtitle = request.POST.get(
+            "journey_subtitle", content.journey_subtitle
+        ).strip()
 
         if request.FILES.get("story_image"):
             content.story_image = request.FILES["story_image"]
@@ -6932,12 +6962,14 @@ def admin_about_content(request):
         return redirect("admin_about_content")
 
     values = AboutValueItem.objects.all()
+    journey_items = AboutJourneyItem.objects.all()
     return render(
         request,
         "admin/content/about_content.html",
         {
             "content": content,
             "values": values,
+            "journey_items": journey_items,
         },
     )
 
@@ -7133,6 +7165,109 @@ def admin_about_value_delete(request, id):
     value_item.delete()
     log_action(request.user, f"Deleted about value item '{item_title}' (ID #{id}).")
     messages.success(request, "Value item deleted successfully.")
+    return redirect("admin_about_content")
+
+
+@login_required
+def admin_about_journey_create(request):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    content = AboutContent.objects.first()
+    if content is None:
+        content = AboutContent.objects.create()
+
+    if request.method == "POST":
+        caption = request.POST.get("caption", "").strip()
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            display_order = int(request.POST.get("display_order", 0))
+        except (ValueError, TypeError):
+            display_order = 0
+
+        if not title:
+            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+                return JsonResponse({"ok": False, "message": "Title is required."}, status=400)
+            messages.error(request, "Title is required.")
+            return render(
+                request,
+                "admin/content/about_journey_form.html",
+                {
+                    "action": "Create",
+                    "post_data": request.POST,
+                },
+            )
+
+        AboutJourneyItem.objects.create(
+            about_content=content,
+            caption=caption,
+            title=title,
+            description=description,
+            display_order=display_order,
+            is_active=is_active,
+        )
+        log_action(request.user, f"Created about journey item '{title}'.")
+        messages.success(request, "Journey step created successfully.")
+        return redirect("admin_about_content")
+
+    return render(request, "admin/content/about_journey_form.html", {"action": "Create"})
+
+
+@login_required
+def admin_about_journey_edit(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    journey_item = get_object_or_404(AboutJourneyItem, id=id)
+
+    if request.method == "POST":
+        journey_item.caption = request.POST.get(
+            "caption", journey_item.caption
+        ).strip()
+        journey_item.title = request.POST.get("title", journey_item.title).strip()
+        journey_item.description = request.POST.get(
+            "description", journey_item.description
+        ).strip()
+        journey_item.is_active = request.POST.get("is_active") == "on"
+
+        try:
+            journey_item.display_order = int(
+                request.POST.get("display_order", journey_item.display_order)
+            )
+        except (ValueError, TypeError):
+            pass
+
+        journey_item.save()
+        log_action(
+            request.user,
+            f"Updated about journey item '{journey_item.title}' (ID #{journey_item.id}).",
+        )
+        messages.success(request, "Journey step updated successfully.")
+        return redirect("admin_about_content")
+
+    return render(
+        request,
+        "admin/content/about_journey_form.html",
+        {
+            "action": "Edit",
+            "journey_item": journey_item,
+        },
+    )
+
+
+@login_required
+def admin_about_journey_delete(request, id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    journey_item = get_object_or_404(AboutJourneyItem, id=id)
+    item_title = journey_item.title
+    journey_item.delete()
+    log_action(request.user, f"Deleted about journey item '{item_title}' (ID #{id}).")
+    messages.success(request, "Journey step deleted successfully.")
     return redirect("admin_about_content")
 
 

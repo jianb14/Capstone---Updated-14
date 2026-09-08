@@ -96,12 +96,23 @@
             toggleNavScroll();
         }
 
-        // Scroll reveal: staggered per-element fade/slide within each home section
-        // (header text first, then cards/items one by one)
-        const homePage = document.getElementById('home');
-        if (homePage && 'IntersectionObserver' in window) {
+        // Scroll reveal: staggered per-element fade/slide within each section.
+        // Works on any page wrapper with section children (home #home, about #about, ...)
+        const revealPages = ['home', 'about']
+            .map(function (id) { return document.getElementById(id); })
+            .filter(Boolean);
+
+        if (revealPages.length && 'IntersectionObserver' in window) {
             const REVEAL_SELECTOR = [
                 '.section-header > *',
+                '.story-media',
+                '.story-label',
+                '.story-text h2',
+                '.story-text p',
+                '.story-points li',
+                '.journey-list .journey-num-wrap',
+                '.journey-list .journey-copy',
+                '.values-grid > .value-card',
                 '.occasion-chips > .occasion-chip',
                 '.stats-card > .stat-item',
                 '.features-grid > .feature-card',
@@ -129,15 +140,48 @@
                 });
             }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
 
-            homePage.querySelectorAll('section:not(.hero)').forEach(function (section) {
-                const targets = section.querySelectorAll(REVEAL_SELECTOR);
-                targets.forEach(function (el, index) {
-                    el.classList.add('rv');
-                    // Stagger: each element follows the previous one (capped at 0.72s)
-                    el.style.transitionDelay = (Math.min(index * 0.12, 0.72)).toFixed(2) + 's';
-                    revealObserver.observe(el);
+            revealPages.forEach(function (page) {
+                page.querySelectorAll('section:not(.hero):not(.about-hero)').forEach(function (section) {
+                    const targets = section.querySelectorAll(REVEAL_SELECTOR);
+                    targets.forEach(function (el, index) {
+                        el.classList.add('rv');
+                        // Stagger: each element follows the previous one (capped at 0.72s)
+                        let delay = Math.min(index * 0.12, 0.72);
+                        // Journey rows: sabay ang number at text ng isang step
+                        // (parehong delay), para magkasabay silang lumapag
+                        if (el.classList.contains('journey-num-wrap') || el.classList.contains('journey-copy')) {
+                            const item = el.closest('.journey-item');
+                            const itemIdx = item
+                                ? Array.prototype.indexOf.call(item.parentNode.children, item)
+                                : index;
+                            delay = Math.min(itemIdx * 0.18, 0.72);
+                        }
+                        el.style.transitionDelay = delay.toFixed(2) + 's';
+                        revealObserver.observe(el);
+                    });
                 });
             });
+        }
+        // "Scroll Down" cue sa about hero: smooth-scroll papunta sa story section,
+        // at nagfa-fade out kapag nag-scroll pababa (babalik lang sa top)
+        const scrollCue = document.querySelector('.scroll-down');
+        if (scrollCue) {
+            scrollCue.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(scrollCue.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
+            const HIDE_AT = 80; // px na scroll bago mag-fade out ang cue
+            const syncCue = function () {
+                if (window.scrollY > HIDE_AT) {
+                    scrollCue.classList.add('is-hidden');
+                } else {
+                    scrollCue.classList.remove('is-hidden');
+                }
+            };
+            window.addEventListener('scroll', syncCue, { passive: true });
+            syncCue();
         }
     });
 

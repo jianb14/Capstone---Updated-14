@@ -11,6 +11,9 @@ from .views import (
     ServicesPageView,
     TermsConditionsPageView,
     admin_about_content,
+    admin_about_journey_create,
+    admin_about_journey_delete,
+    admin_about_journey_edit,
     admin_about_value_create,
     admin_about_value_delete,
     admin_about_value_edit,
@@ -338,6 +341,21 @@ urlpatterns = [
         "staff/content/about/values/<int:id>/delete/",
         admin_about_value_delete,
         name="admin_about_value_delete",
+    ),
+    path(
+        "staff/content/about/journey/create/",
+        admin_about_journey_create,
+        name="admin_about_journey_create",
+    ),
+    path(
+        "staff/content/about/journey/<int:id>/edit/",
+        admin_about_journey_edit,
+        name="admin_about_journey_edit",
+    ),
+    path(
+        "staff/content/about/journey/<int:id>/delete/",
+        admin_about_journey_delete,
+        name="admin_about_journey_delete",
     ),
 
     path("staff/content/guidelines/", admin_guidelines_content, name="admin_guidelines_content"),

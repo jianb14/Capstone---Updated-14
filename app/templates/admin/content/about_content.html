@@ -22,7 +22,11 @@
         <h3 class="section-title">Hero Section</h3>
         <div class="form-grid">
             <div class="form-group">
-                <label for="hero_title">Hero Title</label>
+                <label for="hero_label">Hero Label (Small text above title)</label>
+                <input type="text" name="hero_label" id="hero_label" value="{{ content.hero_label }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="hero_title">Hero Title (Use | to split: first part normal, second part accent. e.g. Celebrating Moments, | The Balloorina Way)</label>
                 <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control">
             </div>
             <div class="form-group">
@@ -52,6 +56,10 @@
                 <label for="story_paragraph_2">Story Paragraph 2</label>
                 <textarea name="story_paragraph_2" id="story_paragraph_2" rows="3" class="form-control">{{ content.story_paragraph_2 }}</textarea>
             </div>
+            <div class="form-group">
+                <label for="story_points">Story Checklist Points (one per line, shown under the story text)</label>
+                <textarea name="story_points" id="story_points" rows="4" class="form-control" placeholder="Professional balloon styling for all events&#10;Fast and reliable setup team">{{ content.story_points }}</textarea>
+            </div>
         </div>
         
         <div class="form-grid mt-4">
@@ -66,54 +74,15 @@
             </div>
         </div>
 
-        <h4 class="section-subtitle mt-4">Story Statistics</h4>
+        <h4 class="section-subtitle mt-4">Story Floating Stat Card</h4>
         <div class="form-grid">
             <div class="form-group">
-                <label for="stat_events_styled">Events Styled (e.g. 500+)</label>
-                <input type="text" name="stat_events_styled" id="stat_events_styled" value="{{ content.stat_events_styled }}" class="form-control">
+                <label for="story_stat_number">Stat Card Number (e.g. 1,000+)</label>
+                <input type="text" name="story_stat_number" id="story_stat_number" value="{{ content.story_stat_number }}" class="form-control">
             </div>
             <div class="form-group">
-                <label for="stat_year_founded">Year Founded (e.g. 2020)</label>
-                <input type="text" name="stat_year_founded" id="stat_year_founded" value="{{ content.stat_year_founded }}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="stat_satisfaction">Satisfaction Rate (e.g. 100%)</label>
-                <input type="text" name="stat_satisfaction" id="stat_satisfaction" value="{{ content.stat_satisfaction }}" class="form-control">
-            </div>
-        </div>
-    </div>
-
-    <!-- Our Mission Section -->
-    <div class="form-section">
-        <h3 class="section-title">What Drives Us (Mission) Section</h3>
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="mission_label">Mission Label</label>
-                <input type="text" name="mission_label" id="mission_label" value="{{ content.mission_label }}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="mission_title">Mission Title</label>
-                <input type="text" name="mission_title" id="mission_title" value="{{ content.mission_title }}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="mission_paragraph_1">Mission Paragraph 1</label>
-                <textarea name="mission_paragraph_1" id="mission_paragraph_1" rows="3" class="form-control">{{ content.mission_paragraph_1 }}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="mission_paragraph_2">Mission Paragraph 2</label>
-                <textarea name="mission_paragraph_2" id="mission_paragraph_2" rows="3" class="form-control">{{ content.mission_paragraph_2 }}</textarea>
-            </div>
-        </div>
-        
-        <div class="form-grid mt-4">
-            <div class="form-group">
-                <label for="mission_image">Mission Image</label>
-                {% if content.mission_image %}
-                    <div class="current-img">
-                        <img src="{{ content.mission_image.url }}" alt="Mission">
-                    </div>
-                {% endif %}
-                <input type="file" name="mission_image" id="mission_image" class="form-control">
+                <label for="story_stat_text">Stat Card Text (e.g. People trust Balloorina.ph.)</label>
+                <input type="text" name="story_stat_text" id="story_stat_text" value="{{ content.story_stat_text }}" class="form-control">
             </div>
         </div>
     </div>
@@ -129,6 +98,21 @@
             <div class="form-group">
                 <label for="values_subtitle">Values Section Subtitle</label>
                 <textarea name="values_subtitle" id="values_subtitle" rows="2" class="form-control">{{ content.values_subtitle }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Our Journey Header -->
+    <div class="form-section">
+        <h3 class="section-title">Our Journey Section</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="journey_title">Journey Section Title</label>
+                <input type="text" name="journey_title" id="journey_title" value="{{ content.journey_title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="journey_subtitle">Journey Section Subtitle</label>
+                <textarea name="journey_subtitle" id="journey_subtitle" rows="2" class="form-control">{{ content.journey_subtitle }}</textarea>
             </div>
         </div>
     </div>
@@ -185,6 +169,62 @@
             {% empty %}
             <tr>
                 <td colspan="6">No core values added yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<br><br>
+
+<!-- Journey Steps Section -->
+<div class="page-header title-header">
+    <h1>Journey Steps</h1>
+    <a href="{% url 'admin_about_journey_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add New Journey Step</a>
+</div>
+<p style="color: #94a3b8; margin: -0.5rem 0 1rem;">Only the first 4 active steps (by order) are shown on the About page. The big number (01., 02., ...) is automatic based on position.</p>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ORDER</th>
+                <th>CAPTION</th>
+                <th>TITLE</th>
+                <th>DESCRIPTION</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in journey_items %}
+            <tr>
+                <td data-label="Order">{{ item.display_order }}</td>
+                <td data-label="Caption">{{ item.caption }}</td>
+                <td data-label="Title">{{ item.title }}</td>
+                <td data-label="Description">{{ item.description|truncatechars:50 }}</td>
+                <td data-label="Status">
+                    {% if item.is_active %}
+                        <span class="status-badge active">Active</span>
+                    {% else %}
+                        <span class="status-badge inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_about_journey_edit' item.id %}" title="Edit"><i class="far fa-edit"></i></a>
+                        <a href="{% url 'admin_about_journey_delete' item.id %}"
+                            title="Delete"
+                            data-swal-confirm="true"
+                            data-swal-title="Delete journey step?"
+                            data-swal-text="Delete this journey step?"
+                            data-swal-confirm-text="Yes, delete step"><i class="far fa-trash-alt"></i></a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No journey steps added yet.</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -732,12 +732,16 @@ class ServiceContent(models.Model):
 
 
 class AboutContent(models.Model):
+    hero_label = models.CharField(max_length=255, blank=True, default='')
     hero_title = models.CharField(max_length=255, blank=True, default='')
     hero_subtitle = models.TextField(blank=True, default='')
     story_label = models.CharField(max_length=255, blank=True, default='')
     story_title = models.CharField(max_length=255, blank=True, default='')
     story_paragraph_1 = models.TextField(blank=True, default='')
     story_paragraph_2 = models.TextField(blank=True, default='')
+    story_stat_number = models.CharField(max_length=50, blank=True, default='')
+    story_stat_text = models.CharField(max_length=255, blank=True, default='')
+    story_points = models.TextField(blank=True, default='')
     story_image = models.ImageField(upload_to='about_content/', blank=True, null=True)
     stat_events_styled = models.CharField(max_length=50, blank=True, default='')
     stat_year_founded = models.CharField(max_length=50, blank=True, default='')
@@ -749,6 +753,8 @@ class AboutContent(models.Model):
     mission_image = models.ImageField(upload_to='about_content/', blank=True, null=True)
     values_title = models.CharField(max_length=255, blank=True, default='')
     values_subtitle = models.TextField(blank=True, default='')
+    journey_title = models.CharField(max_length=255, blank=True, default='')
+    journey_subtitle = models.TextField(blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -773,6 +779,24 @@ class AboutValueItem(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class AboutJourneyItem(models.Model):
+    """Timeline step for the About page "Our Journey" section (max 4 shown)."""
+    about_content = models.ForeignKey(AboutContent, on_delete=models.CASCADE, related_name='journey_items')
+    caption = models.CharField(max_length=255, blank=True, default='')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return self.caption or self.title
 
 
 class GuidelinePageContent(models.Model):
