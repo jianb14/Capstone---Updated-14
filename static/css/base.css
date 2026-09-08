@@ -62,7 +62,7 @@ nav {
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     z-index: 1000;
-    padding: 0.4rem 3%;
+    padding: 0.4rem 4%;
 }
 
 /* Border only appears once the page is scrolled (same size as top) */
@@ -112,8 +112,8 @@ nav.scrolled {
     flex-shrink: 0;
 }
 
-/* Mobile drawer header (logo sa taas) — desktop only ito nakatago */
-.mobile-drawer-header {
+/* Theme toggle row sa mobile drawer (mobile only) */
+.mobile-theme-row {
     display: none;
 }
 
@@ -202,18 +202,17 @@ nav.scrolled {
     background: #ffffff;
     border: 1px solid #0f0f0f;
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .profile-avatar-btn .nav-avatar::before {
     content: '';
     position: absolute;
     right: 0px;
-    bottom: 4px;
-    width: 4px;
-    height: 4px;
-    border-right: 2.4px solid #1a1a1a;
-    border-bottom: 2.4px solid #1a1a1a;
+    bottom: 4.5px;
+    width: 5px;
+    height: 5px;
+    border-right: 1.5px solid #1a1a1a;
+    border-bottom: 1.5px solid #1a1a1a;
     transform: rotate(45deg);
     z-index: 1;
 }
@@ -316,20 +315,18 @@ nav.scrolled {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 4px;
-    width: 42px;
-    height: 42px;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    background: transparent;   
     flex-shrink: 0;
     cursor: pointer;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.05);
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .mobile-menu:hover {
     background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .mobile-menu:active {
@@ -338,7 +335,7 @@ nav.scrolled {
 
 .mobile-menu span {
     display: block;
-    width: 18px;
+    width: 22px;
     height: 2px;
     border-radius: 999px;
     background: var(--white);
@@ -2789,10 +2786,20 @@ footer {
         margin-left: auto;
     }
 
-    /* Slightly smaller logo on mobile (but mas malaki pa rin kaysa dati) */
+    /* Theme toggle sa navbar: itago sa mobile, nasa drawer na siya */
+    .profile-dropdown .theme-toggle-btn,
+    .nav-right-guest .theme-toggle-btn {
+        display: none;
+    }
+
+    /* Mobile logo: vertically centered and slightly bigger.
+     * display:block — kung hindi, ang <img> ay inline at naka-align sa text baseline
+     * (may descender gap sa baba), kaya lumulutang pataas yung logo ("naka-angat"). */
     .logo {
-        height: 38px;
-        margin-top: 2px;
+        display: block;
+        height: 36px;
+        margin-top: 0;
+        align-self: center;
     }
 
     .hero-content,
@@ -2878,11 +2885,11 @@ footer {
     /* ── Mobile drawer (admin-sidebar style): slide-in panel galing kaliwa ── */
     .nav-links {
         position: fixed;
-        top: 0;
+        top: 53px;
         left: 0;
         width: min(300px, 82vw);
-        height: 100vh;
-        height: 100dvh;
+        height: calc(100vh - 53px);
+        height: calc(100dvh - 53px);
         margin-left: 0;
         background: #0a0a0a;
         border-right: 1px solid #2a2a2a;
@@ -2890,7 +2897,7 @@ footer {
         align-items: stretch;
         justify-content: flex-start;
         gap: 0;
-        padding: 1.25rem 0.75rem 2rem;
+        padding: 1rem 0.5rem 0;
         transform: translateX(-100%);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1200;
@@ -2899,39 +2906,14 @@ footer {
         scrollbar-color: #6b7280 transparent;
     }
 
-    /* Drawer header: logo sa taas, kagaya ng admin sidebar */
-    .mobile-drawer-header {
-        display: block;
-        padding: 0 0.5rem 1.25rem;
-        border-bottom: 1px solid #2a2a2a;
-        margin-bottom: 1rem;
-        flex-shrink: 0;
-    }
-
-    .mobile-drawer-header a {
-        display: block;
-        padding: 0;
-        margin: 0;
-        border-radius: 0;
-    }
-
-    .mobile-drawer-header a:hover {
-        background: transparent;
-    }
-
-    .mobile-drawer-header img {
-        height: 40px;
-        width: auto;
-        margin-top: 2px;
-    }
-
     /* Dimmed backdrop sa likod ng drawer */
     .nav-overlay {
         position: fixed;
-        top: 0;
+        top: 53px;
         left: 0;
         width: 100vw;
-        height: 100vh;
+        height: calc(100vh - 53px);
+        height: calc(100dvh - 53px);
         background: rgba(0, 0, 0, 0.6);
         z-index: 1100;
         opacity: 0;
@@ -2980,21 +2962,29 @@ footer {
         color: #ffffff;
     }
 
-    /* Active link: soft glow line sa kanang side (same as admin sidebar) */
-    .nav-links a.active::after {
-        display: block;
-        content: '';
-        position: absolute;
-        right: 0.4rem;
-        left: auto;
-        bottom: auto;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 4px;
-        height: 58%;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.35));
-        border-radius: 999px;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+    /* Theme toggle row sa pinaka-baba ng drawer (kagaya ng MindEase) */
+    .mobile-theme-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+        padding: 0.8rem 0.75rem 0.8rem 1.25rem;
+        margin-left: 0.4rem;
+        margin-right: 0.4rem;
+        border-top: 1px solid #2a2a2a;
+        color: #a0a0a0;
+        font-size: 0.9rem;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+
+    .mobile-theme-row .theme-toggle-btn {
+        color: #a0a0a0;
+    }
+
+    .mobile-theme-row .theme-toggle-btn:hover {
+        background: #1a1a1a;
+        color: #ffffff;
     }
 
     .nav-links.nav-active {
@@ -3003,7 +2993,7 @@ footer {
     }
 
     .mobile-menu.active span:nth-child(1) {
-        transform: translateY(6px) rotate(45deg);
+        transform: translateY(7px) rotate(45deg);
     }
 
     .mobile-menu.active span:nth-child(2) {
@@ -3012,7 +3002,7 @@ footer {
     }
 
     .mobile-menu.active span:nth-child(3) {
-        transform: translateY(-6px) rotate(-45deg);
+        transform: translateY(-7px) rotate(-45deg);
     }
 }
 
@@ -3441,7 +3431,13 @@ footer {
 }
 
 [data-theme="light"] nav {
-    background: rgba(255, 255, 255, 0.8);
+    /* Solid white — opaque na, para walang dark content ng hero na lumulusot
+       (yun ang dahilan ng parang gradient na white-to-gray sa light mode navbar).
+     * Blur dinapat in-off na rin: opaque na ang bg, wala nang silbi ang blur at
+       pwede itong maging compositing artifact sa DevTools device mode. */
+    background: #ffffff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 [data-theme="light"] nav.scrolled {
@@ -3459,13 +3455,18 @@ footer {
         border-right: 1px solid #e5e7eb;
     }
 
-    [data-theme="light"] .mobile-drawer-header {
-        border-bottom: 1px solid #e5e7eb;
+    [data-theme="light"] .mobile-theme-row {
+        border-top: 1px solid #e5e7eb;
+        color: #4b5563;
     }
 
-    /* Drawer logo: puti ang asset, gawing itim para kita sa white drawer */
-    [data-theme="light"] .mobile-drawer-header img {
-        filter: brightness(0);
+    [data-theme="light"] .mobile-theme-row .theme-toggle-btn {
+        color: #4b5563;
+    }
+
+    [data-theme="light"] .mobile-theme-row .theme-toggle-btn:hover {
+        background: #f3f4f6;
+        color: #111827;
     }
 
     [data-theme="light"] .nav-links a {
@@ -3478,10 +3479,6 @@ footer {
         color: #111827;
     }
 
-    [data-theme="light"] .nav-links a.active::after {
-        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(17, 24, 39, 0.3));
-        box-shadow: 0 0 10px rgba(17, 24, 39, 0.25);
-    }
 }
 
 [data-theme="light"] .login-link {
@@ -3507,17 +3504,15 @@ footer {
 
 /* Light theme: hamburger button (white navbar version) */
 [data-theme="light"] .mobile-menu {
-    border-color: rgba(0, 0, 0, 0.15);
-    background: rgba(0, 0, 0, 0.04);
+    background: transparent;
 }
 
 [data-theme="light"] .mobile-menu span {
-    background: var(--black);
+    background: #1a1a1a;
 }
 
 [data-theme="light"] .mobile-menu:hover {
     background: rgba(0, 0, 0, 0.08);
-    border-color: rgba(0, 0, 0, 0.3);
 }
 
 /* Light theme: logo image is white, make it black so it shows on white navbar */
