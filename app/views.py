@@ -626,11 +626,21 @@ class AboutPageView(TemplateView):
         context["hero_title_main"] = title_main.strip()
         context["hero_title_accent"] = title_accent.strip()
 
-        # Story checklist points: one item per line in the CMS textarea
+        # Story checklist points: one item per line in the CMS textarea.
+        # Fallback defaults para hindi mawala ang checklist sa deployed/fresh
+        # database kung saan wala pang na-save sa story_points field.
         raw_points = (about_content.story_points if about_content else "") or ""
-        context["story_points_list"] = [
+        story_points_list = [
             line.strip() for line in raw_points.splitlines() if line.strip()
         ]
+        if not story_points_list:
+            story_points_list = [
+                "Professional balloon styling for all events",
+                "Fast and reliable setup team",
+                "Custom designs for birthdays, weddings, and corporate events",
+                "Affordable packages without compromising quality",
+            ]
+        context["story_points_list"] = story_points_list
 
         context["about_values"] = AboutValueItem.objects.filter(is_active=True)
         # "Our Journey" timeline steps (max 4 are rendered on the page)
