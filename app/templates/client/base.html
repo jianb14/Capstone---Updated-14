@@ -44,6 +44,37 @@
             const navLinks = document.querySelector(".nav-links");
             const navOverlay = document.querySelector(".nav-overlay");
 
+            // Sukatin ang AKTUAL na navbar height bago i-position ang drawer at
+            // overlay. Hardcoded na "53px" sa CSS ang dating offset, pero
+            // mag-iiba-iba ang totoong taas ng navbar per device (font rendering,
+            // hamburger size, atbp.) — kapag hindi tugma, nag-o-overlap ang
+            // drawer sa ibabang bahagi ng navbar (mukhang "dalawang navbar").
+            const navEl = document.querySelector("nav");
+            const mobileMQ = window.matchMedia("(max-width: 968px)");
+            const syncDrawerOffset = function () {
+                if (!navEl) return;
+                // Desktop: walang fixed drawer — tanggalin ang inline styles
+                // para hindi mapahaba ang .nav-links (nagiging ~100vh ito at
+                // natutulak pababa ang buong page kapag hindi tinanggal)
+                if (!mobileMQ.matches) {
+                    if (navLinks) { navLinks.style.top = ""; navLinks.style.height = ""; }
+                    if (navOverlay) { navOverlay.style.top = ""; navOverlay.style.height = ""; }
+                    return;
+                }
+                const navH = navEl.offsetHeight;
+                if (navLinks) {
+                    navLinks.style.top = navH + "px";
+                    navLinks.style.height = "calc(100dvh - " + navH + "px)";
+                }
+                if (navOverlay) {
+                    navOverlay.style.top = navH + "px";
+                    navOverlay.style.height = "calc(100dvh - " + navH + "px)";
+                }
+            };
+            syncDrawerOffset();
+            window.addEventListener("resize", syncDrawerOffset);
+            window.addEventListener("orientationchange", syncDrawerOffset);
+
             // Close the mobile drawer (admin-sidebar style)
             const closeMobileNav = function () {
                 if (navLinks) navLinks.classList.remove("nav-active");
@@ -54,6 +85,7 @@
 
             if (mobileMenu && navLinks) {
                 mobileMenu.addEventListener("click", function () {
+                    syncDrawerOffset(); // laging fresh ang offset bago mag-slide in
                     const isOpen = navLinks.classList.toggle("nav-active");
                     mobileMenu.classList.toggle("active", isOpen);
                     if (navOverlay) navOverlay.classList.toggle("show", isOpen);

@@ -58,11 +58,9 @@ nav {
     position: fixed;
     top: 0;
     width: 100%;
-    /* Solid bg na kapareho ng hero background (#000) — walang "gradient" na look
-       at perpektong match ang kulay ng navbar at mobile drawer */
     background: #000;
     z-index: 1000;
-    padding: 0.65rem 4% 0.65rem 3%;
+    padding: 0.65rem 4%;
 }
 
 /* Border only appears once the page is scrolled (same size as top) */
@@ -881,6 +879,9 @@ nav.scrolled {
 .about-hero {
     padding: 2rem 5% 6rem 5%;
     min-height: calc(100vh - 55px); /* 55px = fixed navbar height */
+    /* Mobile browsers: mas tumpak ang svh (smallest viewport height) —
+       hindi nagugupit ang Scroll Down cue ng URL bar */
+    min-height: calc(100svh - 55px);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -939,6 +940,26 @@ nav.scrolled {
 
 [data-theme="light"] .scroll-down:hover {
     color: #111827;
+}
+
+/* Mobile hero: hindi na 100vh ang min-height — doon nanggagaling ang
+   malaking bakanteng space sa taas at ang pagkakagupit ng Scroll Down.
+   Naka-flex-start na rin para maliit lang ang gap sa ilalim ng navbar. */
+@media (max-width: 768px) {
+    .about-hero {
+        min-height: auto;
+        padding: 6.5rem 6% 5rem;
+        justify-content: flex-start;
+    }
+
+    .about-hero h1 {
+        font-size: 2.2rem;
+        letter-spacing: -1px;
+    }
+
+    .about-hero p {
+        font-size: 1rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1204,6 +1225,21 @@ nav.scrolled {
     background-size: 18px 18px;
 }
 
+/* Anti-horizontal-scrollbar: ang mga reveal transforms (±46px) ng mga
+   journey elements ay maaaring lumagpas sa viewport edges (lalo na sa
+   ~968–1050px widths), na nagdudulot ng horizontal scrollbar na
+   nawawala lang kapag lahat ay na-reveal na. Nilagyan ng clip ang
+   page wrapper at section para hindi na lumabas ang overflow. */
+#about {
+    overflow-x: hidden;
+    overflow-x: clip;
+}
+
+.journey-section {
+    overflow-x: hidden;
+    overflow-x: clip;
+}
+
 /* Journey label — tugma sa .story-label / .values-label */
 .journey-label {
     display: inline-block;
@@ -1353,6 +1389,17 @@ nav.scrolled {
 
     .journey-copy h3 {
         font-size: 1.7rem;
+    }
+
+    /* Sa mobile: vertical fade na lang ang reveal (walang horizontal
+       shift) para hindi mag-clip ang text sa gilid ng maliit na screen */
+    .journey-num-wrap.rv,
+    .journey-copy.rv,
+    .journey-item.num-left .journey-num-wrap.rv,
+    .journey-item.num-left .journey-copy.rv,
+    .journey-item.num-right .journey-num-wrap.rv,
+    .journey-item.num-right .journey-copy.rv {
+        --jx: 0px;
     }
 }
 
