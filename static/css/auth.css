@@ -14,7 +14,10 @@ body {
 
 .body {
     font-family: inherit;
-    background: #000000;
+    background-color: #000000;
+    /* Dot pattern background — kapareho ng hero section (18px grid) */
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.1px, transparent 1px);
+    background-size: 18px 18px;
     color: white;
     min-height: 100vh;
     display: flex;
@@ -50,7 +53,7 @@ body {
     font-weight: 400;
     color: white;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 50px;
     letter-spacing: 0;
     margin-top: -20px;
 }
@@ -109,10 +112,13 @@ form {
 .terms-check-label a {
     color: #ffffff;
     text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
 .terms-check-label a:hover {
-    color: #d8d8d8;
+    color: #ffffff;
+    text-decoration: underline;
 }
 
 #terms-error {
@@ -385,11 +391,11 @@ button[type="submit"]:active {
     }
 
     .logo-container {
-        margin-bottom: 32px;
+        margin-bottom: 28px;
     }
 
     .logo-container img {
-        max-width: 160px;
+        max-width: 230px;
     }
 
     .name-row {
@@ -408,7 +414,7 @@ button[type="submit"]:active {
     }
 
     .logo-container img {
-        max-width: 140px;
+        max-width: 200px;
     }
 }
 
@@ -449,7 +455,7 @@ button[type="submit"]:disabled:hover {
     }
 
     .logo-container img {
-        max-width: 300px;
+        max-width: 280px;
     }
 
     input[type="text"],
@@ -492,7 +498,7 @@ button[type="submit"]:disabled:hover {
     }
 
     .logo-container img {
-        max-width: 200px;
+        max-width: 250px;
     }
 
     .name-row {
@@ -524,7 +530,7 @@ button[type="submit"]:disabled:hover {
     }
 
     .logo-container img {
-        max-width: 170px;
+        max-width: 230px;
     }
 
     .name-row {
@@ -548,7 +554,7 @@ button[type="submit"]:disabled:hover {
     }
 
     .logo-container img {
-        max-width: 140px;
+        max-width: 200px;
     }
 
     input[type="text"],
@@ -607,7 +613,6 @@ button[type="submit"]:disabled:hover {
 [data-theme="light"] .box,
 [data-theme="light"] .panel,
 [data-theme="light"] .modal-content,
-[data-theme="light"] .auth-container,
 [data-theme="light"] .profile-card,
 [data-theme="light"] .booking-card,
 [data-theme="light"] .review-card,
@@ -643,6 +648,7 @@ button[type="submit"]:disabled:hover {
 [data-theme="light"] input[type="text"],
 [data-theme="light"] input[type="email"],
 [data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="tel"],
 [data-theme="light"] input[type="number"],
 [data-theme="light"] input[type="date"],
 [data-theme="light"] input[type="time"],
@@ -724,7 +730,7 @@ html {
 }
 
 html[data-theme="light"] {
-    background: #f3f4f6;
+    background: #ffffff;
 }
 
 .body {
@@ -769,8 +775,8 @@ html[data-theme="light"] {
     }
 
     .logo-container img {
-        max-width: 130px;
-        margin-bottom: 22px;
+        max-width: 200px;
+        margin-bottom: 18px;
     }
 
     .name-row {
@@ -784,7 +790,10 @@ html[data-theme="light"] {
    puting text sa puting card = di nababasa
    ======================================================== */
 [data-theme="light"] .body {
-    background: #f3f4f6;
+    background-color: #ffffff;
+    /* Dot pattern sa light mode — visible na, 18px grid kapareho ng hero */
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.22) 1.1px, transparent 1px);
+    background-size: 18px 18px;
     color: #111827;
 }
 
@@ -806,6 +815,13 @@ html[data-theme="light"] {
 }
 
 [data-theme="light"] .terms-check-label a {
+    color: #111827;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+[data-theme="light"] .terms-check-label a:hover {
     color: #111827;
     text-decoration: underline;
 }
@@ -860,11 +876,52 @@ html[data-theme="light"] {
     filter: brightness(0);
 }
 
-/* Dapat makita ang red error border sa light mode kahit may
-   !important na light override ang inputs sa taas */
+/* Error state — pulang border at light red bg ang field, red din ang error text */
+.field-group.has-error input[type="text"],
+.field-group.has-error input[type="email"],
+.field-group.has-error input[type="password"],
+.field-group.has-error input[type="tel"] {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.field-group.has-error input[type="text"]:focus,
+.field-group.has-error input[type="email"]:focus,
+.field-group.has-error input[type="password"]:focus,
+.field-group.has-error input[type="tel"]:focus {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* Force red kahit may !important na gray sa generic `small` ng light theme */
+.field-group.has-error .field-error,
+[data-theme="light"] .field-group.has-error .field-error {
+    color: #ef4444 !important;
+}
+
+/* Light theme error state — red bg + red border, walang blue focus ring */
 [data-theme="light"] .field-group.has-error input[type="text"],
 [data-theme="light"] .field-group.has-error input[type="email"],
 [data-theme="light"] .field-group.has-error input[type="password"],
 [data-theme="light"] .field-group.has-error input[type="tel"] {
     border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* Light theme focus — medyo dark gray border lang, walang blue ring
+   (mas specific kaysa sa global light override sa taas) */
+[data-theme="light"] .body input[type="text"]:focus,
+[data-theme="light"] .body input[type="email"]:focus,
+[data-theme="light"] .body input[type="password"]:focus,
+[data-theme="light"] .body input[type="tel"]:focus {
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+}
+
+/* Light theme — walang card na puti/border/shadow, flat lang gaya ng dark mode */
+[data-theme="light"] .auth-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }

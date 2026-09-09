@@ -1,0 +1,149 @@
+/* ==========================================================================
+   HERO FLOATING BALLOONS - image decorative layer (HOME PAGE)
+   --------------------------------------------------------------------------
+   - Ang static/js/hero_balloons.js ang gumagawa ng mga floating objects
+     mula sa isang config array (party images mula sa static/images).
+   - Tatlong layers kada balloon para hindi mag-aksayan ang animations:
+       .balloon       -> life cycle (fade in/out) via Web Animations API
+       .balloon-drift -> repositioning (A->B->C->D) via Web Animations API
+       .balloon-shape -> soft blink (CSS keyframes)
+   - Performance: transform + opacity lang; walang JS intervals.
+   ========================================================================== */
+
+.hero-balloons {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* ---- Layer 1: position + life-cycle wrapper ---- */
+.balloon {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: calc(var(--size) * var(--size-scale, 1));
+    height: calc(var(--size) * var(--size-scale, 1) * 1.35);
+    opacity: var(--opacity);
+}
+
+/* ---- Layer 2: drift wrapper ---- */
+.balloon-drift {
+    width: 100%;
+    height: 100%;
+    will-change: transform;
+    /* Origin sa gitna ng balloon body (hindi kasama ang string) */
+    transform-origin: 50% 40%;
+}
+
+/* ---- Layer 3: SVG visual + soft blink ---- */
+.balloon-shape {
+    display: block;
+    width: 100%;
+    height: 100%;
+    will-change: opacity;
+}
+
+.balloon--blink .balloon-shape {
+    animation: balloonBlink var(--blink-dur) ease-in-out var(--blink-delay) infinite;
+}
+
+/* Balloon image (balloon-float.png) - original colors, gumagana sa
+   light at dark theme (puting body + gray outline) */
+.balloon-shape img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Tint variations: binabawasan ang intensity ng ibang balloons para may
+   depth (parang mas malayo sila) */
+.balloon.hb-t1 .balloon-shape img {
+    opacity: 0.85;
+}
+
+.balloon.hb-t2 .balloon-shape img {
+    opacity: 0.72;
+}
+
+/* Dark theme (default): maliitin nang kaunti ang mga puting float images
+   para hindi nakakasilaw / harsh sa mata sa itim na hero background.
+   Slight darkening lang (hindi gray na gray) para hindi nakakapagod sa mata. */
+html:not([data-theme="light"]) .balloon-shape img {
+    filter: brightness(0.88) saturate(0.9);
+}
+
+/* Light theme: light gray lang ang mga float images - malambot sa mata
+   (hindi masyadong dilim, hindi rin masyadong puti) at kitang-kita pa rin
+   sa puting background. */
+html[data-theme="light"] .balloon-shape img {
+    filter: brightness(0.78) saturate(0.85);
+}
+
+/* ==========================================================================
+   ANIMATION - soft blink (per-balloon timing galing sa JS config)
+   ========================================================================== */
+
+@keyframes balloonBlink {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    30% {
+        opacity: 0.72;
+    }
+
+    55% {
+        opacity: 0.92;
+    }
+
+    80% {
+        opacity: var(--blink-min);
+    }
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 968px) {
+    .balloon--hide-tablet {
+        display: none;
+    }
+}
+
+/* Mobile: konting maliit na balloons lang, naka-tabingi sa gilid para hindi
+   dumikit sa label, title, subtitle, at CTA buttons */
+@media (max-width: 640px) {
+    .balloon--hide-mobile {
+        display: none;
+    }
+
+    /* Kita na ang mga floating objects sa mobile: maliit na bersyon lang
+       (naka-scale down) at mas opaque para visible. Nasa taas at baba lang
+       ng hero para hindi tumatabla sa title, subtitle, at CTA buttons. */
+    .balloon {
+        --size-scale: 0.8;
+        opacity: 0.9;
+    }
+
+    .balloon.hb-t1 .balloon-shape img {
+        opacity: 0.9;
+    }
+
+    .balloon.hb-t2 .balloon-shape img {
+        opacity: 0.85;
+    }
+}
+
+/* Accessibility: static ang balloons kapag naka-on ang reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .balloon--blink .balloon-shape {
+        animation: none !important;
+    }
+}

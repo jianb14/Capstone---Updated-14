@@ -370,7 +370,7 @@ nav.scrolled {
     }
 }
 
-/* Hero Section - HOME PAGE */
+/* Hero Section - HOME PAGE (full-width, centered composition) */
 .hero {
     background: #000;
     position: relative;
@@ -378,7 +378,7 @@ nav.scrolled {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: clamp(5.5rem, 8vh, 7rem) clamp(3rem, 9vw, 13%) clamp(9rem, 10vh, 6rem);
+    padding: clamp(5.5rem, 8vh, 7rem) clamp(1.5rem, 6vw, 5rem);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 18px 18px;
 }
@@ -403,182 +403,68 @@ nav.scrolled {
 }
 
 .hero-content {
-    max-width: 1200px;
+    max-width: 980px;
     width: 100%;
     z-index: 2;
     position: relative;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: clamp(1.25rem, 4vw, 4rem);
-    align-items: center;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 0;
     margin-bottom: 0;
 }
 
 .hero-text {
-    animation: fadeInUp 1s ease-out;
-}
-
-/* Hero showcase - Upskwela-inspired overlapping cards */
-.hero-showcase {
-    position: relative;
-    width: 100%;
-    min-height: 420px;
-    animation: fadeInUp 0.6s ease-out 0.1s both;
-}
-
-.showcase-main-card {
-    position: relative;
-    width: 100%;
-    border-radius: 16px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-}
-
-.showcase-main-card img {
-    width: 100%;
-    height: 340px;
-    object-fit: cover;
-    display: block;
-    filter: brightness(0.7);
-    transition: filter 0.4s ease, transform 0.4s ease;
-}
-
-.showcase-main-card:hover img {
-    filter: brightness(0.85);
-    transform: scale(1.03);
-}
-
-.showcase-main-label {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1.2rem 1.5rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), transparent);
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    align-items: center;
 }
 
-.showcase-main-label strong {
-    font-size: 1.05rem;
-    color: #fff;
-}
-
-.showcase-main-label span {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.showcase-badge {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    color: #fff;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0.35rem 0.9rem;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-/* Floating cards */
-.showcase-float-card {
-    position: absolute;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-    background: #111;
-    transition: transform 0.3s ease;
-}
-
-.showcase-float-card:hover {
-    transform: translateY(-4px);
-}
-
-.showcase-float-card img {
-    width: 100%;
-    object-fit: cover;
-    display: block;
-    filter: brightness(0.7);
-    transition: filter 0.4s ease;
-}
-
-.showcase-float-card:hover img {
-    filter: brightness(0.85);
-}
-
-/* Bottom-right floating card */
-.showcase-float-bottom {
-    bottom: -30px;
-    right: -30px;
-    width: 240px;
-    animation: floatUp 0.6s ease-out 0.2s both;
-}
-
-.showcase-float-bottom img {
-    height: 120px;
-}
-
-.showcase-float-info {
-    padding: 0.7rem 0.9rem;
-}
-
-.showcase-float-stats {
-    display: flex;
-    gap: 1.2rem;
-}
-
-.showcase-float-stats div {
-    display: flex;
-    flex-direction: column;
-}
-
-.showcase-float-stats strong {
-    font-size: 0.8rem;
-    color: #fff;
-}
-
-.showcase-float-stats span {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-/* Top-right floating card */
-.showcase-float-top {
-    top: -20px;
-    right: -25px;
-    width: 180px;
-    animation: floatUp 0.6s ease-out 0.35s both;
-}
-
-.showcase-float-top img {
-    height: 105px;
-}
-
-.showcase-live-badge {
-    display: block;
-    padding: 0.5rem 0.8rem;
-    font-size: 0.72rem;
+/* Eyebrow label sa itaas ng hero title
+   Staggered entrance: label muna (0.05s) -> title (0.25s) ->
+   subtitle (0.45s) -> CTA (0.65s). Ang "both" fill mode ay nagpapatago
+   sa elementa hanggang sa simula ng animation nito. */
+.hero-eyebrow {
+    animation: fadeInUp 0.7s ease-out 0.05s both;
+    font-size: 0.78rem;
     font-weight: 600;
-    color: #4ade80;
-    text-align: right;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.9rem;
 }
 
-@keyframes floatUp {
-    from {
-        opacity: 0;
-        transform: translateY(25px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* Maliliit na guhit sa magkabilang gilid ng label para eleganteng separation */
+.hero-eyebrow::before,
+.hero-eyebrow::after {
+    content: '';
+    width: 2.2rem;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.hero-text h1 {
+    animation: fadeInUp 0.7s ease-out 0.25s both;
+    font-size: clamp(2.4rem, 5.2vw, 3.9rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+    text-align: center;
+    max-width: 17ch;
+    margin-bottom: 1.5rem;
+}
+
+.hero-subheadline {
+    animation: fadeInUp 0.7s ease-out 0.45s both;
+    font-size: 1.1rem;
+    color: #aaa;
+    text-align: center;
+    max-width: 620px;
+    margin-bottom: 2.2rem;
 }
 
 @keyframes fadeInUp {
@@ -593,25 +479,24 @@ nav.scrolled {
     }
 }
 
-.hero-text h1 {
-    font-size: 3.5rem;
-    font-weight: 800;
-    line-height: 1.1;
-    margin-bottom: 1.5rem;
-}
-
-.hero-subheadline {
-    font-size: 1.1rem;
-    color: #aaa;
-    margin-bottom: 2rem;
-}
-
-
 .cta-buttons {
+    animation: fadeInUp 0.7s ease-out 0.65s both;
     display: flex;
     gap: clamp(1rem, 0.3vw, 1.6rem);
     flex-wrap: wrap;
     align-items: center;
+}
+
+/* Accessibility: huwag i-animate ang hero text kung naka-on ang
+   prefers-reduced-motion (agad-agad na nakikita ang lahat) */
+@media (prefers-reduced-motion: reduce) {
+
+    .hero-eyebrow,
+    .hero-text h1,
+    .hero-subheadline,
+    .cta-buttons {
+        animation: none;
+    }
 }
 
 .hero .cta-buttons .btn {
@@ -1801,8 +1686,10 @@ nav.scrolled {
     margin: -1px 0;
 }
 
-/* The balloon */
-.balloon {
+/* The balloon
+   Naka-scope sa .balloon-pin para hindi tumagos ang gradient/shadow/sway
+   sa .balloon na ginagamit ng hero floating objects (hero_balloons.css) */
+.balloon-pin .balloon {
     width: 14px;
     height: 18px;
     background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.5) 20%, rgba(200,200,200,0.4) 100%);
@@ -1816,7 +1703,7 @@ nav.scrolled {
 }
 
 /* Balloon highlight */
-.balloon::before {
+.balloon-pin .balloon::before {
     content: '';
     position: absolute;
     top: 4px;
@@ -1828,7 +1715,7 @@ nav.scrolled {
 }
 
 /* Balloon string tail */
-.balloon::after {
+.balloon-pin .balloon::after {
     content: '';
     position: absolute;
     bottom: -4px;
@@ -2945,7 +2832,6 @@ nav.scrolled {
 
 .view-reviews-btn:hover {
     opacity: 1;
-    text-decoration: underline;
 }
 
 .view-reviews-btn:hover i {
@@ -2953,9 +2839,17 @@ nav.scrolled {
     text-decoration: none !important;
 }
 
+@media (max-width: 768px) {
+    .view-reviews-btn {
+        font-size: 0.9rem;
+    }
+}
+
 @media (max-width: 480px) {
     .view-reviews-btn {
         width: calc(100% - 2rem);
+        font-size: 0.85rem;
+        gap: 0.4rem;
     }
 }
 
@@ -3448,18 +3342,6 @@ nav.scrolled {
         grid-template-columns: 1fr;
         padding: 20px 0;
         gap: 2rem;
-    }
-
-    .hero-showcase {
-        min-height: 280px;
-    }
-
-    .showcase-float-card {
-        display: none;
-    }
-
-    .showcase-main-card img {
-        height: 250px;
     }
 
     /* Tablet hero: single column — title, description, at features
@@ -4148,6 +4030,11 @@ nav.scrolled {
     background: rgba(0, 0, 0, 0.06);
 }
 
+/* Light mode hover: solid black na yung icon ( dati gray dahil sa 0.6 opacity) */
+[data-theme="light"] .theme-toggle-btn:hover {
+    color: #111827;
+}
+
 /* Light theme: hamburger button (white navbar version) */
 [data-theme="light"] .mobile-menu {
     background: transparent;
@@ -4193,6 +4080,15 @@ nav.scrolled {
 
 [data-theme="light"] .hero-subheadline {
     color: #6b7280;
+}
+
+[data-theme="light"] .hero-eyebrow {
+    color: rgba(17, 24, 39, 0.55);
+}
+
+[data-theme="light"] .hero-eyebrow::before,
+[data-theme="light"] .hero-eyebrow::after {
+    background: rgba(17, 24, 39, 0.25);
 }
 
 [data-theme="light"] .btn-primary {
@@ -4265,9 +4161,11 @@ nav.scrolled {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
+/* Light theme hover: medyo gray lang imbes na purong white para hindi
+   mukhang blanko ang card kapag hinover */
 [data-theme="light"] .feature-card:hover,
 [data-theme="light"] .value-card:hover {
-    background: #ffffff;
+    background: #f1f3f5;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
@@ -4305,24 +4203,6 @@ nav.scrolled {
     background: #f9fafb;
 }
 
-/* Light theme: hero showcase cards - gray outline, subtle shadow, no darkening filter */
-[data-theme="light"] .showcase-main-card,
-[data-theme="light"] .showcase-float-card {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-color: #9ca3af;
-}
-
-/* Remove the brightness(0.7) darkening filter - images look natural on light bg */
-[data-theme="light"] .showcase-main-card img,
-[data-theme="light"] .showcase-float-card img {
-    filter: none;
-}
-
-[data-theme="light"] .showcase-main-card:hover img,
-[data-theme="light"] .showcase-float-card:hover img {
-    filter: brightness(0.95);
-}
-
 /* Light theme: muted label texts stay visible on light backgrounds
    (kasama na dito ang .story-label para tugma sa .about-tagline) */
 [data-theme="light"] .about-tagline,
@@ -4353,6 +4233,13 @@ nav.scrolled {
 
 .theme-toggle-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* Hover: full solid icon — black sa light mode, white sa dark mode */
+.theme-toggle-btn:hover .theme-icon-sun,
+.theme-toggle-btn:hover .theme-icon-moon {
+    opacity: 1;
 }
 
 .theme-icon-sun, .theme-icon-moon {
@@ -4381,7 +4268,7 @@ nav.scrolled {
 
 /* ---------- Occasion Chips ---------- */
 .occasion-chips-section {
-    padding: 5rem 5% 8rem;
+    padding: 8rem 5%;
     background: var(--black);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 18px 18px;
@@ -4848,18 +4735,42 @@ nav.scrolled {
     color: #9ca3af;
 }
 
-/* CTA banner light mode */
+/* CTA banner light mode — light gray card (#f6f6f6), dark text/buttons */
 [data-theme="light"] .cta-banner {
+    background: #f6f6f6;
+    border-color: #d1d5db;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .cta-banner h2 {
-    color: #ffffff;
-    -webkit-text-fill-color: #ffffff;
+    color: #111827;
+    -webkit-text-fill-color: #111827;
 }
 
 [data-theme="light"] .cta-banner p {
-    color: rgba(255, 255, 255, 0.85);
+    color: #4b5563;
+}
+
+[data-theme="light"] .cta-btn-primary {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+}
+
+[data-theme="light"] .cta-btn-primary:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+[data-theme="light"] .cta-btn-secondary {
+    background: transparent;
+    color: #111827;
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .cta-btn-secondary:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="light"] .occasion-chip {
@@ -5075,15 +4986,6 @@ nav.scrolled {
         width: 100%;
         text-align: center;
         justify-content: center;
-    }
-
-    .hero-showcase {
-        min-height: auto;
-        width: 100%;
-    }
-
-    .showcase-main-card img {
-        height: 220px;
     }
 
     /* How It Works: tile left, title + description stacked beside it */
