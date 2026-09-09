@@ -358,6 +358,12 @@ class Package(models.Model):
     name = models.CharField(max_length=100)
     image = models.ImageField(upload_to='packages/', blank=True, null=True)
 
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Short line shown under the package name on the Packages page"
+    )
+
     features = models.TextField(help_text="One feature per line")
 
     price = models.DecimalField(max_digits=10, decimal_places=2)

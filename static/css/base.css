@@ -12,6 +12,16 @@
     --gray: #1a1a1a;
     --dark-gray: #cccccc;
     --light-gray: #2a2a2a;
+    /* Packages page palette (MindEase-style pricing UI, black & white theme).
+       Note: --pkg-blue is a legacy name but now holds the WHITE accent so the
+       whole packages page stays strictly monochrome. */
+    --pkg-blue: #ffffff;
+    --pkg-blue-hover: #e2e2e2;
+    --pkg-navy: #000000;
+    --pkg-card: #111111;
+    --pkg-card-featured: #1a1a1a;
+    --pkg-border: rgba(255, 255, 255, 0.12);
+    --pkg-text-muted: #a1a1aa;
 }
 
 body {
@@ -1535,8 +1545,19 @@ nav.scrolled {
     100% { transform: scale(1); opacity: 1; }
 }
 
+/* Packages hero — same full-viewport treatment as .about-hero:
+   label -> title (with accent line) -> subtitle, with the
+   "Scroll Down" cue pinned at the hero's bottom */
 .packages-hero {
-    padding: 8rem 5% 2rem;
+    padding: 2rem 5% 6rem 5%;
+    min-height: calc(100vh - 55px); /* 55px = fixed navbar height */
+    /* svh: mas tumpak sa mobile browsers — hindi nagugupit ang Scroll Down ng URL bar */
+    min-height: calc(100svh - 55px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--pkg-navy);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 18px 18px;
     color: var(--white);
@@ -1558,13 +1579,44 @@ nav.scrolled {
     z-index: 1;
 }
 
+/* Accent second line of the packages hero title (solid brand color) */
+.packages-hero-accent {
+    display: block;
+    color: var(--brand-pink);
+}
+
 .packages-hero p {
     position: relative;
     z-index: 1;
+    font-size: 1.1rem;
+    font-weight: 500;
+    max-width: 800px;
+    margin: 0 auto;
+    color: var(--dark-gray);
+}
+
+/* Mobile hero: hindi 100vh para walang malaking bakanteng space sa taas
+   (same fix as the about hero) */
+@media (max-width: 768px) {
+    .packages-hero {
+        min-height: auto;
+        padding: 8rem 6% 10rem;
+        justify-content: flex-start;
+    }
+
+    .packages-hero h1 {
+        font-size: 2.2rem;
+        letter-spacing: -1px;
+    }
+
+    .packages-hero p {
+        font-size: 1rem;
+    }
 }
 
 .packages-detailed {
     padding: 0 5% 8rem 5%;
+    background-color: var(--pkg-navy);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 18px 18px;
 }
@@ -1590,68 +1642,56 @@ nav.scrolled {
 .package-card {
     flex: 0 0 calc((100% / 3) - (2rem * 2 / 3));
     min-width: 0;
-    background: 
-        radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
-        radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.025) 0%, transparent 30%),
-        linear-gradient(145deg, rgba(25, 25, 25, 0.98) 0%, rgba(15, 15, 15, 0.99) 50%, rgba(10, 10, 10, 0.98) 100%);
+    display: flex;
+    flex-direction: column;
+    background: var(--pkg-card);
     color: var(--white);
-    padding: 3rem 2rem 2rem 2rem;
+    padding: 2.5rem 2rem 2rem 2rem;
     text-align: left;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    box-shadow: 
-        0 12px 32px rgba(0, 0, 0, 0.35),
-        0 4px 8px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    border: 1px solid var(--pkg-border);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     overflow: visible;
 }
 
-/* Elegant inner frame */
+/* Clean card — walang decorative pseudo elements (MindEase style) */
 .package-card::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
-    pointer-events: none;
+    content: none;
 }
 
-/* Corner ornaments */
 .package-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 4px;
-    background: 
-        /* Top left corner */
-        linear-gradient(135deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
-        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
-        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
-        /* Top right corner */
-        linear-gradient(225deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
-        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
-        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
-        /* Bottom left corner */
-        linear-gradient(45deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
-        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
-        /* Bottom right corner */
-        linear-gradient(315deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
-        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%;
-    background-size: 20px 20px;
-    background-repeat: no-repeat;
-    pointer-events: none;
+    content: none;
+}
+
+/* Full-width CTA button at the bottom of every card (MindEase style).
+   Dark mode: white button with black text — strict black & white theme. */
+.package-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: auto;
+    padding: 0.85rem 1rem;
+    background: var(--pkg-blue);
+    color: #000000 !important;
+    font-family: Montserrat, sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.2px;
+    border: none;
+    border-radius: 10px;
+    text-decoration: none;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.package-cta:hover {
+    background: var(--pkg-blue-hover);
+    color: #000000 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
 }
 
 /* ==========================================
@@ -1778,169 +1818,111 @@ nav.scrolled {
 }
 
 .package-card:hover {
-    transform: translateY(-10px);
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 
-        0 24px 48px rgba(0, 0, 0, 0.45),
-        0 8px 16px rgba(0, 0, 0, 0.25),
-        0 0 80px rgba(255, 255, 255, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transform: translateY(-6px);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
-/* Enhanced corner glow on hover */
-.package-card:hover::after {
-    background: 
-        linear-gradient(135deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(225deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(315deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
-        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%;
-    background-size: 20px 20px;
-    background-repeat: no-repeat;
-}
-
+/* Featured card: white border + soft white glow (MindEase "Premium" card,
+   monochrome version) */
 .package-card.featured {
-    background: 
-        radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 35%),
-        radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.04) 0%, transparent 25%),
-        linear-gradient(145deg, rgba(35, 35, 35, 0.99) 0%, rgba(20, 20, 20, 0.99) 50%, rgba(12, 12, 12, 0.99) 100%);
+    background: var(--pkg-card-featured);
     color: var(--white);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid var(--pkg-blue);
     order: -1;
     z-index: 2;
-    box-shadow: 
-        0 16px 40px rgba(0, 0, 0, 0.4), 
-        0 0 60px rgba(255,255,255,0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-/* Featured card enhanced corner glow */
-.package-card.featured::after {
-    background: 
-        linear-gradient(135deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(225deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(315deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
-        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%;
-    background-size: 24px 24px;
-    background-repeat: no-repeat;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 32px rgba(255, 255, 255, 0.06);
 }
 
 .package-card.featured:hover {
-    transform: translateY(-8px);
-    border-color: rgba(255, 255, 255, 0.45);
+    transform: translateY(-6px);
+    border-color: var(--pkg-blue);
+    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 255, 255, 0.08);
 }
 
+/* Floating rounded blue pill badge with bolt icon */
 .package-badge {
     position: absolute;
-    top: -14px;
+    top: -16px;
     left: 50%;
     transform: translateX(-50%);
-    background: 
-        linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.95) 100%);
-    color: var(--black);
-    padding: 0.4rem 1rem 0.32rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #ffffff;
+    padding: 0.5rem 1.25rem;
     width: auto;
-    min-width: 130px;
-    font-size: 0.6rem;
+    white-space: nowrap;
+    font-size: 0.85rem;
     text-align: center;
-    font-weight: 800;
-    letter-spacing: 2px;
-    border-radius: 2px;
-    box-shadow: 
-        0 4px 15px rgba(0, 0, 0, 0.25),
-        0 2px 4px rgba(0, 0, 0, 0.15);
-    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    text-transform: none;
 }
 
-/* Badge decorative lines */
+.package-badge i {
+    font-size: 0.8rem;
+}
+
+/* No decorative lines on the pill badge */
 .package-badge::before,
 .package-badge::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    width: 8px;
-    height: 1px;
-    background: rgba(0, 0, 0, 0.3);
-}
-
-.package-badge::before {
-    left: 6px;
-}
-
-.package-badge::after {
-    right: 6px;
-}
-
-.package-card.featured .package-badge {
-    background: 
-        linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
-    color: var(--black);
-    border-radius: 2px;
-    box-shadow: 
-        0 6px 20px rgba(0, 0, 0, 0.3),
-        0 0 30px rgba(255, 255, 255, 0.15);
+    content: none;
 }
 
 .package-card h3 {
-    font-size: 1.4rem;
+    font-size: 1.55rem;
     font-weight: 700;
     text-align: left;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
     color: #ffffff;
     position: relative;
-    padding-bottom: 0.8rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
 }
 
-/* Elegant underline */
+/* Short description under the package name (MindEase style) */
+.package-desc {
+    color: var(--pkg-text-muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    margin: 0 0 1.4rem;
+    text-align: left;
+}
+
+/* Walang underline decoration (MindEase style) */
 .package-card h3::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 40px;
-    height: 2px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.6) 0%, transparent 100%);
+    content: none;
 }
 
 .package-card.featured h3::after {
-    width: 60px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+    content: none;
 }
 
 .package-price {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin: 0.8rem 0 1rem;
+    font-size: clamp(2.7rem, 3.6vw, 3.4rem);
+    font-weight: 800;
+    margin: 0 0 1.6rem;
     text-align: left;
     color: #ffffff;
     font-family: Montserrat, sans-serif;
-    letter-spacing: 0.5px;
+    letter-spacing: -0.5px;
 }
 
 .package-price span {
-    font-size: 0.85rem;
-    font-weight: 400;
-    opacity: 0.6;
-    font-style: italic;
-    letter-spacing: 0.5px;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    opacity: 1;
+    font-style: normal;
+    letter-spacing: 0.2px;
+    color: var(--pkg-text-muted);
+    font-family: Montserrat, sans-serif;
 }
 
 .package-service-price {
@@ -1950,20 +1932,20 @@ nav.scrolled {
 }
 
 .package-notes {
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--pkg-text-muted);
     font-weight: 400;
     margin: 1.5rem 1rem 0.5rem;
     font-size: 0.75rem;
     font-style: italic;
     text-align: center;
     line-height: 1.6;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
     padding-top: 1rem;
 }
 
 .package-card.featured .package-notes {
-    color: rgba(255, 255, 255, 0.65);
-    border-top-color: rgba(255, 255, 255, 0.12);
+    color: #d4d4d4;
+    border-top-color: rgba(255, 255, 255, 0.2);
 }
 
 .package-service-price span {
@@ -1981,29 +1963,29 @@ nav.scrolled {
     max-width: 700px;
     margin: 0 auto 5rem auto;
     padding: 1rem 1.5rem;
-    background-color: black;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
+    background-color: var(--pkg-card);
+    border: 1px solid var(--pkg-border);
+    border-radius: 12px;
     text-align: left;
 }
 
 .service-charge-note-box p {
     margin: 0;
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--pkg-text-muted);
     line-height: 1.5;
     word-spacing: 1px;
 }
 
 .service-charge-note-box p strong {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
 }
 
 /* Section subtitle for package page */
 .section-subtitle {
     text-align: center;
     font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--pkg-text-muted);
     margin-top: -0.5rem;
     margin-bottom: 2.5rem;
     letter-spacing: 0.3px;
@@ -2028,15 +2010,15 @@ nav.scrolled {
 }
 
 .package-features li {
-    padding: 0.55rem 0;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.82);
+    padding: 0.30rem 0;
+    font-size: 0.9rem;
+    color: var(--pkg-text-muted);
     display: grid;
     grid-template-columns: 22px 1fr;
-    column-gap: 0.7rem;
+    column-gap: 0.3rem;
     align-items: start;
     line-height: 1.5;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: none;
     transition: color 0.3s ease;
 }
 
@@ -2045,7 +2027,7 @@ nav.scrolled {
 }
 
 .package-card:hover .package-features li {
-    color: rgba(255, 255, 255, 0.9);
+    color: #d4d4d4;
 }
 
 .package-list-label {
@@ -2056,10 +2038,10 @@ nav.scrolled {
     font-size: 0.55rem;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--pkg-text-muted);
     background: transparent;
     border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 0;
     padding: 0.2rem 1rem 0.2rem 1rem;
     margin: 0.5rem 0 1.2rem;
@@ -2074,13 +2056,13 @@ nav.scrolled {
     display: inline-block;
     width: 5px;
     height: 5px;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.85);
     transform: rotate(45deg);
 }
 
 .package-card.featured .package-list-label {
-    color: rgba(255, 255, 255, 0.9);
-    border-bottom-color: rgba(255, 255, 255, 0.25);
+    color: #d4d4d4;
+    border-bottom-color: rgba(255, 255, 255, 0.3);
 }
 
 .package-card.featured .package-list-label::before,
@@ -2109,23 +2091,43 @@ nav.scrolled {
 }
 
 
-/* Buttons */
+/* Carousel arrows — circular icon buttons that match the rounded cards */
 .carousel-btn {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(50, 50, 50, 0.5);
+    width: 46px;
+    height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--pkg-card);
     color: var(--white);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.5rem 0.6rem 0.35rem 0.6rem;
+    border: 1px solid var(--pkg-border);
+    padding: 0;
+    font-size: 0.95rem;
     cursor: pointer;
     z-index: 10;
-    border-radius: 5px;
-    transition: opacity 0.3s ease;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease,
+        transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .carousel-btn:hover {
-    opacity: 0.8;
+    background: var(--pkg-blue);
+    color: #000000;
+    border-color: var(--pkg-blue);
+    transform: translateY(-50%) scale(1.06);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+.carousel-btn:active {
+    transform: translateY(-50%) scale(0.96);
+}
+
+.carousel-btn i {
+    pointer-events: none;
 }
 
 .packages-carousel-wrapper {
@@ -2136,12 +2138,12 @@ nav.scrolled {
 }
 
 .carousel-btn.prev {
-    left: -5rem;
+    left: -3.75rem;
 }
 
 /* lumabas sa gilid ng carousel */
 .carousel-btn.next {
-    right: -5rem;
+    right: -3.75rem;
 }
 
 .button-group {
@@ -2322,94 +2324,32 @@ nav.scrolled {
 
 .addon-card {
     flex: 0 0 calc((100% / 3) - (2rem * 2 / 3));
-    background: 
-        radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
-        radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.025) 0%, transparent 30%),
-        linear-gradient(145deg, rgba(25, 25, 25, 0.98) 0%, rgba(15, 15, 15, 0.99) 50%, rgba(10, 10, 10, 0.98) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--pkg-card);
+    border: 1px solid var(--pkg-border);
     padding: 2.5rem 2rem 2rem 2rem;
-    border-radius: 4px;
+    border-radius: 18px;
     display: flex;
     flex-direction: column;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
     box-sizing: border-box;
     position: relative;
-    box-shadow: 
-        0 12px 32px rgba(0, 0, 0, 0.35),
-        0 4px 8px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     overflow: visible;
 }
 
-/* Elegant inner frame on addon cards */
+/* Clean card — walang decorative pseudo elements (MindEase style) */
 .addon-card::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
-    pointer-events: none;
+    content: none;
 }
 
-/* Corner ornaments on addon cards */
 .addon-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 4px;
-    background: 
-        linear-gradient(135deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
-        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
-        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 0,
-        linear-gradient(225deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
-        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
-        linear-gradient(180deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 0,
-        linear-gradient(45deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
-        linear-gradient(90deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 0 100%,
-        linear-gradient(315deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
-        linear-gradient(270deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.35) 0px, transparent 1px) 100% 100%;
-    background-size: 20px 20px;
-    background-repeat: no-repeat;
-    pointer-events: none;
+    content: none;
 }
 
 .addon-card:hover {
-    transform: translateY(-10px);
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 
-        0 24px 48px rgba(0, 0, 0, 0.45),
-        0 8px 16px rgba(0, 0, 0, 0.25),
-        0 0 80px rgba(255, 255, 255, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-/* Enhanced corner glow on hover for addon cards */
-.addon-card:hover::after {
-    background: 
-        linear-gradient(135deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 0,
-        linear-gradient(225deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(180deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 0,
-        linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(90deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 0 100%,
-        linear-gradient(315deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
-        linear-gradient(270deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%,
-        linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px) 100% 100%;
-    background-size: 20px 20px;
-    background-repeat: no-repeat;
+    transform: translateY(-6px);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
 
@@ -2424,61 +2364,55 @@ nav.scrolled {
 .addon-tag {
     font-size: 0.6rem;
     letter-spacing: 2px;
-    opacity: 0.5;
+    color: var(--pkg-text-muted);
+    opacity: 1;
     margin-bottom: 0.3rem;
     text-transform: uppercase;
 }
 
 .addon-name {
-    font-size: 1.3rem;
+    font-size: 1.45rem;
     font-weight: 700;
     margin: 0;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
     color: #ffffff;
     position: relative;
-    padding-bottom: 0.7rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
-/* Elegant underline for addon names */
+/* Walang underline decoration (MindEase style) */
 .addon-name::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 35px;
-    height: 2px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.6) 0%, transparent 100%);
+    content: none;
 }
 
 .addon-price {
-    font-size: 1.6rem;
+    font-size: clamp(1.6rem, 2.4vw, 2rem);
     margin-top: 0.3rem;
-    margin-bottom: 0.5rem;
-    font-weight: 700;
+    margin-bottom: 1.25rem;
+    font-weight: 800;
     text-align: left;
     display: inline-flex;
     align-items: baseline;
     gap: 0.45rem;
     color: #ffffff;
-    font-family:  Montserrat, sans-serif;
-    letter-spacing: 0.5px;
+    font-family: Montserrat, sans-serif;
+    letter-spacing: -0.5px;
 }
 
 .addon-price-note {
     display: inline;
-    font-size: 0.7rem;
-    font-weight: 400;
-    letter-spacing: 0.5px;
-    color: rgba(255, 255, 255, 0.55);
-    font-style: italic;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    color: var(--pkg-text-muted);
+    font-style: normal;
+    font-family: Montserrat, sans-serif;
 }
 
 .price-amount {
-    font-size: 1.8rem;
-    font-weight: 700;
+    font-size: inherit;
+    font-weight: 800;
     color: #ffffff;
     font-family: Montserrat, sans-serif;
 }
@@ -2492,14 +2426,14 @@ nav.scrolled {
 
 .addon-features li {
     padding: 0.55rem 0;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.9rem;
+    color: var(--pkg-text-muted);
     display: grid;
     grid-template-columns: 22px 1fr;
     column-gap: 0.7rem;
     align-items: start;
     line-height: 1.5;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: none;
     transition: color 0.3s ease;
 }
 
@@ -2508,7 +2442,7 @@ nav.scrolled {
 }
 
 .addon-card:hover .addon-features li {
-    color: rgba(255, 255, 255, 0.9);
+    color: #d4d4d4;
 }
 
 .addon-features li::before {
@@ -2517,44 +2451,46 @@ nav.scrolled {
     font-weight: 600;
 }
 
-/* Check badges: gray circle by default, turns white on card hover */
+/* Check badges: thin check in a ghost circle (MindEase style, monochrome) */
 .package-features li::before,
 .addon-features li::before {
     content: "\2713" !important;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 999px;
-    background: #464646;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     color: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.68rem;
-    font-weight: 600;
+    font-size: 0.62rem;
+    font-weight: 400;
     line-height: 1;
     margin-top: 0.1rem;
     margin-right: 0;
 }
 
+/* Ghost circle subtly brightens on card hover */
 .package-card:hover .package-features li::before,
 .addon-card:hover .addon-features li::before {
-    background: #ffffff;
-    color: #111111;
-    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .solo-price {
     padding-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
     font-size: 0.8rem;
     text-align: center;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--pkg-text-muted);
     margin: 1rem 1rem 0.5rem;
     font-style: italic;
 }
 
 .solo-price strong {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
     font-family: Montserrat, sans-serif;
     font-style: normal;
     font-weight: 600;
@@ -2571,26 +2507,43 @@ nav.scrolled {
 .additional-notes {
     text-align: center;
     margin: 1.5rem 1rem 0.5rem;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--pkg-text-muted);
     font-size: 0.75rem;
     font-style: italic;
     line-height: 1.6;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
     padding-top: 1rem;
 }
 
 .carousel-btn:hover {
-    opacity: 0.8;
+    opacity: 1;
 }
 
 .prev-addons,
 .prev-additionals {
-    left: -5rem;
+    left: -3.75rem;
 }
 
 .next-addons,
 .next-additionals {
-    right: -5rem;
+    right: -3.75rem;
+}
+
+/* Wide screens where the page padding is smaller than the button offset:
+   park the arrows on top of the card edges instead of outside the wrapper */
+@media (max-width: 1260px) {
+
+    .carousel-btn.prev,
+    .prev-addons,
+    .prev-additionals {
+        left: -0.75rem;
+    }
+
+    .carousel-btn.next,
+    .next-addons,
+    .next-additionals {
+        right: -0.75rem;
+    }
 }
 
 .package-price,
@@ -2613,7 +2566,9 @@ nav.scrolled {
     }
 
     .carousel-btn {
-        padding: 0.8rem 1.2rem;
+        width: 40px;
+        height: 40px;
+        font-size: 0.85rem;
     }
 }
 
@@ -2658,10 +2613,6 @@ nav.scrolled {
         flex: 0 0 100%;
         /* 1 card full width */
         padding: 3rem 2rem;
-    }
-
-    .carousel-btn {
-        padding: 0.8rem 1.2rem;
     }
 
     .addons-grid {
@@ -4181,26 +4132,239 @@ nav.scrolled {
     border: 1px solid #e5e7eb;
 }
 
+/* ---------- PACKAGES PAGE — LIGHT MODE (MindEase-style blue UI) ---------- */
+
+/* Light blue-gray page with subtle dots (matches the screenshot) */
+[data-theme="light"] .packages-hero,
+[data-theme="light"] .packages-detailed {
+    background-color: #f6f9fd;
+    background-image: radial-gradient(circle, rgba(15, 23, 42, 0.10) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+/* Section headings (Entrance Arch / Welcome Stand) */
+[data-theme="light"] .section-title {
+    color: #0f172a;
+}
+
+[data-theme="light"] .section-subtitle {
+    color: #64748b;
+}
+
+/* Balloon-string divider above each section */
+[data-theme="light"] .addons-section::before,
+[data-theme="light"] .additionals-section::before {
+    background: linear-gradient(to bottom, transparent, rgba(15, 23, 42, 0.18), transparent);
+}
+
+/* Cards: white with soft border/shadow */
 [data-theme="light"] .package-card {
     background: #ffffff;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    color: #111827;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.05);
+    color: #0f172a;
 }
 
+[data-theme="light"] .package-card:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.14);
+}
+
+/* Featured card: light-gray fill + black border (monochrome version) */
 [data-theme="light"] .package-card.featured {
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    background: #f4f4f5;
+    border: 1px solid #111111;
+    box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.18);
 }
 
+[data-theme="light"] .package-card.featured:hover {
+    background: #ebebeb;
+    border-color: #111111;
+}
+
+/* Ghost badge in light mode */
+[data-theme="light"] .package-badge,
+[data-theme="light"] .package-card.featured .package-badge {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    color: #111111;
+    box-shadow: none;
+}
+
+[data-theme="light"] .package-card h3 {
+    color: #0f172a;
+}
+
+[data-theme="light"] .package-price {
+    color: #0f172a;
+}
+
+[data-theme="light"] .package-price span {
+    color: #64748b;
+    opacity: 1;
+}
+
+[data-theme="light"] .package-features li {
+    color: #475569;
+}
+
+[data-theme="light"] .package-card:hover .package-features li {
+    color: #334155;
+}
+
+[data-theme="light"] .package-desc {
+    color: #475569;
+}
+
+/* FIX: featured card feature text must stay readable in light mode
+   (the dark-theme rule forces white text) */
+[data-theme="light"] .package-card.featured .package-features li {
+    color: #475569;
+}
+
+[data-theme="light"] .package-list-label {
+    color: #64748b;
+    border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .package-list-label::before,
+[data-theme="light"] .package-list-label::after {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] .package-card.featured .package-list-label {
+    color: #111111;
+    border-bottom-color: #d4d4d8;
+}
+
+[data-theme="light"] .package-card.featured .package-list-label::before,
+[data-theme="light"] .package-card.featured .package-list-label::after {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+[data-theme="light"] .package-notes {
+    color: #64748b;
+    border-top-color: #eef2f7;
+}
+
+[data-theme="light"] .package-card.featured .package-notes {
+    color: #475569;
+    border-top-color: #e4e4e7;
+}
+
+/* Check badges: ghost circle with dark check in light theme */
+[data-theme="light"] .package-features li::before,
+[data-theme="light"] .addon-features li::before {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    color: #111111;
+}
+
+[data-theme="light"] .package-card:hover .package-features li::before,
+[data-theme="light"] .addon-card:hover .addon-features li::before {
+    background: rgba(0, 0, 0, 0.1);
+    color: #111111;
+    border-color: rgba(0, 0, 0, 0.32);
+}
+
+/* Add-on / Additional cards */
 [data-theme="light"] .addon-card {
     background: #ffffff;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.05);
+    color: #0f172a;
 }
 
 [data-theme="light"] .addon-card:hover {
-    background: #f9fafb;
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.14);
+}
+
+[data-theme="light"] .addon-tag {
+    color: #64748b;
+    opacity: 1;
+}
+
+[data-theme="light"] .addon-name {
+    color: #0f172a;
+}
+
+[data-theme="light"] .addon-price,
+[data-theme="light"] .price-amount {
+    color: #0f172a;
+}
+
+[data-theme="light"] .addon-price-note {
+    color: #64748b;
+}
+
+[data-theme="light"] .addon-features li {
+    color: #475569;
+}
+
+[data-theme="light"] .addon-card:hover .addon-features li {
+    color: #334155;
+}
+
+[data-theme="light"] .solo-price {
+    color: #64748b;
+    border-top-color: #eef2f7;
+}
+
+[data-theme="light"] .solo-price strong {
+    color: #0f172a;
+}
+
+[data-theme="light"] .additional-notes {
+    color: #64748b;
+    border-top-color: #eef2f7;
+}
+
+/* Service charge note boxes */
+[data-theme="light"] .service-charge-note-box {
+    background-color: #ffffff;
+    border-color: #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .service-charge-note-box p {
+    color: #64748b;
+}
+
+[data-theme="light"] .service-charge-note-box p strong {
+    color: #0f172a;
+}
+
+/* Circular carousel arrows: white circle, black on hover */
+[data-theme="light"] .carousel-btn {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #e2e8f0;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+}
+
+[data-theme="light"] .carousel-btn:hover {
+    background: #111111;
+    color: #ffffff;
+    border-color: #111111;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+}
+
+/* CTA: white button in dark mode, black button in light mode */
+[data-theme="light"] .package-cta {
+    background: #111111;
+    color: #ffffff !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .package-cta:hover {
+    background: #2b2b2b;
+    color: #ffffff !important;
 }
 
 /* Light theme: muted label texts stay visible on light backgrounds

@@ -3260,6 +3260,7 @@ def admin_package_create(request):
         package = Package.objects.create(
             name=request.POST.get("name"),
             image=request.FILES.get("image"),
+            description=request.POST.get("description"),
             features=features,
             price=price,
             notes=request.POST.get("notes"),
@@ -3301,6 +3302,7 @@ def admin_package_edit(request, id):
             )
 
         package.name = request.POST.get("name")
+        package.description = request.POST.get("description")
         package.features = features
         package.notes = request.POST.get("notes")
         package.is_featured = bool(request.POST.get("is_featured"))

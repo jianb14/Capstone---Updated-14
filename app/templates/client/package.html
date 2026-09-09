@@ -6,31 +6,46 @@
 <!-- PACKAGES PAGE -->
 <div id="packages" class="page">
     <section class="packages-hero">
-        <!-- Floating balloon decorations -->
-        <h1>Affordable Packages</h1>
+        <span class="about-tagline">Balloorina.ph Packages</span>
+        <h1>
+            Affordable Packages,
+            <span class="packages-hero-accent">Styled Your Way</span>
+        </h1>
         <p>Choose the perfect package for your event. All packages include professional consultation, setup, and
             breakdown.</p>
+
+        <a href="#packages-list" class="scroll-down" aria-label="Scroll down to our packages">
+            <span>Scroll Down</span>
+            <i class="fas fa-chevron-down"></i>
+        </a>
     </section>
 
-    <section class="packages-detailed">
+    <section class="packages-detailed" id="packages-list">
 
         <div class="packages-carousel-wrapper">
-            <button class="carousel-btn prev"><img src="{% static 'images/left-white.png' %}" alt=""></button>
+            <button class="carousel-btn prev" aria-label="Previous packages"><i class="fas fa-chevron-left"></i></button>
             <div class="packages-carousel">
 
                 <div class="carousel-track">
                     {% for package in packages %}
                     <div class="package-card {% if package.is_featured %}featured{% endif %}">
                         {% if package.is_featured %}
-                        <div class="package-badge">MOST POPULAR</div>
+                        <div class="package-badge"><i class="fas fa-bolt" aria-hidden="true"></i> Most Popular</div>
                         {% endif %}
 
                         <h3>{{ package.name }}</h3>
 
-                        <p class="package-price">₱{{ package.price|floatformat:"-2"|intcomma }} <span>starting</span></p>
+                        <p class="package-desc">
+                            {% if package.description %}
+                                {{ package.description }}
+                            {% else %}
+                                Includes {{ package.feature_list|length }} inclusions with professional consultation, setup, and breakdown.
+                            {% endif %}
+                        </p>
+
+                        <p class="package-price">₱{{ package.price|floatformat:"-2"|intcomma }}</p>
 
                         {% if package.feature_list %}
-                        <p class="package-list-label">Package Inclusions</p>
                         <ul class="package-features">
                             {% for feature in package.feature_list %}
                             <li>{{ feature }}</li>
@@ -42,13 +57,15 @@
                         <p class="package-notes">{{ package.notes }}</p>
                         {% endif %}
 
+                        <a href="{% url 'create_booking' %}" class="package-cta">Get Started</a>
+
                     </div>
                     {% empty %}
                     <h1 style="text-align: center;">No package items yet.</h1>
                     {% endfor %}
                 </div>
             </div>
-            <button class="carousel-btn next"><img src="{% static 'images/next-white.png' %}" alt=""></button>
+            <button class="carousel-btn next" aria-label="Next packages"><i class="fas fa-chevron-right"></i></button>
         </div>
 
         <div class="service-charge-note-box">
@@ -61,7 +78,7 @@
             <p class="section-subtitle">Make a grand first impression with a stunning balloon arch at your venue entrance.</p>
 
             <div class="addons-carousel-wrapper">
-                <button class="carousel-btn prev-addons"><img src="{% static 'images/left-white.png' %}" alt=""></button>
+                <button class="carousel-btn prev-addons" aria-label="Previous add-ons"><i class="fas fa-chevron-left"></i></button>
 
                 <div class="addons-carousel">
                     <div class="addons-track">
@@ -90,6 +107,8 @@
                             </div>
                             {% endif %}
 
+                            <a href="{% url 'create_booking' %}" class="package-cta">Book This Add-On</a>
+
                         </div>
                         {% empty %}
                         <h1 style="text-align: center;">No add-ons items yet.</h1>
@@ -97,7 +116,7 @@
                     </div>
                 </div>
 
-                <button class="carousel-btn next-addons"><img src="{% static 'images/next-white.png' %}" alt=""></button>
+                <button class="carousel-btn next-addons" aria-label="Next add-ons"><i class="fas fa-chevron-right"></i></button>
             </div>
         </div>
 
@@ -113,7 +132,7 @@
             <p class="section-subtitle">Add an elegant welcome display to greet your guests in style.</p>
 
             <div class="additionals-carousel-wrapper">
-                <button class="carousel-btn prev-additionals"><img src="{% static 'images/left-white.png' %}" alt=""></button>
+                <button class="carousel-btn prev-additionals" aria-label="Previous items"><i class="fas fa-chevron-left"></i></button>
 
                 <div class="additionals-carousel">
                     <div class="additionals-track">
@@ -141,6 +160,8 @@
                             <p class="additional-notes">{{ additional.notes }}</p>
                             {% endif %}
 
+                            <a href="{% url 'create_booking' %}" class="package-cta">Book This Item</a>
+
                         </div>
 
                         {% empty %}
@@ -149,7 +170,7 @@
                     </div>
                 </div>
 
-                <button class="carousel-btn next-additionals"><img src="{% static 'images/next-white.png' %}" alt=""></button>
+                <button class="carousel-btn next-additionals" aria-label="Next items"><i class="fas fa-chevron-right"></i></button>
             </div>
         </div>
 
