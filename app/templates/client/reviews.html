@@ -2,13 +2,22 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/reviews.css' %}">
+<link rel="stylesheet" href="{% static 'css/reviews.css' %}?v=20260912f">
 
 <div class="reviews-page">
 
     <div class="reviews-filter-container">
-        <h1 class="reviews-title">What Our Clients Say</h1>
+        <div class="reviews-title-wrap">
+            <h1 class="reviews-title">What Our Clients Say</h1>
+            <p class="reviews-subtitle">Real stories from clients who trusted us to style their most memorable celebrations.</p>
+        </div>
         <div class="reviews-filter-group">
+            {% if has_pending_review %}
+            <a href="{% url 'my_reviews' %}" class="btn-write-review"
+                title="You have a completed event waiting for a review">
+                <i class="fas fa-pen"></i> Write a Review
+            </a>
+            {% endif %}
             <div class="custom-filter-dropdown" id="starDropdown">
                 <div class="dropdown-trigger">
                     <span id="starDropdownText">Rating (All)</span>
@@ -44,14 +53,34 @@
                     <option value="all">Package (All)</option>
                 </select>
             </div>
+
+            <!-- Sort dropdown (Newest / Highest Rated / Most Liked) -->
+            <div class="custom-filter-dropdown" id="sortDropdown">
+                <div class="dropdown-trigger">
+                    <span id="sortDropdownText">Newest First</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="newest" class="selected">Newest First</li>
+                    <li data-value="highest">Highest Rated</li>
+                    <li data-value="most-liked">Most Liked</li>
+                </ul>
+                <select id="sort-filter" class="filter-select">
+                    <option value="newest">Newest First</option>
+                    <option value="highest">Highest Rated</option>
+                    <option value="most-liked">Most Liked</option>
+                </select>
+            </div>
         </div>
     </div>
-    <div class="reviews-container">
+    <div class="reviews-container {% if not reviews %}is-empty{% endif %}">
         <div class="reviews-list">
             {% if reviews %}
             {% for review in reviews %}
             <div class="review-card" data-rating="{{ review.rating }}"
-                data-package="{{ review.booking.package_type|default:'Custom Booking' }}">
+                data-package="{{ review.booking.package_type|default:'Custom Booking' }}"
+                data-likes="{{ review.likes.count }}"
+                data-date="{{ review.created_at|date:'U' }}">
 
                 <div class="review-card-header">
                     <div class="review-avatar">
@@ -65,12 +94,14 @@
                             {{ review.user.username }}
                             {% endif %}
                         </span>
-                        <span class="review-details">
-                            Event Type: {{ review.booking.event_type }}
-                        </span>
-                        <span class="review-details">
-                            Package Type: {{ review.booking.package_type|default:'Custom Booking' }}
-                        </span>
+                        <div class="review-chips">
+                            <span class="review-chip">
+                                <i class="fas fa-calendar-check"></i> {{ review.booking.event_type|default:'Event' }}
+                            </span>
+                            <span class="review-chip chip-package">
+                                <i class="fas fa-gift"></i> {{ review.booking.package_type|default:'Custom Booking' }}
+                            </span>
+                        </div>
                     </div>
 
                     {% if user.is_authenticated and user == review.user %}
@@ -140,8 +171,21 @@
 
             {% else %}
             <div class="no-reviews">
+                <div class="no-reviews-icon"><i class="fa-regular fa-comment-dots"></i></div>
+                <h3>No Reviews Yet</h3>
                 <p>There are no reviews for our event styling services yet. Check back later!</p>
+                {% if has_pending_review %}
+                <a href="{% url 'my_reviews' %}" class="btn-write-review">
+                    <i class="fas fa-pen"></i> Be the first to review
+                </a>
+                {% endif %}
             </div>
+            {% endif %}
+
+            {% if reviews|length > 6 %}
+            <button type="button" id="loadMoreBtn" class="load-more-btn">
+                Load More Reviews <i class="fas fa-chevron-down"></i>
+            </button>
             {% endif %}
         </div>
     </div>    
@@ -377,6 +421,7 @@
 
         setupCustomDropdown('starDropdown', 'star-filter', 'starDropdownText');
         setupCustomDropdown('packageDropdown', 'package-filter', 'packageDropdownText');
+        setupCustomDropdown('sortDropdown', 'sort-filter', 'sortDropdownText');
 
         function applyFilters() {
             const selectedStar = starFilter ? starFilter.value : 'all';
@@ -406,10 +451,78 @@
                     noReviewsFilterMsg.style.display = 'none';
                 }
             }
+
+            // Load-more interplay: kapag may aktibong filter, ipakita lahat ng tugma;
+            // kapag "All" naman, i-apply ulit ang pagination
+            if (selectedStar === 'all' && selectedPackage === 'all') {
+                applyPagination();
+            } else {
+                allCards.forEach(card => card.classList.remove('load-hidden'));
+                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+            }
         }
 
         if (starFilter) starFilter.addEventListener('change', applyFilters);
         if (packageFilter) packageFilter.addEventListener('change', applyFilters);
+
+        // --- SORT LOGIC (Newest First / Highest Rated / Most Liked) ---
+        const sortFilter = document.getElementById('sort-filter');
+        const reviewsListEl = document.querySelector('.reviews-list');
+
+        function applySort() {
+            if (!sortFilter || !reviewsListEl) return;
+            const mode = sortFilter.value;
+            const cards = Array.from(reviewsListEl.querySelectorAll('.review-card'));
+
+            cards.sort((a, b) => {
+                if (mode === 'highest') {
+                    const diff = (parseInt(b.dataset.rating) || 0) - (parseInt(a.dataset.rating) || 0);
+                    if (diff !== 0) return diff;
+                } else if (mode === 'most-liked') {
+                    const diff = (parseInt(b.dataset.likes) || 0) - (parseInt(a.dataset.likes) || 0);
+                    if (diff !== 0) return diff;
+                }
+                // Tie-break / default: newest (may pinakabagong petsa muna)
+                return (parseInt(b.dataset.date) || 0) - (parseInt(a.dataset.date) || 0);
+            });
+
+            cards.forEach(card => reviewsListEl.appendChild(card));
+            applyPagination();
+        }
+        if (sortFilter) sortFilter.addEventListener('change', applySort);
+
+        // --- LOAD MORE (6 reviews muna ang kita, +6 bawat click) ---
+        const PAGE_SIZE = 6;
+        const allCards = document.querySelectorAll('.review-card');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        let shownCount = PAGE_SIZE;
+
+        function applyPagination() {
+            if (allCards.length === 0) {
+                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+                return;
+            }
+            allCards.forEach((card, idx) => {
+                if (idx >= shownCount) {
+                    card.classList.add('load-hidden');
+                } else {
+                    card.classList.remove('load-hidden');
+                }
+            });
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = (shownCount < allCards.length) ? 'flex' : 'none';
+            }
+        }
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => {
+                shownCount += PAGE_SIZE;
+                applyPagination();
+            });
+        }
+
+        // Initial pagination sa page load
+        applyPagination();
 
         // --- IMAGE LIGHTBOX LOGIC ---
         const imageModal = document.getElementById("imageModal");

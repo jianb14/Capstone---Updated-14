@@ -940,7 +940,19 @@ def reviews_page(request):
             review.is_liked_by_user = False
             review.can_be_liked = False
 
-    return render(request, "client/reviews.html", {"reviews": reviews})
+    # Para sa "Write a Review" CTA — may completed booking ba na walang review pa?
+    if request.user.is_authenticated:
+        has_pending_review = Booking.objects.filter(
+            user=request.user, status="completed", reviews__isnull=True
+        ).exists()
+    else:
+        has_pending_review = False
+
+    return render(
+        request,
+        "client/reviews.html",
+        {"reviews": reviews, "has_pending_review": has_pending_review},
+    )
 
 
 @login_required
@@ -5266,6 +5278,20 @@ def my_designs_page(request):
     # Order by updated_at descending so newest are first
     designs_list = UserDesign.objects.filter(user=request.user).order_by("-updated_at")
 
+    # Search by design name (?q=)
+    search_query = request.GET.get("q", "").strip()
+    if search_query:
+        designs_list = designs_list.filter(name__icontains=search_query)
+
+    # Sort (?sort=): newest (default) | oldest | name
+    sort_filter = request.GET.get("sort", "newest").strip()
+    valid_sorts = {
+        "newest": "-updated_at",
+        "oldest": "updated_at",
+        "name": "name",
+    }
+    designs_list = designs_list.order_by(valid_sorts.get(sort_filter, "-updated_at"))
+
     paginator = Paginator(designs_list, 8)  # Show 8 designs per page
     page_number = request.GET.get("page")
     designs = paginator.get_page(page_number)
@@ -5273,10 +5299,28 @@ def my_designs_page(request):
     # Get active packages for the "Create New Design" modal
     active_packages = Package.objects.filter(is_active=True).order_by("price")
 
+    # Stats bar (bottom of page) — computed from ALL designs, hindi lang
+    # ang nasa current page para tama ang counters
+    all_designs = UserDesign.objects.filter(user=request.user)
+    total_designs = all_designs.count()
+    month_start = timezone.localtime().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    created_this_month = all_designs.filter(created_at__gte=month_start).count()
+    last_edited = all_designs.order_by("-updated_at").first()
+
     return render(
         request,
         "client/my_designs.html",
-        {"designs": designs, "packages": active_packages},
+        {
+            "designs": designs,
+            "packages": active_packages,
+            "search_query": search_query,
+            "sort_filter": sort_filter,
+            "total_designs": total_designs,
+            "created_this_month": created_this_month,
+            "last_edited": last_edited,
+        },
     )
 
 

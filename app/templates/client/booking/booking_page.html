@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20260430a">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20260913r">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 
 
@@ -18,7 +18,29 @@
             <div class="calendar-legend">
                 <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Approved)</div>
             </div>
-            <div id="booking-calendar"></div>
+
+            <!-- Custom Calendar Toolbar (replaces FullCalendar default UI) -->
+            <div class="cal-toolbar">
+                <div class="cal-nav-group">
+                    <button type="button" id="cal-prev" class="cal-nav-btn" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button type="button" id="cal-next" class="cal-nav-btn" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <button type="button" id="cal-title" class="cal-title-btn" aria-haspopup="true" aria-expanded="false">
+                    <span id="cal-title-text">Loading…</span>
+                    <i class="fa-solid fa-chevron-down cal-title-caret"></i>
+                </button>
+                <div class="cal-view-group" role="group" aria-label="Calendar view">
+                    <button type="button" class="cal-view-btn active" data-view="dayGridMonth">Month</button>
+                    <button type="button" class="cal-view-btn" data-view="timeGridWeek">Week</button>
+                    <button type="button" id="cal-today" class="cal-view-btn cal-today-btn">Today</button>
+                </div>
+            </div>
+            <!-- NOTE: FullCalendar mounts INTO #booking-calendar-mount. Hindi pwedeng
+                 i-mount diretso sa #booking-calendar dahil ang mismong element ang
+                 ginagawang .fc root ng FullCalendar (dito ididikit ang classes), kaya
+                 hindi tumutugma ang mga CSS selector na "#booking-calendar .fc ..." —
+                 ito ang dahilan kung bakit hindi natatanggap ang calendar CSS. -->
+            <div id="booking-calendar"><div id="booking-calendar-mount"></div></div>
 
             <!-- Custom Month/Year Picker Modal -->
             <div id="custom-month-year-picker" class="month-year-picker" style="display: none;">
@@ -168,7 +190,7 @@
                     <div class="form-grid">
 
                         <div class="form-group full-width">
-                            <label><i class="fa-solid fa-list-ul"></i> Event Type <span class="input-required">*</span></label>
+                            <label><i class="far fa-clipboard"></i> Event Type <span class="input-required">*</span></label>
 
                             <!-- Custom Select UI -->
                             <div class="custom-select-container" id="eventTypeCustomSelect">
@@ -200,13 +222,13 @@
                         </div>
 
                         <div class="form-group full-width">
-                            <label><i class="fa-solid fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
+                            <label><i class="far fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
                             <input type="date" id="event_date" name="event_date" data-label="Event Date" required>
                             <small class="booking-field-error" id="event_date_error"></small>
                         </div>
 
                         <div class="form-group full-width">
-                            <label><i class="fa-solid fa-clock"></i> Event Duration <span class="input-required">*</span></label>
+                            <label><i class="far fa-clock"></i> Event Duration <span class="input-required">*</span></label>
                             <div class="time-row">
                                 <div class="time-field">
                                     <small>Start</small>
@@ -222,7 +244,7 @@
                         </div>
 
                         <div class="form-group full-width">
-                            <label><i class="fa-solid fa-location-dot"></i> Location (Venue Address) <span class="input-required">*</span></label>
+                            <label><i class="far fa-map"></i> Location (Venue Address) <span class="input-required">*</span></label>
                             <input type="text" id="event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" data-label="Event Location" required>
                             <small class="booking-field-error" id="event_location_error"></small>
                         </div>
@@ -235,14 +257,14 @@
 
                         <!-- Special Requests -->
                         <div class="form-group full-width">
-                            <label for="booking_special_requests"><i class="fa-solid fa-comment"></i> Special Requests (Optional)</label>
+                            <label for="booking_special_requests"><i class="far fa-comment"></i> Special Requests (Optional)</label>
                             <textarea id="booking_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                         </div>
                         
                         <!-- Reference Images -->
                         <div class="form-group full-width">
                             {% if not prefilled_design %}
-                                <label for="booking_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
+                                <label for="booking_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
                                 <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
                                 <!-- Hidden proper input for backend submission -->
                                 <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
@@ -250,7 +272,7 @@
                                 <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
                                 <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
                             {% else %}
-                                <label><i class="fa-solid fa-paint-brush"></i> Your Custom Design</label>
+                                <label><i class="far fa-pen-to-square"></i> Your Custom Design</label>
                             {% endif %}
                             
                             <!-- Container for Preview Images -->
@@ -260,7 +282,7 @@
                     </div>
 
                     <div class="modal-actions split-actions">
-                        <button type="button" class="booking-back-btn" id="btnPrevStep">Back</button>
+                        <button type="button" class="booking-back-btn" id="btnPrevStep"><i class="fa-solid fa-arrow-left"></i>Back</button>
                         <button type="button" class="btn-submit" id="btnNextToSummary">Next Step</button>
                     </div>
                 </div>
@@ -272,12 +294,12 @@
 
                     <div class="booking-review-grid">
                     <div class="booking-summary-container">
-                        <h4 class="summary-title"><i class="fa-solid fa-clipboard-check"></i> Booking Details</h4>
+                        <h4 class="summary-title"><i class="far fa-clipboard"></i> Booking Details</h4>
                         <div id="booking-details-list" class="summary-items"></div>
                     </div>
 
                     <div class="booking-summary-container">
-                        <h4 class="summary-title"><i class="fa-solid fa-receipt"></i> Booking Summary</h4>
+                        <h4 class="summary-title"><i class="far fa-file-lines"></i> Booking Summary</h4>
                         <div id="booking-item-list" class="summary-items">
                             <!-- Dynamic rows will be inserted here by JS -->
                         </div>
@@ -303,8 +325,10 @@
                     </div>
                     </div>
 
+                    <p class="review-note"><i class="fa-solid fa-circle-info"></i>Our team will verify availability and confirm your booking after submission.</p>
+
                     <div class="modal-actions split-actions">
-                        <button type="button" class="booking-back-btn" id="btnBackToDetails">Back</button>
+                        <button type="button" class="booking-back-btn" id="btnBackToDetails"><i class="fa-solid fa-arrow-left"></i>Back</button>
                         <button type="button" class="btn-submit" id="btnSubmitBooking">Submit Booking</button>
                     </div>
                 </div>
@@ -316,7 +340,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const calendarEl = document.getElementById('booking-calendar');
+        const calendarEl = document.getElementById('booking-calendar-mount');
         const modalOverlay = document.getElementById('bookingModalOverlay');
         const closeBtn = document.getElementById('closeModalBtn');
         const bookingForm = document.getElementById('bookingForm');
@@ -594,18 +618,18 @@
             const endValue = formatTimeWithMeridiem(endTimeInput.value);
             const durationValue = (startValue === '-' || endValue === '-') ? '-' : `${startValue} - ${endValue}`;
             const specialRequestsRow = specialRequestsValue
-                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsValue}</span></div>`
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsValue}</span></div>`
                 : '';
 
             detailsContainer.innerHTML = `
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-box-open"></i> Package / Items</span></div><span class="row-value">${bookedItems}</span></div>
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-list-ul"></i> Event Type</span></div><span class="row-value">${getSelectedEventTypeDisplay()}</span></div>
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-calendar-days"></i> Event Date</span></div><span class="row-value">${dateInput.value || '-'}</span></div>
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-clock"></i> Event Duration</span></div><span class="row-value">${durationValue}</span></div>
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-location-dot"></i> Location</span></div><span class="row-value">${locationValue || '-'}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-square-check"></i> Package / Items</span></div><span class="row-value">${bookedItems}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clipboard"></i> Event Type</span></div><span class="row-value">${getSelectedEventTypeDisplay()}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-calendar-days"></i> Event Date</span></div><span class="row-value">${dateInput.value || '-'}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clock"></i> Event Duration</span></div><span class="row-value">${durationValue}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-map"></i> Location</span></div><span class="row-value">${locationValue || '-'}</span></div>
                 ${specialRequestsRow}
                 <div class="summary-row" id="referencePicturesRow" style="display: none;">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-images"></i> Reference Pictures</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-images"></i> Reference Pictures</span></div>
                     <div class="row-value booking-details-images" id="booking-details-image-list"></div>
                 </div>
             `;
@@ -875,6 +899,7 @@
             const eventTriggerSpan = document.querySelector('#eventTypeCustomSelect .custom-select-trigger span');
             if (eventTriggerSpan) {
                 eventTriggerSpan.textContent = 'Select an Event';
+                eventTriggerSpan.classList.remove('selected-value');
             }
 
             btnNextStep.disabled = selectedPackageName ? false : true;
@@ -1013,15 +1038,78 @@
         // =============================================
         // FULLCALENDAR
         // =============================================
+        /* Responsive calendar helper: totoo bang mobile (<=768px) ang viewport? */
+        function isMobileCalendar() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+        /* Dots mode: mobile (<=768px) O sikip lang ang calendar mismo (<620px).
+           Ang narrow side panel sa desktop/tablet ay hindi mobile viewport pero
+           nac-clip/nadidikit lang ang mga text pills dito — kaya dots na rin,
+           pareho ng itsura sa mobile. */
+        function calendarUsesDots() {
+            if (isMobileCalendar()) return true;
+            var w = calendarEl ? calendarEl.offsetWidth : 0;
+            return w > 0 && w < 620;
+        }
+        var lastMobileCalendarState = isMobileCalendar();
+
+        /* Pill <-> dot helpers — deterministic sa kahit anong re-render.
+           - makeEventDot: inline dot styling (inline = talo ang kahit anong CSS)
+           - restoreEventPill: binabawi ang LAHAT ng inline styles natin = balik sa
+             default FullCalendar pill na may full text (walang nasirang content)
+           - applyCalendarEventMode: sini-sweep ang buong calendar pagkatapos ng
+             bawat render / resize / navigation — hindi na mangangamote ang estado
+             (ito ang nag-ayos ng dot na nai-stuck sa desktop). */
+        var DOT_PROPS = ['width', 'height', 'minHeight', 'padding', 'borderRadius', 'overflow', 'fontSize', 'lineHeight', 'borderColor'];
+        var BOOKING_EVENT_COLOR = '#0d6efd';
+
+        function makeEventDot(el) {
+            var main = el.querySelector('.fc-event-main');
+            if (main) main.style.display = 'none';
+            el.style.backgroundColor = el.style.backgroundColor || BOOKING_EVENT_COLOR;
+            el.style.borderColor = 'transparent';
+            /* 12x6: mas mataas kaysa dati (5px) para solid ang blue at hindi
+               wash-out mula sa antialiasing sa maliliit na screens */
+            el.style.width = '12px';
+            el.style.height = '6px';
+            el.style.minHeight = '6px';
+            el.style.padding = '0';
+            el.style.borderRadius = '3px';
+            el.style.overflow = 'hidden';
+            el.style.fontSize = '0';
+            el.style.lineHeight = '0';
+        }
+
+        function restoreEventPill(el) {
+            DOT_PROPS.forEach(function (p) { el.style[p] = ''; });
+            var main = el.querySelector('.fc-event-main');
+            if (main) main.style.display = '';
+        }
+
+        function applyCalendarEventMode() {
+            var useDots = calendarUsesDots();
+            document.querySelectorAll('#booking-calendar .fc .fc-event').forEach(function (el) {
+                /* Ang events sa loob ng "+N more" popover: text pills dapat palagi */
+                if (el.closest('.fc-popover')) return;
+                /* WEEK VIEW (timeGrid): HUWAG gawing dot — dapat block na
+                   nakikita ang totoong sakop na oras ng booking (mula start
+                   hanggang end), may nakasulat na time range. */
+                if (el.closest('.fc-timegrid')) { restoreEventPill(el); return; }
+                if (useDots) makeEventDot(el); else restoreEventPill(el);
+            });
+        }
+
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
+            /* Height 'auto': hindi na gagamitin ng FullCalendar ang default
+               aspectRatio (1.35) na nagse-stretch ng rows para mapuno ang
+               calendar height — dito nagmumula ang malaking espasyo sa ilalim
+               ng mga events at ng "+N more" link. Content height na lang ang rows. */
+            height: 'auto',
             showNonCurrentDates: false,
             fixedWeekCount: false,
-            headerToolbar: {
-                left: 'prev,next',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,today'
-            },
+            /* Sariling custom toolbar (.cal-toolbar sa taas) — wala nang default FullCalendar header */
+            headerToolbar: false,
             validRange: function () {
                 return {
                     start: getCurrentMonthStartStr()
@@ -1043,14 +1131,14 @@
                     const dayNumber = arg.el.querySelector('.fc-daygrid-day-number');
                     if (dayNumber) {
                         dayNumber.classList.add('booking-day-number-disabled');
-                        dayNumber.style.color = 'rgba(255, 255, 255, 0.28)';
                         dayNumber.style.opacity = '0.45';
                     }
                 }
             },
             eventDisplay: 'block',
             displayEventTime: false,
-            dayMaxEvents: 2,
+            /* Mobile / sikip na calendar: mas maraming event dots ang kasya kada cell */
+            dayMaxEvents: calendarUsesDots() ? 3 : 2,
 
             events: [
                 {% for event in calendar_events %}
@@ -1082,6 +1170,28 @@
                 : formatEventTooltipTime(startDate);
 
             info.el.setAttribute('title', `${dateText}\n${timeText}`);
+
+            /* DOTS MODE (mobile O sikip na calendar): i-convert ang default pill
+               into compact event dot gamit ang inline styles — deterministic ito.
+               WIDE: normal na full-text pill. WEEK VIEW (timeGrid): huwag dot —
+               block na may totoong sakop na oras. Ang events sa loob ng "+N more"
+               popover: text pills palagi para readable ang listahan. Kapag nag-
+               cross ng breakpoint, ang applyCalendarEventMode sweep ang mag-ayos. */
+            if (calendarUsesDots() && !info.el.closest('.fc-popover') && !info.el.closest('.fc-timegrid')) {
+                makeEventDot(info.el);
+            }
+        },
+
+        /* Kapag nag-resize ang window (o nag-rotate ang phone): i-refresh ang
+           dayMaxEvents kapag nag-cross ng dots breakpoint, AT laging i-sweep
+           ang lahat ng events para tama ang pill <-> dot mode. */
+        windowResize: function () {
+            const dotsNow = calendarUsesDots();
+            if (dotsNow !== lastMobileCalendarState) {
+                lastMobileCalendarState = dotsNow;
+                calendar.setOption('dayMaxEvents', dotsNow ? 3 : 2);
+            }
+            applyCalendarEventMode();
         },
 
         dateClick: function (info) {
@@ -1115,20 +1225,65 @@
         });
 
     calendar.render();
+    /* Siguraduhing tama ang pill <-> dot mode pagkatapos ng unang render */
+    applyCalendarEventMode();
 
     function updateCalendarNavState() {
         const currentDate = calendar.getDate();
-        const prevButton = calendarEl.querySelector('.fc-prev-button');
+        const prevButton = document.getElementById('cal-prev');
         if (prevButton) {
             const atEarliestMonth = isBeforeCurrentMonth(currentDate.getFullYear(), currentDate.getMonth() - 1);
             prevButton.disabled = atEarliestMonth;
-            prevButton.classList.toggle('fc-button-disabled', atEarliestMonth);
             prevButton.setAttribute('aria-disabled', atEarliestMonth ? 'true' : 'false');
             prevButton.title = atEarliestMonth ? 'Past months are not available for booking.' : '';
         }
+
+        // Custom title + view button states
+        const titleTextEl = document.getElementById('cal-title-text');
+        if (titleTextEl) titleTextEl.textContent = calendar.view.title || '';
+
+        document.querySelectorAll('.cal-view-btn[data-view]').forEach(function (btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-view') === calendar.view.type);
+        });
+
+        /* TODAY BUTTON: i-disable kapag ang today ay nasa loob na ng
+           kasalukuyang binibiew na range (current month o current week).
+           Lalabas/gagana lang ito kapag nag-navigate sa ibang month/week. */
+        const todayBtn = document.getElementById('cal-today');
+        if (todayBtn) {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const todayInView = todayStart >= calendar.view.activeStart && todayStart < calendar.view.activeEnd;
+            todayBtn.disabled = todayInView;
+            todayBtn.setAttribute('aria-disabled', todayInView ? 'true' : 'false');
+            todayBtn.title = todayInView ? "You're already viewing today." : 'Go back to today';
+        }
     }
 
+    // Custom toolbar wiring (prev / next / today / view switch)
+    const calPrevBtn = document.getElementById('cal-prev');
+    const calNextBtn = document.getElementById('cal-next');
+    const calTodayBtn = document.getElementById('cal-today');
+
+    if (calPrevBtn) calPrevBtn.addEventListener('click', function () {
+        if (!calPrevBtn.disabled) calendar.prev();
+    });
+    if (calNextBtn) calNextBtn.addEventListener('click', function () {
+        calendar.next();
+    });
+    if (calTodayBtn) calTodayBtn.addEventListener('click', function () {
+        if (!calTodayBtn.disabled) calendar.today();
+    });
+
+    document.querySelectorAll('.cal-view-btn[data-view]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (btn.classList.contains('active')) return;
+            calendar.changeView(btn.getAttribute('data-view'));
+        });
+    });
+
     calendar.on('datesSet', updateCalendarNavState);
+    calendar.on('datesSet', applyCalendarEventMode);
     updateCalendarNavState();
 
     // =============================================
@@ -1155,33 +1310,34 @@
         });
     }
 
-    // Intercept clicks on the calendar title
-    document.getElementById('booking-calendar').addEventListener('click', function (e) {
-        if (e.target.classList.contains('fc-toolbar-title')) {
-            const currentDate = calendar.getDate();
-            currentPickerYear = currentDate.getFullYear();
-            const currentMonth = currentDate.getMonth();
+    // Intercept clicks on the custom calendar title (opens month/year picker)
+    document.getElementById('cal-title').addEventListener('click', function () {
+        const currentDate = calendar.getDate();
+        currentPickerYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
 
-            // Highlight current month
-            mypMonthBtns.forEach(btn => {
-                if (parseInt(btn.getAttribute('data-month')) === currentMonth) {
-                    btn.classList.add('active-month');
-                } else {
-                    btn.classList.remove('active-month');
-                }
-            });
+        // Highlight current month
+        mypMonthBtns.forEach(btn => {
+            if (parseInt(btn.getAttribute('data-month')) === currentMonth) {
+                btn.classList.add('active-month');
+            } else {
+                btn.classList.remove('active-month');
+            }
+        });
 
-            updateMonthYearPickerState();
-            mypModal.style.display = 'block';
-        }
+        updateMonthYearPickerState();
+        this.setAttribute('aria-expanded', 'true');
+        mypModal.style.display = 'block';
     });
 
     // Close modal if clicked outside
     document.addEventListener('click', function (e) {
         if (mypModal.style.display === 'block') {
             // Check if click originates inside the modal or on the title itself
-            if (!mypModal.contains(e.target) && !e.target.classList.contains('fc-toolbar-title') && !e.target.closest('.myp-header')) {
+            if (!mypModal.contains(e.target) && !e.target.closest('#cal-title') && !e.target.closest('.myp-header')) {
                 mypModal.style.display = 'none';
+                const titleBtn = document.getElementById('cal-title');
+                if (titleBtn) titleBtn.setAttribute('aria-expanded', 'false');
             }
         }
     });
@@ -1208,6 +1364,8 @@
             calendar.gotoDate(newDate);
 
             mypModal.style.display = 'none';
+            const titleBtn = document.getElementById('cal-title');
+            if (titleBtn) titleBtn.setAttribute('aria-expanded', 'false');
         });
     });
 
@@ -1595,7 +1753,7 @@
 
                 // Update visual trigger
                 triggerText.textContent = text;
-                triggerText.style.color = '#fff';
+                triggerText.classList.add('selected-value');
 
                 // Update hidden input
                 hiddenInput.value = value;
@@ -1784,7 +1942,7 @@
                             const triggerSpan = document.querySelector('#eventTypeCustomSelect .custom-select-trigger span');
                             if (triggerSpan) {
                                 triggerSpan.textContent = 'Select an Event';
-                                triggerSpan.style.color = '#999';
+                                triggerSpan.classList.remove('selected-value');
                             }
                             const eventTypeHidden = document.getElementById('event_type_select');
                             if (eventTypeHidden) eventTypeHidden.value = '';

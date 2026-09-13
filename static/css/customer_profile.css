@@ -1394,6 +1394,8 @@ td {
 .booking-modal-box .btn-submit:hover {
     background: rgba(255, 255, 255, 0.8);
     color: #000000;
+    /* I-match ang border sa hover bg — ayaw ng puting ring sa gilid */
+    border-color: rgba(255, 255, 255, 0.8);
 }
 
 /* --- EDIT MODAL REFINEMENTS --- */
@@ -1648,6 +1650,8 @@ td {
     justify-content: center;
     font-size: 0.85rem;
     font-weight: bold;
+    /* Kapalan ang check icon — katulad ng booking modal fix */
+    -webkit-text-stroke: 0.6px currentColor;
 }
 
 .package-info {
@@ -1897,21 +1901,25 @@ td {
 }
 
 #edit-step-3 #edit-booking-details-list .row-label {
-    font-size: 0.74rem;
+    font-size: 0.76rem;
     font-weight: 600;
     color: #8b93a0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
+    line-height: 1.4;
 }
 
 #edit-step-3 #edit-booking-details-list .row-label i {
     color: #8a8a8a;
     width: 14px;
-    text-align: center;
-    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 #edit-step-3 #edit-booking-details-list .row-value {
@@ -1957,11 +1965,26 @@ td {
 }
 
 #edit-step-3 .total-row {
-    margin-top: 0.9rem;
-    padding: 0.9rem 0.75rem 0.75rem;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
+    margin-top: 0.4rem;
+    padding: 1rem 0.1rem 0;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    background: transparent;
+}
+
+/* Mirror ng booking modal total-row typography (walang bg, text lang) */
+#edit-step-3 .total-row .row-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #9ca3af;
+    letter-spacing: 0.02em;
+}
+
+#edit-step-3 .total-row .total-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
 
 @media (max-width: 900px) {
@@ -2001,7 +2024,8 @@ td {
 }
 
 .booking-modal-box .btn-submit {
-    flex: 2;
+    /* Pantay sa Back button kapag nasa .split-actions */
+    flex: 1 1 0;
     margin-top: 0;
 }
 
@@ -2831,6 +2855,10 @@ td {
         width: 92%;
     }
 
+    /* Mobile: ibaba nang onti ang stepper + itaas ang X — mirror ng booking modal fix */
+    .stepper-header { padding-top: 2rem; }
+    .stepper-header .close-btn { top: -8px; }
+
     .step-label {
         font-size: 0.58rem;
         width: 74px;
@@ -3085,3 +3113,46 @@ td {
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
 }
+
+/* ========================================================
+   MIRROR: Step 3 (Review & Confirm) ng Edit Booking modal
+   Pareho ng fixes sa booking modal — walang double border sa
+   Service & Logistics Fee, at responsive na details rows.
+   ======================================================== */
+
+/* Service & Logistics Fee: walang sariling border-bottom — isang separator
+   lang (border-top ng Total Price) sa pagitan ng fee at total. */
+#edit-step-3 .service-charge-summary {
+    border-bottom: none;
+}
+
+/* Kung may nakatagong trailing row man sa details list (pareho ng booking
+   modal), tanggalin din ang border ng huling VISIBLE na row. */
+#edit-step-3 #edit-booking-details-list .summary-row:nth-last-child(2):has(+ .summary-row[style*='display: none']) {
+    border-bottom: none;
+}
+
+@media (max-width: 768px) {
+    #edit-step-3 #edit-booking-details-list .summary-row {
+        grid-template-columns: minmax(100px, 140px) minmax(0, 1fr);
+        gap: 0.55rem;
+    }
+    #edit-step-3 .summary-row .row-value {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Stacked: label sa taas, value sa baba */
+    #edit-step-3 #edit-booking-details-list .summary-row {
+        grid-template-columns: 1fr;
+        row-gap: 0.1rem;
+    }
+    #edit-step-3 #edit-booking-details-list .row-value {
+        text-align: left;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+

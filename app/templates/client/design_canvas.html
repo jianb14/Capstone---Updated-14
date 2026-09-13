@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20260429c">
+<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20260910n">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
@@ -385,7 +385,7 @@
                     <div class="cart-base-package">
                         <div style="display: flex; justify-content: space-between; align-items: baseline;">
                             <span><strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}No Package Selected{% endif %}</span></span>
-                            <span id="cartBasePrice" style="font-weight: 600; color: #fff;">{% if base_package %}P{{ base_package.price }}{% endif %}</span>
+                            <span id="cartBasePrice" style="font-weight: 600;">{% if base_package %}P{{ base_package.price }}{% endif %}</span>
                         </div>
                     </div>
 
@@ -438,6 +438,22 @@
 document.addEventListener('DOMContentLoaded', function() {
     const floatBtn = document.getElementById('summaryFloatBtn');
     const floatPanel = document.getElementById('summaryFloatPanel');
+
+    // Sukatin ang totoong height ng site navbar at i-set bilang CSS variable
+    // para hindi nababara/nakikipozte ang canvas toolbar sa ilalim ng navbar
+    // (mas mataas na kasi ang navbar kapag may avatar/bell icons).
+    const navEl = document.querySelector('nav.navbar');
+    const applyNavOffset = () => {
+        if (!navEl) return;
+        const h = Math.round(navEl.getBoundingClientRect().height);
+        if (h > 0) {
+            document.documentElement.style.setProperty('--canvas-nav-offset', h + 'px');
+        }
+    };
+    applyNavOffset();
+    window.addEventListener('resize', applyNavOffset);
+    window.addEventListener('load', applyNavOffset);
+
     if (!floatBtn || !floatPanel) return;
 
     const closePanel = () => {
@@ -452,6 +468,22 @@ document.addEventListener('DOMContentLoaded', function() {
         floatBtn.classList.toggle('active', isOpen);
         floatBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
+
+    // Sa mobile/responsive (≤1024px), i-collapse by default ang Design Summary
+    // para hindi nito harangan ang canvas — i-tap lang ang floating button
+    // sa kanang ibaba para buksan muli. Desktop behavior: open by default.
+    const summaryMobileQuery = window.matchMedia('(max-width: 1024px)');
+    const syncSummaryForViewport = () => {
+        if (summaryMobileQuery.matches) {
+            closePanel();
+        }
+    };
+    syncSummaryForViewport();
+    if (typeof summaryMobileQuery.addEventListener === 'function') {
+        summaryMobileQuery.addEventListener('change', syncSummaryForViewport);
+    } else if (typeof summaryMobileQuery.addListener === 'function') {
+        summaryMobileQuery.addListener(syncSummaryForViewport);
+    }
 
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closePanel();

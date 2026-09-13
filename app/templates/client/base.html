@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}">
-    <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
-    <link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260913k">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260913a">
+<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20260911i">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="{% static 'js/theme-toggle.js' %}"></script>
     {% block extra_css %}{% endblock %}
@@ -47,13 +47,13 @@
             // Sukatin ang AKTUAL na navbar height bago i-position ang drawer at
             // overlay. Hardcoded na "53px" sa CSS ang dating offset, pero
             // mag-iiba-iba ang totoong taas ng navbar per device (font rendering,
-            // hamburger size, atbp.) — kapag hindi tugma, nag-o-overlap ang
+            // hamburger size, atbp.) â€” kapag hindi tugma, nag-o-overlap ang
             // drawer sa ibabang bahagi ng navbar (mukhang "dalawang navbar").
             const navEl = document.querySelector("nav");
             const mobileMQ = window.matchMedia("(max-width: 968px)");
             const syncDrawerOffset = function () {
                 if (!navEl) return;
-                // Desktop: walang fixed drawer — tanggalin ang inline styles
+                // Desktop: walang fixed drawer â€” tanggalin ang inline styles
                 // para hindi mapahaba ang .nav-links (nagiging ~100vh ito at
                 // natutulak pababa ang buong page kapag hindi tinanggal)
                 if (!mobileMQ.matches) {
@@ -356,10 +356,10 @@
     <style>
         .ai-fab {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 50px;
-            height: 50px;
+            bottom: 24px;
+            right: 24px;
+            width: 46px;
+            height: 46px;
             background: linear-gradient(135deg, var(--white) 0%, #e0e0e0 100%);
             border-radius: 50%;
             display: flex;
@@ -370,12 +370,11 @@
             z-index: 9999;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid var(--black);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         }
 
-        /* Tooltip */
+        /* Tooltip â€” pareho ng admin chat toggle (same size, same font) */
         .ai-fab::after {
-            content: 'Chat with Balloorina';
+            content: 'Chat with Balloorina AI';
             position: absolute;
             right: calc(100% + 12px);
             top: 50%;
@@ -385,7 +384,10 @@
             backdrop-filter: blur(10px);
             color: var(--white);
             padding: 8px 14px;
+            min-width: 160px;
+            text-align: center;
             border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
             font-size: 0.8rem;
             font-weight: 600;
             white-space: nowrap;
@@ -409,17 +411,29 @@
             transform: rotate(90deg) scale(0);
         }
 
+        /* ==========================================
+           AI LANG: kapag bukas ang AI chat box, matatakluban/
+           matatago ang Admin Support icon (yun lang ang hiningi).
+           Kapag ADMIN naman ang bukas, MANANATILING nakikita ang
+           AI FAB — walang kabilaang pagtatago.
+           ========================================== */
+        body:has(.ai-widget-container.active) .admin-chat-float {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
         .ai-widget-container {
             position: fixed;
             bottom: 110px;
-            right: 30px;
-            width: 680px;
+            right: 24px;
+            width: min(680px, calc(100vw - 48px));
             height: 600px;
-            max-height: 80vh;
+            max-height: min(80vh, calc(100dvh - 130px));
             background-color: var(--black);
             border: 1px solid var(--light-gray);
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: row;
             z-index: 9998;
@@ -555,6 +569,9 @@
             flex-direction: column;
             background: linear-gradient(180deg, var(--black) 0%, #0a0a0a 100%);
             min-width: 0;
+            /* min-height: 0 — flex child sa ≤480px column layout; kung wala,
+               hindi lumiit kahit mag-overflow ang laman */
+            min-height: 0;
             position: relative;
         }
 
@@ -563,8 +580,14 @@
             background-color: transparent;
             border-bottom: 1px solid var(--light-gray);
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ai-chat-header-info {
+            flex: 1;
+            min-width: 0;
         }
 
         .ai-chat-header-info h3 {
@@ -594,8 +617,40 @@
             color: var(--white);
         }
 
+        /* Hamburger menu (ChatGPT-style drawer trigger) — nakatago sa desktop,
+           lumalabas lang sa mobile/tablet kapag drawer mode ang sidebar */
+        .ai-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--dark-gray);
+            cursor: pointer;
+            padding: 6px;
+            margin-left: -6px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            line-height: 0;
+            transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .ai-menu-btn:hover {
+            color: var(--white);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .ai-menu-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
         .ai-chat-box {
             flex-grow: 1;
+            /* min-height: 0 — yung CORE ng responsive bug: kapag wala ito,
+               hindi lumiit ang chat area kahit marami nang messages/images
+               (default na min-height:auto ng flex items), kaya natutulak
+               palabas ng widget ang suggestion chips + input area —
+               nawawala ang input box sa responsive (yung bug sa screenshot) */
+            min-height: 0;
             padding: 1rem 1.2rem;
             overflow-y: auto;
             overflow-x: hidden;
@@ -658,6 +713,15 @@
             border: 1px solid var(--light-gray);
         }
 
+        /* Responsive images sa loob ng chat (generated backdrops atbp.) —
+           hindi lalampas sa haba ng bubble kahit maliit ang screen */
+        .ai-chat-box img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 10px;
+        }
+
         .ai-image-fallback {
             padding: 12px;
             margin-top: 8px;
@@ -707,6 +771,8 @@
 
         .ai-input-area {
             display: flex;
+            /* Laging nakikita sa loob ng widget kahit mag-overflow ang chat */
+            flex-shrink: 0;
             padding: 0.3rem 0.5rem;
             background-color: var(--gray);
             border: 1px solid #3a3a3a;
@@ -967,11 +1033,32 @@
             flex-direction: row;
             justify-content: left;
             align-items: center;
+            /* HINDI na nag-wrap — horizontal scroll na may maliit na
+               scrollbar para hindi nagpapatong/nagpapabitin ang chips */
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
             gap: 8px;
             padding: 4px 1rem 0 1rem;
             margin-top: auto;
             z-index: 10;
             background: transparent !important;
+            /* Maliit na scrollbar (Firefox) */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Maliit na scrollbar (WebKit/Chromium) */
+        .ai-suggestion-chips::-webkit-scrollbar {
+            height: 4px;
+        }
+        .ai-suggestion-chips::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .ai-suggestion-chips::-webkit-scrollbar-thumb {
+            background: rgba(128, 128, 128, 0.5);
+            border-radius: 999px;
         }
 
         .ai-chip {
@@ -985,7 +1072,9 @@
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
-            flex: 1;
+            /* 0 0 auto: hindi lumi-lumiit ang chips — nag-o-overflow sila
+               nang pahalang at nag-s-scroll (kasama ng maliit na scrollbar) */
+            flex: 0 0 auto;
             text-align: center;
             max-width: fit-content;
         }
@@ -1001,41 +1090,467 @@
             }
         }
 
-        @media screen and (max-width: 480px) {
+        @media screen and (max-width: 768px) {
+            /* Pantay na 12px spacing magkabilang gilid. HINDI na tayo
+               umaasa sa calc(100vw - 24px) — kasama sa 100vw ang scrollbar
+               width (~17px), pero ang right/left offsets ay relative sa
+               viewport na WALANG scrollbar, kaya dati -5px ang kaliwang
+               gilid = dikit sa kaliwa. Ang left+right+width:auto stretch ay
+               laging pantay kahit may scrollbar. */
             .ai-widget-container {
-                width: calc(100% - 40px);
-                right: 20px;
-                bottom: 100px;
-                height: 550px;
-                flex-direction: column;
+                left: 12px;
+                right: 12px;
+                width: auto;
+                bottom: 74px; /* 12px gap sa itaas ng AI FAB */
+            }
+
+            /* ==========================================
+               CHATGPT-STYLE DRAWER (mobile/tablet):
+               ang sidebar (New Chat + Recent Chats) ay
+               nagiging slide-out drawer mula sa kaliwa,
+               may backdrop. Sa desktop: normal column.
+               ========================================== */
+            .ai-menu-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
             }
 
             .ai-sidebar {
-                width: 100%;
-                height: 120px;
-                flex-shrink: 0;
-                border-right: none;
-                border-bottom: 1px solid var(--light-gray);
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(240px, 80%);
+                min-width: 0;
+                transform: translateX(-105%);
+                transition: transform 0.28s cubic-bezier(0.19, 1, 0.22, 1);
+                /* WALANG box-shadow dito — kapag naka-translateX(-105%) ang
+                   sidebar, ang shadow (8px x-offset + 24px blur) ay umaabot
+                   pa rin ng ~20px sa loob ng widget = yung parang "inset
+                   shadow" sa kaliwa. Ilalagay na lang sa .drawer-open rule
+                   sa ibaba para visible lang kapag bukas ang drawer. */
+                z-index: 40;
             }
 
-            .ai-recent-chats {
-                display: none;
+            .ai-widget-container.drawer-open .ai-sidebar {
+                transform: translateX(0);
+                box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
+            }
+
+            .ai-sidebar-backdrop {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.55);
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.25s ease, visibility 0.25s ease;
+                z-index: 35;
+            }
+
+            .ai-widget-container.drawer-open .ai-sidebar-backdrop {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            /* Pantay na 12px spacing magkabilang gilid (tingnan ang paliwanag
+               sa ≤768px block sa itaas — hindi umaasa sa 100vw) */
+            .ai-widget-container {
+                left: 12px;
+                right: 12px;
+                width: auto;
+                bottom: 70px;
+                height: min(550px, calc(100dvh - 150px));
+                max-height: calc(100dvh - 150px);
+                flex-direction: column;
+            }
+
+            .ai-chat-box {
+                padding: 0.8rem 0.9rem;
+            }
+
+            .ai-message-bubble {
+                max-width: 92%;
+            }
+
+            /* Chips: hindi lumi-lumiit — horizontal scroll na may maliit na
+               scrollbar (tingnan ang base .ai-suggestion-chips rule) */
+            .ai-chip {
+                flex: 0 0 auto;
             }
 
             .ai-fab {
-                bottom: 20px;
-                right: 20px;
-                width: 55px;
-                height: 55px;
-                font-size: 24px;
+                bottom: 16px;
+                right: 16px;
+                width: 46px;
+                height: 46px;
+                font-size: 20px;
             }
+        }
+
+        /* ==========================================
+           LIGHT MODE â€” AI Design Assistant
+           (dashboard-style: white panel, black accents)
+           ========================================== */
+        [data-theme="light"] .ai-widget-container {
+            background-color: #ffffff;
+            border-color: #e5e7eb;
+        }
+
+        [data-theme="light"] .ai-fab {
+            background: #111111;
+            color: #ffffff;
+            border-color: #111111;
+            
+        }
+
+        [data-theme="light"] .ai-fab::after {
+            background: #ffffff;
+            color: #111111;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1);
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+
+        [data-theme="light"] .ai-sidebar {
+            background-color: #f9f9fa;
+            border-right-color: #e5e7eb;
+        }
+
+        [data-theme="light"] .ai-new-chat-btn {
+            background-color: #111111;
+            color: #ffffff;
+        }
+
+        [data-theme="light"] .ai-new-chat-btn:hover,
+        [data-theme="light"] .ai-new-chat-btn:focus,
+        [data-theme="light"] .ai-new-chat-btn:active {
+            background-color: #3f3f46;
+        }
+
+        [data-theme="light"] .ai-recent-chats h4 {
+            color: #6b7280;
+        }
+
+        [data-theme="light"] .ai-recent-chat-item {
+            color: #52525b;
+        }
+
+        [data-theme="light"] .ai-recent-chat-item:hover,
+        [data-theme="light"] .ai-recent-chat-item.active,
+        [data-theme="light"] .ai-recent-chat-item:focus {
+            background-color: #f4f4f5;
+            color: #111111;
+            border-color: #e4e4e7;
+        }
+
+        [data-theme="light"] .ai-main-chat {
+            background: linear-gradient(180deg, #ffffff 0%, #f7f7f8 100%);
+        }
+
+        [data-theme="light"] .ai-chat-header {
+            border-bottom-color: #e5e7eb;
+        }
+
+        [data-theme="light"] .ai-chat-header-info h3 {
+            color: #111111;
+        }
+
+        [data-theme="light"] .ai-chat-header-info p {
+            color: #6b7280;
+        }
+
+        [data-theme="light"] .ai-close-btn {
+            color: #6b7280;
+        }
+
+        [data-theme="light"] .ai-close-btn:hover {
+            color: #111111;
+        }
+
+        [data-theme="light"] .ai-user-msg {
+            background-color: #111111;
+            color: #ffffff;
+        }
+
+        [data-theme="light"] .ai-bot-msg {
+            background-color: #f9f9fa;
+            color: #27272a;
+            border-color: #e4e4e7;
+        }
+
+        [data-theme="light"] .ai-typing {
+            background-color: #f4f4f5;
+        }
+
+        [data-theme="light"] .ai-dot {
+            background-color: #111111;
+        }
+
+        [data-theme="light"] .ai-chip {
+            background: rgba(0, 0, 0, 0.04);
+            border-color: rgba(0, 0, 0, 0.12);
+            color: #3f3f46;
+        }
+
+        [data-theme="light"] .ai-chip:hover {
+            background: rgba(0, 0, 0, 0.08);
+            color: #111111;
+        }
+
+        /* ==========================================
+           INPUT FIELD â€” bulletproof stability (lahat ng theme)
+           Ang global rules (notifications.css atbp.) ay nagdaragdag
+           ng 1px border / focus ring sa textarea na may !important â€”
+           kaya nag-iiba ang laki ng input pag nag-hover/focus.
+           Pinag-iisa dito ang LAHAT ng states sa iisang laki:
+           walang galaw kahit kailan.
+           ========================================== */
+        #ai-widget-input,
+        #ai-widget-input:hover,
+        #ai-widget-input:focus,
+        #ai-widget-input:focus-visible,
+        #ai-widget-input:active,
+        [data-theme="light"] #ai-widget-input,
+        [data-theme="light"] #ai-widget-input:hover,
+        [data-theme="light"] #ai-widget-input:focus,
+        [data-theme="light"] #ai-widget-input:focus-visible,
+        [data-theme="light"] #ai-widget-input:active,
+        [data-theme="dark"] #ai-widget-input,
+        [data-theme="dark"] #ai-widget-input:hover,
+        [data-theme="dark"] #ai-widget-input:focus,
+        [data-theme="dark"] #ai-widget-input:focus-visible,
+        [data-theme="dark"] #ai-widget-input:active {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+            padding: 6px 12px !important;
+            font-size: 0.95rem !important;
+            line-height: 1.5 !important;
+            min-height: 24px !important;
+            transform: none !important;
+            scale: none !important;
+            zoom: 1 !important;
+        }
+
+        [data-theme="light"] #ai-widget-input {
+            color: #111111 !important;
+        }
+
+        [data-theme="light"] #ai-widget-input::placeholder {
+            color: #a1a1aa !important;
+        }
+
+        [data-theme="light"] .ai-input-area {
+            background-color: #ffffff;
+            border: 1px solid #d4d4d8;
+        }
+
+        [data-theme="light"] .ai-input-area:focus-within {
+            border-color: #a1a1aa;
+        }
+
+        [data-theme="light"] #ai-widget-send {
+            background-color: #111111;
+            color: #ffffff;
+        }
+
+        [data-theme="light"] #ai-widget-send:hover:not(:disabled) {
+            background-color: #3f3f46;
+        }
+
+        [data-theme="light"] #ai-widget-send:disabled {
+            background-color: #e4e4e7;
+            color: #a1a1aa;
         }
 
         /* Ensure SweetAlert modals appear above the AI widget */
         .swal2-container {
             z-index: 10000 !important;
         }
-    </style>
+
+        /* ==========================================
+           SweetAlert TOASTS + POPUPS — unified design
+           sa light & dark mode, responsive sa mobile.
+           Ang JS mixin ay nagse-set ng inline dark bg,
+           kaya !important ang kailangan sa overrides.
+           BUTTONS: iisa ang color scheme — brand blue
+           (#0d6efd) ang confirm sa both modes, outline
+           ang cancel na sumasabay sa theme.
+           ICONS: consistent palette (green/red/blue/amber)
+           na bagay sa puti at itim na background.
+           ========================================== */
+
+         /* --- DARK MODE (default) --- */
+         .swal2-toast {
+             background: #1a1a1a !important;
+             color: #ffffff !important;
+             border: 1px solid rgba(255, 255, 255, 0.12) !important;
+             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important;
+             padding: 10px 14px !important;
+         }
+         .swal2-toast .swal2-title {
+             color: #ffffff !important;
+             font-size: 0.88rem !important;
+             font-weight: 600 !important;
+             margin: 0 !important;
+         }
+         .swal2-toast .swal2-timer-progress-bar {
+             background: rgba(255, 255, 255, 0.25) !important;
+         }
+         .swal2-popup {
+             background: #1a1a1a !important;
+             color: #ffffff !important;
+             border: 1px solid rgba(255, 255, 255, 0.12) !important;
+             border-radius: 14px !important;
+         }
+         .swal2-popup .swal2-title {
+             color: #ffffff !important;
+         }
+         .swal2-popup .swal2-html-container {
+             color: #d4d4d8 !important;
+         }
+
+         /* --- LIGHT MODE --- */
+         [data-theme="light"] .swal2-toast {
+             background: #ffffff !important;
+             color: #111111 !important;
+             border: 1px solid #e5e7eb !important;
+             box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14) !important;
+         }
+         [data-theme="light"] .swal2-toast .swal2-title {
+             color: #111111 !important;
+         }
+         [data-theme="light"] .swal2-toast .swal2-timer-progress-bar {
+             background: rgba(17, 17, 17, 0.25) !important;
+         }
+         [data-theme="light"] .swal2-popup {
+             background: #ffffff !important;
+             color: #111111 !important;
+             border: 1px solid #e5e7eb !important;
+         }
+         [data-theme="light"] .swal2-popup .swal2-title {
+             color: #111111 !important;
+         }
+         [data-theme="light"] .swal2-popup .swal2-html-container {
+             color: #52525b !important;
+         }
+
+         /* --- BUTTONS: iisang color scheme sa light & dark --- */
+         .swal2-popup .swal2-confirm {
+             background-color: #0d6efd !important;
+             color: #ffffff !important;
+             border: 1px solid #0d6efd !important;
+             border-radius: 8px !important;
+             font-weight: 600 !important;
+         }
+         .swal2-popup .swal2-confirm:hover,
+         .swal2-popup .swal2-confirm:focus {
+             background-color: #0b5ed7 !important;
+             border-color: #0b5ed7 !important;
+             color: #ffffff !important;
+         }
+         .swal2-popup .swal2-cancel {
+             background-color: transparent !important;
+             color: #ffffff !important;
+             border: 1px solid rgba(255, 255, 255, 0.28) !important;
+             border-radius: 8px !important;
+             font-weight: 600 !important;
+         }
+         .swal2-popup .swal2-cancel:hover,
+         .swal2-popup .swal2-cancel:focus {
+             background-color: rgba(255, 255, 255, 0.08) !important;
+             color: #ffffff !important;
+         }
+         [data-theme="light"] .swal2-popup .swal2-cancel {
+             background-color: #ffffff !important;
+             color: #111111 !important;
+             border: 1px solid #d4d4d8 !important;
+         }
+         [data-theme="light"] .swal2-popup .swal2-cancel:hover,
+         [data-theme="light"] .swal2-popup .swal2-cancel:focus {
+             background-color: #f4f4f5 !important;
+             color: #111111 !important;
+         }
+
+         /* --- ICONS: consistent, bagay sa both themes --- */
+         .swal2-icon.swal2-success {
+             border-color: #22c55e !important;
+             color: #22c55e !important;
+         }
+         .swal2-icon.swal2-success .swal2-success-line-tip,
+         .swal2-icon.swal2-success .swal2-success-line-long {
+             background-color: #22c55e !important;
+         }
+         .swal2-icon.swal2-error {
+             border-color: #dc2626 !important;
+             color: #dc2626 !important;
+         }
+         .swal2-icon.swal2-error .swal2-x-mark-line-left,
+         .swal2-icon.swal2-error .swal2-x-mark-line-right {
+             background-color: #dc2626 !important;
+         }
+         .swal2-icon.swal2-info {
+             border-color: #3b82f6 !important;
+             color: #3b82f6 !important;
+         }
+         .swal2-icon.swal2-warning {
+             border-color: #eab308 !important;
+             color: #eab308 !important;
+         }
+
+         /* --- RESPONSIVE: compact toasts sa mobile --- */
+         @media (max-width: 768px) {
+             .swal2-toast {
+                 max-width: calc(100vw - 24px) !important;
+                 padding: 8px 12px !important;
+             }
+             .swal2-toast .swal2-icon {
+                 width: 1.05rem !important;
+                 height: 1.05rem !important;
+                 margin: 0 8px 0 0 !important;
+             }
+             .swal2-toast .swal2-icon .swal2-icon-content {
+                 font-size: 0.7rem !important;
+             }
+             .swal2-toast .swal2-title {
+                 font-size: 0.78rem !important;
+                 line-height: 1.35 !important;
+             }
+             .swal2-toast .swal2-timer-progress-bar {
+                 height: 3px !important;
+             }
+         }
+         @media (max-width: 480px) {
+             .swal2-popup {
+                 width: calc(100vw - 24px) !important;
+                 max-width: calc(100vw - 24px) !important;
+                 padding: 1.1rem 0.9rem !important;
+             }
+             .swal2-popup .swal2-icon {
+                 width: 3.2rem !important;
+                 height: 3.2rem !important;
+             }
+             .swal2-popup .swal2-icon .swal2-icon-content {
+                 font-size: 1.6rem !important;
+             }
+             .swal2-popup .swal2-title {
+                 font-size: 1.05rem !important;
+             }
+             .swal2-popup .swal2-html-container {
+                 font-size: 0.85rem !important;
+             }
+             .swal2-popup .swal2-confirm,
+             .swal2-popup .swal2-cancel {
+                 font-size: 0.85rem !important;
+                 padding: 0.5rem 1.1rem !important;
+             }
+         }
+     </style>
 
     {% if user.is_authenticated %}
     <div class="ai-fab" id="ai-fab">
@@ -1045,6 +1560,8 @@
     </div>
 
     <div class="ai-widget-container" id="ai-widget">
+        <div class="ai-sidebar-backdrop" id="ai-sidebar-backdrop"></div>
+
         <div class="ai-sidebar">
             <button class="ai-new-chat-btn" id="ai-new-chat">
                 <span style="font-size: 1.2rem; margin-right: 4px;">+</span> New Chat
@@ -1059,6 +1576,13 @@
 
         <div class="ai-main-chat">
             <div class="ai-chat-header">
+                <button class="ai-menu-btn" id="ai-menu" aria-label="Open chats menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
                 <div class="ai-chat-header-info">
                     <h3>Design Assistant</h3>
                     <p>Balloorina Premium Planning</p>
@@ -1117,6 +1641,33 @@
             const fab = document.getElementById('ai-fab');
             const widget = document.getElementById('ai-widget');
             const closeBtn = document.getElementById('ai-close');
+
+            /* ChatGPT-style drawer: ang hamburger sa header ang bubukas sa
+               sidebar (New Chat + Recent Chats) sa mobile/tablet */
+            const menuBtn = document.getElementById('ai-menu');
+            const sidebarDrawer = widget ? widget.querySelector('.ai-sidebar') : null;
+            const sidebarBackdrop = document.getElementById('ai-sidebar-backdrop');
+
+            function closeSidebarDrawer() {
+                if (widget) widget.classList.remove('drawer-open');
+                if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+            }
+
+            if (menuBtn && sidebarDrawer && sidebarBackdrop) {
+                menuBtn.addEventListener('click', function () {
+                    widget.classList.toggle('drawer-open');
+                    menuBtn.setAttribute('aria-expanded', widget.classList.contains('drawer-open') ? 'true' : 'false');
+                });
+                sidebarBackdrop.addEventListener('click', closeSidebarDrawer);
+                /* Sarado rin ang drawer pagkatapos pumili ng chat o mag-New Chat */
+                sidebarDrawer.addEventListener('click', function (e) {
+                    if (e.target.closest('.ai-new-chat-btn') || e.target.closest('.ai-recent-chat-item')) {
+                        setTimeout(closeSidebarDrawer, 120);
+                    }
+                });
+            }
+            if (closeBtn) closeBtn.addEventListener('click', closeSidebarDrawer);
+            if (fab) fab.addEventListener('click', closeSidebarDrawer);
 
             const chatBox = document.getElementById('ai-chat-box');
             const chatInput = document.getElementById('ai-widget-input');
@@ -1346,7 +1897,7 @@
                 let html = text;
 
                 // Simple check if it's already complex HTML (like an image response)
-                if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>⚠️')) {
+                if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>âš ï¸')) {
                     // Fix img alt text and add onerror handler for broken images
                     html = html.replace(/<img\s+src="([^"]+)"\s+alt="([^"]*)"([^>]*)>/g, function (match, src, alt, rest) {
                         const safeSrc = src.replace(/"/g, '&quot;');

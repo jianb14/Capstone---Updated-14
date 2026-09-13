@@ -19,8 +19,9 @@
 }
 
 .design-canvas-section {
-    margin-top: 67px;
-    min-height: 100vh;
+    margin-top: var(--canvas-nav-offset, 67px);
+    height: calc(100vh - var(--canvas-nav-offset, 67px));
+    overflow: hidden;
     background:
         radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 30%),
         linear-gradient(180deg, #040404 0%, #090909 55%, #050505 100%);
@@ -29,8 +30,8 @@
 .canvas-workspace-shell {
     width: 100%;
     max-width: 1680px;
-    height: calc(100vh - 67px);
-    min-height: calc(100vh - 67px);
+    height: calc(100vh - var(--canvas-nav-offset, 67px));
+    min-height: calc(100vh - var(--canvas-nav-offset, 67px));
     margin: 0 auto;
 }
 
@@ -765,12 +766,22 @@
     z-index: 2;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
-    padding: 5px 16px;
+    padding: 5px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(20, 20, 20, 0.98);
+}
+
+/* Canva-style compact toolbar: home naka-justify sa kaliwa, Save sa kanan,
+ * at ang dimension/zoom/history controls ay naka-cluster sa gitna. */
+.canvas-main-toolbar > a.ctrl-btn.icon-only {
+    margin-right: auto;
+}
+
+.canvas-main-toolbar > #saveDesignBtn {
+    margin-left: auto;
 }
 
 .topbar-group {
@@ -783,7 +794,6 @@
 
 .zoom-toolbar-group {
     flex: 0 0 auto;
-    max-width: 180px;
 }
 
 .zoom-toolbar-group #zoomRange {
@@ -1105,6 +1115,9 @@
 }
 
 .drop-hint {
+    /* Tinanggal ang ballpen icon + "Click an asset or drop it here" hint
+     * sa ibabaw ng canvas — requested na alisin. */
+    display: none !important;
     position: absolute;
     inset: 0;
     display: grid;
@@ -1155,7 +1168,7 @@
     background: var(--editor-panel-strong);
     position: fixed;
     right: 0;
-    top: 125px;
+    top: calc(var(--canvas-nav-offset, 67px) + 58px);
     width: 294px;
     max-height: calc(100vh - 220px);
     border: 1px solid var(--editor-border);
@@ -1330,49 +1343,119 @@
 }
 
 @media (max-width: 1180px) {
-    .dimension-toolbar-group {
-        flex: 1 1 100%;
+    /* Panatilihang isang row lang ang toolbar: itago ang "Canvas: 1920 x 1080"
+     * status text at paikliin ang inputs para hindi mag-wrap sa dalawang linya. */
+    .canvas-main-toolbar .toolbar-status {
+        display: none;
+    }
+
+    .dimension-toolbar-group input[type="number"] {
+        width: 58px;
+        min-width: 58px;
     }
 
     .zoom-toolbar-group {
-        flex: 1 1 220px;
+        max-width: 160px;
+    }
+
+    .zoom-toolbar-group #zoomRange {
+        width: 60px;
+        min-width: 60px;
     }
 }
 
 @media (max-width: 1024px) {
-    .canvas-workspace-shell,
-    .design-layout {
-        height: auto;
-        min-height: auto;
+    /* Canva-style mobile: fixed-height APP layout — walang page scroll.
+     * Toolbar sa taas, canvas sa gitna (internal scroll), inventory panel
+     * na direkta sa itaas ng bottom rail (Assets · Text · Uploads). */
+    .design-canvas-section {
+        height: calc(100vh - var(--canvas-nav-offset, 67px));
+        height: calc(100dvh - var(--canvas-nav-offset, 67px));
+        overflow: hidden;
     }
 
+    .canvas-workspace-shell,
+    .design-layout {
+        height: 100%;
+        min-height: 0;
+    }
+
+    /* Canva-style mobile: toolbar sa taas, canvas sa gitna, inventory
+     * panel sa ILALIM ng canvas (sa itaas ng bottom rail), at rail
+     * (Assets · Text · Uploads) sa pinakailalim na parang bottom nav bar. */
     .design-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto minmax(460px, 1fr);
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
         grid-template-areas:
             "toolbar"
-            "rail"
+            "canvas"
             "sidebar"
-            "canvas";
+            "rail";
     }
 
     .design-layout.sidebar-collapsed {
-        grid-template-rows: auto auto minmax(460px, 1fr);
+        /* Dapat 1fr din ang columns — kapag hindi ni-reset, mananatili ang
+         * 72px column ng desktop rule at doon pupulbos ang lahat ng rows
+         * (vertical strip na toolbar at 68px-wide canvas). */
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr) auto;
         grid-template-areas:
             "toolbar"
-            "rail"
-            "canvas";
+            "canvas"
+            "rail";
+    }
+
+    /* Toolbar: iisang row lang na may horizontal scroll para kahit
+     * mahaba ang controls hindi siya nagwi-wrap/nagkakalat. Hindi na
+     * kailangan ng sticky dahil fixed-height app layout na ang mobile. */
+    .canvas-main-toolbar {
+        position: relative;
+        z-index: 2;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 8px 12px;
+        scrollbar-width: thin;
+    }
+
+    .canvas-main-toolbar::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .canvas-main-toolbar::-webkit-scrollbar-thumb {
+        background: rgba(127, 127, 127, 0.45);
+        border-radius: 999px;
+    }
+
+    .canvas-main-toolbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .zoom-toolbar-group {
+        /* I-override ang max-width: 160px cap ng @media (max-width: 1180px) —
+         * iyan ang dumidikit at nagpapatong-patong sa +/-, slider at
+         * undo/redo buttons kapag mobile ang laki ng screen. */
+        max-width: none;
     }
 
     .canvas-tool-rail {
+        /* Bottom nav bar na parang Canva: naka-secure sa pinakailalim ng
+         * fixed-height layout, direkta sa ilalim ng inventory panel —
+         * walang sticky overlay kaya hindi na sila nagpapatong. */
         flex-direction: row;
         align-items: stretch;
+        justify-content: space-around;
         overflow-x: auto;
-        padding: 8px;
+        padding: 8px 10px;
+        border-radius: 16px 16px 0 0;
     }
 
     .canvas-area {
         padding: 12px 0;
+        /* Internal scroll na lang ang canvas — hindi na ang buong page,
+         * para manatiling nakadikit ang inventory panel at bottom rail. */
+        overflow-y: auto;
     }
 
     .rail-home-btn,
@@ -1384,33 +1467,42 @@
     }
 
     .inventory-sidebar {
-        max-height: 360px;
+        max-height: 38vh;
+        overflow-y: auto;
         margin: 0;
     }
 
     .summary-float-btn {
         top: auto;
-        bottom: 18px;
-        right: 18px;
+        /* Itaas sa dalawang chat widget (headphones + chat bubble) —
+         * doon ito naitatago kaya parang "wala" ang Design Summary. */
+        bottom: 160px;
+        right: 16px;
         width: 48px;
         height: 48px;
-        border-right: 1px solid var(--editor-border);
+        border: 1px solid var(--editor-border);
         border-radius: 999px;
         transform: none;
     }
 
     .summary-float-btn.active {
-        right: 18px;
+        right: 16px;
     }
 
     .summary-float-panel {
+        /* Bottom sheet na hindi hinaharang ang buong screen: full-width
+         * pero capped ang taas, naka-anchor sa itaas ng floating buttons,
+         * at naka-collapse by default (tingnan ang JS sa design_canvas.html). */
         top: auto;
-        right: 18px;
-        bottom: 74px;
-        width: min(360px, calc(100vw - 36px));
-        max-height: min(65vh, 560px);
-        border-right: 1px solid var(--editor-border);
-        border-radius: 22px;
+        left: 12px;
+        right: 12px;
+        /* Sa itaas ng summary button (bottom: 160px + 48px height + gap) */
+        bottom: 216px;
+        width: auto;
+        max-height: min(48vh, 440px);
+        border: 1px solid var(--editor-border);
+        border-radius: 18px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
     }
 }
 
@@ -1429,18 +1521,37 @@
     }
 
     .topbar-group {
-        width: 100%;
+        /* Sa one-row horizontal-scroll toolbar, huwag i-full-width at
+         * huwag i-wrap ang bawat group — pahalang lang lahat. */
+        width: auto;
+        flex: 0 0 auto;
         justify-content: flex-start;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
 
     .zoom-toolbar-group #zoomRange {
-        flex: 1 1 120px;
+        flex: 0 0 100px;
     }
 
+    /* Dalawang floating toolbar (selection + object context): i-pin sa taas
+     * ng canvas bilang dalawang compact rows para hindi sila nagkalat o
+     * nagpapatong sa maliit na screen. !important para talunin ang inline
+     * left/top na ini-set ng JS na sumusunod sa selected object. */
     .selection-toolbar {
-        top: 14px;
-        width: calc(100% - 24px);
+        top: 8px !important;
+        left: 50% !important;
+        transform: translateX(-50%);
+        width: max-content;
+        max-width: calc(100% - 24px);
+    }
+
+    .object-context-toolbar {
+        /* Sa ilalim ng selection toolbar (~54px ang taas nito) */
+        top: 68px !important;
+        left: 50% !important;
+        transform: translateX(-50%);
+        max-width: calc(100% - 24px);
+        overflow-x: auto;
     }
 }
 
@@ -1469,7 +1580,7 @@
     --card-bg-s: #f9fafb;
     --card-bdr: rgba(0, 0, 0, 0.1);
     --card-bdr-h: rgba(0, 0, 0, 0.2);
-    --t1: #111827;
+    --t1: #111111;
     --t2: #4b5563;
     --t3: #6b7280;
     --t4: #9ca3af;
@@ -1490,7 +1601,7 @@
 [data-theme="light"] .table-container {
     background-color: #ffffff !important;
     border-color: #e5e7eb !important;
-    color: #111827 !important;
+    color: #111111 !important;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
 }
 
@@ -1506,7 +1617,7 @@
 [data-theme="light"] table td,
 [data-theme="light"] .data-table td {
     background-color: #ffffff !important;
-    color: #111827 !important;
+    color: #111111 !important;
     border-color: #e5e7eb !important;
 }
 
@@ -1523,7 +1634,7 @@
 [data-theme="light"] select,
 [data-theme="light"] textarea {
     background-color: #f9fafb !important;
-    color: #111827 !important;
+    color: #111111 !important;
     border: 1px solid #d1d5db !important;
 }
 
@@ -1531,8 +1642,8 @@
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
     background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    border-color: #111111 !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15) !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -1548,7 +1659,7 @@
 [data-theme="light"] h4,
 [data-theme="light"] h5,
 [data-theme="light"] h6 {
-    color: #111827 !important;
+    color: #111111 !important;
 }
 
 [data-theme="light"] .btn-outline {
@@ -1564,7 +1675,7 @@
 [data-theme="light"] .notif-item {
     background-color: #ffffff !important;
     border-color: #e5e7eb !important;
-    color: #111827 !important;
+    color: #111111 !important;
 }
 
 [data-theme="light"] .notif-item:hover {
@@ -1578,7 +1689,7 @@
 }
 
 [data-theme="light"] .notif-content p {
-    color: #111827 !important;
+    color: #111111 !important;
 }
 
 [data-theme="light"] .notif-empty {
@@ -1587,4 +1698,324 @@
 
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
+}
+
+/* Sa design canvas: dapat transparent ang fabric.js canvas wrapper para
+ * pantay-pantay ang kulay ng workspace (dati #f3f4f6 ito na galing sa
+ * global chart-canvas rule kaya magkaiba ang gray ng canvas surface at
+ * ng paligid nito). */
+[data-theme="light"] .design-canvas-section .canvas-container {
+    background-color: transparent !important;
+}
+
+/* ========================================================
+   CANVAS EDITOR — LIGHT THEME (strict black & white)
+   Redefines the editor variables + fixes hardcoded dark
+   gradients / rgba-white borders that ignore the variables.
+   ======================================================== */
+[data-theme="light"] {
+    --editor-bg: #ffffff;
+    --editor-bg-soft: #f9f9fa;
+    --editor-panel: #ffffff;
+    --editor-panel-strong: #ffffff;
+    --editor-panel-hover: #f4f4f5;
+    --editor-input: #f9f9fa;
+    --editor-border: rgba(0, 0, 0, 0.10);
+    --editor-border-strong: rgba(0, 0, 0, 0.22);
+    --editor-border-soft: rgba(0, 0, 0, 0.06);
+    --editor-text: #111111;
+    --editor-text-soft: #3f3f46;
+    --editor-muted: #71717a;
+    --editor-muted-strong: #52525b;
+    --editor-shadow: 0 12px 32px rgba(0, 0, 0, 0.10);
+}
+
+/* Page + main panels */
+[data-theme="light"] .design-canvas-section {
+    /* Solid near-white gray — kasing kulay ng workspace para hindi na
+     * "halo-halo" ang kulay sa padding, grid gap, at gilid ng shell. */
+    background: #eeeef0;
+}
+
+[data-theme="light"] .canvas-tool-rail {
+    /* Same bg sa canvas toolbar (#f6f7f8) */
+    background: #f6f7f8;
+}
+
+[data-theme="light"] .inventory-sidebar {
+    background: #ffffff;
+}
+
+/* Soft lang ang shadow sa light mode — dati rgba(0,0,0,0.10) na may 32px
+ * blur na madilim na halo sa paligid/ilalim ng panel kaya mukhang mas dark
+ * ang pinagpapatungan ng inventory laban sa #eeeef0 na backdrop. */
+[data-theme="light"] .canvas-tool-rail,
+[data-theme="light"] .inventory-sidebar {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Tool rail */
+[data-theme="light"] .rail-home-btn {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .rail-home-btn:hover,
+[data-theme="light"] .rail-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .rail-btn.active {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="light"] .category-header:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+/* Asset items + dropzone */
+[data-theme="light"] .draggable-item {
+    background: #f9f9fa;
+}
+
+[data-theme="light"] .draggable-item:hover {
+    background: #f0f0f1;
+}
+
+[data-theme="light"] .upload-dropzone {
+    border-color: rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="light"] .theme-decor-field input:focus {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .sidebar-tip {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* Draw tools */
+[data-theme="light"] .draw-tool-btn:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .draw-tool-btn.active {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] #zoomRange,
+[data-theme="light"] .draw-range-block input[type="range"] {
+    background: rgba(0, 0, 0, 0.16);
+}
+
+[data-theme="light"] #zoomRange::-webkit-slider-thumb,
+[data-theme="light"] .draw-range-block input[type="range"]::-webkit-slider-thumb {
+    background: #111111;
+    border-color: #ffffff;
+}
+
+[data-theme="light"] #zoomRange::-moz-range-thumb,
+[data-theme="light"] .draw-range-block input[type="range"]::-moz-range-thumb {
+    background: #111111;
+    border-color: #ffffff;
+}
+
+/* Main toolbar */
+[data-theme="light"] .canvas-main-toolbar {
+    background: #f6f7f8;
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .toolbar-status,
+[data-theme="light"] .zoom-pill {
+    border-color: rgba(0, 0, 0, 0.14);
+    background: #f9f9fa;
+    color: #111111;
+}
+
+[data-theme="light"] .toolbar-status {
+    color: #3f3f46;
+}
+
+[data-theme="light"] .ctrl-btn {
+    border-color: rgba(0, 0, 0, 0.14);
+    background: #ffffff;
+    color: #111111;
+}
+
+[data-theme="light"] .ctrl-btn:hover {
+    background: #f4f4f5;
+    color: #111111;
+    border-color: rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="light"] .ctrl-btn.is-active {
+    background: #111111;
+    color: #ffffff;
+}
+
+[data-theme="light"] .ctrl-btn-primary {
+    background: #111111;
+    color: #ffffff;
+}
+
+[data-theme="light"] .ctrl-btn-primary:hover {
+    background: #3f3f46;
+    color: #ffffff;
+}
+
+/* Inputs inside the editor */
+[data-theme="light"] .canvas-main-toolbar input[type="number"],
+[data-theme="light"] .canvas-main-toolbar select,
+[data-theme="light"] .selection-toolbar input[type="number"],
+[data-theme="light"] .selection-toolbar select,
+[data-theme="light"] .inventory-sidebar input,
+[data-theme="light"] .inventory-sidebar select {
+    background: #ffffff;
+    color: #111111;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+}
+
+[data-theme="light"] .design-canvas-section input:focus,
+[data-theme="light"] .design-canvas-section select:focus,
+[data-theme="light"] .design-canvas-section textarea:focus {
+    border-color: rgba(0, 0, 0, 0.32) !important;
+    box-shadow: none !important;
+}
+
+/* Selection / context toolbars */
+[data-theme="light"] .selection-toolbar {
+    border-color: rgba(0, 0, 0, 0.14);
+    background: rgba(255, 255, 255, 0.97);
+}
+
+[data-theme="light"] .selection-toolbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="light"] .toolbar-group {
+    border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .object-context-toolbar {
+    border-color: rgba(0, 0, 0, 0.14);
+    background: rgba(255, 255, 255, 0.97);
+}
+
+[data-theme="light"] .ctx-btn:hover {
+    background: #f4f4f5;
+}
+
+/* Toast */
+[data-theme="light"] .toast {
+    background: #ffffff;
+    color: #111111;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .drop-hint {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+/* Summary float panel */
+[data-theme="light"] .summary-float-btn {
+    background: rgba(255, 255, 255, 0.98);
+    color: #111111;
+}
+
+[data-theme="light"] .summary-float-btn:hover {
+    background: #f4f4f5;
+}
+
+[data-theme="light"] .cart-base-package {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .cart-section .section-title {
+    color: #71717a;
+}
+
+[data-theme="light"] .package-selection-card {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .package-selection-card:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .package-selection-card.selected {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .cart-total-area {
+    border-top-color: rgba(0, 0, 0, 0.14);
+}
+
+/* Headings inside the canvas: pure black (kills the navy #111111) */
+[data-theme="light"] .design-canvas-section h1,
+[data-theme="light"] .design-canvas-section h2,
+[data-theme="light"] .design-canvas-section h3,
+[data-theme="light"] .design-canvas-section h4 {
+    color: #111111 !important;
+}
+
+
+/* ========================================================
+   LIGHT THEME — ADDITIONAL FIXES (workspace, summary, misc)
+   Mga parts na dati ay naka-hardcode na white/transparent
+   para sa dark mode at hindi maayos sa light mode.
+   ======================================================== */
+
+/* Canva-style workspace: medyo white na gray, pero kitang-kita pa rin
+ * ang hangganan ng puting paper na nakapatong dito. */
+[data-theme="light"] .canvas-area,
+[data-theme="light"] #canvasDropZone {
+    background: #eeeef0;
+}
+
+[data-theme="light"] #canvasDropZone.drag-over {
+    background: #e0e1e4;
+}
+
+/* Sidebar sections / cards: halos invisible ang rgba-white
+ * backgrounds sa puting panel. */
+[data-theme="light"] .sidebar-section,
+[data-theme="light"] .inventory-category,
+[data-theme="light"] .text-preset-card,
+[data-theme="light"] .draw-tool-list {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* Scrollbars: white thumbs sa white panel = hindi makita. */
+[data-theme="light"] .sidebar-panel::-webkit-scrollbar-thumb,
+[data-theme="light"] .cart-body::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.22);
+}
+
+/* Color swatch selection: puting border sa puting swatch = invisible. */
+[data-theme="light"] .color-swatch.active {
+    border-color: #111111;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.16);
+}
+
+/* Cart / summary dashed + solid dividers na white-based. */
+[data-theme="light"] .cart-total-area {
+    border-top: 1px dashed rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .cart-section .section-title {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Selection toolbar: dagdag na elevation shadow para kitang-kita
+ * sa puting canvas (parang Canva floating toolbar). */
+[data-theme="light"] .selection-toolbar {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Toast text: siguraduhing readable sa puting toast. */
+[data-theme="light"] .toast-content span {
+    color: #111111;
 }

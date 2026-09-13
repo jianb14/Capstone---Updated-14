@@ -3,7 +3,29 @@
 {% load humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_designs.css' %}">
+<link rel="stylesheet" href="{% static 'css/my_designs.css' %}?v=20260911f">
+
+<!-- Thin outline icon sprite (same stroke style as the home/about icons) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="ic-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>
+    </symbol>
+    <symbol id="ic-square-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.12 2.12 0 1 1 3 3L12 15l-4 1 1-4Z"/>
+    </symbol>
+    <symbol id="ic-calendar-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>
+    </symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+    </symbol>
+    <symbol id="ic-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>
+    </symbol>
+    <symbol id="ic-ellipsis-v" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+    </symbol>
+</svg>
 
 <section class="my-designs-section" style="animation: fadeInPage 0.5s ease forwards;">
     <div class="container my-designs-container">
@@ -17,6 +39,36 @@
                 <i class="fas fa-plus"></i> Create New Design
             </a>
         </div>
+
+        <!-- Search + Sort Toolbar (same dropdown style as the reviews page) -->
+        <form method="GET" action="{% url 'my_designs' %}" class="designs-filter-group" id="designsFilterForm">
+            <div class="designs-search-wrapper">
+                <svg class="designs-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.3-4.3"/>
+                </svg>
+                <input type="text" name="q" class="designs-search-input" placeholder="Search designs..." value="{{ search_query }}">
+            </div>
+
+            <div class="custom-filter-dropdown" id="sortDropdown">
+                <div class="dropdown-trigger">
+                    <span id="sortDropdownText">
+                        {% if sort_filter == 'oldest' %}Oldest First{% elif sort_filter == 'name' %}Name A-Z{% else %}Newest First{% endif %}
+                    </span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <ul class="dropdown-options">
+                    <li data-value="newest" class="{% if sort_filter != 'oldest' and sort_filter != 'name' %}selected{% endif %}">Newest First</li>
+                    <li data-value="oldest" class="{% if sort_filter == 'oldest' %}selected{% endif %}">Oldest First</li>
+                    <li data-value="name" class="{% if sort_filter == 'name' %}selected{% endif %}">Name A-Z</li>
+                </ul>
+                <select name="sort" id="sort-filter" class="filter-select">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name">Name A-Z</option>
+                </select>
+            </div>
+        </form>
 
         {% if designs %}
             <div class="designs-grid">
@@ -32,22 +84,29 @@
                             </div>
                         {% endif %}
 
+                        <!-- Package badge (kung may base package ang design) -->
+                        {% if design.base_package %}
+                        <span class="design-package-badge">
+                            <i class="fas fa-box-open"></i> {{ design.base_package.name }}
+                        </span>
+                        {% endif %}
+
                         <!-- 3-Dots Menu -->
                         <div class="design-menu-wrapper">
                             <button class="menu-dots-btn" onclick="toggleMenu('menu-{{ design.id }}', event)">
-                                <i class="fas fa-ellipsis-v"></i>
+                                <svg class="mi"><use href="#ic-ellipsis-v"/></svg>
                             </button>
                             <div class="design-dropdown-menu" id="menu-{{ design.id }}">
                                 <button onclick="openRenameModal({{ design.id }}, '{{ design.name|escapejs }}')">
-                                    <i class="fas fa-edit"></i> Rename
+                                    <svg class="mi"><use href="#ic-square-pen"/></svg> Rename
                                 </button>
                                 {% if design.thumbnail %}
                                 <a href="{{ design.thumbnail.url }}" download="{{ design.name }}.png" style="display: block; width: 100%; text-decoration: none; color: inherit;">
-                                    <button style="width: 100%; text-align: left;"><i class="fas fa-download"></i> Download</button>
+                                    <button style="width: 100%; text-align: left;"><svg class="mi"><use href="#ic-download"/></svg> Download</button>
                                 </a>
                                 {% endif %}
                                 <button class="delete-action" onclick="openDeleteModal({{ design.id }})">
-                                    <i class="fas fa-trash-alt"></i> Delete
+                                    <svg class="mi"><use href="#ic-trash"/></svg> Delete
                                 </button>
                             </div>
                         </div>
@@ -55,13 +114,13 @@
                     
                     <div class="design-info">
                         <h4 class="design-title" id="title-{{ design.id }}">{{ design.name }}</h4>
-                        <p class="design-date">Updated {{ design.updated_at|date:"M d, Y" }}</p>
+                        <p class="design-date" title="Updated {{ design.updated_at|date:'M d, Y h:i A' }}">Updated {{ design.updated_at|naturaltime }}</p>
                         <div class="design-actions">
                             <a href="{% url 'design_canvas' %}?id={{ design.id }}" class="overlay-btn edit-btn">
-                                <i class="fas fa-magic"></i> Edit
+                                <svg class="mi"><use href="#ic-pencil"/></svg> Edit
                             </a>
                             <a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
-                                <i class="fas fa-calendar-check"></i> Book Now
+                                <svg class="mi"><use href="#ic-calendar-check"/></svg> Book Now
                             </a>
                         </div>
                     </div>
@@ -74,7 +133,7 @@
             <div class="pagination-container">
                 <div class="pagination">
                     {% if designs.has_previous %}
-                        <a href="?page={{ designs.previous_page_number }}" class="page-link">Prev</a>
+                        <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if sort_filter and sort_filter != 'newest' %}sort={{ sort_filter }}&amp;{% endif %}page={{ designs.previous_page_number }}" class="page-link">Prev</a>
                     {% else %}
                         <span class="page-link disabled">Prev</span>
                     {% endif %}
@@ -83,12 +142,12 @@
                         {% if designs.number == num %}
                             <span class="page-link active">{{ num }}</span>
                         {% elif num > designs.number|add:'-3' and num < designs.number|add:'3' %}
-                            <a href="?page={{ num }}" class="page-link">{{ num }}</a>
+                            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if sort_filter and sort_filter != 'newest' %}sort={{ sort_filter }}&amp;{% endif %}page={{ num }}" class="page-link">{{ num }}</a>
                         {% endif %}
                     {% endfor %}
 
                     {% if designs.has_next %}
-                        <a href="?page={{ designs.next_page_number }}" class="page-link">Next</a>
+                        <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if sort_filter and sort_filter != 'newest' %}sort={{ sort_filter }}&amp;{% endif %}page={{ designs.next_page_number }}" class="page-link">Next</a>
                     {% else %}
                         <span class="page-link disabled">Next</span>
                     {% endif %}
@@ -96,15 +155,47 @@
             </div>
             {% endif %}
         {% else %}
-            <!-- Empty State -->
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <i class="fas fa-paint-brush"></i>
+            {% if search_query %}
+                <!-- No results sa search (same treatment sa "no reviews match" message ng reviews page) -->
+                <div class="designs-no-results">
+                    <div class="designs-no-results-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>No designs match your search.</h3>
+                    <p>Try a different keyword or clear the search to see all your designs.</p>
+                    <a href="{% url 'my_designs' %}" class="overlay-btn edit-btn designs-clear-btn">
+                        Clear Search
+                    </a>
                 </div>
-                <h3>No designs yet.</h3>
-                <p>Start creating beautiful setups and backdrops using our interactive design canvas. Your saved designs will appear here.</p>
-            </div>
+            {% else %}
+                <!-- Empty State -->
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-paint-brush"></i>
+                    </div>
+                    <h3>No designs yet.</h3>
+                    <p>Start creating beautiful setups and backdrops using our interactive design canvas. Your saved designs will appear here.</p>
+                </div>
+            {% endif %}
         {% endif %}
+
+        <!-- Stats Bar (bottom of page) -->
+        <div class="designs-stats-bar">
+            <div class="design-stat-card">
+                <span class="design-stat-value">{{ total_designs }}</span>
+                <span class="design-stat-label">Total Designs</span>
+            </div>
+            <div class="design-stat-card">
+                <span class="design-stat-value">{{ created_this_month }}</span>
+                <span class="design-stat-label">Created This Month</span>
+            </div>
+            <div class="design-stat-card">
+                <span class="design-stat-value design-stat-time">
+                    {% if last_edited %}{{ last_edited.updated_at|naturaltime }}{% else %}&mdash;{% endif %}
+                </span>
+                <span class="design-stat-label">Last Edited</span>
+            </div>
+        </div>
         
     </div>
 </section>
@@ -282,5 +373,53 @@
             console.error(error);
         }
     }
+
+    // Custom Sort Dropdown JS (same pattern as reviews page, pero
+    // auto-submit ng form para server-side sorting)
+    (function () {
+        const dropdown = document.getElementById('sortDropdown');
+        const select = document.getElementById('sort-filter');
+        const textSpan = document.getElementById('sortDropdownText');
+        if (!dropdown || !select || !textSpan) return;
+
+        const optionsList = dropdown.querySelector('.dropdown-options');
+
+        // Sync ng selected class base sa current select value
+        function syncSelected() {
+            optionsList.querySelectorAll('li').forEach(opt => {
+                if (opt.dataset.value === select.value) {
+                    opt.classList.add('selected');
+                } else {
+                    opt.classList.remove('selected');
+                }
+            });
+        }
+
+        dropdown.addEventListener('click', (e) => {
+            const wasOpen = dropdown.classList.contains('open');
+            document.querySelectorAll('.custom-filter-dropdown').forEach(d => d.classList.remove('open'));
+            if (!wasOpen) dropdown.classList.add('open');
+        });
+
+        optionsList.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li) return;
+            e.stopPropagation();
+
+            select.value = li.dataset.value;
+            textSpan.textContent = li.textContent;
+            syncSelected();
+            dropdown.classList.remove('open');
+
+            // Server-side: isumite ang form (q + sort na kasama)
+            document.getElementById('designsFilterForm').submit();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+    })();
 </script>
 {% endblock content %}

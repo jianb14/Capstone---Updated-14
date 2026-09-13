@@ -117,7 +117,6 @@
                 '.stats-card > .stat-item',
                 '.features-grid > .feature-card',
                 '.hiw-grid > .hiw-step',
-                '.home-gallery-grid > .gallery-item',
                 '.marquee-track .testimonial-card',
                 '.faq-list > .faq-item',
                 '.cta-banner > *',

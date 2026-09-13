@@ -6,13 +6,13 @@
 <!-- PACKAGES PAGE -->
 <div id="packages" class="page">
     <section class="packages-hero">
-        <span class="about-tagline">Balloorina.ph Packages</span>
+        <span class="about-tagline">Balloorina.ph Event Packages</span>
         <h1>
-            Affordable Packages,
-            <span class="packages-hero-accent">Styled Your Way</span>
+            Complete Packages,
+            <span class="packages-hero-accent">For Every Celebration</span>
         </h1>
-        <p>Choose the perfect package for your event. All packages include professional consultation, setup, and
-            breakdown.</p>
+        <p>From birthdays to weddings, find a package that fits your celebration — every booking includes professional
+            consultation, setup, and breakdown.</p>
 
         <a href="#packages-list" class="scroll-down" aria-label="Scroll down to our packages">
             <span>Scroll Down</span>
@@ -21,6 +21,9 @@
     </section>
 
     <section class="packages-detailed" id="packages-list">
+
+        <h2 class="section-title">Packages</h2>
+        <p class="section-subtitle">Choose the perfect package for your event. All packages include professional consultation, setup, and breakdown.</p>
 
         <div class="packages-carousel-wrapper">
             <button class="carousel-btn prev" aria-label="Previous packages"><i class="fas fa-chevron-left"></i></button>
@@ -39,7 +42,7 @@
                             {% if package.description %}
                                 {{ package.description }}
                             {% else %}
-                                Includes {{ package.feature_list|length }} inclusions with professional consultation, setup, and breakdown.
+                                A ready-to-book bundle with {{ package.feature_list|length }} inclusions — consultation, setup, and breakdown all handled for you.
                             {% endif %}
                         </p>
 
@@ -54,10 +57,10 @@
                         {% endif %}
 
                         {% if package.notes %}
-                        <p class="package-notes">{{ package.notes }}</p>
+                        <p class="package-notes"><i class="fas fa-circle-info" aria-hidden="true"></i>{{ package.notes }}</p>
                         {% endif %}
 
-                        <a href="{% url 'create_booking' %}" class="package-cta">Get Started</a>
+                        <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
 
                     </div>
                     {% empty %}
@@ -69,13 +72,18 @@
         </div>
 
         <div class="service-charge-note-box">
-            <p>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
+            <p><i class="fas fa-circle-info" aria-hidden="true"></i>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
         </div>
 
 
         <div class="addons-section">
             <h2 class="section-title">Entrance Arch</h2>
             <p class="section-subtitle">Make a grand first impression with a stunning balloon arch at your venue entrance.</p>
+
+            <div class="pricing-toggle">
+                <button type="button" class="pricing-option active" data-pricing="package">w/ Package</button>
+                <button type="button" class="pricing-option" data-pricing="solo">Solo</button>
+            </div>
 
             <div class="addons-carousel-wrapper">
                 <button class="carousel-btn prev-addons" aria-label="Previous add-ons"><i class="fas fa-chevron-left"></i></button>
@@ -89,25 +97,18 @@
                                 <span class="addon-tag">FOR ADD-ONS</span>
                                 <h3 class="addon-name">{{ addon.name }}</h3>
                                 <p class="addon-price">
-                                    <span class="price-amount">&#8369;{{ addon.price|floatformat:"-2"|intcomma }}</span>
+                                    <span class="price-amount" data-package-price="&#8369;{{ addon.price|floatformat:'-2'|intcomma }}"{% if addon.solo_price %} data-solo-price="&#8369;{{ addon.solo_price|floatformat:'-2'|intcomma }}"{% endif %}>&#8369;{{ addon.price|floatformat:"-2"|intcomma }}</span>
                                     <span class="addon-price-note">w/ Package</span>
                                 </p>
                             </div>
 
-                            <p class="package-list-label">What&apos;s Included</p>
                             <ul class="addon-features">
                                 {% for feature in addon.feature_list %}
                                 <li>{{ feature }}</li>
                                 {% endfor %}
                             </ul>
-                            {% if addon.solo_price %}
-                            <div class="solo-price">
-                                Solo price (without package):
-                                <strong>&#8369;{{ addon.solo_price|floatformat:"-2"|intcomma }}</strong>
-                            </div>
-                            {% endif %}
 
-                            <a href="{% url 'create_booking' %}" class="package-cta">Book This Add-On</a>
+                            <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
 
                         </div>
                         {% empty %}
@@ -121,7 +122,7 @@
         </div>
 
         <div class="service-charge-note-box">
-            <p>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
+            <p><i class="fas fa-circle-info" aria-hidden="true"></i>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
         </div>
 
 
@@ -148,7 +149,6 @@
 
 
                             {% if additional.feature_list %}
-                            <p class="package-list-label">What&apos;s Included</p>
                             <ul class="addon-features">
                                 {% for feature in additional.feature_list %}
                                 <li>{{ feature }}</li>
@@ -157,10 +157,10 @@
                             {% endif %}
 
                             {% if additional.notes %}
-                            <p class="additional-notes">{{ additional.notes }}</p>
+                            <p class="additional-notes"><i class="fas fa-circle-info" aria-hidden="true"></i>{{ additional.notes }}</p>
                             {% endif %}
 
-                            <a href="{% url 'create_booking' %}" class="package-cta">Book This Item</a>
+                            <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
 
                         </div>
 
@@ -175,7 +175,7 @@
         </div>
 
         <div class="service-charge-note-box">
-            <p>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
+            <p><i class="fas fa-circle-info" aria-hidden="true"></i>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
         </div>
 
     </section>
@@ -199,9 +199,11 @@
             return 3;
         }
 
-        // Card width including gap
+        // Card width including gap — basah ang AKTUAL na gap mula sa CSS
+        // (1rem sa packages track, 2rem sa addons/additionals) para hindi
+        // mag-drift ang alignment sa paulit-ulit na click
         function getItemWidth() {
-            const gap = 32; // 2rem gap
+            const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 0;
             return track.children[0].offsetWidth + gap;
         }
 
@@ -262,6 +264,61 @@
         // Initialize
         resetCarousel();
     }
+
+    /* Always place the "Most Popular" (featured) package in the MIDDLE of the
+       track (position 2 of 3) so it renders highlighted at the center like
+       the MindEase pricing UI, with non-featured cards on BOTH sides.
+       NOTE: kung nasa unahan na ang featured sa DOM, ang
+       insertBefore(featured, children[1]) ay NO-OP lang — dapat siya
+       ilagay BEFORE the card currently at position 3. */
+    (function () {
+        const pkgTrack = document.querySelector('.carousel-track');
+        if (!pkgTrack) return;
+        const cards = Array.from(pkgTrack.children);
+        const featuredCard = pkgTrack.querySelector('.package-card.featured');
+        if (!featuredCard || cards.length < 3) return;
+        const featuredIndex = cards.indexOf(featuredCard);
+        if (featuredIndex === 1) return; /* nasa gitna na */
+        if (featuredIndex === 0) {
+            /* unahan siya → ilipat sa index 1 (before ang kasalukuyang 3rd card) */
+            pkgTrack.insertBefore(featuredCard, cards[2]);
+        } else {
+            /* nasa likod siya → isingit sa gitna (before ang 2nd card) */
+            pkgTrack.insertBefore(featuredCard, cards[1]);
+        }
+    })();
+
+    /* Entrance Arch pricing toggle: "w/ Package" ↔ "Solo".
+       Pag nag-switch, nagbabago ang price sa bawat addon card
+       (addon.price ↔ addon.solo_price mula sa data attributes). */
+    (function () {
+        const pricingToggle = document.querySelector('.pricing-toggle');
+        if (!pricingToggle) return;
+        const pricingOptions = pricingToggle.querySelectorAll('.pricing-option');
+        const addonCards = document.querySelectorAll('.addons-track .addon-card');
+
+        pricingOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                pricingOptions.forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                const mode = option.dataset.pricing;
+
+                addonCards.forEach(card => {
+                    const amount = card.querySelector('.price-amount');
+                    const note = card.querySelector('.addon-price-note');
+                    if (!amount) return;
+
+                    if (mode === 'solo' && amount.dataset.soloPrice) {
+                        amount.textContent = amount.dataset.soloPrice;
+                        if (note) note.textContent = 'Solo';
+                    } else {
+                        amount.textContent = amount.dataset.packagePrice;
+                        if (note) note.textContent = 'w/ Package';
+                    }
+                });
+            });
+        });
+    })();
 
     /* Initialize all carousels */
     setupCarousel('.carousel-track', '.prev', '.next');                 // Packages

@@ -5,7 +5,7 @@
     min-height: 80vh;
     padding: 6rem 1rem 4rem 1rem;
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
-    background-size: 25px 25px;
+    background-size: 18px 18px;
     color: var(--white);
     display: flex;
     flex-direction: column;
@@ -32,13 +32,12 @@
 
 .reviews-filter-container {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
     margin-bottom: 2rem;
     width: 100%;
     max-width: 1100px;
-    flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1.25rem;
 }
 
 .reviews-title {
@@ -52,6 +51,9 @@
 .reviews-filter-group {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    flex-wrap: wrap;
     gap: 12px;
 }
 
@@ -307,13 +309,54 @@
 .no-reviews,
 .no-reviews-filter {
     text-align: center;
-    padding: 10rem 3rem;
+    padding: 6rem 2rem;
     background: #111;
     border-radius: 8px;
     border: 1px dashed #333;
     color: #888;
     font-size: 0.9rem;
     width: 100%;
+}
+
+/* Kapag 0 ang results ng filter, plain message na lang —
+   iwas double border sa loob ng bordered container */
+.no-reviews-filter {
+    background: transparent;
+    border: none;
+    padding: 3rem 2rem;
+}
+
+/* Improved empty state (icon + heading + CTA) */
+.no-reviews h3 {
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem 0;
+}
+
+.no-reviews p {
+    margin: 0;
+}
+
+.no-reviews .no-reviews-icon {
+    margin: 0 auto 0.8rem auto;
+    font-size: 3.2rem;
+    line-height: 1;
+    color: #555;
+}
+
+.reviews-title-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.reviews-subtitle {
+    margin: 0.4rem 0 0 0;
+    font-size: 0.95rem;
+    color: #9a9a9a;
+    line-height: 1.4;
+    max-width: 480px;
 }
 
 @keyframes fadeInDown {
@@ -820,5 +863,415 @@
 @media (max-width: 640px) {
     .reviews-title {
         font-size: 2.1rem;
+    }
+}
+
+/* ========================================================
+   NEW COMPONENTS — Write a Review CTA, Chips, Load More
+   ======================================================== */
+
+/* --- "Write a Review" CTA --- */
+.btn-write-review {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    color: #000;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.55rem 1.1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.btn-write-review:hover {
+    background: #eee;
+    color: #000;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Package / Event chips sa card header --- */
+.review-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.review-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #ccc;
+    white-space: nowrap;
+}
+
+.review-chip.chip-package {
+    background: #222;
+    border-color: #444;
+    color: #fff;
+}
+
+/* --- Load More button --- */
+.load-more-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: fit-content;
+    margin: 1.5rem auto 0 auto;
+    background: transparent;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 0.6rem 1.4rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+.load-more-btn:hover {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.review-card.load-hidden {
+    display: none !important;
+}
+
+/* ========================================================
+   REVIEWS PAGE — LIGHT MODE
+   Dots: eksaktong kapareho ng hero sa home page
+   (radial-gradient rgba(0,0,0,0.12) @ 1px, 18px grid)
+   ======================================================== */
+[data-theme="light"] .reviews-page {
+    background-color: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px);
+    background-size: 18px 18px;
+    color: #111827;
+}
+
+[data-theme="light"] .reviews-container {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Kapag walang reviews: alisin ang border/shadow ng container —
+   yung dashed empty-state box na lang ang nakikita (walang double border) */
+.reviews-container.is-empty {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+[data-theme="light"] .reviews-container.is-empty {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+[data-theme="light"] .reviews-title {
+    color: #111827;
+}
+
+/* --- Filter dropdowns --- */
+[data-theme="light"] .custom-filter-dropdown .dropdown-trigger {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+[data-theme="light"] .custom-filter-dropdown.open .dropdown-trigger {
+    border-color: #111827;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options li {
+    color: #374151;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options li:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options li.selected {
+    color: #111827;
+    font-weight: 700;
+}
+
+/* --- Review card texts --- */
+[data-theme="light"] .review-author {
+    color: #111827;
+}
+
+[data-theme="light"] .review-details {
+    color: #6b7280;
+}
+
+[data-theme="light"] .review-avatar {
+    background-color: #111827;
+    color: #ffffff;
+}
+
+[data-theme="light"] .review-stars {
+    color: #d1d5db;
+}
+
+[data-theme="light"] .review-stars .star.filled {
+    color: #f59e0b;
+}
+
+[data-theme="light"] .review-date {
+    color: #6b7280;
+}
+
+[data-theme="light"] .review-content {
+    color: #374151;
+}
+
+[data-theme="light"] .review-uploaded-img {
+    border-color: #e5e7eb;
+}
+
+/* --- Like / actions row --- */
+[data-theme="light"] .review-actions {
+    border-top-color: #e5e7eb;
+}
+
+[data-theme="light"] .review-action-btn {
+    color: #6b7280;
+}
+
+[data-theme="light"] .review-action-btn:hover:not(:disabled) {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .review-action-btn.liked {
+    color: #111827;
+}
+
+/* --- 3-dot options menu --- */
+[data-theme="light"] .options-btn {
+    color: #9ca3af;
+}
+
+[data-theme="light"] .options-btn:hover {
+    color: #111827;
+}
+
+[data-theme="light"] .review-dropdown {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .review-dropdown button {
+    color: #374151;
+}
+
+[data-theme="light"] .review-dropdown button:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .review-dropdown button.delete-opt {
+    color: #ef4444;
+}
+
+[data-theme="light"] .review-dropdown button.delete-opt:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+}
+
+/* --- Edit modal (light) --- */
+[data-theme="light"] .modal-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+[data-theme="light"] .modal-header h2 {
+    color: #111827;
+}
+
+[data-theme="light"] .modal-close {
+    color: #9ca3af;
+}
+
+[data-theme="light"] .modal-close:hover {
+    color: #111827;
+}
+
+[data-theme="light"] .form-group label {
+    color: #4b5563;
+}
+
+[data-theme="light"] .star-rating label {
+    color: #d1d5db;
+}
+
+[data-theme="light"] .file-input {
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    color: #374151;
+}
+
+[data-theme="light"] .file-input::-webkit-file-upload-button {
+    background: #111827;
+    border: 1px solid #111827;
+    color: #ffffff;
+}
+
+[data-theme="light"] #editReviewForm textarea {
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] #editReviewForm textarea:focus {
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
+}
+
+[data-theme="light"] .btn-submit-review {
+    background: #111827;
+    color: #ffffff;
+}
+
+/* --- New components (light variants) --- */
+[data-theme="light"] .btn-write-review {
+    background: #111827;
+    color: #ffffff;
+}
+
+[data-theme="light"] .btn-write-review:hover {
+    background: #000000;
+    color: #ffffff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .review-chip {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #4b5563;
+}
+
+[data-theme="light"] .review-chip.chip-package {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .load-more-btn {
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .load-more-btn:hover {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+}
+
+[data-theme="light"] .no-reviews,
+[data-theme="light"] .no-reviews-filter {
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    color: #6b7280;
+}
+
+[data-theme="light"] .no-reviews h3 {
+    color: #111827;
+}
+
+[data-theme="light"] .no-reviews .no-reviews-icon {
+    color: #9ca3af;
+}
+
+[data-theme="light"] .reviews-subtitle {
+    color: #6b7280;
+}
+
+/* ========================================================
+   RESPONSIVE — filters, chips, CTA, images
+   ======================================================== */
+@media (max-width: 968px) {
+    .reviews-subtitle {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    /* Filters: sunod-sunod na full-width dropdowns */
+    .reviews-filter-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .custom-filter-dropdown {
+        width: 100%;
+    }
+
+    .custom-filter-dropdown .dropdown-trigger {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .btn-write-review {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .reviews-subtitle {
+        font-size: 0.85rem;
+    }
+
+    .review-chip {
+        font-size: 0.62rem;
+        padding: 2px 8px;
+    }
+
+    .review-uploaded-img {
+        width: 100px;
+        height: 100px;
+    }
+
+    .no-reviews,
+    .no-reviews-filter {
+        padding: 3rem 1.25rem;
     }
 }

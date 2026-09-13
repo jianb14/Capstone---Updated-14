@@ -9,7 +9,7 @@
 .notification-bell-btn {
     background: none;
     border: none;
-    color: var(--white);
+    color: #9ca3af;
     font-size: 1.2rem;
     cursor: pointer;
     position: relative;
@@ -25,10 +25,26 @@
     width: 20px;
     height: 20px;
     opacity: 0.6;
+    transition: opacity 0.3s ease;
 }
 
 .notification-bell-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.notification-bell-btn:hover .bell-icon {
+    opacity: 1;
+}
+
+/* Light mode: gray icon by default, BLACK kapag hover */
+[data-theme="light"] .notification-bell-btn {
+    color: #52525b;
+}
+
+[data-theme="light"] .notification-bell-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #111111;
 }
 
 .notif-badge {
@@ -75,7 +91,7 @@
     background: #0f0f0f;
     border: 1px solid #1f1f1f;
     border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: none;
     z-index: 1000;
     overflow: hidden;
@@ -304,7 +320,6 @@
 [data-theme="light"] input[type="time"],
 [data-theme="light"] select,
 [data-theme="light"] textarea {
-    background-color: #f9fafb !important;
     color: #111827 !important;
     border: 1px solid #d1d5db !important;
 }

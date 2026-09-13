@@ -19,7 +19,10 @@
     --pkg-blue-hover: #e2e2e2;
     --pkg-navy: #000000;
     --pkg-card: #111111;
-    --pkg-card-featured: #1a1a1a;
+    /* Featured (Most Popular) card bg = TRANSPARENT (glass effect):
+       halos walang tint, kita pa rin ang dotted bg sa likod —
+       ang white border + glow lang ang nag-highlight dito */
+    --pkg-card-featured: rgba(255, 255, 255, 0.03);
     --pkg-border: rgba(255, 255, 255, 0.12);
     --pkg-text-muted: #a1a1aa;
 }
@@ -446,15 +449,6 @@ nav.scrolled {
     display: inline-flex;
     align-items: center;
     gap: 0.9rem;
-}
-
-/* Maliliit na guhit sa magkabilang gilid ng label para eleganteng separation */
-.hero-eyebrow::before,
-.hero-eyebrow::after {
-    content: '';
-    width: 2.2rem;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.28);
 }
 
 .hero-text h1 {
@@ -1573,8 +1567,9 @@ nav.scrolled {
 .packages-hero h1 {
     font-size: 3.5rem;
     font-weight: 800;
-    margin-bottom: 1rem;
+    margin: 0 0 1.25rem; /* tanggalin ang default top margin — dikit sa tagline */
     letter-spacing: -2px;
+    line-height: 1.15; /* dikit ang dalawang linya ng title (dating 1.6 galing sa body) */
     position: relative;
     z-index: 1;
 }
@@ -1582,7 +1577,7 @@ nav.scrolled {
 /* Accent second line of the packages hero title (solid brand color) */
 .packages-hero-accent {
     display: block;
-    color: var(--brand-pink);
+    color: var(--white);
 }
 
 .packages-hero p {
@@ -1592,7 +1587,13 @@ nav.scrolled {
     font-weight: 500;
     max-width: 800px;
     margin: 0 auto;
+    line-height: 1.6;
     color: var(--dark-gray);
+}
+
+/* Dikit lang ang tagline sa title (mas maliit kaysa sa 1.5rem default) */
+.packages-hero .about-tagline {
+    margin-bottom: 1.25rem;
 }
 
 /* Mobile hero: hindi 100vh para walang malaking bakanteng space sa taas
@@ -1615,7 +1616,7 @@ nav.scrolled {
 }
 
 .packages-detailed {
-    padding: 0 5% 8rem 5%;
+    padding: 5rem 5% 8rem 5%; /* top padding para sa "Packages" heading */
     background-color: var(--pkg-navy);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 18px 18px;
@@ -1626,21 +1627,21 @@ nav.scrolled {
     position: relative;
     overflow-x: hidden;
     overflow-y: visible;
-    max-width: 1100px;
-    /* fixed container width para 3 cards maayos */
+    max-width: 1240px;
+    /* fixed container width para 3 cards maayos (mas malapad na cards) */
     margin: 0 auto;
-    padding: 2rem 0;
+    padding: 3rem 0 4rem;
 }
 
 .carousel-track {
     display: flex;
-    gap: 2rem;
+    gap: 1rem;
     transition: transform 0.5s ease;
     padding-bottom: 1rem;
 }
 
 .package-card {
-    flex: 0 0 calc((100% / 3) - (2rem * 2 / 3));
+    flex: 0 0 calc((100% - 2rem) / 3); /* 3 cards + 2 gaps (2 × 1rem = 2rem) = eksaktong 100% — walang 4th card na sumisingit sa right */
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -1673,7 +1674,7 @@ nav.scrolled {
     justify-content: center;
     width: 100%;
     margin-top: auto;
-    padding: 0.85rem 1rem;
+    padding: 0.65rem 1rem;
     background: var(--pkg-blue);
     color: #000000 !important;
     font-family: Montserrat, sans-serif;
@@ -1683,15 +1684,12 @@ nav.scrolled {
     border: none;
     border-radius: 10px;
     text-decoration: none;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
     transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .package-cta:hover {
     background: var(--pkg-blue-hover);
     color: #000000 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
 }
 
 /* ==========================================
@@ -1823,15 +1821,18 @@ nav.scrolled {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
-/* Featured card: white border + soft white glow (MindEase "Premium" card,
-   monochrome version) */
+/* Featured "Most Popular" card — ghost highlight: alpha/translucent fill
+   (kita ang dotted bg sa likod, walang blur), white border + soft glow.
+   Naka-angat at mas mahaba kaysa sa magkabilang card
+   (negative top/bottom margins, kagaya ng MindEase Premium card). */
 .package-card.featured {
     background: var(--pkg-card-featured);
     color: var(--white);
     border: 1px solid var(--pkg-blue);
-    order: -1;
     z-index: 2;
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 32px rgba(255, 255, 255, 0.06);
+    margin-top: -1.25rem;
+    margin-bottom: -1.25rem;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 32px rgba(255, 255, 255, 0.08);
 }
 
 .package-card.featured:hover {
@@ -1840,7 +1841,7 @@ nav.scrolled {
     box-shadow: 0 20px 46px rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 255, 255, 0.08);
 }
 
-/* Floating rounded blue pill badge with bolt icon */
+/* Solid white pill badge with bolt icon — clean monochrome design */
 .package-badge {
     position: absolute;
     top: -16px;
@@ -1849,20 +1850,17 @@ nav.scrolled {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    color: #ffffff;
-    padding: 0.5rem 1.25rem;
+    background: #ffffff;
+    border: none;
+    color: #000000;
+    padding: 0.25rem 1rem;
     width: auto;
     white-space: nowrap;
-    font-size: 0.85rem;
+    font-size: 0.80rem;
     text-align: center;
     font-weight: 700;
-    letter-spacing: 0.2px;
     border-radius: 999px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
     text-transform: none;
 }
 
@@ -1884,15 +1882,16 @@ nav.scrolled {
     text-transform: none;
     color: #ffffff;
     position: relative;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.25rem;
 }
 
-/* Short description under the package name (MindEase style) */
+/* Short description under the package name (MindEase style) —
+   dikit sa name at medyo maliwanag para magmukhang connected */
 .package-desc {
-    color: var(--pkg-text-muted);
-    font-size: 0.92rem;
-    line-height: 1.6;
-    margin: 0 0 1.4rem;
+    color: #c9c9cf;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    margin: 0 0 0.5rem;
     text-align: left;
 }
 
@@ -1908,7 +1907,6 @@ nav.scrolled {
 .package-price {
     font-size: clamp(2.7rem, 3.6vw, 3.4rem);
     font-weight: 800;
-    margin: 0 0 1.6rem;
     text-align: left;
     color: #ffffff;
     font-family: Montserrat, sans-serif;
@@ -1961,7 +1959,7 @@ nav.scrolled {
     justify-content: center;
     gap: 0.8rem;
     max-width: 700px;
-    margin: 0 auto 5rem auto;
+    margin: 0 auto 15rem auto;
     padding: 1rem 1.5rem;
     background-color: var(--pkg-card);
     border: 1px solid var(--pkg-border);
@@ -1979,6 +1977,12 @@ nav.scrolled {
 
 .service-charge-note-box p strong {
     color: #ffffff;
+}
+
+/* Info icon sa service charge note (same treatment as .package-notes i) */
+.service-charge-note-box p i {
+    margin-right: 0.5rem;
+    color: inherit;
 }
 
 /* Section subtitle for package page */
@@ -2014,9 +2018,9 @@ nav.scrolled {
     font-size: 0.9rem;
     color: var(--pkg-text-muted);
     display: grid;
-    grid-template-columns: 22px 1fr;
-    column-gap: 0.3rem;
-    align-items: start;
+    grid-template-columns: 24px 1fr;
+    column-gap: 0.4rem;
+    align-items: center;
     line-height: 1.5;
     border-bottom: none;
     transition: color 0.3s ease;
@@ -2133,7 +2137,7 @@ nav.scrolled {
 .packages-carousel-wrapper {
     position: relative;
     /* Keep arrow buttons anchored to the carousel width, not the full page width */
-    max-width: 1100px;
+    max-width: 1240px;
     margin: 0 auto;
 }
 
@@ -2279,17 +2283,6 @@ nav.scrolled {
     position: relative;
 }
 
-/* Balloon-string divider above each section */
-.addons-section::before,
-.additionals-section::before {
-    content: '';
-    display: block;
-    width: 1px;
-    height: 48px;
-    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent);
-    margin: 0 auto 2rem;
-}
-
 .section-title {
     font-size: 2.5rem;
     text-align: center;
@@ -2300,7 +2293,7 @@ nav.scrolled {
 .addons-carousel-wrapper,
 .additionals-carousel-wrapper {
     position: relative;
-    max-width: 1100px;
+    max-width: 1240px; /* same width as .packages-carousel-wrapper */
     margin: 0 auto;
 }
 
@@ -2313,17 +2306,17 @@ nav.scrolled {
     padding-top: 10px;
 }
 
-/* TRACK */
+/* TRACK — gap 1rem para EKSAKTO ang card width na kapareho ng package cards */
 .addons-track,
 .additionals-track {
     display: flex;
-    gap: 2rem;
+    gap: 1rem;
     transition: transform 0.5s ease;
-    margin-bottom: 2rem;
+    margin-bottom: 4rem;
 }
 
 .addon-card {
-    flex: 0 0 calc((100% / 3) - (2rem * 2 / 3));
+    flex: 0 0 calc((100% - 2rem) / 3); /* same math as .package-card */
     background: var(--pkg-card);
     border: 1px solid var(--pkg-border);
     padding: 2.5rem 2rem 2rem 2rem;
@@ -2358,7 +2351,6 @@ nav.scrolled {
     flex-direction: column;
     align-items: flex-start;
     text-align: left;
-    gap: 0.2rem;
 }
 
 .addon-tag {
@@ -2377,8 +2369,7 @@ nav.scrolled {
     letter-spacing: 0;
     text-transform: none;
     color: #ffffff;
-    position: relative;
-    margin-bottom: 0.75rem;
+    position: relative; 
 }
 
 /* Walang underline decoration (MindEase style) */
@@ -2388,8 +2379,6 @@ nav.scrolled {
 
 .addon-price {
     font-size: clamp(1.6rem, 2.4vw, 2rem);
-    margin-top: 0.3rem;
-    margin-bottom: 1.25rem;
     font-weight: 800;
     text-align: left;
     display: inline-flex;
@@ -2425,13 +2414,13 @@ nav.scrolled {
 }
 
 .addon-features li {
-    padding: 0.55rem 0;
+    padding: 0.30rem 0; /* same spacing as .package-features li */
     font-size: 0.9rem;
     color: var(--pkg-text-muted);
     display: grid;
-    grid-template-columns: 22px 1fr;
-    column-gap: 0.7rem;
-    align-items: start;
+    grid-template-columns: 24px 1fr;
+    column-gap: 0.4rem; /* same as .package-features li */
+    align-items: center;
     line-height: 1.5;
     border-bottom: none;
     transition: color 0.3s ease;
@@ -2451,32 +2440,32 @@ nav.scrolled {
     font-weight: 600;
 }
 
-/* Check badges: thin check in a ghost circle (MindEase style, monochrome) */
+/* Check badges: solid filled circle with a clean check glyph — NO border
+   (MindEase style, strict black & white) */
 .package-features li::before,
 .addon-features li::before {
-    content: "\2713" !important;
-    width: 20px;
-    height: 20px;
+    content: "\f00c" !important;
+    font-family: "Font Awesome 6 Free", sans-serif;
+    font-weight: 900;
+    width: 18px;
+    height: 18px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.10);
+    border: none;
     color: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.62rem;
-    font-weight: 400;
+    font-size: 0.6rem;
     line-height: 1;
-    margin-top: 0.1rem;
     margin-right: 0;
 }
 
-/* Ghost circle subtly brightens on card hover */
+/* Ghost circle brightens slightly on card hover */
 .package-card:hover .package-features li::before,
 .addon-card:hover .addon-features li::before {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.18);
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .solo-price {
@@ -2487,6 +2476,74 @@ nav.scrolled {
     color: var(--pkg-text-muted);
     margin: 1rem 1rem 0.5rem;
     font-style: italic;
+}
+
+/* ==========================================
+   w/ Package ↔ Solo pricing toggle (Entrance Arch)
+   MindEase-style pill switch — strict monochrome
+   ========================================== */
+.pricing-toggle {
+    display: flex;
+    width: fit-content;
+    margin: -1.25rem auto 2.5rem;
+    padding: 0.3rem;
+    gap: 0.25rem;
+    /* Solid card bg — kapareho ng .addon-card (hindi translucent) para
+       pantay ang kulay ng switch at ng cards sa magkabilang side */
+    background: var(--pkg-card);
+    border: 1px solid var(--pkg-border);
+    border-radius: 10px; /* box type */
+}
+
+.pricing-option {
+    padding: 0.55rem 1.4rem;
+    font-family: Montserrat, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--pkg-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 7px; /* box type */
+    cursor: pointer;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.pricing-option:hover {
+    color: #ffffff;
+}
+
+/* Active pill: white bg + black text sa dark mode */
+.pricing-option.active {
+    background: var(--pkg-blue);
+    color: #000000;
+}
+
+/* Info icon sa notes sa ilalim ng cards */
+.package-notes i,
+.additional-notes i {
+    margin-right: 0.45rem;
+    color: inherit;
+}
+
+/* Light mode: card-matching pill container (same #f9f9fa bg as .addon-card),
+   black active pill */
+[data-theme="light"] .pricing-toggle {
+    background: #f9f9fa;
+    border-color: #e8e8ea;
+}
+
+[data-theme="light"] .pricing-option {
+    color: #71717a;
+}
+
+[data-theme="light"] .pricing-option:hover {
+    color: #111111;
+}
+
+[data-theme="light"] .pricing-option.active {
+    background: #111111;
+    color: #ffffff;
 }
 
 .solo-price strong {
@@ -2549,20 +2606,20 @@ nav.scrolled {
 .package-price,
 .package-service-price,
 .addon-price {
-    font-size: clamp(1.2rem, 2.5vw, 2rem);
+    font-size: 2.8rem;
     word-break: break-word;
     overflow-wrap: break-word;
 }
 
 @media (max-width: 1024px) {
     .addon-card {
-        flex: 0 0 calc((100% - 2rem) / 2);
+        flex: 0 0 calc((100% - 1rem) / 2); /* same math as .package-card @2-up */
     }
 }
 
 @media (max-width: 768px) {
     .addon-card {
-        flex: 0 0 calc(100% - 4px);
+        flex: 0 0 100%;
     }
 
     .carousel-btn {
@@ -2592,8 +2649,7 @@ nav.scrolled {
     }
 
     .package-card {
-        flex: 0 0 calc((100% / 2) - (2rem / 2));
-        /* 2 cards */
+        flex: 0 0 calc((100% - 1rem) / 2); /* 2 cards + 1 gap (1rem) = eksaktong 100% */
     }
 
     .addons-grid {
@@ -3501,7 +3557,7 @@ nav.scrolled {
 ========================================= */
 
 .gallery-hero {
-    padding: 6rem 5% 3rem;
+    padding: clamp(3.5rem, 8vw, 6rem) 5% clamp(2rem, 4vw, 3rem);
     text-align: center;
     background: var(--black);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
@@ -3509,20 +3565,20 @@ nav.scrolled {
 }
 
 .gallery-hero h1 {
-    font-size: 3.5rem;
+    font-size: clamp(2.2rem, 6vw, 3.5rem);
     font-weight: 800;
     letter-spacing: -1px;
     margin-bottom: 0.75rem;
 }
 
 .gallery-hero p {
-    font-size: 1.05rem;
+    font-size: clamp(0.95rem, 2vw, 1.05rem);
     color: #999;
     margin: 0 auto;
 }
 
 .gallery-section {
-    padding: 2rem 5% 5rem;
+    padding: clamp(1.5rem, 3vw, 2rem) 5% clamp(3rem, 6vw, 5rem);
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
     background-size: 18px 18px;
 }
@@ -3872,6 +3928,16 @@ nav.scrolled {
         margin-bottom: 8px;
         border-radius: 8px;
     }
+
+    .filter-btn {
+        padding: 0.45rem 1rem 0.55rem 1rem;
+        font-size: 0.78rem;
+    }
+
+    .gallery-caption {
+        font-size: 0.75rem;
+        padding: 0.9rem 0.75rem 0.75rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -4082,9 +4148,67 @@ nav.scrolled {
 
 /* Section padding is shared by dark & light mode for consistency */
 
-/* Light theme: gallery hero matches the all-white section backgrounds */
+/* Light theme: gallery hero + section keep the dotted pattern visible on white */
 [data-theme="light"] .gallery-hero {
     background-color: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.10) 1.01px, transparent 1px);
+}
+
+[data-theme="light"] .gallery-section {
+    background-color: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.10) 1.01px, transparent 1px);
+}
+
+[data-theme="light"] .gallery-hero h1 {
+    color: #111111;
+}
+
+[data-theme="light"] .gallery-hero p {
+    color: #3f3f46;
+}
+
+/* Light theme: images stay at full brightness and get a subtle border +
+   placeholder so light-colored artwork remains visible on the white page */
+[data-theme="light"] .gallery-item {
+    background: #f4f4f5;
+    border: 1px solid #e4e4e7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .gallery-item img {
+    filter: brightness(1) saturate(1.02);
+}
+
+/* Light theme: much softer hover overlay (no more pitch-black wash) */
+[data-theme="light"] .gallery-item::before {
+    background: linear-gradient(
+        180deg,
+        transparent 45%,
+        rgba(0, 0, 0, 0.45) 100%
+    );
+}
+
+/* Light theme: B&W filter pills — white on white page, black when active */
+[data-theme="light"] .filter-btn {
+    background: #ffffff;
+    color: #3f3f46;
+    border-color: #d4d4d8;
+}
+
+[data-theme="light"] .filter-btn:hover {
+    color: #111111;
+    border-color: #a1a1aa;
+}
+
+[data-theme="light"] .filter-btn.active {
+    background: #111111;
+    color: #ffffff;
+    border-color: #111111;
+}
+
+/* Light theme: gallery empty state + lightbox caption readable */
+[data-theme="light"] .gallery-empty {
+    color: #3f3f46;
 }
 
 [data-theme="light"] .stats-card {
@@ -4117,7 +4241,6 @@ nav.scrolled {
 [data-theme="light"] .feature-card:hover,
 [data-theme="light"] .value-card:hover {
     background: #f1f3f5;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .feature-icon-wrap, 
@@ -4132,101 +4255,106 @@ nav.scrolled {
     border: 1px solid #e5e7eb;
 }
 
-/* ---------- PACKAGES PAGE — LIGHT MODE (MindEase-style blue UI) ---------- */
+/* ---------- PACKAGES PAGE — LIGHT MODE (MindEase-style monochrome UI) ---------- */
 
-/* Light blue-gray page with subtle dots (matches the screenshot) */
+/* Pure white page with subtle dots (strict monochrome) */
 [data-theme="light"] .packages-hero,
 [data-theme="light"] .packages-detailed {
-    background-color: #f6f9fd;
-    background-image: radial-gradient(circle, rgba(15, 23, 42, 0.10) 1px, transparent 1px);
+    background-color: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
     background-size: 18px 18px;
+}
+
+/* Hero text colors — strictly black & white sa light mode
+   (explicit rules para walang navy/slate o invisible white text) */
+[data-theme="light"] .packages-hero h1,
+[data-theme="light"] .packages-hero-accent {
+    color: #111111;
+}
+
+[data-theme="light"] .packages-hero p {
+    color: #3f3f46;
 }
 
 /* Section headings (Entrance Arch / Welcome Stand) */
 [data-theme="light"] .section-title {
-    color: #0f172a;
+    color: #111111;
 }
 
 [data-theme="light"] .section-subtitle {
-    color: #64748b;
+    color: #71717a;
 }
 
-/* Balloon-string divider above each section */
-[data-theme="light"] .addons-section::before,
-[data-theme="light"] .additionals-section::before {
-    background: linear-gradient(to bottom, transparent, rgba(15, 23, 42, 0.18), transparent);
-}
-
-/* Cards: white with soft border/shadow */
+/* Cards: light gray with soft border/shadow */
 [data-theme="light"] .package-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: #f9f9fa;
+    border: 1px solid #e8e8ea;
     border-radius: 18px;
-    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.05);
-    color: #0f172a;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+    color: #111111;
 }
 
 [data-theme="light"] .package-card:hover {
-    background: #ffffff;
-    border-color: #cbd5e1;
-    box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.14);
+    background: #f9f9fa;
+    border-color: #a1a1aa; /* border lang ang lumiwanag/umangat sa hover */
+    box-shadow: 0 12px 10px -8px rgba(0, 0, 0, 0.14);
 }
 
-/* Featured card: light-gray fill + black border (monochrome version) */
+/* Featured card: FULLY TRANSPARENT bg sa light mode (walang gray tint) —
+   black border + shadow lang ang nag-highlight, kita ang dotted bg */
 [data-theme="light"] .package-card.featured {
-    background: #f4f4f5;
+    background: transparent;
     border: 1px solid #111111;
-    box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 12px 18px -8px rgba(0, 0, 0, 0.18);
 }
 
 [data-theme="light"] .package-card.featured:hover {
-    background: #ebebeb;
+    background: transparent;
     border-color: #111111;
 }
 
-/* Ghost badge in light mode */
+/* Solid black pill badge in light mode */
 [data-theme="light"] .package-badge,
 [data-theme="light"] .package-card.featured .package-badge {
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.25);
-    color: #111111;
-    box-shadow: none;
+    background: #111111;
+    border: none;
+    color: #ffffff;
 }
 
 [data-theme="light"] .package-card h3 {
-    color: #0f172a;
+    color: #111111;
 }
 
 [data-theme="light"] .package-price {
-    color: #0f172a;
+    color: #111111;
 }
 
 [data-theme="light"] .package-price span {
-    color: #64748b;
+    color: #71717a;
     opacity: 1;
 }
 
 [data-theme="light"] .package-features li {
-    color: #475569;
+    color: #3f3f46;
 }
 
 [data-theme="light"] .package-card:hover .package-features li {
-    color: #334155;
+    color: #27272a;
 }
 
 [data-theme="light"] .package-desc {
-    color: #475569;
+    color: #3f3f46;
 }
 
 /* FIX: featured card feature text must stay readable in light mode
    (the dark-theme rule forces white text) */
 [data-theme="light"] .package-card.featured .package-features li {
-    color: #475569;
+    color: #3f3f46;
 }
 
 [data-theme="light"] .package-list-label {
-    color: #64748b;
-    border-bottom-color: #e2e8f0;
+    color: #71717a;
+    border-bottom-color: #e4e4e7;
 }
 
 [data-theme="light"] .package-list-label::before,
@@ -4245,107 +4373,106 @@ nav.scrolled {
 }
 
 [data-theme="light"] .package-notes {
-    color: #64748b;
-    border-top-color: #eef2f7;
-}
-
-[data-theme="light"] .package-card.featured .package-notes {
-    color: #475569;
+    color: #71717a;
     border-top-color: #e4e4e7;
 }
 
-/* Check badges: ghost circle with dark check in light theme */
+[data-theme="light"] .package-card.featured .package-notes {
+    color: #3f3f46;
+    border-top-color: #e4e4e7;
+}
+
+/* Check badges: ghost circle with dark check, NO border in light theme */
 [data-theme="light"] .package-features li::before,
 [data-theme="light"] .addon-features li::before {
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.08);
+    border: none;
     color: #111111;
 }
 
 [data-theme="light"] .package-card:hover .package-features li::before,
 [data-theme="light"] .addon-card:hover .addon-features li::before {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.14);
     color: #111111;
-    border-color: rgba(0, 0, 0, 0.32);
 }
 
 /* Add-on / Additional cards */
 [data-theme="light"] .addon-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: #f9f9fa;
+    border: 1px solid #e8e8ea;
     border-radius: 18px;
-    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.05);
-    color: #0f172a;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+    color: #111111;
 }
 
 [data-theme="light"] .addon-card:hover {
-    background: #ffffff;
-    border-color: #cbd5e1;
-    box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.14);
+    background: #f9f9fa;
+    border-color: #a1a1aa; /* border lang ang lumiwanag/umangat sa hover */
+    box-shadow: 0 12px 10px -8px rgba(0, 0, 0, 0.14);
 }
 
 [data-theme="light"] .addon-tag {
-    color: #64748b;
+    color: #71717a;
     opacity: 1;
 }
 
 [data-theme="light"] .addon-name {
-    color: #0f172a;
+    color: #111111;
 }
 
 [data-theme="light"] .addon-price,
 [data-theme="light"] .price-amount {
-    color: #0f172a;
+    color: #111111;
 }
 
 [data-theme="light"] .addon-price-note {
-    color: #64748b;
+    color: #71717a;
 }
 
 [data-theme="light"] .addon-features li {
-    color: #475569;
+    color: #3f3f46;
 }
 
 [data-theme="light"] .addon-card:hover .addon-features li {
-    color: #334155;
+    color: #27272a;
 }
 
 [data-theme="light"] .solo-price {
-    color: #64748b;
-    border-top-color: #eef2f7;
+    color: #71717a;
+    border-top-color: #e4e4e7;
 }
 
 [data-theme="light"] .solo-price strong {
-    color: #0f172a;
+    color: #111111;
 }
 
 [data-theme="light"] .additional-notes {
-    color: #64748b;
-    border-top-color: #eef2f7;
+    color: #71717a;
+    border-top-color: #e4e4e7;
 }
 
 /* Service charge note boxes */
 [data-theme="light"] .service-charge-note-box {
     background-color: #ffffff;
-    border-color: #e2e8f0;
+    border-color: #e4e4e7;
     border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="light"] .service-charge-note-box p {
-    color: #64748b;
+    color: #71717a;
 }
 
 [data-theme="light"] .service-charge-note-box p strong {
-    color: #0f172a;
+    color: #111111;
 }
 
 /* Circular carousel arrows: white circle, black on hover */
 [data-theme="light"] .carousel-btn {
     background: #ffffff;
-    color: #0f172a;
-    border-color: #e2e8f0;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+    color: #111111;
+    border-color: #e4e4e7;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
 }
 
 [data-theme="light"] .carousel-btn:hover {
@@ -4359,7 +4486,6 @@ nav.scrolled {
 [data-theme="light"] .package-cta {
     background: #111111;
     color: #ffffff !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 [data-theme="light"] .package-cta:hover {
@@ -5722,3 +5848,90 @@ nav.scrolled {
         font-size: 1.5rem;
     }
 }
+
+/* ========================================================
+   GALLERY CTA — "Ready to Style Your Event?" banner
+   ======================================================== */
+.gallery-cta {
+    margin: 0 auto clamp(3rem, 6vw, 5rem);
+    width: 90%;
+    max-width: none;
+    padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 4vw, 3rem);
+    border-radius: 16px;
+    text-align: center;
+    background: #111111;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle balloon-dot accent sa likod */
+.gallery-cta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1.01px, transparent 1.01px);
+    background-size: 22px 22px;
+    pointer-events: none;
+}
+
+.gallery-cta h2 {
+    position: relative;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+}
+
+.gallery-cta p {
+    position: relative;
+    color: #a1a1aa;
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    line-height: 1.6;
+    max-width: 560px;
+    margin: 0.7rem auto 1.6rem;
+}
+
+.gallery-cta-actions {
+    position: relative;
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center !important;
+    align-items: center;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+/* Same buttons as home CTA (.cta-btn) */
+
+/* Light mode */
+[data-theme="light"] .gallery-cta {
+    background: #f4f4f5;
+    border-color: #e4e4e7;
+}
+
+[data-theme="light"] .gallery-cta::before {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.06) 1.01px, transparent 1.01px);
+}
+
+[data-theme="light"] .gallery-cta h2 {
+    color: #111111;
+}
+
+[data-theme="light"] .gallery-cta p {
+    color: #52525b;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .gallery-cta {
+        width: 92%;
+        margin: 0 auto clamp(2.5rem, 5vw, 4rem);
+        border-radius: 12px;
+    }
+    .gallery-cta-actions .cta-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+

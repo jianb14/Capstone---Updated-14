@@ -3,10 +3,7 @@
    ============================================ */
 
 .my-designs-section {
-    padding-top: 100px;
-    padding-bottom: 40px;
-    padding-left: 5%;
-    padding-right: 5%;
+    padding: 7.5rem 5% 10rem;
     background-color: var(--black);
     min-height: calc(100vh - 80px);
 }
@@ -44,7 +41,7 @@
 .create-new-btn {
     background-color: var(--white);
     color: var(--black);
-    padding: 7px 16px;
+    padding: 8px 16px;
     border-radius: 5px;
     text-decoration: none;
     font-weight: 600;
@@ -134,24 +131,34 @@
     gap: 8px;
 }
 
+/* Thin outline SVG icons (hindi bold — kapareho ng stroke style ng home/about icons) */
+.mi {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
 .overlay-btn.book-btn {
-    background: transparent;
-    color: #fff;
-    border: 1px solid rgba(255,255,255,0.1);
+    /* Primary button: solid white sa dark mode */
+    background: var(--white);
+    color: var(--black);
+    border: 1px solid transparent;
 }
 
 .overlay-btn.book-btn:hover {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0);
+    background: var(--dark-gray);
 }
 
 .overlay-btn.edit-btn {
-    color: #000000;
-    background: #e5e5e5;
+    /* Secondary button: ghost outline sa dark mode */
+    color: #fff;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
 }
 
 .overlay-btn.edit-btn:hover {
-    background: #ffffff;
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.5);
 }
 
 /* 3-Dots Menu */
@@ -163,8 +170,10 @@
 }
 
 .menu-dots-btn {
-    background: rgba(0,0,0,0.6);
-    border: none;
+    /* visible circular chip: dark circle + subtle light border para
+     * hindi ito mag-blend sa madilim o maputing thumbnail */
+    background: rgba(17, 17, 17, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -172,14 +181,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #aaa;
+    color: #e5e5e5;
     transition: all 0.2s;
     font-size: 0.75rem;
 }
 
 .menu-dots-btn:hover {
-    background: rgba(0,0,0,0.85);
-    color: #fff;
+    background: #111111;
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #ffffff;
 }
 
 .design-dropdown-menu {
@@ -479,16 +489,75 @@
     cursor: not-allowed;
 }
 
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 1024px) {
+    .designs-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .designs-header {
+        flex-wrap: wrap;
+    }
+}
+
 @media (max-width: 768px) {
+    .my-designs-section {
+        padding-top: 90px;
+    }
+
     .designs-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
-    
+
+    .designs-header h2 {
+        font-size: 1.5rem;
+    }
+
     .designs-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
+    }
+
+    /* Sa maliit na card, mag-stack ang Edit/Book Now para hindi mag-siksikan */
+    .design-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .pagination-container {
+        margin-top: 28px;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .designs-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .design-thumbnail-wrapper {
+        aspect-ratio: 16 / 10;
+    }
+
+    .menu-dots-btn {
+        width: 26px;
+        height: 26px;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .modal-actions button {
+        width: 100%;
     }
 }
 
@@ -500,10 +569,23 @@
 .pkg-select-box {
     width: 95vw;
     max-width: 1200px;
+    max-height: 85vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #444 transparent;
     padding: 1.5rem 2rem;
     background: #0d0d0d;
     border: 1px solid #333;
     border-radius: 12px;
+}
+
+.pkg-select-box::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pkg-select-box::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
 }
 
 .pkg-select-header {
@@ -528,7 +610,8 @@
 
 .pkg-cards-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* Auto-responsive: 4-up sa malapad, 2-up sa medium, 1-up sa maliit — walang media queries na kailangan */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
 }
 
@@ -558,7 +641,7 @@
 .pkg-card-title {
     margin: 0 0 0.3rem 0;
     font-size: 0.85rem;
-    font-weight: 800;
+    font-weight: 700;
     color: #fff;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -567,7 +650,7 @@
 .pkg-card-price {
     color: #fff;
     font-weight: 800;
-    font-size: 1.5rem;
+    font-size: 2rem;
     margin-bottom: 0.3rem;
 }
 
@@ -586,13 +669,13 @@
     background: #fff;
     color: #000;
     font-weight: 600;
-    padding: 0.6rem;
+    padding: 0.5rem;
     border-radius: 6px;
     display: block;
     text-align: center;
     text-decoration: none;
     font-size: 0.85rem;
-    margin-top: 0.8rem;
+    margin-top: 1.5rem;
     transition: background 0.2s ease;
     border: none;
     cursor: pointer;
@@ -604,12 +687,13 @@
 
 .pkg-feat-btn {
     background: transparent;
-    border: 1px solid #444;
+    border: 1px solid #2f2f2f;
     color: #ccc;
     cursor: pointer;
     border-radius: 20px;
     font-size: 0.7rem;
     padding: 6px 16px;
+    font-family: 'Montserrat', sans-serif;
     transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -625,11 +709,12 @@
 .pkg-close-btn {
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: 2rem;
     color: #666;
     cursor: pointer;
     line-height: 1;
     transition: color 0.2s ease;
+    padding: 0 4px;
 }
 
 .pkg-close-btn:hover {
@@ -650,8 +735,21 @@
     padding: 1.5rem 2rem;
     max-width: 420px;
     width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #444 transparent;
     position: relative;
     border-radius: 12px;
+}
+
+.feature-modal-box::-webkit-scrollbar {
+    width: 6px;
+}
+
+.feature-modal-box::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
 }
 
 .feature-modal-header {
@@ -710,20 +808,36 @@
     background: #d4d4d4;
 }
 
-/* Responsive - Package Modal */
+/* Responsive - Package Modal
+   (columns handled ng auto-fit/minmax sa itaas; dito na lang ang spacing fixes) */
 @media (max-width: 992px) {
-    .pkg-cards-grid {
-        grid-template-columns: repeat(2, 1fr);
+    .pkg-select-box {
+        padding: 1.25rem 1.5rem;
     }
 }
 
 @media (max-width: 576px) {
-    .pkg-cards-grid {
-        grid-template-columns: 1fr;
+    .pkg-select-box {
+        width: 94vw;
+        padding: 1rem;
+        max-height: 90vh;
     }
 
-    .pkg-select-box {
-        padding: 1rem;
+    .feature-modal-box {
+        padding: 1.25rem 1.25rem;
+        max-height: 90vh;
+    }
+
+    .pkg-select-header h2 {
+        font-size: 1.15rem;
+    }
+
+    .pkg-select-subtitle {
+        font-size: 0.85rem;
+    }
+
+    .pkg-card {
+        padding: 1rem 0.85rem;
     }
 }
 
@@ -736,7 +850,7 @@
     --card-bg-s: #f9fafb;
     --card-bdr: rgba(0, 0, 0, 0.1);
     --card-bdr-h: rgba(0, 0, 0, 0.2);
-    --t1: #111827;
+    --t1: #111111;
     --t2: #4b5563;
     --t3: #6b7280;
     --t4: #9ca3af;
@@ -757,7 +871,7 @@
 [data-theme="light"] .table-container {
     background-color: #ffffff !important;
     border-color: #e5e7eb !important;
-    color: #111827 !important;
+    color: #111111 !important;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
 }
 
@@ -773,7 +887,7 @@
 [data-theme="light"] table td,
 [data-theme="light"] .data-table td {
     background-color: #ffffff !important;
-    color: #111827 !important;
+    color: #111111 !important;
     border-color: #e5e7eb !important;
 }
 
@@ -789,8 +903,7 @@
 [data-theme="light"] input[type="time"],
 [data-theme="light"] select,
 [data-theme="light"] textarea {
-    background-color: #f9fafb !important;
-    color: #111827 !important;
+    color: #111111 !important;
     border: 1px solid #d1d5db !important;
 }
 
@@ -798,8 +911,8 @@
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
     background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    border-color: #111111 !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15) !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -815,7 +928,7 @@
 [data-theme="light"] h4,
 [data-theme="light"] h5,
 [data-theme="light"] h6 {
-    color: #111827 !important;
+    color: #111111 !important;
 }
 
 [data-theme="light"] .btn-outline {
@@ -831,7 +944,7 @@
 [data-theme="light"] .notif-item {
     background-color: #ffffff !important;
     border-color: #e5e7eb !important;
-    color: #111827 !important;
+    color: #111111 !important;
 }
 
 [data-theme="light"] .notif-item:hover {
@@ -845,7 +958,7 @@
 }
 
 [data-theme="light"] .notif-content p {
-    color: #111827 !important;
+    color: #111111 !important;
 }
 
 [data-theme="light"] .notif-empty {
@@ -855,3 +968,767 @@
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
 }
+
+/* ============================================
+   MY DESIGNS — LIGHT THEME (strict black & white)
+   ============================================ */
+
+/* Page background: pure white instead of gray */
+[data-theme="light"] .my-designs-section {
+    background-color: #ffffff;
+}
+
+/* Headings: pure black (kills the navy #111111) */
+[data-theme="light"] .my-designs-section h1,
+[data-theme="light"] .my-designs-section h2,
+[data-theme="light"] .my-designs-section h3,
+[data-theme="light"] .my-designs-section h4 {
+    color: #111111 !important;
+}
+
+[data-theme="light"] .designs-header-copy p {
+    color: #3f3f46;
+}
+
+/* Cards + empty state: white card na may soft shadow at banayad na
+ * light gray border (hindi masyadong gray) */
+[data-theme="light"] .design-card,
+[data-theme="light"] .empty-state {
+    background: #ffffff;
+    border-color: #e8e8ea;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .design-card:hover {
+    border-color: #d4d4d8;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Ibalik ang "white canvas / whitepaper" look: light gray workspace ang
+ * thumbnail area (kagaya ng design canvas editor) para kitang-kita ang
+ * puting paper thumbnail — hindi na siya nagbl-blend sa puting card.
+ * Nanatili rin ang soft shadow ng card container. */
+[data-theme="light"] .design-thumbnail-wrapper {
+    background-color: #f4f4f5;
+}
+
+[data-theme="light"] .design-thumbnail-placeholder {
+    color: #71717a;
+}
+
+[data-theme="light"] .design-thumbnail-placeholder i {
+    color: #a1a1aa;
+}
+
+[data-theme="light"] .design-info {
+    background: #ffffff;
+}
+
+[data-theme="light"] .design-title {
+    color: #111111;
+}
+
+[data-theme="light"] .design-date {
+    color: #71717a;
+}
+
+/* Card action buttons: PRIMARY = Book Now (solid black), SECONDARY = Edit (ghost outline) */
+[data-theme="light"] .overlay-btn.book-btn {
+    background: #111111;
+    color: #ffffff;
+    border: 1px solid #111111;
+}
+
+[data-theme="light"] .overlay-btn.book-btn:hover {
+    background: #3f3f46;
+    border-color: #3f3f46;
+}
+
+[data-theme="light"] .overlay-btn.edit-btn {
+    background: transparent;
+    color: #111111;
+    border: 1px solid #d4d4d8;
+}
+
+[data-theme="light"] .overlay-btn.edit-btn:hover {
+    background: #f4f4f5;
+    border-color: #a1a1aa;
+}
+
+/* 3-dots menu + dropdown */
+[data-theme="light"] .menu-dots-btn {
+    /* puting circular chip na may border + soft shadow —
+     * kita agad sa light gray canvas */
+    background: #ffffff;
+    border-color: #e4e4e7;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    color: #3f3f46;
+}
+
+[data-theme="light"] .menu-dots-btn:hover {
+    /* light gray lang ang hover sa light mode — hindi black */
+    background: #f4f4f5;
+    border-color: #d4d4d8;
+    color: #18181b;
+}
+
+[data-theme="light"] .design-dropdown-menu {
+    background: #ffffff;
+    border-color: #e4e4e7;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .design-dropdown-menu button {
+    color: #3f3f46;
+}
+
+[data-theme="light"] .design-dropdown-menu button:hover {
+    background: #f4f4f5;
+    color: #111111;
+}
+
+/* Light gray divider sa taas ng Delete (kapalit ng madilim na #2a2a2a) */
+[data-theme="light"] .design-dropdown-menu .delete-action {
+    border-top: 1px solid #ededed;
+}
+
+/* Delete hover: ghost red para tumugma sa dark mode */
+[data-theme="light"] .design-dropdown-menu .delete-action:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444 !important;
+}
+
+/* Rename/delete modal */
+[data-theme="light"] .form-control {
+    background: #ffffff;
+    color: #111111;
+    border-color: #d4d4d8;
+}
+
+[data-theme="light"] .btn-cancel {
+    background: #f4f4f5;
+    color: #3f3f46;
+}
+
+[data-theme="light"] .btn-cancel:hover {
+    background: #e4e4e7;
+    color: #111111;
+}
+
+/* Pagination */
+[data-theme="light"] .page-link {
+    color: #71717a;
+}
+
+[data-theme="light"] .page-link:hover:not(.disabled):not(.active) {
+    background: rgba(0, 0, 0, 0.06);
+    color: #111111;
+}
+
+/* Package selection modal ("Select Your Starting Point") */
+[data-theme="light"] .pkg-select-box {
+    background: #ffffff;
+    border-color: #e4e4e7;
+}
+
+[data-theme="light"] .pkg-select-subtitle {
+    color: #3f3f46;
+}
+
+[data-theme="light"] .pkg-card {
+    background: #f9f9fa;
+    border-color: #e4e4e7;
+}
+
+[data-theme="light"] .pkg-card:hover {
+    border-color: #a1a1aa;
+}
+
+[data-theme="light"] .pkg-card-icon,
+[data-theme="light"] .pkg-card-title,
+[data-theme="light"] .pkg-card-price {
+    color: #111111;
+}
+
+[data-theme="light"] .pkg-card-desc {
+    color: #71717a;
+}
+
+[data-theme="light"] .pkg-feat-btn {
+    border-color: #dfdfdf;
+    color: #3f3f46;
+}
+
+[data-theme="light"] .pkg-feat-btn:hover {
+    background: #f4f4f5;
+    color: #111111;
+}
+
+[data-theme="light"] .pkg-close-btn {
+    color: #71717a;
+}
+
+[data-theme="light"] .pkg-close-btn:hover {
+    color: #111111;
+}
+
+/* Feature detail modal */
+[data-theme="light"] .feature-modal-box {
+    background: #ffffff;
+    border-color: #e4e4e7;
+}
+
+/* ============================================
+   MY DESIGNS — LIGHT THEME FIXES (round 3)
+   ============================================ */
+
+/* "Select Design" button (light): dating white-on-white kaya hindi makita
+ * sa white/gray modal — solid black na kagaya ng Create New Design btn */
+[data-theme="light"] .pkg-modal-btn {
+    background: #111111;
+    color: #ffffff;
+    border: 1px solid #111111;
+}
+
+[data-theme="light"] .pkg-modal-btn:hover {
+    background: #3f3f46;
+    border-color: #3f3f46;
+}
+
+/* "Start with this Package" button (light): white-on-white din dati —
+ * solid black para laging kita sa white modal */
+[data-theme="light"] .feature-modal-btn {
+    background: #111111;
+    color: #ffffff;
+    border: 1px solid #111111;
+}
+
+[data-theme="light"] .feature-modal-btn:hover {
+    background: #3f3f46;
+    border-color: #3f3f46;
+}
+
+[data-theme="light"] .feature-list li span {
+    color: #3f3f46;
+}
+
+[data-theme="light"] .feature-list li i {
+    color: #111111;
+}
+
+/* ============================================
+   MY DESIGNS — LIGHT THEME FIXES (round 2)
+   ============================================ */
+
+/* hindi dapat ma-box/shadow-an ang buong content container —
+ * neutralize ang generic [data-theme="light"] .container rule sa taas;
+ * flat lang ang page at nasa design cards lang ang shadow */
+[data-theme="light"] .my-designs-container {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Create New Design button: solid black na may soft dark hover
+ * (hindi na medium-gray na galing sa remap na --dark-gray: #6b7280) */
+[data-theme="light"] .create-new-btn {
+    background: #111111;
+    color: #ffffff;
+}
+
+[data-theme="light"] .create-new-btn:hover {
+    background: #3f3f46;
+}
+
+/* Pagination: ibinalik ang box (white bg + border) na kapareho ng dating itsura,
+ * pero panatilihin ang malinis na black & white na states */
+[data-theme="light"] .pagination {
+    background: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+    padding: 8px;
+    gap: 6px;
+}
+
+[data-theme="light"] .page-link {
+    color: #52525b;
+    border: 1px solid transparent;
+}
+
+[data-theme="light"] .page-link:hover:not(.disabled):not(.active) {
+    background: #f4f4f5;
+    color: #111111;
+}
+
+[data-theme="light"] .page-link.active {
+    background: #111111;
+    color: #ffffff;
+}
+
+[data-theme="light"] .page-link.disabled {
+    opacity: 0.45;
+    color: #a1a1aa;
+}
+
+/* ============================================
+   MY DESIGNS — UPGRADES (dotted bg, toolbar,
+   badge, no-results, stats bar)
+   ============================================ */
+
+/* Dotted background — eksaktong kapareho ng home page hero (dark mode):
+ * radial-gradient rgba(255,255,255,0.12) @ 18px grid (base.css hero) */
+.my-designs-section {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+/* ---- Search + Sort Toolbar (reviews-page style) ---- */
+.designs-filter-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.designs-search-wrapper {
+    position: relative;
+    width: 280px;
+    max-width: 100%;
+}
+
+.designs-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    color: #777;
+    pointer-events: none;
+    transition: color 0.3s ease;
+}
+
+.designs-search-input {
+    width: 100%;
+    padding: 0.65rem 1rem 0.65rem 2.5rem;
+    border: 1px solid #444;
+    background: #111;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: 'Montserrat', sans-serif;
+    outline: none;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.designs-search-input::placeholder {
+    color: #777;
+}
+
+.designs-search-input:focus,
+.designs-search-input:focus-visible {
+    /* !important para talunin ang global [data-theme="light"] input:focus
+     * ring rule sa notifications.css */
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.designs-search-wrapper:focus-within .designs-search-icon {
+    color: #fff;
+}
+
+/* Custom dropdown — kapareho ng reviews page (dark theme) */
+.designs-filter-group .filter-select {
+    display: none;
+}
+
+.designs-filter-group .custom-filter-dropdown {
+    position: relative;
+    user-select: none;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-trigger {
+    padding: 0.5rem 1rem;
+    border: 1px solid #444;
+    background: #111;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 170px;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-trigger i {
+    transition: transform 0.3s ease;
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.designs-filter-group .custom-filter-dropdown.open .dropdown-trigger {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.designs-filter-group .custom-filter-dropdown.open .dropdown-trigger i {
+    transform: rotate(180deg);
+    color: #fff;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: #151515;
+    border: 1px solid #333;
+    border-radius: 8px;
+    list-style: none;
+    z-index: 100;
+    max-height: 250px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    margin: 0;
+    padding: 0;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-track {
+    background: #111;
+    border-radius: 4px;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.designs-filter-group .custom-filter-dropdown.open .dropdown-options {
+    display: block;
+    animation: designsDropdownFade 0.2s ease forwards;
+    transform-origin: top center;
+}
+
+@keyframes designsDropdownFade {
+    from { opacity: 0; transform: scaleY(0.95); }
+    to { opacity: 1; transform: scaleY(1); }
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options li {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options li:hover {
+    background: #222;
+    color: #fff;
+}
+
+.designs-filter-group .custom-filter-dropdown .dropdown-options li.selected {
+    color: #fff;
+}
+
+/* ---- Package badge sa thumbnail ---- */
+.design-package-badge {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(17, 17, 17, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #f5f5f5;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    backdrop-filter: blur(4px);
+    max-width: calc(100% - 45px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.design-package-badge i {
+    font-size: 0.6rem;
+    flex-shrink: 0;
+}
+
+/* ---- No results sa search ---- */
+.designs-no-results {
+    text-align: center;
+    padding: 70px 20px;
+    background: var(--gray);
+    border: 1px solid var(--light-gray);
+    border-radius: 8px;
+}
+
+.designs-no-results-icon {
+    font-size: 32px;
+    color: #444;
+    margin-bottom: 12px;
+}
+
+.designs-no-results h3 {
+    font-size: 1.05rem;
+    color: var(--white);
+    margin: 0 0 6px 0;
+    font-weight: 700;
+}
+
+.designs-no-results p {
+    color: #666;
+    font-size: 0.85rem;
+    margin: 0 auto 18px auto;
+    max-width: 420px;
+}
+
+.designs-clear-btn {
+    display: inline-flex !important;
+    width: auto !important;
+    padding: 7px 20px !important;
+}
+
+/* ---- Stats bar (bottom of page) ---- */
+.designs-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 48px;
+}
+
+.design-stat-card {
+    background: var(--gray);
+    border: 1px solid var(--light-gray);
+    border-radius: 8px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.design-stat-card:hover {
+    border-color: #444;
+    transform: translateY(-2px);
+}
+
+.design-stat-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+}
+
+.design-stat-time {
+    font-size: 1.05rem;
+}
+
+.design-stat-label {
+    font-size: 0.7rem;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+/* ============================================
+   UPGRADES — LIGHT THEME (strict black & white)
+   ============================================ */
+
+/* Dotted background — kapareho ng home page hero (light mode):
+ * radial-gradient rgba(0,0,0,0.12) @ 18px grid sa white bg */
+[data-theme="light"] .my-designs-section {
+    background-color: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+[data-theme="light"] .designs-search-wrapper .designs-search-input {
+    background: #ffffff;
+    color: #111111;
+    border-color: #d4d4d8;
+}
+
+[data-theme="light"] .designs-search-wrapper .designs-search-input::placeholder {
+    color: #a1a1aa;
+}
+
+[data-theme="light"] .designs-search-wrapper .designs-search-input:focus,
+[data-theme="light"] .designs-search-wrapper .designs-search-input:focus-visible {
+    background: #ffffff !important;
+    /* !important para talunin ang blue ring sa notifications.css
+     * (box-shadow: 0 0 0 2px rgba(59,130,246,0.2) !important) */
+    border-color: #71717a !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .designs-search-wrapper .designs-search-icon {
+    color: #a1a1aa;
+}
+
+[data-theme="light"] .designs-search-wrapper:focus-within .designs-search-icon {
+    color: #111111;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-trigger {
+    background: #ffffff;
+    color: #111111;
+    border-color: #d4d4d8;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-trigger i {
+    color: #71717a;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown.open .dropdown-trigger {
+    border-color: #71717a;
+    background: #ffffff;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown.open .dropdown-trigger i {
+    color: #111111;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-options {
+    background: #ffffff;
+    border-color: #e4e4e7;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-track {
+    background: #f4f4f5;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb {
+    background: #d4d4d8;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-options li {
+    color: #52525b;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-options li:hover {
+    background: #f4f4f5;
+    color: #111111;
+}
+
+[data-theme="light"] .designs-filter-group .custom-filter-dropdown .dropdown-options li.selected {
+    color: #111111;
+}
+
+/* Package badge (light) */
+[data-theme="light"] .design-package-badge {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: #e4e4e7;
+    color: #111111;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* No results (light) */
+[data-theme="light"] .designs-no-results {
+    background: #ffffff;
+    border-color: #e4e4e7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .designs-no-results-icon {
+    color: #a1a1aa;
+}
+
+[data-theme="light"] .designs-no-results h3 {
+    color: #111111;
+}
+
+[data-theme="light"] .designs-no-results p {
+    color: #71717a;
+}
+
+/* Stats bar (light) */
+[data-theme="light"] .design-stat-card {
+    background: #ffffff;
+    border-color: #e4e4e7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .design-stat-card:hover {
+    border-color: #a1a1aa;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .design-stat-value {
+    color: #111111;
+}
+
+[data-theme="light"] .design-stat-label {
+    color: #71717a;
+}
+
+/* ---- Responsive (upgrades) ---- */
+@media (max-width: 1024px) {
+    .designs-stats-bar {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .designs-filter-group {
+        gap: 10px;
+    }
+
+    .designs-search-wrapper {
+        flex: 1 1 200px;
+        width: auto;
+    }
+
+    .designs-filter-group .custom-filter-dropdown {
+        flex: 1 1 170px;
+    }
+
+    .designs-filter-group .custom-filter-dropdown .dropdown-trigger {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .designs-stats-bar {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 32px;
+    }
+
+    .design-stat-card {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 14px 16px;
+    }
+
+    .design-stat-value {
+        font-size: 1.1rem;
+    }
+}
+

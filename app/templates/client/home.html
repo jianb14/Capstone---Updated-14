@@ -310,19 +310,30 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                const items = document.querySelectorAll('.gallery-item');
-                
-                // --- STAGGERED ENTRANCE ANIMATION ---
-                function animateItems(visibleItems) {
-                    visibleItems.forEach((item, i) => {
-                        item.classList.remove('show');
-                        setTimeout(() => {
-                            item.classList.add('show');
-                        }, i * 60);
-                    });
+                const items = document.querySelectorAll('.home-gallery-grid .gallery-item');
+
+                // --- SCROLL REVEAL (IntersectionObserver + stagger) ---
+                // Kapag pumasok na sa viewport ang isang image, saka lang ito
+                // magla-"show" — may stagger (90ms) bawat sunod-sunod na item.
+                const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (reducedMotion || !('IntersectionObserver' in window)) {
+                    // Walang animation: ipakita agad lahat
+                    items.forEach(item => item.classList.add('show'));
+                } else {
+                    const revealObserver = new IntersectionObserver((entries) => {
+                        let stagger = 0;
+                        entries.forEach((entry) => {
+                            if (!entry.isIntersecting) return;
+                            const item = entry.target;
+                            revealObserver.unobserve(item);
+                            setTimeout(() => item.classList.add('show'), stagger);
+                            stagger += 90;
+                        });
+                    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+                    items.forEach(item => revealObserver.observe(item));
                 }
-                
-                animateItems([...items]);
 
                 // --- LIGHTBOX ---
                 const lightbox = document.getElementById('galleryLightbox');

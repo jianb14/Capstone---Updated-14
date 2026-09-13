@@ -1,36 +1,36 @@
 .admin-chat-float {
     position: fixed;
-    right: 30px;
-    bottom: 92px;
-    z-index: 9997;
+    right: 24px;
+    bottom: 82px; /* 24 (fab bottom) + 46 (fab size) + 12 gap — pantay sa AI FAB */
+    /* 10000 — dapat mas mataas sa AI widget (9998) dahil sa mobile/tablet
+       (≤768px) nagpa-overlap sila sa kanang-baba ng screen: kung wala ito,
+       malalamon ng bukas na AI widget ang admin toggle at hindi na ma-click */
+    z-index: 10000;
+    /* Smooth na pagtago kapag may bukas na kabilaang chat widget
+       (tingnan ang body:has() rule sa base.html) */
+    transition: opacity 0.25s ease, visibility 0.25s ease;
     font-family: 'Montserrat', sans-serif;
 }
 
 /* Toggle button — matches the AI assistant FAB (white bg, black icon) */
 .admin-chat-toggle {
-    width: 50px;
-    height: 50px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     border: 1px solid var(--black);
     background: linear-gradient(135deg, var(--white) 0%, #e0e0e0 100%);
     color: var(--black);
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
 }
 
-.admin-chat-toggle:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-
 .admin-chat-toggle::after {
-    content: 'Chat with admin';
+    content: 'Chat with Admin';
     position: absolute;
     right: calc(100% + 12px);
     top: 50%;
@@ -40,6 +40,8 @@
     backdrop-filter: blur(10px);
     color: var(--white);
     padding: 8px 14px;
+    min-width: 160px;
+    text-align: center;
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -48,6 +50,7 @@
     visibility: hidden;
     transition: all 0.25s ease;
     pointer-events: none;
+    font-family: 'Montserrat', sans-serif;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -81,14 +84,23 @@
     position: absolute;
     right: 0;
     bottom: 64px;
-    width: 450px;
+    width: min(450px, calc(100vw - 48px));
     height: 520px;
     max-height: calc(100vh - 160px);
+    max-height: calc(100dvh - 160px);
+    /* padding: 0 — KRITIKAL: may global rule sa base.css
+       `@media (max-width: 640px) { section { padding: 4rem 5% } }`
+       para sa page sections. Ang chat panel ay <section> din, kaya
+       nadadamay ito — nagiging 64px ang espasyo sa taas at ibaba ng
+       panel (yung malalaking gaps sa screenshot). Ang class selector
+       (0,1,0) ay laging tatalo sa bare `section` (0,0,1) kahit nasa
+       loob pa ng media query ang global rule, kaya sapat na ito. */
+    padding: 0;
     background: linear-gradient(180deg, var(--black) 0%, #0a0a0a 100%);
     color: var(--white);
     border: 1px solid var(--light-gray);
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -198,6 +210,12 @@
 /* Messages — same bubble style as the AI chat */
 .admin-chat-messages {
     flex: 1;
+    /* min-height: 0 — KAILANGAN ng flex child na may overflow-y: auto.
+       Kapag wala ito, hindi lumiit ang messages area kahit marami nang
+       messages (default na min-height:auto ng flex items), kaya natutulak
+       palabas ng panel ang typing indicator + input form — nawawala/
+       hindi na maabot ang input box sa responsive (yung bug sa screenshot) */
+    min-height: 0;
     overflow-y: auto;
     padding: 1rem 1.2rem;
     display: flex;
@@ -298,6 +316,8 @@
 
 /* Input — pill-shaped like the AI input area, with white circular send button */
 .admin-chat-form {
+    /* Hindi lumiit/lumalabas sa panel kahit nag-o-overflow ang messages */
+    flex-shrink: 0;
     padding: 0.6rem;
     background: transparent;
 }
@@ -592,23 +612,56 @@
 
 @media (max-width: 768px) {
     .admin-chat-float {
-        right: 20px;
-        bottom: 88px;
+        right: 16px;
+        bottom: 74px; /* 16 + 46 + 12 — pantay sa AI FAB mobile */
     }
 
     .admin-chat-toggle {
-        width: 55px;
-        height: 55px;
-        font-size: 1.45rem;
+        width: 46px;
+        height: 46px;
+        font-size: 1.2rem;
     }
 
+    /* FIXED positioning sa mobile: para hindi umaasa sa calc(100vw - ...)
+       — kasama sa 100vw ang scrollbar width (~17px), kaya dati -5px ang
+       kaliwang gilid = dikit sa kaliwa. left+right+width:auto = laging
+       pantay na 12px kahit may scrollbar. (Walang transform ang parent
+       .admin-chat-float, kaya ang fixed ay relative sa viewport.) */
     .admin-chat-panel {
-        right: 0;
-        bottom: 70px;
-        width: min(380px, calc(100vw - 28px));
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        /* Parehong visual position dati: float bottom (74px) + 64px */
+        bottom: 138px;
         height: min(560px, calc(100vh - 150px));
         height: min(560px, calc(100dvh - 150px));
     }
+}
+
+@media (max-width: 480px) {
+    .admin-chat-panel {
+        /* FIXED + left/right stretch: pantay na 12px spacing magkabilang
+           gilid kahit may scrollbar (tingnan ang paliwanag sa ≤768px) */
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        bottom: 138px;
+        /* Cap height: may 16px margin sa taas (navbar) at maluwag sa FABs sa baba */
+        height: min(520px, calc(100dvh - 210px));
+        max-height: calc(100dvh - 210px);
+    }
+    .admin-chat-msg { max-width: 96%; }
+    .admin-chat-messages { padding: 0.8rem 0.9rem; }
+    /* Mas maikli ang composer sa maliit na screen para di kainin ang messages area */
+    .admin-chat-form { padding: 0.5rem; }
+    .admin-chat-input-row { padding: 0.35rem; }
+    .admin-chat-attach,
+    .admin-chat-send { width: 32px; height: 32px; min-width: 32px; }
+    .admin-chat-reaction-picker { max-width: calc(100% - 20px); overflow-x: auto; }
+    .admin-chat-image-link,
+    .admin-chat-image-link img { max-width: 160px; max-height: 160px; }
 }
 
 @keyframes adminChatSlideUp {
@@ -625,7 +678,7 @@
 
 /* ===== NEW FEATURE STYLES (typing, actions, reactions, quote, lightbox, emoji) ===== */
 
-.admin-chat-typing { display: flex; align-items: center; gap: 8px; padding: 4px 16px 8px; font-size: 11px; color: #9ca3af; }
+.admin-chat-typing { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 4px 16px 8px; font-size: 11px; color: #9ca3af; }
 .admin-chat-typing[hidden] { display: none; }
 .admin-chat-typing-dots { display: inline-flex; gap: 3px; }
 .admin-chat-typing-dots span { width: 5px; height: 5px; border-radius: 50%; background: #9ca3af; animation: adminChatTypingBounce 1.4s infinite ease-in-out; }
@@ -710,11 +763,9 @@
 html[data-theme="light"] .admin-chat-panel {
     background: linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
     border-color: #e5e7eb;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
 }
 html[data-theme="light"] .admin-chat-toggle {
     border-color: #111827;
-    box-shadow: 0 4px 15px rgba(15, 23, 42, 0.18);
 }
 html[data-theme="light"] .admin-chat-messages::-webkit-scrollbar-thumb { background-color: #d1d5db; }
 html[data-theme="light"] .admin-chat-input-row { border-color: #d1d5db; }
@@ -789,23 +840,9 @@ html[data-theme="light"] .admin-chat-presence { color: #6b7280; }
 
 /* =============================================================
    RESPONSIVE — small phones
+   (Pinagsama na sa @media block sa itaas — walang duplicate na
+   480px rules dito para walang nagpapatong-patong na styles)
    ============================================================= */
-@media (max-width: 480px) {
-    .admin-chat-float { right: 10px; bottom: 84px; }
-    .admin-chat-panel {
-        right: 0;
-        bottom: 64px;
-        width: calc(100vw - 20px);
-        height: calc(100vh - 140px);
-        height: calc(100dvh - 140px);
-        max-height: none;
-    }
-    .admin-chat-msg { max-width: 96%; }
-    .admin-chat-messages { padding: 0.8rem 0.9rem; }
-    .admin-chat-reaction-picker { max-width: calc(100% - 20px); overflow-x: auto; }
-    .admin-chat-image-link,
-    .admin-chat-image-link img { max-width: 160px; max-height: 160px; }
-}
 
 /* =============================================================
    TYPING INDICATOR — Messenger-style bubble
@@ -915,3 +952,22 @@ html[data-theme="light"] .chat-confirm-dialog h4 { color: #111827; }
 html[data-theme="light"] .chat-confirm-dialog p { color: #6b7280; }
 html[data-theme="light"] .chat-confirm-cancel { border-color: #d1d5db; color: #374151; }
 html[data-theme="light"] .chat-confirm-cancel:hover { background: rgba(17, 24, 39, 0.05); color: #111827; }
+
+/* ── Light mode: toggle button + tooltip ──
+   Black bg + white icon sa light mode (kapareho
+   ng AI FAB), white tooltip para readable. */
+html[data-theme="light"] .admin-chat-toggle {
+    background: #111111;
+    color: #ffffff;
+    border-color: #111111;
+}
+
+
+html[data-theme="light"] .admin-chat-toggle::after {
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}

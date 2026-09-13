@@ -4,8 +4,9 @@
     padding: 6rem 5% 2rem;
     background: var(--black);
     min-height: 100vh;
+    /* Dot pattern — same style as the home page hero section (18px grid) */
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
-    background-size: 25px 25px;
+    background-size: 18px 18px;
 }
 
 /* Override SweetAlert z-index to show above the booking modal (z-index: 9999) */
@@ -18,7 +19,7 @@
     margin: 0 auto;
     background: black;
     border: 1px solid var(--light-gray);
-    border-radius: 8px;
+    border-radius: 20px;
     padding: 1.5rem;
     animation: fadeInUp 0.4s ease-out;
 }
@@ -91,9 +92,12 @@
     --fc-today-bg-color: rgba(255, 255, 255, 0.05);
     --fc-neutral-bg-color: #000000;
     --fc-button-bg-color: transparent;
-    --fc-button-active-bg-color: #ffffff;
+    --fc-button-border-color: #2a2a2a;
+    --fc-button-active-bg-color: rgba(255, 255, 255, 0.2);
+    --fc-button-active-border-color: rgba(255, 255, 255, 0.5);
     --fc-button-text-color: #ffffff;
-    --fc-button-hover-bg-color: #ffffff;
+    --fc-button-hover-bg-color: rgba(255, 255, 255, 0.1);
+    --fc-button-hover-border-color: rgba(255, 255, 255, 0.45);
     color: var(--white);
     max-width: 850px;
     margin: 0 auto;
@@ -104,20 +108,7 @@
     font-family: 'Montserrat', sans-serif;
 }
 
-#booking-calendar .fc .fc-toolbar-title {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: color 0.2s ease;
-    user-select: none;
-}
-
-#booking-calendar .fc .fc-toolbar-title:hover {
-    color: var(--primary-color);
-}
+/* (Lumang fc-toolbar-title styles — tinanggal; ang custom .cal-title-btn na ang gumaganap na title) */
 
 /* Custom Month/Year Picker Modal */
 .month-year-picker {
@@ -130,7 +121,7 @@
     border-radius: 8px;
     padding: 20px;
     z-index: 100;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
     width: 90%;
     max-width: 300px;
 }
@@ -204,35 +195,9 @@
     font-weight: bold;
 }
 
-/* Fix missing button design / hover */
-#booking-calendar .fc .fc-button-primary {
-    background-color: transparent;
-    border: 1px solid #2a2a2a;
-    color: #ffffff;
-    text-transform: uppercase;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 1px;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    transition: all 0.3s ease;
-    outline: none;
-    box-shadow: none !important;
-    margin: 0 2px;
-}
-
-#booking-calendar .fc .fc-button-primary:hover {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border-color: #ffffff !important;
-}
-
-#booking-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
-#booking-calendar .fc .fc-button-primary:not(:disabled):active {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border-color: #ffffff !important;
-}
+/* (Lumang FullCalendar default button styles — tinanggal; pinalitan ng custom
+   .cal-toolbar controls na nasa dulo ng file. Wala nang fc-button sa header
+   dahil headerToolbar: false na sa booking_page.html) */
 
 #booking-calendar .fc-theme-standard td,
 #booking-calendar .fc-theme-standard th {
@@ -250,25 +215,42 @@
     font-weight: 600;
 }
 
-#booking-calendar .fc .fc-daygrid-day,
+#booking-calendar .fc .fc-daygrid-day {
+    background-color: #000000 !important;
+}
+
+/* TD lang ang pinipinturahan — transparent ang inner layers (70px lang ang
+   frame at may opaque day-bg, kaya dating "hati"/split ang hover) */
 #booking-calendar .fc .fc-daygrid-day-frame,
 #booking-calendar .fc .fc-daygrid-day-bg,
 #booking-calendar .fc .fc-daygrid-day-top {
-    background-color: #000000 !important;
+    background-color: transparent !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day-number {
     color: #ffffff;
     text-decoration: none;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     padding: 4px 8px;
 }
 
-#booking-calendar .fc .fc-day-today,
+#booking-calendar .fc .fc-day-today {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Isang tint lang sa cell mismo — transparent ang inner layers para
+   hindi mag-stack ang rgba (dahilan ng 3 magkakaibang gray strips) */
 #booking-calendar .fc .fc-day-today .fc-daygrid-day-frame,
 #booking-calendar .fc .fc-day-today .fc-daygrid-day-bg,
 #booking-calendar .fc .fc-day-today .fc-daygrid-day-top {
-    background-color: rgba(255, 255, 255, 0.15) !important;
+    background-color: transparent !important;
+}
+
+/* TODAY NUMBER — walang blue pill; white bold lang para malinis */
+#booking-calendar .fc .fc-day-today .fc-daygrid-day-number {
+    background: transparent !important;
+    color: #ffffff !important;
+    font-weight: 700;
 }
 
 #booking-calendar .fc .fc-daygrid-day-frame {
@@ -276,21 +258,49 @@
     transition: background 0.2s;
 }
 
+/* Siguradong compact ang events area: i-zero ang min-height ng FullCalendar
+   (2em sa body-unbalanced weeks) — ito ang gumagawa ng malaking espasyo
+   SA BABA ng mga event chips at ng "+N more" link */
 #booking-calendar .fc .fc-daygrid-day-events {
     margin-top: 2px;
     margin-bottom: 0;
+    min-height: 0 !important;
+    /* Hangin sa ilalim ng mga event pills — hindi na sagad sa ibaba ng cell */
+    padding-bottom: 7px !important;
 }
 
 #booking-calendar .fc .fc-daygrid-event-harness {
-    margin-top: 4px !important;
+    margin-top: 2px !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day-bottom {
-    margin-top: 3px;
+    margin-top: 2px;
+    margin-bottom: 0;
+    line-height: 1.1;
 }
 
-#booking-calendar .fc .fc-daygrid-day-frame:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+/* (Tinanggal ang .fc-daygrid-day-frame:hover white tint — nag-stack ito
+   sa cell hover kaya lumilikha ng dagdag na kulay; sapat na ang cell hover) */
+
+/* Strong day-cell hover (dark mode) — needs !important to beat the solid
+   #000 backgrounds above; only for available (future, non-disabled) days.
+   Uniform na ISA lang ang kulay — transparent ang frame/top sa hover para
+   walang 3 stacked grays */
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+/* Today keeps its stronger uniform highlight even on hover */
+html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+}
+html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-frame,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-top {
+    background-color: transparent !important;
 }
 
 
@@ -309,6 +319,31 @@
     font-size: 0.8rem;
     cursor: pointer;
     border-radius: 4px;
+}
+
+/* --- WEEK VIEW (timeGrid): totoong block na may sakop na oras --- */
+/* Dapat buong block mula event start hanggang event end, may nakasulat na
+   time range (ang event title mismo ang time range mula sa backend). */
+#booking-calendar .fc .fc-timegrid-event {
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+}
+#booking-calendar .fc .fc-timegrid-event .fc-event-main {
+    padding: 3px 5px !important;
+    text-align: left;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+#booking-calendar .fc .fc-timegrid-event .fc-event-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 /* --- POPOVER STYLING (Fixed) --- */
@@ -350,42 +385,7 @@
     text-decoration: none;
 }
 
-.fc .fc-button-primary {
-    background-color: transparent;
-    border: 1px solid var(--light-gray);
-    color: var(--white);
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 500;
-    text-transform: capitalize;
-    border-radius: 5px;
-    transition: all 0.3s ease;
-    padding: 0.4rem 1rem;
-    font-size: 14px;
-}
-
-.fc .fc-button-primary:hover {
-    background-color: var(--white);
-    color: var(--black);
-    border-color: var(--white);
-}
-
-.fc .fc-button-primary:not(:disabled).fc-button-active,
-.fc .fc-button-primary:not(:disabled):active {
-    background-color: var(--white);
-    color: var(--black);
-    border-color: var(--white);
-    font-weight: 700;
-}
-
-.fc .fc-button:focus {
-    box-shadow: none !important;
-}
-
-.fc .fc-toolbar-title {
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    cursor: pointer;
-}
+/* (Lumang generic .fc-button styles — tinanggal; custom toolbar controls na ang gamit) */
 
 /* Day Headers (Mon, Tue, etc.) */
 .fc .fc-col-header-cell-cushion {
@@ -470,38 +470,26 @@
     background-color: #000000 !important;
 }
 
-#booking-calendar .fc .fc-daygrid-day.fc-day-past:hover,
-#booking-calendar .fc .fc-daygrid-day.is-past-date:hover,
-#booking-calendar .fc .fc-daygrid-day.booking-day-disabled:hover,
-#booking-calendar .fc .fc-daygrid-day.fc-day-other:hover,
-#booking-calendar .fc .fc-daygrid-day.fc-day-disabled:hover {
-    background-color: #000000 !important;
-}
-
-#booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-frame:hover,
-#booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-frame:hover,
-#booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-frame:hover,
-#booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-frame:hover,
-#booking-calendar .fc .fc-daygrid-day.fc-day-disabled .fc-daygrid-day-frame:hover {
-    background-color: #000000 !important;
-}
+/* (Tinanggal ang past/inactive frame:hover na #000 — ito ang sanhi ng
+   SOLID BLACK strip kapag nag-hover sa past date sa light mode.
+   Sapat na ang static bg rule sa itaas na pumapatay sa generic hover.) */
 
 #booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.25) !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day.fc-day-past .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.35) !important;
+    color: rgba(255, 255, 255, 0.55) !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-number,
 #booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.35) !important;
+    color: rgba(255, 255, 255, 0.55) !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day-number.booking-day-number-disabled {
-    color: rgba(255, 255, 255, 0.28) !important;
-    opacity: 0.45 !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    opacity: 0.6 !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day.fc-day-past,
@@ -615,7 +603,7 @@
     background: transparent;
     border: none;
     color: #666;
-    font-size: 1.8rem;
+    font-size: 2.2rem;
     cursor: pointer;
     line-height: 1;
     padding: 0;
@@ -683,16 +671,16 @@
 }
 
 
-/* Bigger inputs with better focus */
+/* Compact inputs (dating sobrang laki sa loob ng modal) */
 .form-group input,
 .form-group select,
 .form-group textarea {
-    padding: 0.85rem 1rem;
+    padding: 0.55rem 0.75rem;
     background: #111;
     border: 1px solid #333;
     color: var(--white);
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     border-radius: 4px;
     transition: all 0.3s ease;
     width: 100%;
@@ -702,9 +690,10 @@
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #888;
-    background: #000;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    /* Border color LANG ang nagbabago sa focus — hindi na gumog loop dark/transparent ang bg */
+    border-color: #8a8a8a;
+    background: #111;
+    box-shadow: none;
     transform: none;
 }
 
@@ -715,12 +704,12 @@
 }
 
 .custom-select-trigger {
-    padding: 0.75rem 1rem;
+    padding: 0.55rem 0.75rem;
     background: #111;
     border: 1px solid #333;
     color: var(--white);
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
@@ -735,9 +724,9 @@
 }
 
 .custom-select-container.open .custom-select-trigger {
-    border-color: #888;
+    border-color: #8a8a8a;
     background: #000;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    box-shadow: none;
 }
 
 .custom-select-container.open .custom-select-trigger i {
@@ -813,9 +802,18 @@
 }
 
 .form-group textarea {
-    min-height: 80px;
+    min-height: 70px;
     resize: vertical;
     line-height: 1.5;
+}
+
+/* PANTAY na height sa lahat ng text/select inputs sa booking modal
+(dating magkakaiba ang date/time vs text vs custom select) */
+.booking-modal-box .form-group input,
+.booking-modal-box .form-group select,
+.booking-modal-box .custom-select-trigger {
+    height: 42px;
+    min-height: 42px;
 }
 
 .time-row {
@@ -852,7 +850,9 @@
 }
 
 .booking-modal-box .btn-submit:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: #e5e7eb;
+    /* Walang border ring sa hover — kapareho ng hover bg ang border color */
+    border-color: #e5e7eb;
 }
 
 /* RESPONSIVE */
@@ -1120,7 +1120,7 @@
 
 .package-card:hover {
     border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.5);
 }
 
 .package-card.selected {
@@ -1129,30 +1129,49 @@
 }
 
 .package-card.selected::before {
-    content: '✓';
+    content: '';
     position: absolute;
-    top: 15px;
-    right: 15px;
-    background: white;
-    color: black;
-    width: 24px;
-    height: 24px;
+    top: 14px;
+    right: 14px;
+    /* Inverted check (dark mode): PUTI ang bg, itim ang check icon — walang shadow */
+    background: #ffffff;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: bold;
+    display: block;
 }
 
 .package-card.selected::before {
-    content: '✓';
-    top: 15px !important;
+    top: 14px !important;
     left: auto !important;
-    right: 15px !important;
+    right: 14px !important;
     inset-inline-start: auto !important;
-    inset-inline-end: 15px !important;
+    inset-inline-end: 14px !important;
     transform: none !important;
+    z-index: 2;
+}
+
+/* Centered checkmark (Font Awesome check — malinis na icon sa blue circle) */
+.package-card.selected::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    inset-inline-start: auto;
+    inset-inline-end: 14px;
+    transform: none;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    line-height: 1;
+    /* Kapalan ang check icon — manipis kaya lumalabo sa maliit na laki */
+    -webkit-text-stroke: 0.6px currentColor;
+    color: #111827;
     z-index: 2;
 }
 
@@ -1204,6 +1223,31 @@
 .time-field input.has-error,
 .custom-select-trigger.has-error {
     border-color: #ef4444 !important;
+}
+
+/* Red-tinted background for fields with validation errors (dark mode) */
+.form-group.has-error input,
+.form-group.has-error textarea,
+.form-group.has-error select,
+.time-field.has-error input,
+.form-group input.has-error,
+.form-group textarea.has-error,
+.form-group select.has-error,
+.time-field input.has-error {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.form-group.has-error .custom-select-trigger,
+.custom-select-field.has-error .custom-select-trigger,
+.custom-select-trigger.has-error {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Error messages — visible in both themes */
+.booking-field-error,
+.form-group.has-error .booking-field-error,
+.time-field.has-error .booking-field-error {
+    color: #ef4444 !important;
 }
 
 .card-top-label {
@@ -1328,10 +1372,10 @@
 
 #step-3 .booking-summary-container {
     margin-top: 0;
-    padding: 1rem 1rem 1.1rem;
-    background: #0a0a0a;
+    padding: 1.1rem 1.1rem 1.2rem;
+    background: #141414;
     border: 1px solid #2a2a2a;
-    border-radius: 10px;
+    border-radius: 12px;
 }
 
 .summary-title {
@@ -1385,10 +1429,25 @@
 }
 
 #step-3 .summary-row {
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #step-3 .summary-row:last-child {
+    border-bottom: none;
+}
+
+/* Wala nang line sa ilalim ng huling VISIBLE na row (hal. Location):
+   ang #referencePicturesRow ay laging nasa dulo ng listahan KAHIT
+   display:none, kaya ang :last-child lang ay hindi sapat — gamit ang
+   :has(), tinatanggal din ang border ng row na katabi ng nakatagong
+   trailing row. Kapag may pictures na, babalik ang border (tama lang). */
+#step-3 #booking-details-list .summary-row:nth-last-child(2):has(+ .summary-row[style*='display: none']) {
+    border-bottom: none;
+}
+
+/* Service & Logistics Fee: walang sariling border-bottom — nagdodoble ito
+   sa border-top ng Total Price sa ibaba nito. Isang linya lang dapat. */
+#step-3 .service-charge-summary {
     border-bottom: none;
 }
 
@@ -1411,27 +1470,32 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
+    line-height: 1.4;
 }
 
 #booking-details-list .row-label i {
     color: #8a8a8a;
     width: 14px;
-    text-align: center;
-    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 #step-3 #booking-details-list .row-label {
-    font-size: 0.74rem;
+    font-size: 0.76rem;
     font-weight: 600;
     color: #8b93a0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
 }
 
 #step-3 #booking-details-list .row-value {
     color: #f3f4f6;
-    font-size: 1.03rem;
-    font-weight: 700;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.5;
 }
 
 .row-value {
@@ -1449,12 +1513,51 @@
     border-top: 1px solid #444;
 }
 
+/* WALANG nang bg/banner — hiwalay lang via separator, typography na ang gumagawa
+   ng emphasis (mas malaki at bold ang presyo, maliit at spaced ang label) */
 #step-3 .total-row {
-    margin-top: 0.9rem;
-    padding: 0.9rem 0.75rem 0.75rem;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
+    margin-top: 0.4rem;
+    padding: 1rem 0.1rem 0;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    background: transparent;
+}
+
+#step-3 .total-row .row-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #9ca3af;
+    letter-spacing: 0.02em;
+}
+
+#step-3 .total-row .total-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+}
+
+/* Mahabang package/add-on names sa summary: bumabalot sa kanan imbes na umapaw */
+#step-3 #booking-item-list .row-value {
+    white-space: normal;
+    text-align: right;
+    line-height: 1.45;
+}
+
+.review-note {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 1rem 0 0;
+    font-size: 0.78rem;
+    color: #9ca3af;
+    line-height: 1.45;
+}
+
+.review-note i {
+    color: #6b7280;
+    font-size: 0.85rem;
 }
 
 .total-row .row-label {
@@ -1501,8 +1604,15 @@
 }
 
 .booking-back-btn {
-    flex: 1;
-    padding: 0.75rem 1rem;
+    /* Mas maliit na width (1) kaysa primary Next (2) — 1/3 vs 2/3 */
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    /* Pantay ang height sa Next button (same padding + min-height) */
+    padding: 0.6rem 1rem;
+    min-height: 44px;
     background: transparent;
     color: var(--white);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1520,8 +1630,15 @@
 }
 
 .booking-modal-box .btn-submit {
-    flex: 2;
+    /* Mas mahaba ang primary Next — 2 bahagi vs 1 ng Back (33/67) */
+    flex: 2 1 0;
     margin-top: 0;
+    /* Pantay ang height sa Back (min-height talo ang 2px-vs-1px border diff) */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
 }
 
 .booking-modal-box .btn-submit:hover {
@@ -1801,9 +1918,10 @@
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    /* Keep the same surface (no white flash) — border color lang ang nagbabago sa focus */
+    background-color: #f9fafb !important;
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -1858,4 +1976,890 @@
 
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
+}
+/* ========================================================
+   BOOKING PAGE — LIGHT MODE (calendar + modal + step 1/2/3)
+   Maraming hardcoded black/white sa file, kaya pinapalitan
+   natin ang mga ito kapag [data-theme="light"] sa <html>
+   (target ng theme-toggle.js).
+   ======================================================== */
+
+/* ---------- PAGE & CALENDAR PANEL ---------- */
+[data-theme="light"] .booking-page {
+    background: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+[data-theme="light"] .booking-calendar-panel {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .panel-header h2 { color: #111827; }
+[data-theme="light"] .panel-header p { color: #6b7280; }
+[data-theme="light"] .calendar-legend { color: #374151; }
+
+[data-theme="light"] #booking-calendar {
+    --fc-border-color: #e5e7eb;
+    --fc-today-bg-color: rgba(17, 24, 39, 0.15);
+    --fc-neutral-bg-color: #ffffff;
+    --fc-page-bg-color: #ffffff;
+    --fc-button-bg-color: transparent;
+    --fc-button-border-color: #d1d5db;
+    --fc-button-text-color: #374151;
+    --fc-button-hover-bg-color: rgba(17, 24, 39, 0.14);
+    --fc-button-hover-border-color: #9ca3af;
+    --fc-button-active-bg-color: #d1d5db;
+    --fc-button-active-border-color: #9ca3af;
+    color: #111827;
+}
+
+[data-theme="light"] #booking-calendar .fc-theme-standard td,
+[data-theme="light"] #booking-calendar .fc-theme-standard th {
+    border-color: #e5e7eb;
+    background-color: #ffffff !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-col-header-cell { background: #ffffff !important; }
+[data-theme="light"] #booking-calendar .fc .fc-col-header-cell-cushion { color: #6b7280; }
+
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day {
+    background-color: #ffffff !important;
+}
+
+/* TD lang ang pinipinturahan — transparent ang inner layers (70px lang ang
+   frame at may opaque day-bg, kaya may "hati"/split ang hover) */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-bg,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-number { color: #374151; }
+
+/* Huwag hayaan ang generic table row-hover (tr:hover td sa taas) na i-highlight
+   ang BUONG week row ng calendar — dapat per-day lang ang hover tint */
+[data-theme="light"] #booking-calendar tr:hover td,
+[data-theme="light"] #booking-calendar tr:hover td.fc-daygrid-day {
+    background-color: #ffffff !important;
+}
+
+/* Kailangang MANATILI ang gray highlight ng today kahit hinover ang ibang
+date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
+[data-theme="light"] #booking-calendar tr:hover td.fc-day-today,
+[data-theme="light"] #booking-calendar tr:hover td.fc-day-today.fc-daygrid-day {
+    background-color: rgba(17, 24, 39, 0.05) !important;
+}
+
+/* Inactive (past/outside-month) cells — PUTI imbes na gray; dimmed lang
+   ang numbers para kita pa rin na inactive (walang gray bg) */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-past,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.is-past-date,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-disabled,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-other,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-disabled {
+    background-color: #ffffff !important;
+    cursor: default !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-day-past .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .is-past-date .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .booking-day-disabled .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-day-other .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-day-disabled .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-day-past .fc-daygrid-day-top,
+[data-theme="light"] #booking-calendar .fc .is-past-date .fc-daygrid-day-top,
+[data-theme="light"] #booking-calendar .fc .booking-day-disabled .fc-daygrid-day-top,
+[data-theme="light"] #booking-calendar .fc .fc-day-other .fc-daygrid-day-top,
+[data-theme="light"] #booking-calendar .fc .fc-day-disabled .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-day-past:hover,
+[data-theme="light"] #booking-calendar .fc .is-past-date:hover,
+[data-theme="light"] #booking-calendar .fc .booking-day-disabled:hover,
+[data-theme="light"] #booking-calendar .fc .fc-day-other:hover,
+[data-theme="light"] #booking-calendar .fc .fc-day-disabled:hover {
+    background-color: #ffffff !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-day-other .fc-daygrid-day-number {
+    color: rgba(17, 24, 39, 0.3) !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-day-past .fc-daygrid-day-number {
+    color: rgba(17, 24, 39, 0.55) !important;
+}
+
+/* Active day hover — pinakamagaan sa hierarchy (0.03 < 0.05 today);
+   tint sa cell LANG, uniform buong cell (walang hati) */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+    background-color: rgba(17, 24, 39, 0.03) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-day-today:hover {
+    background-color: rgba(17, 24, 39, 0.07) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+/* Today highlight — tint sa cell lang, transparent ang inner layers
+   (uniform na gray highlight, hindi magkakahiwalay na gray strips).
+   0.05 lang — bawas-gray per user feedback */
+[data-theme="light"] #booking-calendar .fc .fc-day-today {
+    background-color: rgba(17, 24, 39, 0.05) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-bg,
+[data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+/* (Tinanggal ang inset ring/border sa today cell — hindi na kailangan;
+   ang gray bg highlight na lang ang marker ng date ngayon) */
+
+[data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-number {
+    background: transparent !important;
+    color: #111827 !important;
+    font-weight: 700;
+}
+
+/* Time axis labels */
+[data-theme="light"] .fc .fc-timegrid-slot-label-cushion,
+[data-theme="light"] .fc .fc-scrollgrid-shrink-cushion,
+[data-theme="light"] .fc .fc-timegrid-axis-cushion {
+    color: #6b7280;
+}
+
+/* Calendar scrollbars */
+[data-theme="light"] .fc-scroller::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .fc-scroller::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); }
+[data-theme="light"] .fc-scroller::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.35); }
+
+/* (Lumang light-mode fc-button overrides — tinanggal; custom .cal-toolbar controls na ang gamit) */
+
+[data-theme="light"] #booking-calendar .fc-more-link { color: #374151 !important; }
+
+/* ---------- POPOVER ---------- */
+[data-theme="light"] .fc-popover {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .fc-popover-header {
+    background-color: #f9fafb !important;
+    color: #374151 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+[data-theme="light"] .fc-popover-body { background-color: #ffffff !important; }
+[data-theme="light"] .fc-popover-title { color: #111827 !important; }
+[data-theme="light"] .fc-popover-close-icon { color: #374151 !important; }
+
+/* ---------- MONTH/YEAR PICKER ---------- */
+[data-theme="light"] .month-year-picker {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .myp-header { color: #111827; }
+[data-theme="light"] .myp-header button { color: #374151; }
+[data-theme="light"] .myp-header button:hover { background: #f3f4f6; }
+[data-theme="light"] .myp-header button:disabled,
+[data-theme="light"] .myp-header button:disabled:hover { color: rgba(17, 24, 39, 0.3); }
+
+[data-theme="light"] .myp-months-grid button { color: #374151; }
+[data-theme="light"] .myp-months-grid button:hover { background: #f3f4f6; }
+[data-theme="light"] .myp-months-grid button.disabled-month,
+[data-theme="light"] .myp-months-grid button:disabled,
+[data-theme="light"] .myp-months-grid button:disabled:hover { color: rgba(17, 24, 39, 0.3); }
+
+/* ---------- MODAL ---------- */
+[data-theme="light"] .modal-overlay { background: rgba(17, 24, 39, 0.5); }
+
+[data-theme="light"] .booking-modal-box {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .booking-modal-box::-webkit-scrollbar-track { background: #f3f4f6; }
+[data-theme="light"] .booking-modal-box::-webkit-scrollbar-thumb { background: #d1d5db; border-color: #f3f4f6; }
+[data-theme="light"] .booking-modal-box::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+[data-theme="light"] .modal-header h2 { color: #111827; }
+[data-theme="light"] .close-btn { color: #9ca3af; }
+[data-theme="light"] .close-btn:hover { color: #111827; }
+
+[data-theme="light"] .stepper-step h3 { color: #111827; }
+[data-theme="light"] .step-desc { color: #6b7280; }
+[data-theme="light"] #step-3 .step-desc { color: #6b7280; }
+
+/* ---------- STEPPER ---------- */
+[data-theme="light"] .stepper-wrapper::before { background: #e5e7eb; }
+
+[data-theme="light"] .step-circle {
+    background: #d1d5db;
+    border-color: #ffffff;
+}
+
+[data-theme="light"] .stepper-step-icon.active .step-circle { border-color: #ffffff; }
+[data-theme="light"] .stepper-step-icon.active .step-label { color: #111827; }
+[data-theme="light"] .stepper-step-icon.completed .step-circle { border-color: #ffffff; }
+[data-theme="light"] .step-label { color: #6b7280; }
+
+/* ---------- STEP 2: LABELS & INPUTS ---------- */
+[data-theme="light"] .form-group label { color: #4b5563; }
+[data-theme="light"] .form-group label i { color: #6b7280; font-weight: 400; }
+
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group select,
+[data-theme="light"] .form-group textarea {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group select:focus,
+[data-theme="light"] .form-group textarea:focus {
+    /* Walang white bg sa focus — same #f9fafb surface, border color lang ang nag-iba */
+    background: #f9fafb !important;
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .form-group input[type="date"],
+[data-theme="light"] .form-group input[type="time"] { color-scheme: light; }
+
+[data-theme="light"] .time-field small { color: #6b7280; }
+
+/* Custom select (Event Type dropdown) */
+[data-theme="light"] .custom-select-trigger {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .custom-select-trigger span { color: #6b7280; }
+[data-theme="light"] .custom-select-trigger i { color: #6b7280; }
+
+[data-theme="light"] .custom-select-container.open .custom-select-trigger {
+    background: #f9fafb;
+    border-color: #6b7280;
+    box-shadow: none;
+}
+
+[data-theme="light"] .custom-select-options {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .custom-select-options li { color: #111827; }
+[data-theme="light"] .custom-select-options li:hover { background: #f3f4f6; }
+
+[data-theme="light"] .custom-select-options::-webkit-scrollbar-track { background: #f9fafb; }
+[data-theme="light"] .custom-select-options::-webkit-scrollbar-thumb { background: #d1d5db; }
+
+/* File input */
+[data-theme="light"] .form-group input[type="file"].file-input {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+[data-theme="light"] .form-group input[type="file"].file-input::file-selector-button {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+[data-theme="light"] .form-group input[type="file"].file-input::file-selector-button:hover { background: #e5e7eb; }
+
+/* ---------- MODAL BUTTONS ---------- */
+[data-theme="light"] .booking-modal-box .btn-submit {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+}
+
+[data-theme="light"] .booking-modal-box .btn-submit:hover {
+    background: #1f2937;
+    /* Walang border ring sa hover — kapareho ng hover bg ang border color */
+    border-color: #1f2937;
+}
+
+[data-theme="light"] .booking-modal-box .btn-submit:disabled {
+    background: #e5e7eb;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+}
+
+[data-theme="light"] .booking-back-btn {
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+[data-theme="light"] .booking-back-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+/* ---------- STEP 1: PACKAGE CARDS ---------- */
+[data-theme="light"] .package-card {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .package-card:hover {
+    border-color: #9ca3af;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .package-card.selected {
+    border-color: #111827;
+    background: #ffffff;
+}
+
+[data-theme="light"] .package-card.selected::before {
+    /* Inverted check (light mode): ITIM ang bg, puti ang check icon — walang shadow/border */
+    background: #111827;
+    border: none;
+}
+
+[data-theme="light"] .package-card.selected::after {
+    color: #ffffff;
+}
+
+[data-theme="light"] .package-info h4 { color: #111827; }
+[data-theme="light"] .package-info .price { color: #111827; }
+[data-theme="light"] .card-top-label { color: rgba(17, 24, 39, 0.55); }
+[data-theme="light"] .feature-label { color: #6b7280; }
+[data-theme="light"] .package-info .features { color: #4b5563; }
+[data-theme="light"] .package-info .features li::before { color: #111827; }
+[data-theme="light"] .w-package { color: #6b7280; }
+[data-theme="light"] .empty-message { color: #6b7280; }
+[data-theme="light"] .additional-notes { color: #6b7280; }
+[data-theme="light"] .addon-card-divider { background: #e5e7eb; }
+
+[data-theme="light"] .package-info .features::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .package-info .features::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); }
+[data-theme="light"] .package-info .features::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.35); }
+
+[data-theme="light"] .solo-price-btn { color: #111827; }
+[data-theme="light"] .solo-price-btn:hover { background: rgba(0, 0, 0, 0.05); }
+[data-theme="light"] .solo-price-btn.active { background: #111827; color: #ffffff; }
+
+/* ---------- TOTAL PRICE & SERVICE CHARGE ---------- */
+[data-theme="light"] .total-price-label { color: #111827; }
+[data-theme="light"] .total-price-value { color: #111827; }
+
+[data-theme="light"] .service-charge-row {
+    border-color: #d1d5db;
+    background: #f9fafb;
+}
+
+[data-theme="light"] .service-charge-label { color: #111827; }
+[data-theme="light"] .service-charge-note { color: #6b7280; }
+[data-theme="light"] .service-charge-value { color: #111827; }
+
+/* ---------- STEP 3: REVIEW & CONFIRM ---------- */
+[data-theme="light"] .booking-summary-container {
+    background: #ffffff;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] #step-3 .booking-summary-container {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] #step-3 .summary-title {
+    color: #4b5563;
+    border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] #step-3 .summary-title i { color: #6b7280; }
+[data-theme="light"] .summary-title { color: #4b5563; }
+[data-theme="light"] .summary-divider { background: #e5e7eb; }
+[data-theme="light"] .row-label { color: #374151; }
+[data-theme="light"] .row-value { color: #111827; }
+[data-theme="light"] #booking-details-list .row-label i { color: #6b7280; }
+[data-theme="light"] #step-3 #booking-details-list .row-label { color: #6b7280; }
+[data-theme="light"] #step-3 #booking-details-list .row-value { color: #111827; }
+[data-theme="light"] #step-3 .summary-row { border-bottom-color: rgba(0, 0, 0, 0.06); }
+[data-theme="light"] .booking-summary-thumb { border-color: #e5e7eb; }
+
+/* Light mode: walang bg din — darker separator lang */
+[data-theme="light"] #step-3 .total-row {
+    background: transparent;
+    border-top-color: rgba(17, 24, 39, 0.15);
+}
+
+[data-theme="light"] #step-3 .total-row .row-label { color: #6b7280; }
+[data-theme="light"] #step-3 .total-row .total-price { color: #111827; }
+[data-theme="light"] .total-row .row-label { color: #111827; }
+[data-theme="light"] .total-row .total-price { color: #111827; }
+[data-theme="light"] .row-note { color: #6b7280; }
+
+[data-theme="light"] .review-note { color: #6b7280; }
+[data-theme="light"] .review-note i { color: #9ca3af; }
+
+/* ---------- VALIDATION ERRORS (light mode) ---------- */
+[data-theme="light"] .form-group.has-error input,
+[data-theme="light"] .form-group.has-error textarea,
+[data-theme="light"] .form-group.has-error select,
+[data-theme="light"] .time-field.has-error input,
+[data-theme="light"] .form-group input.has-error,
+[data-theme="light"] .form-group textarea.has-error,
+[data-theme="light"] .form-group select.has-error,
+[data-theme="light"] .time-field input.has-error {
+    background-color: #fef2f2 !important;
+}
+
+[data-theme="light"] .form-group.has-error .custom-select-trigger,
+[data-theme="light"] .custom-select-field.has-error .custom-select-trigger,
+[data-theme="light"] .custom-select-trigger.has-error {
+    background-color: #fef2f2 !important;
+}
+
+[data-theme="light"] .booking-field-error { color: #dc2626 !important; }
+
+/* Selected value sa Event Type dropdown (theme-aware, imbes na inline #fff) */
+.custom-select-trigger span.selected-value {
+    color: var(--white);
+    font-weight: 500;
+}
+
+[data-theme="light"] .custom-select-trigger span.selected-value {
+    color: #111827;
+}
+
+/* ======================== */
+/* RESPONSIVE - CALENDAR & MODALS */
+/* ======================== */
+@media (max-width: 768px) {
+    .booking-page { padding: 5rem 3% 1.5rem; }
+    .booking-calendar-panel { padding: 1rem 0.75rem; width: 100%; max-width: 100%; overflow: hidden; }
+    .calendar-wrapper { width: 100%; }
+    .panel-header h2 { font-size: 1.4rem; }
+    .panel-header p { font-size: 0.8rem; }
+    .calendar-legend { gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    /* Calendar fluid: laging sakto sa panel width, walang horizontal overflow */
+    #booking-calendar { width: 100%; max-width: 100%; }
+    #booking-calendar .fc { width: 100%; }
+    #booking-calendar .fc .fc-scrollgrid { width: 100% !important; table-layout: fixed; }
+    /* Event pills → dots: JS-rendered na ito via eventDidMount sa
+       booking_page.html (inline styles, walang CSS laban sa FullCalendar).
+       Ang "+N more" popover ay mananatiling text pills. */
+    /* Event pills → bars sa mobile range (<=768px): 92% width x 10px height.
+       Ang !important CSS rule ay talo ang inline styles mula sa makeEventDot
+       (12x6 dots), kaya deterministic ito. (Excluded ang .fc-popover: dapat
+       text pills pa rin ang laman ng +N more. Naka-scope sa .fc-daygrid-event
+       lang — ang WEEK VIEW (timeGrid) ay block na buo, hindi dot.) */
+    #booking-calendar .fc .fc-daygrid-event:not(.fc-popover .fc-event) {
+        width: 92% !important;
+        height: 10px !important;
+        min-height: 6px !important;
+        border-radius: 3px !important;
+        background-image: none !important;
+    }
+    #booking-calendar .fc .fc-daygrid-event-harness {
+        margin-top: 3px !important;
+    }
+    /* Height 'auto' sa mobile — hindi na tinatulti ng aspectRatio (dating
+       ~40px lang ang rows). Natural na lalaki ang cells kasama ang dots. */
+    #booking-calendar .fc .fc-view-harness { height: auto !important; }
+    /* BUO ang height chain (view, scroller, scrollgrid, sync-table) para hindi
+    mag-collapse ang rows — dating height: 0px ang sync-table (inline mula sa FC
+    height-sync) kaya clipped/nawawala ang mga dates kapag responsive */
+    #booking-calendar .fc .fc-view-harness-active > .fc-view { position: static !important; }
+    #booking-calendar .fc .fc-scroller { height: auto !important; max-height: none !important; overflow: visible !important; }
+    #booking-calendar .fc .fc-scrollgrid { height: auto !important; }
+    #booking-calendar .fc .fc-scrollgrid-sync-table { height: auto !important; width: 100% !important; }
+    /* KRITIKAL: ang body scroller ng FullCalendar ay ABSOLUTE-positioned sa loob ng
+       liquid section row (fc-scroller-liquid-absolute) — hindi ito nag-aambag ng height
+       sa td/tr, kaya bumabagsak ang row sa ~1px at na-cli-clip ang buong day table
+       (dito nawawala ang mga dates kapag responsive). Gawing static + auto + visible
+       para umagos ang natural na height: table → tr → grid → view → harness. */
+    #booking-calendar .fc .fc-scroller-liquid-absolute {
+        position: static !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    #booking-calendar .fc .fc-scroller-harness-liquid { position: static !important; height: auto !important; }
+    /* Inner tables: sakto sa container width, walang horizontal clip ng huling column */
+    #booking-calendar .fc .fc-col-header { width: 100% !important; }
+    #booking-calendar .fc .fc-daygrid-body { width: 100% !important; }
+    /* KRITIKAL: ang section-body row ay may inline height: 0px mula sa FullCalendar
+       (liquid trick) — ito ang huling bumabagsak sa height chain sa mobile.
+       Ang stylesheet !important ay tatalo sa inline style, kaya magiging auto ang row
+       at sasakto sa laman (mga date rows) → lilitaw ang mga dates. */
+    #booking-calendar .fc .fc-scrollgrid-section-body,
+    #booking-calendar .fc .fc-scrollgrid-section-liquid { height: auto !important; }
+    /* "+N more" link: maliit at hindi umaapaw */
+    #booking-calendar .fc .fc-more-link { font-size: 0.65rem !important; }
+    #booking-calendar .fc .fc-daygrid-day-bottom { margin-top: 2px; }
+    /* Day number: top-left, compact, walang kalat */
+    #booking-calendar .fc .fc-daygrid-day-top { justify-content: flex-start; }
+    /* Custom toolbar: title sa sariling line sa taas; <> sa kaliwa,
+       Month/Week/Today sa kanan — isang row, malalaking touch targets */
+    .cal-toolbar { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.6rem; }
+    .cal-title-btn { order: -1; flex: 0 0 100%; justify-content: center; font-size: 1.15rem; }
+    .cal-nav-group { width: auto; justify-content: flex-start; }
+    .cal-view-group { width: auto; margin-left: auto; }
+    .cal-nav-btn { width: 38px; height: 38px; font-size: 0.85rem; }
+    .cal-view-btn { padding: 0.5rem 0.85rem; font-size: 0.72rem; }
+    #booking-calendar .fc .fc-daygrid-day-frame { min-height: 56px !important; }
+    #booking-calendar .fc .fc-daygrid-day-number { font-size: 0.95rem; padding: 4px 6px; display: inline-block; }
+    #booking-calendar .fc .fc-col-header-cell-cushion { font-size: 0.72rem; }
+    .booking-modal-box { width: 100%; max-width: min(700px, 94vw); padding: 1.25rem 1rem; }
+    /* Mobile: mas mababa pa ang stepper (1.1rem → 2rem) + itaas nang onti ang X
+       (top: 0 → -8px) para siguradong hindi na magdikit */
+    .stepper-header { padding-top: 2rem; }
+    .stepper-header .close-btn { top: -8px; }
+    .stepper-step h3 { font-size: 1.2rem; }
+    .step-desc { font-size: 0.8rem; margin-bottom: 1.2rem; }
+    .form-grid { grid-template-columns: 1fr; }
+    .package-cards-grid { gap: 1rem; }
+    /* Mas compact na inputs sa mobile (dating sobrang laki) */
+    .booking-modal-box .form-group input,
+    .booking-modal-box .form-group select,
+    .booking-modal-box .form-group textarea,
+    .booking-modal-box .custom-select-trigger { padding: 0.5rem 0.65rem; font-size: 0.82rem; }
+    .modal-actions { flex-wrap: wrap; gap: 0.6rem; }
+    .split-actions { flex-wrap: wrap; gap: 0.6rem; }
+    /* Step 3: compact na review cards, thumbnails, at total banner sa mobile */
+    #step-3 .booking-review-grid { gap: 0.75rem; }
+    #step-3 .booking-summary-container { padding: 0.9rem 0.85rem 1rem; }
+    .booking-details-images { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+    .booking-summary-thumb { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+    #step-3 .total-row .total-price { font-size: 1.2rem; }
+    .review-note { font-size: 0.72rem; }
+    /* Step 3 responsive: higpitan ang label column ng details rows sa
+       makitid na width para hindi naipit ang values */
+    #booking-details-list .summary-row { grid-template-columns: minmax(100px, 140px) minmax(0, 1fr); gap: 0.55rem; }
+    #step-3 .summary-row .row-value { white-space: normal; overflow-wrap: anywhere; }
+}
+
+@media (max-width: 480px) {
+    .booking-page { padding: 4.5rem 2% 1.5rem; }
+    .booking-calendar-panel { padding: 0.85rem 0.5rem; border-radius: 6px; }
+    .booking-modal-box { width: 100%; max-width: 96vw; padding: 1rem 0.75rem; max-height: 92vh; }
+    .step-label { font-size: 0.58rem; }
+    .stepper-step h3 { font-size: 1.05rem; }
+    .cal-title-btn { font-size: 1.05rem; }
+    .cal-nav-btn { width: 36px; height: 36px; font-size: 0.8rem; }
+    .cal-view-btn { padding: 0.45rem 0.7rem; font-size: 0.68rem; }
+    #booking-calendar .fc .fc-daygrid-day-frame { min-height: 52px !important; }
+    #booking-calendar .fc .fc-scrollgrid { width: 100% !important; }
+    #booking-calendar .fc .fc-daygrid-day-number { font-size: 0.88rem; padding: 3px 5px; }
+    #booking-calendar .fc .fc-col-header-cell-cushion { font-size: 0.65rem; letter-spacing: 0; padding: 5px 2px; }
+    /* Today badge: higpitan ang laki sa pinakamaliit na screens */
+    #booking-calendar .fc .fc-day-today .fc-daygrid-day-number {
+        font-size: 0.82rem;
+        margin: 2px 3px 0 2px;
+        padding: 2px 6px;
+    }
+    .month-year-picker { max-width: 94%; padding: 14px; }
+    .package-card { padding: 1.1rem; }
+    .booking-field-error { font-size: 0.68rem; }
+    .time-row { flex-direction: column; }
+    /* Step 3 responsive (pinakamaliit): stacked na ang details rows —
+       label sa taas, value sa baba, walang naipit na text */
+    #booking-details-list .summary-row { grid-template-columns: 1fr; row-gap: 0.1rem; }
+    #booking-details-list .row-value { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+}
+/* Disabled day numbers - light mode (dating inline white, di nakikita sa puti) */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-number.booking-day-number-disabled {
+    color: rgba(17, 24, 39, 0.35) !important;
+    opacity: 0.6 !important;
+}
+
+/* ========================================================
+   LIGHT MODE — DAY NUMBERS, SIGURADONG VISIBLE (puti-on-puti fix)
+   Naka-!important ang mga ito para talunin ang dark rules sa itaas
+   (hal. rgba(255,255,255,0.35) sa .fc-day-past / .fc-day-other) kahit
+   pareho lang ng specificity — end-of-file + !important = panalo.
+   ======================================================== */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-number {
+    color: #374151 !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-day-past .fc-daygrid-day-number {
+    color: rgba(17, 24, 39, 0.55) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+    color: rgba(17, 24, 39, 0.3) !important;
+}
+
+/* ========================================================
+   LIGHT MODE — PER-DAY CALENDAR HOVER (kada date lang, hindi
+   buong week row). Nasa dulo ng file para talunin ang generic
+   `[data-theme="light"] tr:hover td` rule na nasa taas.
+   ======================================================== */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+    background-color: rgba(17, 24, 39, 0.04) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+/* Ang today ay may mas malakas pa ring uniform highlight kahit hinover */
+[data-theme="light"] #booking-calendar .fc .fc-day-today:hover {
+    background-color: rgba(17, 24, 39, 0.07) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+
+/* ========================================================
+   CUSTOM CALENDAR TOOLBAR
+   (Pumapalit sa default FullCalendar header — headerToolbar: false
+   na sa booking_page.html, kaya sariling design natin ito)
+   ======================================================== */
+.cal-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+/* Prev / Next arrows */
+.cal-nav-group {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.cal-nav-btn {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: var(--white);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.cal-nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.cal-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* Clickable title (bubukas ng Month/Year picker) */
+.cal-title-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 0.25rem 0.6rem;
+    border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.cal-title-btn:hover {
+    color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cal-title-caret {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    transition: transform 0.25s ease;
+}
+
+.cal-title-btn[aria-expanded="true"] .cal-title-caret {
+    transform: rotate(180deg);
+}
+
+/* Month / Week / Today segmented control */
+.cal-view-group {
+    display: flex;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cal-view-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 0.5rem 0.9rem;
+    transition: all 0.25s ease;
+}
+
+.cal-view-btn + .cal-view-btn {
+    border-left: 1px solid #2a2a2a;
+}
+
+.cal-view-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cal-view-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+    font-weight: 700;
+}
+
+/* ---------- LIGHT MODE TOOLBAR (soft/neutral — hindi sakit sa mata) ---------- */
+[data-theme="light"] .cal-nav-btn {
+    border-color: #e5e7eb;
+    color: #4b5563;
+}
+
+[data-theme="light"] .cal-nav-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .cal-title-btn {
+    color: #111827;
+}
+
+[data-theme="light"] .cal-title-btn:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .cal-view-group {
+    border-color: #e5e7eb;
+    background: #ffffff;
+}
+
+[data-theme="light"] .cal-view-btn {
+    color: #4b5563;
+}
+
+[data-theme="light"] .cal-view-btn + .cal-view-btn {
+    border-left-color: #e5e7eb;
+}
+
+[data-theme="light"] .cal-view-btn:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .cal-view-btn.active {
+    background: #f1f2f4;
+    color: #111827;
+    font-weight: 700;
+}
+
+/* DISABLED view button (Today kapag nasa current month/week na) —
+   kailangang talunin ang .active/.hover rules kaya naka-doble selector */
+.cal-view-btn:disabled,
+.cal-view-btn:disabled:hover,
+.cal-view-btn:disabled.active {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    color: var(--white);
+}
+
+[data-theme="light"] .cal-view-btn:disabled,
+[data-theme="light"] .cal-view-btn:disabled:hover,
+[data-theme="light"] .cal-view-btn:disabled.active {
+    color: #9ca3af;
+    background: transparent;
+}
+
+/* ========================================================
+   MODAL AS BOTTOM-SHEET (mobile ≤600px)
+   Sa desktop: naka-center pa rin. Sa mobile: full-width,
+   naka-slide mula baba, rounded top corners.
+   ======================================================== */
+@media (max-width: 600px) {
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .booking-modal-box {
+        width: 100vw;
+        max-width: 100vw;
+        max-height: 92vh;
+        border-radius: 14px 14px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        transform: translateY(100%);
+        padding: 1.1rem 0.9rem 1.25rem;
+    }
+
+    .modal-overlay.show .booking-modal-box {
+        transform: translateY(0);
+    }
+}
+
+/* ========================================================
+   LIGHT MODE — DAY NUMBERS, FINAL SAY (pinakahuling block)
+   Naka-`html[data-theme="light"]` + !important para panalo
+   laban sa KAHIT ANONG dark rule (kahit !important din) —
+   siguradong kita ang mga number ng araw sa light mode.
+   ======================================================== */
+html[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-number {
+    color: #374151 !important;
+    opacity: 1 !important;
+}
+
+html[data-theme="light"] #booking-calendar .fc .fc-day-past .fc-daygrid-day-number {
+    color: rgba(17, 24, 39, 0.55) !important;
+}
+
+html[data-theme="light"] #booking-calendar .fc .fc-day-other .fc-daygrid-day-number {
+    color: rgba(17, 24, 39, 0.3) !important;
+}
+
+html[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.is-past-date .fc-daygrid-day-number,
+html[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-disabled .fc-daygrid-day-number,
+html[data-theme="light"] #booking-calendar .fc .fc-daygrid-day-number.booking-day-number-disabled {
+    color: rgba(17, 24, 39, 0.4) !important;
+}
+
+html[data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-number {
+    background: transparent !important;
+    color: #111827 !important;
+    font-weight: 700;
+    opacity: 1 !important;
 }
