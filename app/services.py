@@ -1162,8 +1162,7 @@ def _image_success_reply(img_url, prompt, intro_text=""):
         f"{escape(intro)}<br><br>"
         f'<img src="{escape(img_url)}" alt="Balloorina Design Concept" '
         f'data-ai-prompt="{escape(prompt)}" '
-        'style="max-width:100%; border-radius:8px; margin-top:6px; '
-        'box-shadow:0 4px 12px rgba(0,0,0,0.5);">'
+        'style="max-width:100%; border-radius:8px; margin-top:6px;">'
     )
 
 

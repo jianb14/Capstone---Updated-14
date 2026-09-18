@@ -766,9 +766,39 @@
     const lightboxCloseBtn = document.getElementById("adminChatLightboxClose");
     const lightboxPrevBtn = document.getElementById("adminChatLightboxPrev");
     const lightboxNextBtn = document.getElementById("adminChatLightboxNext");
+    const lightboxDownloadBtn = document.getElementById("adminChatLightboxDownload");
+
+    /* ── Download button: i-save ang kasalukuyang image ng lightbox ── */
+    function downloadChatImage(url) {
+        if (!url) return;
+        let filename = "chat-image";
+        try {
+            const clean = url.split("?")[0].split("#")[0];
+            const tail = decodeURIComponent(clean.substring(clean.lastIndexOf("/") + 1));
+            if (tail) filename = tail;
+        } catch (err) { /* panatilihin ang default na filename */ }
+        fetch(url)
+            .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); })
+            .then(function (blob) {
+                const a = document.createElement("a");
+                const objUrl = URL.createObjectURL(blob);
+                a.href = objUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () { URL.revokeObjectURL(objUrl); }, 2000);
+            })
+            .catch(function () { window.open(url, "_blank"); });
+    }
+
     if (lightboxCloseBtn) lightboxCloseBtn.addEventListener("click", closeLightbox);
     if (lightboxPrevBtn) lightboxPrevBtn.addEventListener("click", function () { openLightbox(lightboxIndex - 1); });
     if (lightboxNextBtn) lightboxNextBtn.addEventListener("click", function () { openLightbox(lightboxIndex + 1); });
+    if (lightboxDownloadBtn) lightboxDownloadBtn.addEventListener("click", function (event) {
+        event.stopPropagation();
+        downloadChatImage(lightboxImg.src);
+    });
     if (lightboxEl) {
         lightboxEl.addEventListener("click", function (event) {
             if (event.target === lightboxEl) closeLightbox();
@@ -1036,6 +1066,11 @@
         if (mediaLightboxClose) mediaLightboxClose.addEventListener("click", closeMediaLightbox);
         if (mediaLightboxPrev) mediaLightboxPrev.addEventListener("click", function () { openMediaLightbox(mediaLightboxIndex - 1); });
         if (mediaLightboxNext) mediaLightboxNext.addEventListener("click", function () { openMediaLightbox(mediaLightboxIndex + 1); });
+        const mediaLightboxDownload = document.getElementById("adminChatMediaLightboxDownload");
+        if (mediaLightboxDownload) mediaLightboxDownload.addEventListener("click", function (event) {
+            event.stopPropagation();
+            if (mediaLightboxImg) downloadChatImage(mediaLightboxImg.src);
+        });
         mediaLightbox.addEventListener("click", function (event) {
             if (event.target === mediaLightbox) closeMediaLightbox();
         });

@@ -14,7 +14,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260914b">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
-<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20260919c">
+<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20260919d">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="{% static 'js/theme-toggle.js' %}"></script>
     {% block extra_css %}{% endblock %}
@@ -722,6 +722,56 @@
             border-radius: 10px;
         }
 
+        /* AI generated image: WALANG box-shadow + download icon overlay
+           sa top-right corner ng image (pinalit sa lumang "Download"
+           button sa ilalim) */
+        .ai-chat-box img[data-ai-generated-image] {
+            box-shadow: none !important;
+            border-radius: 10px;
+        }
+
+        .ai-image-wrap {
+            position: relative;
+            max-width: 100%;
+            margin-top: 6px;
+        }
+
+        .ai-image-wrap img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: none !important;
+        }
+
+        .ai-image-download {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: rgba(17, 17, 17, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            transition: background 0.15s ease;
+        }
+
+        .ai-image-download:hover {
+            background: rgba(17, 17, 17, 0.92);
+        }
+
+        .ai-image-download svg {
+            display: block;
+        }
+
         .ai-image-fallback {
             padding: 12px;
             margin-top: 8px;
@@ -1033,13 +1083,20 @@
             flex-direction: row;
             justify-content: left;
             align-items: center;
+            /* flex-shrink: 0 — KOREK sa bug na "nahati/natabunan" ang chips
+               kapag humahaba ang convo: kapag wala ito, hinihila ng flex
+               algorithm paliit ang row na ito (kasing-shrink ng chat box),
+               tapos pinuputol ng overflow-y:hidden ang kalahati ng chips */
+            flex-shrink: 0;
             /* HINDI na nag-wrap — horizontal scroll na may maliit na
                scrollbar para hindi nagpapatong/nagpapabitin ang chips */
             flex-wrap: nowrap;
             overflow-x: auto;
             overflow-y: hidden;
             gap: 8px;
-            padding: 4px 1rem 0 1rem;
+            /* Pantay na padding itaas/atras — hindi na dikit/naka-clip
+               ang ibabang gilid ng chips sa input area */
+            padding: 6px 1rem;
             margin-top: auto;
             z-index: 10;
             background: transparent !important;
@@ -1898,40 +1955,18 @@
 
                 // Simple check if it's already complex HTML (like an image response)
                 if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>âš ï¸')) {
-                    // Fix img alt text and add onerror handler for broken images
+                    // Fix img alt text and add onerror handler for broken images.
+                    // AI image: i-wrap sa .ai-image-wrap + overlay download icon (top-right ng image)
                     html = html.replace(/<img\s+src="([^"]+)"\s+alt="([^"]*)"([^>]*)>/g, function (match, src, alt, rest) {
                         const safeSrc = src.replace(/"/g, '&quot;');
-                        return '<img src="' + safeSrc + '" alt="Balloorina Design Concept" data-ai-generated-image="1"' + rest + '>';
+                        // Tanggalin ang inline style (may lumang inline box-shadow) — CSS na ang bahala
+                        const cleanRest = rest.replace(/\s*style\s*=\s*"[^"]*"/, '');
+                        return '<div class="ai-image-wrap">' +
+                            '<img src="' + safeSrc + '" alt="Balloorina Design Concept" data-ai-generated-image="1"' + cleanRest + '>' +
+                            '<a href="' + safeSrc + '" download="balloorina_design" class="ai-image-download" target="_blank" aria-label="Download image" title="Download image">' +
+                            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
+                            '</a></div>';
                     });
-                    // Try to inject download loop logic if it's an image.
-                    if (html.includes('<img ')) {
-                        // Extracting the src assuming it's structured consistently
-                        const srcMatch = html.match(/src="([^"]+)"/);
-                        if (srcMatch && srcMatch[1]) {
-                            const imgSrc = srcMatch[1];
-                            const downloadBtnHtml = `
-                                <div style="margin-top: 10px; display: flex;">
-                                    <a href="${imgSrc}" download="balloorina_design" class="ai-action-btn" target="_blank" style="text-decoration: none; padding: 6px 14px 6px 10px; font-weight: 600; font-size: 0.8rem; background: var(--white); color: var(--black); border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Download
-                                    </a>
-                                </div>
-                            `;
-                            // Append before the closing tags or outro text
-                            if (html.includes('<br><br>')) {
-                                let parts = html.split('<br><br>');
-                                // Insert after the image which is usually part 1 or 2
-                                for (let i = 0; i < parts.length; i++) {
-                                    if (parts[i].includes('<img ')) {
-                                        parts[i] = parts[i] + downloadBtnHtml;
-                                        break;
-                                    }
-                                }
-                                html = parts.join('<br><br>');
-                            } else {
-                                html += downloadBtnHtml;
-                            }
-                        }
-                    }
 
                     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
                     html = html.replace(/(?<![\w<])\*([^*<>]+?)\*(?![\w>])/g, '<em>$1</em>');

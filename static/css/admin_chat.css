@@ -286,6 +286,9 @@
     padding: 0.75rem 1.1rem;
     border-bottom: 1px solid var(--card-bdr);
     display: flex;
+    /* flex-start (hindi space-between) para dikit ang back arrow sa avatar;
+       inaalagaan ng margin-left:auto sa .thread-actions ang kanang bahagi */
+    justify-content: flex-start;
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
@@ -295,9 +298,15 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    flex: 1;
+    /* Hindi dapat buong header row ang hover highlight — content lang
+       (avatar + pangalan + chevron) */
+    flex: 0 1 auto;
+    width: fit-content;
     min-width: 0;
 }
+
+/* Panatilihin sa kanan ang search kahit hindi na stretch ang thread-user */
+.thread-actions { margin-left: auto; }
 
 .thread-avatar {
     width: 44px;
@@ -2436,6 +2445,29 @@ body.light-mode .reply-preview {
 }
 .chat-lightbox .lightbox-close svg { display: block; }
 .chat-lightbox .lightbox-close:hover { background: rgba(15, 15, 18, 0.85); }
+/* Download button sa kaliwa ng X — i-download ang kasalukuyang image */
+.chat-lightbox .lightbox-download {
+    position: absolute;
+    top: 16px;
+    /* X: right 18px + 48px lapag + 12px agwat */
+    right: 78px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 15, 18, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    cursor: pointer;
+    line-height: 0;
+    padding: 0;
+    border-radius: 50%;
+    z-index: 2;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chat-lightbox .lightbox-download svg { display: block; }
+.chat-lightbox .lightbox-download:hover { background: rgba(15, 15, 18, 0.85); border-color: rgba(255, 255, 255, 0.45); }
 /* Round floating prev/next arrows — kasama ang .lightbox-prev/.lightbox-next
    na dati walang styling kaya sira ang dating (parang text lang na "‹ ›") */
 .chat-lightbox .lightbox-nav,
@@ -2912,7 +2944,7 @@ body.light-mode span.am-receipt.seen { color: #2563eb !important; }
        the search bar wraps to a full-width row below them */
     .admin-thread-header { flex-wrap: wrap; gap: 8px; }
     .thread-back { display: inline-flex; }
-    .thread-user { flex: 1; justify-content: flex-start; text-align: left; }
+    .thread-user { flex: 0 1 auto; width: fit-content; justify-content: flex-start; text-align: left; }
     .thread-user h3 { font-size: 0.9rem; }
     .thread-avatar { width: 36px; height: 36px; font-size: 0.85rem; }
     .thread-actions { width: 100%; justify-content: flex-start; }
@@ -3160,24 +3192,27 @@ body.light-mode span.am-receipt.seen { color: #2563eb !important; }
 .sc-status-dot.active { background: #34d399; }
 .sc-status-dot.closed { background: #6b7280; }
 
-/* ── Compact numeric unread pill (top-right, absolute — never pushes layout) ── */
+/* ── Unread pill (top-right, absolute — never pushes layout) ──
+   "N new message(s)" na text — GHOST na istilo: dark = translucent
+   white bg + white text; light = translucent gray bg + black text */
 .sc-unread-pill {
     position: absolute;
     top: 0.55rem;
     right: 0.6rem;
-    min-width: 17px;
-    height: 17px;
-    padding: 0 4px;
+    max-width: calc(100% - 1.2rem);
+    padding: 3px 9px;
     border-radius: 999px;
-    background: #ffffff;
-    color: #111827;
+    background: rgba(255,255,255,0.14);
+    color: #ffffff;
     font-size: 0.62rem;
-    font-weight: 800;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    line-height: 1;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    line-height: 1.2;
+    box-shadow: none;
 }
 
 /* ── Light mode: filter tabs ── */
@@ -3207,7 +3242,7 @@ body.light-mode .chat-filter-tabs,
 body.light-mode .sc-status-line,
 [data-theme="light"] .sc-status-line { color: #6b7280; }
 body.light-mode .sc-unread-pill,
-[data-theme="light"] .sc-unread-pill { background: #111827; color: #ffffff; box-shadow: none; }
+[data-theme="light"] .sc-unread-pill { background: rgba(17,24,39,0.08) !important; color: #111827 !important; box-shadow: none; border: none; }
 
 /* ── Small screens ── */
 @media (max-width: 900px) {
