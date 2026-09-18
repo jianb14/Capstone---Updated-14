@@ -31,6 +31,7 @@ from django.core.files.images import get_image_dimensions
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.contrib.staticfiles import finders
+from django.db import transaction
 from django.db.models import Avg, Count, DecimalField, Exists, Max, OuterRef, Q, Subquery, Sum, Value, Model, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -43,6 +44,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -58,6 +60,8 @@ from .models import (
     AuditLog,
     Booking,
     BookingImage,
+    BookingStatusLog,
+    BlockedDate,
     CanvasAsset,
     CanvasCategory,
     CanvasLabel,
@@ -82,9 +86,11 @@ from .models import (
     Payment,
     Review,
     ReviewImage,
+    ReviewReply,
     Service,
     ServiceChargeConfig,
     ServiceContent,
+    SiteSettings,
     User,
     UserDesign,
 )
@@ -227,8 +233,89 @@ def _chat_message_json(message, current_user):
         "reply_to": _chat_reply_snippet(message),
         "image_url": message.image.url if message.image else "",
         "image_name": message.image_original_name if message.image else "",
+        "is_pinned": bool(message.is_pinned),
         "sent_at": message.sent_at.strftime("%b %d, %I:%M %p"),
     }
+
+
+def _get_chat_session_for_user(request, session_id):
+    """
+    Shared permission helper: the session owner (client) or an admin/staff
+    may read a support session. Returns (session, error_response).
+    """
+    try:
+        session = ChatSession.objects.get(id=session_id)
+    except (ChatSession.DoesNotExist, ValueError, TypeError):
+        return None, JsonResponse({"error": "Session not found"}, status=404)
+    if session.user_id != request.user.id and not _is_admin_user(request.user):
+        return None, JsonResponse({"error": "Forbidden"}, status=403)
+    return session, None
+
+
+def _pinned_messages_json(session):
+    """
+    Messenger-style pinned list: newest pin first, capped at 3. When the cap
+    is exceeded the OLDEST pin is silently unpinned so the newest pin wins.
+    """
+    MAX_PINNED = 3
+    pinned = list(
+        session.messages.filter(is_pinned=True, is_deleted=False)
+        .select_related("sender", "pinned_by")
+        .order_by("-pinned_at")
+    )
+    if len(pinned) > MAX_PINNED:
+        for stale in pinned[MAX_PINNED:]:
+            stale.is_pinned = False
+            stale.pinned_by = None
+            stale.pinned_at = None
+            stale.save(update_fields=["is_pinned", "pinned_by", "pinned_at"])
+        pinned = pinned[:MAX_PINNED]
+    return [
+        {
+            "id": msg.id,
+            "snippet": (msg.message or "").strip()[:80],
+            "has_image": bool(msg.image),
+            "image_url": msg.image.url if msg.image else "",
+            "sender_name": msg.sender.get_full_name() or msg.sender.username,
+            "is_from_admin": msg.is_from_admin,
+            "pinned_by": (
+                msg.pinned_by.get_full_name() or msg.pinned_by.username
+                if msg.pinned_by
+                else ""
+            ),
+            "pinned_by_is_admin": (
+                msg.pinned_by_id is not None and (
+                    getattr(msg.pinned_by, "role", None) in ["admin", "staff"]
+                    or getattr(msg.pinned_by, "is_superuser", False)
+                )
+            ),
+            "pinned_at": (
+                msg.pinned_at.strftime("%b %d, %I:%M %p") if msg.pinned_at else ""
+            ),
+        }
+        for msg in pinned
+    ]
+
+
+def _media_files_json(session):
+    """All image attachments in the session — newest first — for the info drawer gallery."""
+    media = (
+        session.messages.filter(is_deleted=False)
+        .exclude(image="")
+        .exclude(image__isnull=True)
+        .select_related("sender")
+        .order_by("-sent_at")
+    )
+    return [
+        {
+            "id": msg.id,
+            "url": msg.image.url,
+            "name": msg.image_original_name or "Chat image",
+            "sender_name": msg.sender.get_full_name() or msg.sender.username,
+            "sent_at": msg.sent_at.strftime("%b %d, %I:%M %p"),
+        }
+        for msg in media
+    ]
 
 
 def _admin_support_chat_sessions():
@@ -398,6 +485,120 @@ def _send_account_verification_email(request, user):
 def log_action(user, action):
     """Helper function to create an audit log entry."""
     AuditLog.objects.create(user=user, action=action)
+
+
+def parse_non_negative_int(raw, default=0):
+    """Safely parse a submitted form value into a non-negative integer.
+
+    Blank, non-numeric, or negative values fall back to `default` so that
+    PositiveIntegerField columns (order / display_order / sort_order) never
+    receive an invalid number (which would raise a database error).
+    """
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+    if value < 0:
+        return default
+    return value
+
+
+def send_admin_alert_email(subject, body):
+    """
+    Send an alert email to configured admin addresses (Site Settings).
+    Fail-safe: never raises — logs the error instead.
+    """
+    try:
+        site_settings = SiteSettings.load()
+    except Exception:
+        logger.exception("Failed to load Site Settings for admin alert email.")
+        return False
+
+    recipients = site_settings.admin_notification_emails()
+    if not recipients:
+        return False
+
+    try:
+        send_mail(
+            subject=f"[Balloorina Admin] {subject}",
+            message=body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=recipients,
+            fail_silently=True,
+        )
+        return True
+    except Exception:
+        logger.exception("Failed to send admin alert email: %s", subject)
+        return False
+
+
+def log_booking_status(booking, old_status, new_status, changed_by=None, notes=""):
+    """Record a status change for a booking's history timeline."""
+    return BookingStatusLog.objects.create(
+        booking=booking,
+        old_status=old_status or "",
+        new_status=new_status,
+        changed_by=changed_by if (changed_by and getattr(changed_by, "is_authenticated", False)) else None,
+        notes=notes or "",
+    )
+
+
+def _booking_time_bounds(booking):
+    """Return (start_dt, end_dt) datetimes for a booking, defaulting to a 4-hour span."""
+    start_dt = (
+        datetime.combine(booking.event_date, booking.event_time)
+        if booking.event_time
+        else None
+    )
+    end_dt = None
+    if start_dt:
+        end_time_str = get_end_time_from_str(booking.special_requests or "")
+        if end_time_str:
+            try:
+                end_dt = datetime.combine(
+                    booking.event_date, datetime.strptime(end_time_str, "%H:%M").time()
+                )
+            except ValueError:
+                end_dt = None
+        if end_dt is None:
+            end_dt = start_dt + timedelta(hours=4)
+    return start_dt, end_dt
+
+
+ACTIVE_BOOKING_STATUSES = ("pending_payment", "confirmed", "completed")
+
+
+def find_active_booking_conflicts(booking):
+    """
+    Return active bookings (pending_payment/confirmed/completed) on the same
+    event date whose time ranges overlap the given booking. Purely read-only —
+    used for conflict warnings and badges.
+    """
+    if not booking.event_date:
+        return Booking.objects.none()
+
+    candidates = Booking.objects.filter(
+        event_date=booking.event_date,
+        status__in=ACTIVE_BOOKING_STATUSES,
+    ).exclude(pk=booking.pk).select_related("user")
+
+    if not booking.event_time:
+        # No time info — treat any other active booking on the same date as a conflict.
+        return candidates
+
+    b_start, b_end = _booking_time_bounds(booking)
+    if not b_start or not b_end:
+        return candidates
+
+    conflicts = []
+    for candidate in candidates:
+        if not candidate.event_time:
+            conflicts.append(candidate)
+            continue
+        c_start, c_end = _booking_time_bounds(candidate)
+        if c_start and c_end and b_start < c_end and b_end > c_start:
+            conflicts.append(candidate)
+    return conflicts
 
 
 def get_service_charge_config():
@@ -614,6 +815,11 @@ class AboutPageView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         about_content = AboutContent.objects.first()
+        if about_content is None:
+            about_content = AboutContent.objects.create()
+        # Prefill blank CMS fields / empty Core Values table with the same
+        # defaults the client template falls back to (fresh DB safety).
+        _seed_about_defaults(about_content)
         context["about_content"] = about_content
 
         # Split hero title into main + accent lines using "|" as separator
@@ -655,6 +861,11 @@ class ServicesPageView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["service_content"] = ServiceContent.objects.first()
+        if context["service_content"] is None:
+            context["service_content"] = ServiceContent.objects.create()
+        # Fresh-DB safety: punuin ang blangkong CMS fields / Services table
+        # gamit ang mga default na kapareho ng client fallbacks.
+        _seed_service_defaults(context["service_content"])
         context["services"] = Service.objects.filter(is_active=True).order_by("display_order")
 
         # Interactive widgets: instant price estimator + comparison table data
@@ -811,6 +1022,13 @@ def check_date_availability(request):
             status__in=blocked_statuses,
         ).values_list("event_date", flat=True)
     )
+    # Admin-blocked dates are also unavailable
+    blocked_dates.update(
+        BlockedDate.objects.filter(date__gte=today).values_list("date", flat=True)
+    )
+    blocked_by_admin = BlockedDate.objects.filter(
+        date=selected_date
+    ).exists()
 
     available = selected_date not in blocked_dates
 
@@ -829,7 +1047,11 @@ def check_date_availability(request):
             "message": (
                 "Great news! This date is still open for booking."
                 if available
-                else "Sorry, this date is already fully booked. Here are the nearest open dates:"
+                else (
+                    "Sorry, this date is unavailable (blocked by the admin). Here are the nearest open dates:"
+                    if blocked_by_admin
+                    else "Sorry, this date is already fully booked. Here are the nearest open dates:"
+                )
             ),
             "suggestions": suggestions,
         }
@@ -919,7 +1141,11 @@ class GalleryPageView(TemplateView):
 
 
 def reviews_page(request):
-    reviews = Review.objects.select_related("user", "booking").order_by("-created_at")
+    reviews = (
+        Review.objects.select_related("user", "booking")
+        .select_related("reply", "reply__admin")
+        .order_by("-created_at")
+    )
 
     import json
 
@@ -1391,6 +1617,21 @@ def report_concern(request):
                 ConcernImage.objects.create(concern=ticket, image=img)
 
             log_action(request.user, f"Submitted concern ticket #{ticket.id}.")
+
+            # Admin alert email (fail-safe)
+            send_admin_alert_email(
+                f"New Concern Ticket #{ticket.id}",
+                (
+                    f"A customer reported a concern.\n\n"
+                    f"Ticket ID: #{ticket.id}\n"
+                    f"Customer: {request.user.get_full_name() or request.user.username} ({request.user.email})\n"
+                    f"Category: {ticket.get_category_display()}\n"
+                    f"Subject: {ticket.subject}\n\n"
+                    f"Message:\n{ticket.message}\n\n"
+                    f"Review it here: {request.build_absolute_uri('/staff/concerns/')}"
+                ),
+            )
+
             messages.success(
                 request, "Concern submitted. Our team will review it soon."
             )
@@ -1444,6 +1685,10 @@ def change_password(request):
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{error}")
+    # I-redirect sa tamang profile page base sa role — ang admin/staff ay
+    # hindi dapat mapupunta sa customer-only na pahina ("Not allowed").
+    if request.user.role in ["admin", "staff"]:
+        return redirect("admin_profile")
     return redirect("customer_profile")
 
 
@@ -1563,6 +1808,9 @@ def my_profile(request):
     confirmed_count = user_bookings.filter(status="confirmed").count()
     completed_count = user_bookings.filter(status="completed").count()
 
+    # Recent Activity timeline — existing AuditLog entries ng user
+    activity_logs = AuditLog.objects.filter(user=request.user)[:8]
+
     return render(
         request,
         "client/my_profile.html",
@@ -1571,6 +1819,7 @@ def my_profile(request):
             "pending_count": pending_count,
             "confirmed_count": confirmed_count,
             "completed_count": completed_count,
+            "activity_logs": activity_logs,
         },
     )
 
@@ -1845,6 +2094,59 @@ def admin_profile(request):
     return render(request, "admin/admin_profile.html")
 
 
+@login_required
+def admin_site_settings(request):
+    """Central site settings page (admin role only)."""
+    if request.user.role != "admin":
+        return HttpResponseForbidden("Admins only")
+
+    settings_obj = SiteSettings.load()
+
+    if request.method == "POST":
+        site_name = (request.POST.get("site_name") or "").strip()[:150]
+        contact_email = (request.POST.get("contact_email") or "").strip()[:255]
+        contact_phone = (request.POST.get("contact_phone") or "").strip()[:50]
+        address = (request.POST.get("address") or "").strip()[:255]
+        facebook_link = (request.POST.get("facebook_link") or "").strip()[:200]
+        instagram_link = (request.POST.get("instagram_link") or "").strip()[:200]
+        admin_emails_raw = (request.POST.get("admin_emails_for_notifications") or "").strip()[:500]
+        email_notifications_enabled = request.POST.get("email_notifications_enabled") == "on"
+
+        lead_time_raw = (request.POST.get("booking_lead_time_days") or "0").strip()
+        try:
+            booking_lead_time_days = max(0, int(lead_time_raw))
+        except ValueError:
+            booking_lead_time_days = 0
+
+        if not site_name:
+            messages.error(request, "Site name is required.")
+        else:
+            settings_obj.site_name = site_name
+            settings_obj.contact_email = contact_email
+            settings_obj.contact_phone = contact_phone
+            settings_obj.address = address
+            settings_obj.facebook_link = facebook_link
+            settings_obj.instagram_link = instagram_link
+            settings_obj.booking_lead_time_days = booking_lead_time_days
+            settings_obj.admin_emails_for_notifications = ", ".join(
+                e for e in (x.strip() for x in admin_emails_raw.split(",")) if e
+            )
+            settings_obj.email_notifications_enabled = email_notifications_enabled
+            settings_obj.updated_by = request.user
+            settings_obj.save()
+
+            log_action(request.user, "Updated site settings.")
+            messages.success(request, "Site settings saved successfully.")
+
+        return redirect("admin_site_settings")
+
+    return render(
+        request,
+        "admin/settings/admin_site_settings.html",
+        {"settings": settings_obj},
+    )
+
+
 # Helper to extract End Time from special_requests string
 def get_end_time_from_str(text):
     match = re.search(r"\(End Time: (\d{2}:\d{2})\)", text)
@@ -2037,6 +2339,27 @@ def booking_page(request):
     active_additionals = AdditionalOnly.objects.all()
     service_charge_config = get_service_charge_config()
 
+    # Admin-blocked dates: ipapasa bilang listahan sa template — sa MONTH view
+    # ang buong day cell na mismo ang magiging pula (JS/CSS), at nakatago ang
+    # pill. Iniwan pa rin bilang events para may makita sa WEEK view (timeGrid).
+    blocked_rows = BlockedDate.objects.filter(date__gte=timezone.now().date())
+    blocked_dates_payload = [
+        {
+            "date": blocked.date.isoformat(),
+            "reason": blocked.reason or "",
+        }
+        for blocked in blocked_rows
+    ]
+    for blocked in blocked_rows:
+        calendar_events.append(
+            {
+                "title": "Unavailable",
+                "start": blocked.date.isoformat(),
+                "end": None,
+                "color": "#7f1d1d",
+            }
+        )
+
     for b in all_bookings:
         start_dt = (
             datetime.combine(b.event_date, b.event_time) if b.event_time else None
@@ -2067,6 +2390,7 @@ def booking_page(request):
         "client/booking/booking_page.html",
         {
             "calendar_events": calendar_events,
+            "blocked_dates": blocked_dates_payload,
             "today_iso": timezone.localdate().isoformat(),
             "packages": active_packages,
             "active_addons": active_addons,
@@ -2143,14 +2467,106 @@ def admin_calendar(request):
             }
         )
 
+    # Blocked dates appear as red "Unavailable" events
+    blocked_dates = BlockedDate.objects.select_related("created_by").all()
+    for blocked in blocked_dates:
+        calendar_events.append(
+            {
+                "title": f"🚫 Unavailable{f' — {blocked.reason}' if blocked.reason else ''}",
+                "start": blocked.date.isoformat(),
+                "end": None,
+                "color": "#7f1d1d",
+                "booking_id": None,
+                "client_name": "—",
+                "event_type": "Blocked Date",
+                "event_location": "—",
+                "package_type": "—",
+                "status": "Unavailable",
+                "status_raw": "blocked",
+                "time_range": "—",
+                "event_date": blocked.date.strftime("%B %d, %Y"),
+                "total_price": "—",
+                "reason": blocked.reason or "Unavailable",
+            }
+        )
+
     return render(
         request,
         "admin/admin_calendar.html",
         {
             "calendar_events": calendar_events,
             "today_iso": timezone.localdate().isoformat(),
+            "blocked_dates": blocked_dates,
         },
     )
+
+
+@login_required
+@require_POST
+def admin_blocked_date_create(request):
+    """Create a blockout date that clients cannot book."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    raw_date = (request.POST.get("date") or "").strip()
+    reason = (request.POST.get("reason") or "").strip()[:255]
+
+    if not raw_date:
+        messages.error(request, "Please choose a date to block.")
+        return redirect("admin_calendar")
+
+    try:
+        blocked_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+    except ValueError:
+        messages.error(request, "Invalid date format.")
+        return redirect("admin_calendar")
+
+    if blocked_date < timezone.localdate():
+        messages.error(request, "Cannot block a date in the past.")
+        return redirect("admin_calendar")
+
+    if Booking.objects.filter(
+        event_date=blocked_date, status__in=ACTIVE_BOOKING_STATUSES
+    ).exists():
+        messages.error(
+            request,
+            f"Cannot block {blocked_date.strftime('%B %d, %Y')} — there is already an active booking on this date. Cancel or complete it first.",
+        )
+        return redirect("admin_calendar")
+
+    blocked, created = BlockedDate.objects.get_or_create(
+        date=blocked_date,
+        defaults={"reason": reason, "created_by": request.user},
+    )
+    if created:
+        log_action(
+            request.user,
+            f"Blocked date {blocked_date.isoformat()}"
+            + (f" ({reason})" if reason else "")
+            + " for bookings.",
+        )
+        messages.success(
+            request, f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for booking."
+        )
+    else:
+        messages.info(request, "That date is already blocked.")
+
+    return redirect("admin_calendar")
+
+
+@login_required
+@require_POST
+def admin_blocked_date_delete(request, id):
+    """Remove a blockout date, making it bookable again."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    blocked = get_object_or_404(BlockedDate, id=id)
+    blocked_str = blocked.date.isoformat()
+    blocked.delete()
+    log_action(request.user, f"Unblocked date {blocked_str} for bookings.")
+    messages.success(request, f"{blocked_str} is now available for booking again.")
+    return redirect("admin_calendar")
 
 
 @login_required
@@ -2247,6 +2663,28 @@ def create_booking(request):
         if end_time:
             special_requests = f"{special_requests}\n(End Time: {end_time})".strip()
 
+        # 0. Validate date/time formats first (prevents 500 on malformed input)
+        if event_date:
+            try:
+                datetime.strptime(event_date, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                error_msg = "Invalid event date format."
+                if is_ajax:
+                    return JsonResponse({"success": False, "message": error_msg})
+                messages.error(request, error_msg)
+                return redirect("booking_page")
+
+        for time_value in (start_time, end_time):
+            if time_value:
+                try:
+                    datetime.strptime(time_value, "%H:%M")
+                except (ValueError, TypeError):
+                    error_msg = "Invalid time format."
+                    if is_ajax:
+                        return JsonResponse({"success": False, "message": error_msg})
+                    messages.error(request, error_msg)
+                    return redirect("booking_page")
+
         # Validation for past dates/times
         now = timezone.localtime(timezone.now())
         today = now.date()
@@ -2257,6 +2695,33 @@ def create_booking(request):
             # 1. Past Date Check
             if booking_date < today:
                 error_msg = "Cannot book a date in the past."
+                if is_ajax:
+                    return JsonResponse({"success": False, "message": error_msg})
+                messages.error(request, error_msg)
+                return redirect("booking_page")
+
+            # 1A. Admin Blocked Date Check
+            if BlockedDate.objects.filter(date=booking_date).exists():
+                blocked = BlockedDate.objects.filter(date=booking_date).first()
+                blocked_reason = f" Reason: {blocked.reason}" if blocked.reason else ""
+                error_msg = (
+                    f"Sorry, {booking_date.strftime('%B %d, %Y')} is not available "
+                    f"for booking.{blocked_reason} Please choose a different date."
+                )
+                if is_ajax:
+                    return JsonResponse({"success": False, "message": error_msg})
+                messages.error(request, error_msg)
+                return redirect("booking_page")
+
+            # 1B. Booking Lead Time Check (Site Settings)
+            site_settings = SiteSettings.load()
+            lead_days = site_settings.booking_lead_time_days or 0
+            if lead_days > 0 and booking_date < today + timedelta(days=lead_days):
+                error_msg = (
+                    f"Bookings must be made at least {lead_days} day(s) in advance. "
+                    f"Please choose a date on or after "
+                    f"{(today + timedelta(days=lead_days)).strftime('%B %d, %Y')}."
+                )
                 if is_ajax:
                     return JsonResponse({"success": False, "message": error_msg})
                 messages.error(request, error_msg)
@@ -2407,6 +2872,15 @@ def create_booking(request):
             total_price=total_price_val,
         )
 
+        # Initial status history entry
+        log_booking_status(
+            booking,
+            "",
+            booking.status,
+            changed_by=request.user,
+            notes="Booking submitted by customer.",
+        )
+
         # Associate with UserDesign if provided
         user_design_id = request.POST.get("user_design_id")
         if user_design_id:
@@ -2435,6 +2909,21 @@ def create_booking(request):
             BookingImage.objects.create(booking=booking, image=img)
 
         log_action(request.user, f"Created a new booking #{booking.id}.")
+
+        # Admin alert email (fail-safe)
+        send_admin_alert_email(
+            f"New Booking #{booking.id}",
+            (
+                f"A new booking was submitted.\n\n"
+                f"Booking ID: #{booking.id}\n"
+                f"Customer: {request.user.get_full_name() or request.user.username} ({request.user.email})\n"
+                f"Event: {booking.event_type or '—'} on {booking.event_date}"
+                f"{' ' + get_booking_time_range(booking) if booking.event_time else ''}\n"
+                f"Location: {booking.event_location or '—'}\n"
+                f"Total Price: PHP {booking.total_price:,.2f}\n\n"
+                f"Review it here: {request.build_absolute_uri(f'/staff/bookings/{booking.id}/view/')}"
+            ),
+        )
 
         if is_ajax:
             # Build event data so frontend can add to calendar dynamically
@@ -2639,9 +3128,38 @@ def edit_booking(request, id):
         # --- Validation Logic (Same as Create) ---
         now = timezone.localtime(timezone.now())
         today = now.date()
-        booking_date = datetime.strptime(
-            request.POST.get("event_date"), "%Y-%m-%d"
-        ).date()
+
+        # Validate event date format (prevents 500 on malformed/missing input)
+        try:
+            booking_date = datetime.strptime(
+                request.POST.get("event_date", ""), "%Y-%m-%d"
+            ).date()
+        except (ValueError, TypeError):
+            messages.error(request, "Invalid event date format.")
+            return redirect("edit_booking", id=id)
+
+        # Validate time formats (prevents 500 on malformed input)
+        for time_value in (start_time, end_time):
+            if time_value:
+                try:
+                    datetime.strptime(time_value, "%H:%M")
+                except (ValueError, TypeError):
+                    messages.error(request, "Invalid time format.")
+                    return redirect("edit_booking", id=id)
+
+        # Validate total price (same as create)
+        try:
+            total_price_val = Decimal(request.POST.get("total_price", "0"))
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, "Invalid price format.")
+            return redirect("edit_booking", id=id)
+        if total_price_val <= 0:
+            messages.error(request, "Total price must be greater than 0.")
+            return redirect("edit_booking", id=id)
+        MAX_PRICE = Decimal("99999999.99")
+        if total_price_val > MAX_PRICE:
+            messages.error(request, "Total price exceeds the maximum allowed value.")
+            return redirect("edit_booking", id=id)
 
         if booking_date < today:
             messages.error(request, "Cannot change to a past date.")
@@ -2703,7 +3221,7 @@ def edit_booking(request, id):
         booking.event_location = request.POST.get("event_location")
         booking.package_type = request.POST.get("package_type")
         booking.special_requests = special_requests
-        booking.total_price = request.POST.get("total_price")
+        booking.total_price = total_price_val
 
         if request.FILES.get("reference_image"):
             booking.reference_image = request.FILES.get("reference_image")
@@ -2799,6 +3317,25 @@ def admin_booking_list(request):
     if status_filter:
         bookings = bookings.filter(status=status_filter)
 
+    # Date Range Filter (event date)
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    date_from_valid = date_to_valid = False
+    if date_from:
+        try:
+            parsed_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+            bookings = bookings.filter(event_date__gte=parsed_from)
+            date_from_valid = True
+        except ValueError:
+            date_from = ""
+    if date_to:
+        try:
+            parsed_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+            bookings = bookings.filter(event_date__lte=parsed_to)
+            date_to_valid = True
+        except ValueError:
+            date_to = ""
+
     # Search Logic
     search_query = request.GET.get("search")
     if search_query:
@@ -2823,6 +3360,39 @@ def admin_booking_list(request):
     for b in bookings_page:
         b.time_range_display = get_booking_time_range(b)
 
+    # Conflict badges: check page rows against active bookings (pending_payment/
+    # confirmed/completed) on the same dates with overlapping time ranges.
+    page_booking_ids = [b.id for b in bookings_page]
+    conflicts_by_booking = {}
+    if page_booking_ids:
+        page_dates = {b.event_date for b in bookings_page if b.event_date}
+        active_candidates = (
+            Booking.objects.filter(
+                event_date__in=page_dates, status__in=ACTIVE_BOOKING_STATUSES
+            )
+            .exclude(id__in=page_booking_ids)
+            .select_related("user")
+        )
+        active_by_date = {}
+        for candidate in active_candidates:
+            active_by_date.setdefault(candidate.event_date, []).append(candidate)
+
+        for b in bookings_page:
+            conflicts = []
+            if not b.event_date:
+                b.has_conflict = False
+                continue
+            b_start, b_end = _booking_time_bounds(b)
+            for candidate in active_by_date.get(b.event_date, []):
+                if not b.event_time or not candidate.event_time:
+                    conflicts.append(candidate)
+                    continue
+                c_start, c_end = _booking_time_bounds(candidate)
+                if c_start and c_end and b_start and b_end and b_start < c_end and b_end > c_start:
+                    conflicts.append(candidate)
+            b.has_conflict = bool(conflicts)
+            conflicts_by_booking[b.id] = conflicts[:3]
+
     return render(
         request,
         "admin/booking/admin_booking_list.html",
@@ -2830,6 +3400,8 @@ def admin_booking_list(request):
             "bookings": bookings_page,
             "search_query": search_query or "",
             "status_filter": status_filter or "",
+            "date_from": date_from,
+            "date_to": date_to,
             "booking_summary": booking_summary,
         },
     )
@@ -2851,6 +3423,9 @@ def admin_booking_detail(request, id):
     cleaned_requests = remove_end_time_tag(booking.special_requests or "")
     price_breakdown = get_booking_price_breakdown(booking)
 
+    # Status history timeline
+    status_logs = booking.status_logs.select_related("changed_by").all()
+
     return render(
         request,
         "admin/booking/admin_booking_detail.html",
@@ -2858,6 +3433,7 @@ def admin_booking_detail(request, id):
             "booking": booking,
             "cleaned_requests": cleaned_requests,
             "price_breakdown": price_breakdown,
+            "status_logs": status_logs,
         },
     )
 
@@ -2874,9 +3450,31 @@ def admin_booking_action(request, id, action):
             messages.error(request, "Only pending bookings can be approved.")
             return redirect("admin_booking_list")
 
+        # CONFLICT DETECTION: block approval if an ACTIVE booking
+        # (pending_payment / confirmed / completed) already occupies this
+        # date and overlapping time range.
+        active_conflicts = list(find_active_booking_conflicts(booking))
+        if active_conflicts:
+            conflict_ids = ", ".join(f"#{c.id}" for c in active_conflicts[:3])
+            messages.error(
+                request,
+                f"Cannot approve booking #{booking.id}: it conflicts with "
+                f"active booking(s) {conflict_ids} on {booking.event_date}. "
+                "Resolve the schedule conflict first.",
+            )
+            return redirect("admin_booking_list")
+
+        old_status = booking.status
         booking.status = "pending_payment"
         booking.admin_denial_reason = None
         booking.save()
+        log_booking_status(
+            booking,
+            old_status,
+            booking.status,
+            changed_by=request.user,
+            notes="Approved by admin.",
+        )
 
         # Auto-cancel other PENDING bookings on the same date that OVERLAP in time
         potential_conflicts = Booking.objects.filter(
@@ -2884,62 +3482,48 @@ def admin_booking_action(request, id, action):
             status="pending",
         ).exclude(id=booking.id)
 
-        # Approved booking time range
-        b_start = datetime.combine(booking.event_date, booking.event_time) if booking.event_time else None
-        b_end_str = get_end_time_from_str(booking.special_requests)
-        if b_end_str:
-            b_end = datetime.combine(booking.event_date, datetime.strptime(b_end_str, "%H:%M").time())
-        else:
-            b_end = b_start + timedelta(hours=4) if b_start else None
+        b_start, b_end = _booking_time_bounds(booking)
 
         cancelled_count = 0
         for conflict in potential_conflicts:
+            should_cancel = False
+            reason = (
+                "Another booking was approved for this date. "
+                "Please choose a different date."
+            )
             # Check for overlap if both have times
             if b_start and b_end and conflict.event_time:
-                c_start = datetime.combine(conflict.event_date, conflict.event_time)
-                c_end_str = get_end_time_from_str(conflict.special_requests)
-                if c_end_str:
-                    c_end = datetime.combine(conflict.event_date, datetime.strptime(c_end_str, "%H:%M").time())
-                else:
-                    c_end = c_start + timedelta(hours=4)
-
-                # Overlap: (StartA < EndB) and (EndA > StartB)
-                if b_start < c_end and b_end > c_start:
-                    conflict.status = "cancelled"
-                    conflict.admin_denial_reason = (
+                c_start, c_end = _booking_time_bounds(conflict)
+                if c_start and c_end and b_start < c_end and b_end > c_start:
+                    should_cancel = True
+                    reason = (
                         "Another booking was approved for this time slot. "
                         "Please choose a different time or date."
                     )
-                    conflict.save()
-                    Notification.objects.create(
-                        user=conflict.user,
-                        booking=conflict,
-                        message=(
-                            f"We're sorry, but your booking #{conflict.id} on "
-                            f"{conflict.event_date} was not approved because another "
-                            f"booking was already confirmed for that time slot. "
-                            f"Please book a different time or date."
-                        ),
-                    )
-                    cancelled_count += 1
             else:
                 # If either doesn't have time, we assume they conflict (old behavior for safety)
-                # or you might want to allow it. Given the system seems to require times,
-                # we'll keep the safe approach of cancelling if date matches and time is missing.
+                should_cancel = True
+
+            if should_cancel:
+                conflict_old_status = conflict.status
                 conflict.status = "cancelled"
-                conflict.admin_denial_reason = (
-                    "Another booking was approved for this date. "
-                    "Please choose a different date."
-                )
+                conflict.admin_denial_reason = reason
                 conflict.save()
+                log_booking_status(
+                    conflict,
+                    conflict_old_status,
+                    conflict.status,
+                    changed_by=request.user,
+                    notes=f"Auto-cancelled: booking #{booking.id} was approved for this slot.",
+                )
                 Notification.objects.create(
                     user=conflict.user,
                     booking=conflict,
                     message=(
                         f"We're sorry, but your booking #{conflict.id} on "
                         f"{conflict.event_date} was not approved because another "
-                        f"booking was already confirmed for that date. "
-                        f"Please book a different date."
+                        f"booking was already confirmed for that time slot. "
+                        f"Please book a different time or date."
                     ),
                 )
                 cancelled_count += 1
@@ -2988,13 +3572,21 @@ def admin_booking_action(request, id, action):
         )
 
     elif action == "confirm":
+        old_status = booking.status
         booking.status = "confirmed"
         booking.admin_denial_reason = None
+        booking.save()
+        log_booking_status(
+            booking,
+            old_status,
+            booking.status,
+            changed_by=request.user,
+            notes="Confirmed by admin.",
+        )
         log_action(
             request.user,
             f"Confirmed booking #{booking.id} for '{booking.user.username}'.",
         )
-        booking.save()
 
         # Notify Customer
         Notification.objects.create(
@@ -3013,9 +3605,17 @@ def admin_booking_action(request, id, action):
             messages.error(request, "Denial reason is required.")
             return redirect("admin_booking_list")
 
+        old_status = booking.status
         booking.status = "cancelled"
         booking.admin_denial_reason = deny_reason
         booking.save()
+        log_booking_status(
+            booking,
+            old_status,
+            booking.status,
+            changed_by=request.user,
+            notes=f"Denied. Reason: {deny_reason}",
+        )
 
         # Notify Customer
         Notification.objects.create(
@@ -3028,9 +3628,17 @@ def admin_booking_action(request, id, action):
         )
         messages.success(request, "Booking denied!")
     elif action == "complete":
+        old_status = booking.status
         booking.status = "completed"
         booking.admin_denial_reason = None
         booking.save()
+        log_booking_status(
+            booking,
+            old_status,
+            booking.status,
+            changed_by=request.user,
+            notes="Marked as completed by admin.",
+        )
 
         # Notify Customer
         Notification.objects.create(
@@ -3064,6 +3672,13 @@ def admin_user_list(request):
     role_filter = request.GET.get("role")
     if role_filter and role_filter in ["admin", "customer"]:
         users_list = users_list.filter(role=role_filter)
+
+    # 2A. Status Filter (active/inactive)
+    status_filter = request.GET.get("status", "").strip()
+    if status_filter == "active":
+        users_list = users_list.filter(is_active=True)
+    elif status_filter == "inactive":
+        users_list = users_list.filter(is_active=False)
 
     # 3. Search Logic
     search_query = request.GET.get("search")
@@ -3150,6 +3765,107 @@ def admin_user_edit(request, id):
         return redirect("admin_user_list")
 
     return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
+
+
+@login_required
+def admin_user_detail(request, id):
+    """Detailed profile view for a single user: bookings, payments, reviews."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    user_obj = get_object_or_404(User, id=id)
+
+    user_bookings = (
+        Booking.objects.filter(user=user_obj)
+        .prefetch_related("payments")
+        .order_by("-created_at")
+    )
+    for b in user_bookings[:20]:
+        b.time_range_display = get_booking_time_range(b)
+
+    booking_count = user_bookings.count()
+    total_spent = (
+        user_bookings.filter(status__in=["confirmed", "completed"])
+        .aggregate(total=Sum("total_price"))["total"]
+        or Decimal("0.00")
+    )
+
+    user_payments = Payment.objects.filter(booking__user=user_obj).select_related(
+        "booking"
+    ).order_by("-created_at")[:20]
+
+    user_reviews = Review.objects.filter(user=user_obj).select_related("booking").order_by(
+        "-created_at"
+    )[:20]
+
+    context = {
+        "u": user_obj,
+        "user_bookings": user_bookings[:20],
+        "booking_count": booking_count,
+        "total_spent": total_spent,
+        "user_payments": user_payments,
+        "user_reviews": user_reviews,
+    }
+    return render(request, "admin/user/admin_user_detail.html", context)
+
+
+@login_required
+@require_POST
+def admin_user_reset_password(request, id):
+    """Send a password reset link to a user's email address."""
+    if request.user.role != "admin":
+        return HttpResponseForbidden("Admins only")
+
+    user_obj = get_object_or_404(User, id=id)
+
+    if user_obj.role == "admin":
+        messages.error(
+            request,
+            "Password reset is not available for administrator accounts.",
+        )
+        return redirect("admin_user_detail", id=user_obj.id)
+
+    if not user_obj.email:
+        messages.error(request, f"User '{user_obj.username}' has no email address on file.")
+        return redirect("admin_user_detail", id=user_obj.id)
+
+    token = default_token_generator.make_token(user_obj)
+    uid = urlsafe_base64_encode(force_bytes(user_obj.pk))
+    reset_link = request.build_absolute_uri(
+        reverse("password_reset_confirm", kwargs={"uidb64": uid, "token": token})
+    )
+
+    try:
+        send_mail(
+            subject="Password Reset Request | Balloorina",
+            message=(
+                f"Hi {user_obj.get_full_name() or user_obj.username},\n\n"
+                "An administrator requested a password reset for your Balloorina account.\n"
+                "Click the link below to set a new password (valid for 30 minutes):\n\n"
+                f"{reset_link}\n\n"
+                "If you did not expect this, you can safely ignore this email.\n\n"
+                "— Balloorina Team"
+            ),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[user_obj.email],
+            fail_silently=False,
+        )
+        log_action(
+            request.user,
+            f"Sent password reset email to '{user_obj.username}'.",
+        )
+        messages.success(
+            request,
+            f"Password reset link sent to {user_obj.email}.",
+        )
+    except Exception:
+        logger.exception("Failed to send password reset email to user #%s", user_obj.id)
+        messages.error(
+            request,
+            "Could not send the password reset email right now. Please try again later.",
+        )
+
+    return redirect("admin_user_detail", id=user_obj.id)
 
 
 @login_required
@@ -3259,7 +3975,7 @@ def admin_package_create(request):
             return render(request, "admin/package/package_form.html")
 
         try:
-            price = Decimal(request.POST["price"])
+            price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
             return render(request, "admin/package/package_form.html")
@@ -3299,7 +4015,7 @@ def admin_package_edit(request, id):
             )
 
         try:
-            package.price = Decimal(request.POST["price"])
+            package.price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
             return render(
@@ -3455,7 +4171,7 @@ def admin_addon_create(request):
             return render(request, "admin/package/addon_form.html")
 
         try:
-            price = Decimal(request.POST["price"])
+            price = Decimal(request.POST.get("price", ""))
             solo_price = Decimal(solo_raw)
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
@@ -3507,7 +4223,7 @@ def admin_addon_edit(request, id):
             return render(request, "admin/package/addon_form.html", {"addon": addon})
 
         try:
-            addon.price = Decimal(request.POST["price"])
+            addon.price = Decimal(request.POST.get("price", ""))
             addon.solo_price = Decimal(solo_raw)
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
@@ -3560,7 +4276,7 @@ def admin_additional_create(request):
             return render(request, "admin/package/additional_form.html")
 
         try:
-            price = Decimal(request.POST["price"])
+            price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
             return render(request, "admin/package/additional_form.html")
@@ -3600,7 +4316,7 @@ def admin_additional_edit(request, id):
             )
 
         try:
-            additional.price = Decimal(request.POST["price"])
+            additional.price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
             return render(
@@ -3675,6 +4391,10 @@ def admin_service_content(request):
             hero_subtitle="Balloon styling and event decoration services for all types of events."
         )
 
+    # Siguraduhing may laman ang CMS fields at Services table
+    # (kapareho ng defaults na ipinapakita ng client services page).
+    _seed_service_defaults(content)
+
     if request.method == "POST":
         content.hero_label = request.POST.get("hero_label", content.hero_label).strip()
         content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
@@ -3706,10 +4426,7 @@ def admin_service_item_create(request):
         description = request.POST.get("description", "").strip()
         is_active = request.POST.get("is_active") == "on"
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not title:
             messages.error(request, "Title is required.")
@@ -3757,11 +4474,10 @@ def admin_service_item_edit(request, id):
         service.best_for = request.POST.get("best_for", "").strip()
         service.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            service.display_order = int(request.POST.get("display_order", service.display_order))
-        except (ValueError, TypeError):
-            pass
-
+        service.display_order = parse_non_negative_int(
+            request.POST.get("display_order", service.display_order),
+            service.display_order,
+        )
         remove_image = request.POST.get("remove_image") == "1"
         if remove_image and service.image:
             service.image.delete(save=False)
@@ -4180,6 +4896,52 @@ def build_dashboard_context(request):
     new_customers_pct = round((new_customers_count / total_customers * 100), 1) if total_customers > 0 else 0
     returning_customers_pct = round((returning_customers_count / total_customers * 100), 1) if total_customers > 0 else 0
 
+    # Peak Season Heatmap: bookings per month, current year vs previous year
+    today_for_heat = timezone.localdate()
+    heatmap_current_year = today_for_heat.year
+    heatmap_prev_year = heatmap_current_year - 1
+    heatmap_months = []
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    all_heatmap_bookings = Booking.objects.exclude(event_date__isnull=True)
+    heatmap_current_counts = {
+        item["event_date__month"]: item["count"]
+        for item in all_heatmap_bookings.filter(
+            event_date__year=heatmap_current_year
+        ).values("event_date__month").annotate(count=Count("id"))
+    }
+    heatmap_prev_counts = {
+        item["event_date__month"]: item["count"]
+        for item in all_heatmap_bookings.filter(
+            event_date__year=heatmap_prev_year
+        ).values("event_date__month").annotate(count=Count("id"))
+    }
+    max_heatmap_count = 0
+    for m in range(1, 13):
+        cur = heatmap_current_counts.get(m, 0)
+        prev = heatmap_prev_counts.get(m, 0)
+        max_heatmap_count = max(max_heatmap_count, cur, prev)
+        heatmap_months.append(
+            {
+                "label": month_names[m - 1],
+                "current": cur,
+                "prev": prev,
+            }
+        )
+
+    # Conversion: registered customers vs customers with at least one booking
+    registered_customers = User.objects.filter(role="customer").count()
+    booked_customer_ids = set(
+        Booking.objects.values_list("user_id", flat=True).distinct()
+    )
+    booked_customers = (
+        User.objects.filter(role="customer", id__in=booked_customer_ids).count()
+    )
+    conversion_rate_pct = (
+        round((booked_customers / registered_customers * 100), 1)
+        if registered_customers > 0
+        else 0
+    )
+
     return {
         "filter_preset": request.GET.get("filter_preset", ""),
         "start_date": start_date,
@@ -4236,6 +4998,13 @@ def build_dashboard_context(request):
         "returning_customers_count": returning_customers_count,
         "new_customers_pct": new_customers_pct,
         "returning_customers_pct": returning_customers_pct,
+        "heatmap_months": heatmap_months,
+        "heatmap_current_year": heatmap_current_year,
+        "heatmap_prev_year": heatmap_prev_year,
+        "max_heatmap_count": max_heatmap_count,
+        "registered_customers": registered_customers,
+        "booked_customers": booked_customers,
+        "conversion_rate_pct": conversion_rate_pct,
     }
 
 
@@ -4618,6 +5387,8 @@ def chat_history(request):
     return JsonResponse(
         {
             "messages": messages_list,
+            "pinned_messages": _pinned_messages_json(session),
+            "media_count": len(_media_files_json(session)),
             "session": {
                 "id": session.id,
                 "admin_last_read_at": (
@@ -5027,6 +5798,7 @@ def admin_chat_poll(request):
     )
     return JsonResponse({
         "messages": messages_data,
+        "pinned_messages": _pinned_messages_json(session),
         "client_online": client_online,
         "client_typing": client_typing,
         "session_status": session.status,
@@ -5212,6 +5984,9 @@ def admin_chat_thread(request, session_id):
         'all_sessions': all_sessions,
         'stats': stats,
         'now': timezone.now(),
+        'pinned_messages': _pinned_messages_json(session),
+        'pinned_messages_json': json.dumps(_pinned_messages_json(session)),
+        'media_messages': _media_files_json(session),
         'client_is_online': bool(
             session.client_last_active_at
             and now - session.client_last_active_at
@@ -5235,6 +6010,108 @@ def admin_chat_close(request, session_id):
     session.status = 'closed'
     session.save(update_fields=['status', 'updated_at'])
     return redirect('admin_chat_inbox')
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Pin / unpin a message (Messenger-style) — client AND admin
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def chat_pin_message(request):
+    try:
+        data = json.loads(request.body)
+        message_id = data.get("message_id")
+        if not message_id:
+            return JsonResponse({"error": "message_id required"}, status=400)
+        message = get_object_or_404(
+            ChatMessage.objects.select_related("session"), id=message_id
+        )
+        session = message.session
+        if session is None:
+            return JsonResponse({"error": "Message has no session"}, status=400)
+        # Either side of the support chat may pin/unpin, like Messenger.
+        if session.user_id != request.user.id and not _is_admin_user(request.user):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        if message.is_deleted:
+            return JsonResponse({"error": "Deleted messages cannot be pinned"}, status=400)
+
+        # Only the person who pinned a message can unpin it — kapag si admin
+        # ang nag-pin, hindi ma-unpin ng client (at vice versa).
+        if message.is_pinned and message.pinned_by_id != request.user.id:
+            return JsonResponse(
+                {"error": "Only the person who pinned this message can unpin it."},
+                status=403,
+            )
+
+        if message.is_pinned:
+            message.is_pinned = False
+            message.pinned_by = None
+            message.pinned_at = None
+            message.save(update_fields=["is_pinned", "pinned_by", "pinned_at"])
+        else:
+            # Keep the pinned list capped at 3 — the oldest pin is dropped.
+            MAX_PINNED = 3
+            current_pins = list(
+                session.messages.filter(is_pinned=True, is_deleted=False)
+                .order_by("pinned_at")
+            )
+            while len(current_pins) >= MAX_PINNED:
+                oldest = current_pins.pop(0)
+                oldest.is_pinned = False
+                oldest.pinned_by = None
+                oldest.pinned_at = None
+                oldest.save(update_fields=["is_pinned", "pinned_by", "pinned_at"])
+            message.is_pinned = True
+            message.pinned_by = request.user
+            message.pinned_at = timezone.now()
+            message.save(update_fields=["is_pinned", "pinned_by", "pinned_at"])
+
+        return JsonResponse({
+            "success": True,
+            "message_id": message.id,
+            "is_pinned": message.is_pinned,
+            "pinned_messages": _pinned_messages_json(session),
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Pinned messages list for a session (client AND admin)
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_GET
+def chat_pinned_messages(request):
+    session_id = request.GET.get("session_id")
+    if not session_id:
+        return JsonResponse({"error": "session_id required"}, status=400)
+    session, error = _get_chat_session_for_user(request, session_id)
+    if error:
+        return error
+    return JsonResponse({
+        "session_id": session.id,
+        "pinned_messages": _pinned_messages_json(session),
+    })
+
+
+# ────────────────────────────────────────────────────────────────
+# CHAT API: Media files sent in a session (client AND admin)
+# ────────────────────────────────────────────────────────────────
+@login_required
+@require_GET
+def chat_media_files(request):
+    session_id = request.GET.get("session_id")
+    if not session_id:
+        return JsonResponse({"error": "session_id required"}, status=400)
+    session, error = _get_chat_session_for_user(request, session_id)
+    if error:
+        return error
+    media = _media_files_json(session)
+    return JsonResponse({
+        "session_id": session.id,
+        "media": media,
+        "media_count": len(media),
+    })
 
 
 # ────────────────────────────────────────────────────────────────
@@ -5646,7 +6523,7 @@ def admin_gallery_category_create(request):
         if not name:
             messages.error(request, "Category name is required.")
             return render(request, "admin/gallery/gallery_category_form.html")
-        GalleryCategory.objects.create(name=name, order=int(order) if order else 0)
+        GalleryCategory.objects.create(name=name, order=parse_non_negative_int(order, 0))
         log_action(request.user, f"Created gallery category '{name}'.")
         messages.success(request, "Category created successfully.")
         return redirect("admin_gallery")
@@ -5669,7 +6546,7 @@ def admin_gallery_category_edit(request, id):
                 {"category": category},
             )
         category.name = name
-        category.order = int(order) if order else 0
+        category.order = parse_non_negative_int(order, 0)
         category.save()
         log_action(request.user, f"Updated gallery category '{name}'.")
         messages.success(request, "Category updated successfully.")
@@ -5862,7 +6739,7 @@ def admin_canvas_category_create(request):
             messages.warning(request, "Please enter a category name before saving.")
             return render(request, "admin/canvas/canvas_category_form.html")
         CanvasCategory.objects.create(
-            name=name, order=int(order) if order else 1, is_active=is_active
+            name=name, order=parse_non_negative_int(order, 1), is_active=is_active
         )
         log_action(request.user, f"Created canvas category '{name}'.")
         messages.success(request, "Canvas category created successfully.")
@@ -5887,7 +6764,7 @@ def admin_canvas_category_edit(request, id):
                 {"category": category},
             )
         category.name = name
-        category.order = int(order) if order else 1
+        category.order = parse_non_negative_int(order, 1)
         category.is_active = is_active
         category.save()
         log_action(request.user, f"Updated canvas category '{name}'.")
@@ -5949,7 +6826,7 @@ def admin_canvas_label_create(request):
         CanvasLabel.objects.create(
             category=category,
             name=name,
-            order=int(order) if order else 1,
+            order=parse_non_negative_int(order, 1),
             is_active=is_active,
         )
         log_action(request.user, f"Created canvas label '{name}' in '{category.name}'.")
@@ -5978,7 +6855,7 @@ def admin_canvas_label_edit(request, id):
                 {"label": label, "categories": categories},
             )
         label.name = name
-        label.order = int(order) if order else 1
+        label.order = parse_non_negative_int(order, 1)
         label.is_active = is_active
         label.save()
         log_action(request.user, f"Updated canvas label '{name}'.")
@@ -6330,6 +7207,7 @@ def update_my_profile(request):
         user.last_name = last_name
         user.phone_number = phone_number
         user.save()
+        log_action(user, "Updated their profile information.")
         messages.success(request, "Profile updated successfully.")
     return redirect("my_profile")
 
@@ -6355,9 +7233,11 @@ def my_payments(request):
     search_query = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "").strip()
 
+    # Include abandoned PayMongo attempts so failed/expired checkouts remain
+    # visible in the customer's history as an audit trail (they are excluded
+    # from every action queue and never block retries).
     payments_qs = (
         Payment.objects.filter(booking__user=user)
-        .exclude(_abandoned_paymongo_payment_query())
         .select_related("booking")
         .prefetch_related("booking__images", "booking__payments")
         .order_by("-created_at")
@@ -6386,7 +7266,7 @@ def my_payments(request):
     total_records = payments_qs.count()
     total_pending_payment_count = pending_count
 
-    payments_paginator = Paginator(payments_qs, 5)
+    payments_paginator = Paginator(payments_qs, 6)
     payments_page_number = request.GET.get("payments_page", 1)
     payments_page_obj = payments_paginator.get_page(payments_page_number)
 
@@ -6411,7 +7291,48 @@ def my_payments(request):
         pay.booking.total_payment_records = len(booking_payments)
         pay.booking.cleaned_special_requests = remove_end_time_tag(pay.booking.special_requests or "")
         pay.pending_info_url = reverse("payment_page", kwargs={"booking_id": pay.booking.id})
-        pay.show_pending_info_button = pay.payment_status == "pending"
+        # Failed/expired PayMongo attempts stay in the history as an audit
+        # trail, but never look like actionable "Pending" payments.
+        pay.is_failed_attempt = _is_abandoned_paymongo_payment(pay)
+        if pay.is_failed_attempt:
+            pay.failed_label = (
+                "Expired" if "expired" in (pay.notes or "").lower() else "Failed"
+            )
+        pay.show_pending_info_button = (
+            pay.payment_status == "pending" and not pay.is_failed_attempt
+        )
+
+        # Per-booking payment journey for the client "Payment Activity"
+        # timeline in the View Details modal (newest first, para nasa taas
+        # ang pinakabagong record). Uses the already-prefetched booking
+        # payments — no extra queries.
+        activity_entries = []
+        for p in sorted(booking_payments, key=lambda x: x.created_at, reverse=True):
+            failed = _is_abandoned_paymongo_payment(p)
+            if failed:
+                status_display = (
+                    "Expired" if "expired" in (p.notes or "").lower() else "Failed"
+                )
+            else:
+                status_display = p.get_payment_status_display()
+            activity_entries.append(
+                {
+                    "id": p.id,
+                    "status": p.payment_status,
+                    "status_display": status_display,
+                    "failed": failed,
+                    "amount": f"{p.amount:.2f}",
+                    "type": p.get_payment_type_display(),
+                    "method": p.get_payment_method_display(),
+                    "date": timezone.localtime(p.created_at).strftime(
+                        "%b %d, %Y %I:%M %p"
+                    ),
+                    "ref": p.transaction_ref or "",
+                    "rejected": p.payment_status == "rejected",
+                    "notes": p.notes or "",
+                }
+            )
+        pay.booking.payments_json = json.dumps(activity_entries)
 
     # Action-required: approved bookings awaiting payment
     ar_search_query = request.GET.get("ar_search", "").strip()
@@ -6533,12 +7454,12 @@ def my_payments(request):
     action_required_total_count = len(action_required_list)
     partial_total_count = len(partial_bookings)
 
-    ar_paginator = Paginator(action_required_list, 5)
+    ar_paginator = Paginator(action_required_list, 6)
     ar_page_number = request.GET.get("ar_page", 1)
     action_required_page_obj = ar_paginator.get_page(ar_page_number)
 
     # Paginate partial bookings (Remaining Balances)
-    partial_paginator = Paginator(partial_bookings, 5)
+    partial_paginator = Paginator(partial_bookings, 6)
     partial_page_number = request.GET.get("partial_page", 1)
     partial_page_obj = partial_paginator.get_page(partial_page_number)
 
@@ -6577,8 +7498,19 @@ def download_payment_receipt_pdf(request, payment_id):
 
     payment = get_object_or_404(Payment, id=payment_id)
 
-    # Customers may only download their own receipts; admins/staff may download any
-    if request.user.role == "customer" and payment.booking.user != request.user:
+    # Customers may only download their own receipts, and only for verified
+    # payments (a pending/rejected payment is not an official billing record).
+    # Admins/staff may download any receipt.
+    if request.user.role == "customer":
+        if payment.booking.user != request.user:
+            return HttpResponseForbidden("Not allowed")
+        if payment.payment_status != "verified":
+            messages.error(
+                request,
+                "Receipts are only available once the payment has been verified.",
+            )
+            return redirect("my_payments")
+    elif request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
     buffer = io.BytesIO()
@@ -6716,10 +7648,7 @@ def admin_service_create(request):
         is_active = request.POST.get("is_active") == "on"
         image = request.FILES.get("image")
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not title or not description:
             messages.error(request, "Title and description are required.")
@@ -6769,12 +7698,10 @@ def admin_service_edit(request, id):
         service.features = request.POST.get("features", service.features).strip()
         service.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            service.display_order = int(
-                request.POST.get("display_order", service.display_order)
-            )
-        except (ValueError, TypeError):
-            pass
+        service.display_order = parse_non_negative_int(
+            request.POST.get("display_order", service.display_order),
+            service.display_order,
+        )
 
         if request.FILES.get("image"):
             service.image = request.FILES["image"]
@@ -6823,6 +7750,338 @@ def admin_service_delete(request, id):
 # ADMIN HOME CONTENT MANAGEMENT
 # =============================================================================
 
+def _seed_home_defaults(content):
+    """Prefill HomeContent fields with the same defaults the client home page
+    falls back to, and seed the default feature cards / How It Works steps /
+    FAQs so the admin tables (and the client page) show real data.
+
+    Only fills BLANK fields and EMPTY tables, so admin-entered content is
+    never overwritten."""
+    defaults = {
+        "hero_label": "Balloon Styling & Event Design",
+        "hero_title": "Turning Moments Into Elegant Celebrations.",
+        "hero_subheadline": "Balloon styling tailored to your space, theme, and budget, set up before your celebration begins.",
+        "stat_events_styled": "500",
+        "stat_rating": "5",
+        "stat_satisfaction": "100",
+        "stat_response_time": "24",
+        "why_choose_title": "Why Choose Balloorina.ph?",
+        "why_choose_subtitle": "We style events based on your theme, budget, and venue. Our goal is simple: make your celebration look beautiful and feel special.",
+        "occasion_chips": "Birthdays, Weddings, Corporate Events, Christenings, Graduation",
+        "how_it_works_label": "How It Works",
+        "how_it_works_title": "Start Planning Your Event in",
+        "how_it_works_title_accent": "4 Simple Steps",
+        "faq_title": "Frequently Asked Questions",
+        "faq_subtitle": "Quick answers to the questions we get asked the most. Can't find yours? Send us a message!",
+        "cta_title": "Ready to Make Your Celebration Unforgettable?",
+        "cta_subtitle": "Let's bring your dream setup to life. Book your event today and leave the styling to us.",
+    }
+
+    updated = False
+    for field, value in defaults.items():
+        if not getattr(content, field).strip():
+            setattr(content, field, value)
+            updated = True
+    if updated:
+        content.save()
+
+
+    if not HomeFeatureItem.objects.exists():
+        HomeFeatureItem.objects.bulk_create(
+            [
+                HomeFeatureItem(
+                    home_content=content,
+                    title="Premium Materials",
+                    description="We use high quality balloons and materials from trusted suppliers for clean and lasting setups.",
+                    icon_class="fas fa-gem",
+                    display_order=1,
+                ),
+                HomeFeatureItem(
+                    home_content=content,
+                    title="Professional Styling",
+                    description="Expert creative team that transforms your vision into stunning balloon installations.",
+                    icon_class="fas fa-palette",
+                    display_order=2,
+                ),
+                HomeFeatureItem(
+                    home_content=content,
+                    title="On-Time Setup",
+                    description="We arrive early, set up on schedule, and handle the details so you can enjoy the event.",
+                    icon_class="fas fa-clock",
+                    display_order=3,
+                ),
+                HomeFeatureItem(
+                    home_content=content,
+                    title="My Designs",
+                    description="Bespoke designs tailored to your color palette, theme, and venue aesthetics.",
+                    icon_class="fas fa-wand-magic-sparkles",
+                    display_order=4,
+                ),
+                HomeFeatureItem(
+                    home_content=content,
+                    title="Full Consultation",
+                    description="We guide you from planning to setup so the final design matches what you want.",
+                    icon_class="fas fa-comments",
+                    display_order=5,
+                ),
+                HomeFeatureItem(
+                    home_content=content,
+                    title="Eco-Friendly",
+                    description="We use biodegradable balloons and responsible practices whenever possible.",
+                    icon_class="fas fa-leaf",
+                    display_order=6,
+                ),
+            ]
+        )
+
+    if not HomeHowItWorksStep.objects.exists():
+        HomeHowItWorksStep.objects.bulk_create(
+            [
+                HomeHowItWorksStep(
+                    home_content=content,
+                    title="Choose a Package",
+                    description="Browse our ready-made balloon styling packages and pick the one that fits your celebration.",
+                    icon_class="fas fa-box",
+                    display_order=1,
+                ),
+                HomeHowItWorksStep(
+                    home_content=content,
+                    title="Customize Your Design",
+                    description="Personalize colors, themes, and styles using our design canvas to match your vision.",
+                    icon_class="fas fa-palette",
+                    display_order=2,
+                ),
+                HomeHowItWorksStep(
+                    home_content=content,
+                    title="Book & Pay via GCash",
+                    description="Secure your date with an easy and safe online downpayment through GCash.",
+                    icon_class="fas fa-mobile-alt",
+                    display_order=3,
+                ),
+                HomeHowItWorksStep(
+                    home_content=content,
+                    title="We Set Up On Your Day",
+                    description="Our team arrives early and handles everything so your celebration is stress-free.",
+                    icon_class="fas fa-calendar-alt",
+                    display_order=4,
+                ),
+            ]
+        )
+
+
+
+    if not HomeFaqItem.objects.exists():
+        HomeFaqItem.objects.bulk_create(
+            [
+                HomeFaqItem(
+                    home_content=content,
+                    question="How far in advance should I book?",
+                    answer="We recommend booking at least 2-4 weeks ahead, especially for weekends and holidays. Rush bookings may still be accommodated depending on schedule.",
+                    display_order=1,
+                ),
+                HomeFaqItem(
+                    home_content=content,
+                    question="What areas do you serve?",
+                    answer="We primarily serve Metro Manila and nearby areas. For events outside our usual coverage, just send us a message and we'll see how we can help.",
+                    display_order=2,
+                ),
+                HomeFaqItem(
+                    home_content=content,
+                    question="How does the GCash downpayment work?",
+                    answer="After booking, you'll receive GCash payment details. A downpayment secures your date, and the balance is settled before or on your event day.",
+                    display_order=3,
+                ),
+                HomeFaqItem(
+                    home_content=content,
+                    question="Can I customize an existing package?",
+                    answer="Yes! You can add addons, adjust colors and themes, and use our design canvas to visualize your setup before confirming your booking.",
+                    display_order=4,
+                ),
+                HomeFaqItem(
+                    home_content=content,
+                    question="What happens if it rains or the venue changes?",
+                    answer="Let us know as early as possible and we'll work with you on rescheduling or adjusting the setup to fit your new venue or indoor alternatives.",
+                    display_order=5,
+                ),
+                HomeFaqItem(
+                    home_content=content,
+                    question="What is your cancellation policy?",
+                    answer="Cancellations made at least 7 days before the event are eligible for a refund of the downpayment minus processing fees. Check our Terms & Conditions for full details.",
+                    display_order=6,
+                ),
+            ]
+        )
+
+
+
+
+_ABOUT_DEFAULTS = {
+    "hero_label": "About Balloorina.ph",
+    "hero_title": "Celebrating Moments, | The Balloorina Way",
+    "hero_subtitle": "We create clean and elegant event setups through professional balloon styling.",
+    "story_label": "OUR STORY",
+    "story_title": "From Passion to Premium",
+    "story_paragraph_1": "Balloorina.ph empowers people to celebrate life's biggest moments through premium, custom balloon styling. What started in 2020 as a small home studio has grown into a trusted team serving clients across Metro Manila.",
+    "story_paragraph_2": "From birthdays and weddings to corporate launches, every arch, centerpiece, and installation is crafted to look stunning in person and in photos.",
+    "story_points": "Professional balloon styling for all events\nFast and reliable setup team\nCustom designs for birthdays, weddings, and corporate events\nAffordable packages without compromising quality",
+    "story_stat_number": "1,000+",
+    "story_stat_text": "People trust Balloorina.ph.",
+    "values_title": "More Than Just Balloons.",
+    "values_subtitle": "Every celebration we style carries the heart, hustle, and high standards we're known for.",
+    "journey_title": "The Story Behind Balloorina.ph",
+    "journey_subtitle": "Discover the journey behind Balloorina.ph and our mission to make every celebration memorable.",
+}
+
+
+def _seed_about_defaults(content):
+    """Prefill AboutContent fields with the same defaults the client about page
+    falls back to, and seed the default Core Value cards so the admin table
+    (and the client page) show real data.
+
+    Only fills BLANK fields and EMPTY tables, so admin-entered content is
+    never overwritten."""
+    updated = False
+    for field, value in _ABOUT_DEFAULTS.items():
+        if not (getattr(content, field) or "").strip():
+            setattr(content, field, value)
+            updated = True
+    if updated:
+        content.save()
+
+    if not AboutValueItem.objects.exists():
+        AboutValueItem.objects.bulk_create(
+            [
+                AboutValueItem(
+                    about_content=content,
+                    title="Excellence",
+                    description="We keep high standards in materials, styling, and setup quality.",
+                    icon_class="fas fa-trophy",
+                    display_order=1,
+                ),
+                AboutValueItem(
+                    about_content=content,
+                    title="Creativity",
+                    description="Every event is a unique canvas. We bring fresh, custom ideas that reflect your personal style.",
+                    icon_class="fas fa-palette",
+                    display_order=2,
+                ),
+                AboutValueItem(
+                    about_content=content,
+                    title="Integrity",
+                    description="We provide clear pricing, realistic timelines, and transparent updates.",
+                    icon_class="fas fa-shield-alt",
+                    display_order=3,
+                ),
+                AboutValueItem(
+                    about_content=content,
+                    title="Customer Focus",
+                    description="Your celebration is our priority. We listen, understand, and deliver exactly what you envision.",
+                    icon_class="fas fa-heart",
+                    display_order=4,
+                ),
+                AboutValueItem(
+                    about_content=content,
+                    title="Professionalism",
+                    description="On time, every time. Reliable service from first consultation to final breakdown.",
+                    icon_class="far fa-clock",
+                    display_order=5,
+                ),
+                AboutValueItem(
+                    about_content=content,
+                    title="Sustainability",
+                    description="We use biodegradable materials and responsible styling practices when possible.",
+                    icon_class="fas fa-leaf",
+                    display_order=6,
+                ),
+            ]
+        )
+
+
+
+_SERVICE_DEFAULTS = {
+    "hero_label": "Balloorina Event Styling",
+    "hero_title": "Crafted for Every Occasion",
+    "hero_subtitle": (
+        "From intimate birthdays to grand weddings, our balloon styling and "
+        "event decoration services bring every celebration to life."
+    ),
+}
+
+
+def _seed_service_defaults(content):
+    """Prefill ServiceContent fields with the same defaults the client services
+    page falls back to, and seed the 3 default services (Birthday / Wedding /
+    Corporate) so the admin table and the client page comparison table show
+    real data.
+
+    Only fills BLANK fields and an EMPTY table, so admin-entered content is
+    never overwritten."""
+    updated = False
+    for field, value in _SERVICE_DEFAULTS.items():
+        if not (getattr(content, field) or "").strip():
+            setattr(content, field, value)
+            updated = True
+    if updated:
+        content.save()
+
+    if not Service.objects.exists():
+        Service.objects.bulk_create(
+            [
+                Service(
+                    title="Birthday Balloon Styling",
+                    description=(
+                        "We design birthday setups for kids, teens, and adults — from playful "
+                        "pastel wonderlands to bold, themed celebrations. Every detail is "
+                        "customized around your theme, color palette, and venue, so whether it "
+                        "is an intimate home party or a grand banquet hall, we create a setup "
+                        "that feels personal, festive, and picture-perfect from the entrance "
+                        "arch down to the cake table."
+                    ),
+                    features=(
+                        "Custom balloon arch at the entrance\n"
+                        "Themed table centerpieces and cake table styling\n"
+                        "Pastel or bold color palettes to match your theme"
+                    ),
+                    best_for="Kids parties, birthdays, and milestone celebrations",
+                    display_order=1,
+                ),
+                Service(
+                    title="Wedding Balloon Installations",
+                    description=(
+                        "We style wedding venues with elegant balloon designs that match your "
+                        "motif — soft, romantic palettes, organic garlands, and refined "
+                        "installs that elevate every corner of your celebration. We also "
+                        "coordinate closely with your other suppliers for a smooth, "
+                        "stress-free setup from ceremony to reception."
+                    ),
+                    features=(
+                        "Elegant entrance arches and backdrops\n"
+                        "Organic garlands and refined installs\n"
+                        "Supplier-coordinated, stress-free setup"
+                    ),
+                    best_for="Weddings, receptions, and proposals",
+                    display_order=2,
+                ),
+                Service(
+                    title="Corporate Event Styling",
+                    description=(
+                        "We provide clean and professional balloon setups for product launches, "
+                        "conferences, team events, and company celebrations. From "
+                        "brand-aligned color schemes to logo displays and stage styling, we "
+                        "make sure your brand stands out while keeping the look polished, "
+                        "modern, and corporate-friendly."
+                    ),
+                    features=(
+                        "Brand-aligned color schemes\n"
+                        "Logo displays and stage styling\n"
+                        "Polished, modern, corporate-friendly look"
+                    ),
+                    best_for="Product launches, conferences, and company events",
+                    display_order=3,
+                ),
+            ]
+        )
+
 
 @login_required
 def admin_home_content(request):
@@ -6834,6 +8093,7 @@ def admin_home_content(request):
         content = HomeContent.objects.create()
 
     if request.method == "POST":
+        content.hero_label = request.POST.get("hero_label", content.hero_label).strip()
         content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
         content.hero_subheadline = request.POST.get(
             "hero_subheadline", content.hero_subheadline
@@ -6876,24 +8136,13 @@ def admin_home_content(request):
         content.cta_subtitle = request.POST.get(
             "cta_subtitle", content.cta_subtitle
         ).strip()
-        content.cta_primary_text = request.POST.get(
-            "cta_primary_text", content.cta_primary_text
-        ).strip()
-        content.cta_secondary_text = request.POST.get(
-            "cta_secondary_text", content.cta_secondary_text
-        ).strip()
-
-        if request.FILES.get("hero_main_image"):
-            content.hero_main_image = request.FILES["hero_main_image"]
-        if request.FILES.get("hero_float_bottom_image"):
-            content.hero_float_bottom_image = request.FILES["hero_float_bottom_image"]
-        if request.FILES.get("hero_float_top_image"):
-            content.hero_float_top_image = request.FILES["hero_float_top_image"]
 
         content.save()
         log_action(request.user, "Updated Home page content.")
         messages.success(request, "Home content updated successfully.")
         return redirect("admin_home_content")
+
+    _seed_home_defaults(content)
 
     features = HomeFeatureItem.objects.all()
     hiw_steps = HomeHowItWorksStep.objects.all()
@@ -6925,10 +8174,7 @@ def admin_home_feature_create(request):
         icon_class = request.POST.get("icon_class", "fas fa-star").strip()
         is_active = request.POST.get("is_active") == "on"
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not title:
             if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
@@ -6978,12 +8224,10 @@ def admin_home_feature_edit(request, id):
         feature.icon_class = request.POST.get("icon_class", feature.icon_class).strip()
         feature.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            feature.display_order = int(
-                request.POST.get("display_order", feature.display_order)
-            )
-        except (ValueError, TypeError):
-            pass
+        feature.display_order = parse_non_negative_int(
+            request.POST.get("display_order", feature.display_order),
+            feature.display_order,
+        )
 
         feature.save()
         log_action(
@@ -7036,10 +8280,7 @@ def admin_hiw_step_create(request):
         icon_class = request.POST.get("icon_class", "fas fa-star").strip()
         is_active = request.POST.get("is_active") == "on"
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not title:
             if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
@@ -7087,10 +8328,10 @@ def admin_hiw_step_edit(request, id):
         step.icon_class = request.POST.get("icon_class", step.icon_class).strip()
         step.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            step.display_order = int(request.POST.get("display_order", step.display_order))
-        except (ValueError, TypeError):
-            pass
+        step.display_order = parse_non_negative_int(
+            request.POST.get("display_order", step.display_order),
+            step.display_order,
+        )
 
         step.save()
         log_action(
@@ -7142,10 +8383,7 @@ def admin_faq_create(request):
         answer = request.POST.get("answer", "").strip()
         is_active = request.POST.get("is_active") == "on"
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not question:
             if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
@@ -7191,10 +8429,10 @@ def admin_faq_edit(request, id):
         faq.answer = request.POST.get("answer", faq.answer).strip()
         faq.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            faq.display_order = int(request.POST.get("display_order", faq.display_order))
-        except (ValueError, TypeError):
-            pass
+        faq.display_order = parse_non_negative_int(
+            request.POST.get("display_order", faq.display_order),
+            faq.display_order,
+        )
 
         faq.save()
         log_action(
@@ -7245,6 +8483,10 @@ def admin_about_content(request):
     content = AboutContent.objects.first()
     if content is None:
         content = AboutContent.objects.create()
+
+    # Siguraduhing may laman ang CMS fields at Core Values table
+    # (kapareho ng defaults na ipinapakita ng client about page).
+    _seed_about_defaults(content)
 
     if request.method == "POST":
         content.hero_label = request.POST.get(
@@ -7371,25 +8613,25 @@ def admin_guidelines_content(request):
                     f"item_heading_{item.id}", item.heading
                 ).strip()
                 item.body = request.POST.get(f"item_body_{item.id}", item.body).strip()
-                try:
-                    item.display_order = int(request.POST.get(f"item_order_{item.id}", item.display_order))
-                except (TypeError, ValueError):
-                    pass
+                item.display_order = parse_non_negative_int(
+                    request.POST.get(f"item_order_{item.id}", item.display_order),
+                    item.display_order,
+                )
                 item.is_active = request.POST.get(f"item_active_{item.id}") == "on"
                 item.save()
 
             new_heading = request.POST.get(f"new_heading_{key}", "").strip()
             new_body = request.POST.get(f"new_body_{key}", "").strip()
             if new_heading or new_body:
-                try:
-                    new_order = int(request.POST.get(f"new_order_{key}", ""))
-                except (TypeError, ValueError):
-                    new_order = content.items.count() + 1
+                new_order = parse_non_negative_int(
+                    request.POST.get(f"new_order_{key}", ""),
+                    content.items.count() + 1,
+                )
                 GuidelineItem.objects.create(
                     page_content=content,
                     heading=new_heading,
                     body=new_body,
-                    display_order=max(new_order, 0),
+                    display_order=new_order,
                     is_active=True,
                 )
 
@@ -7421,10 +8663,7 @@ def admin_about_value_create(request):
         icon_class = request.POST.get("icon_class", "fas fa-star").strip()
         is_active = request.POST.get("is_active") == "on"
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not title:
             if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
@@ -7475,12 +8714,10 @@ def admin_about_value_edit(request, id):
         ).strip()
         value_item.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            value_item.display_order = int(
-                request.POST.get("display_order", value_item.display_order)
-            )
-        except (ValueError, TypeError):
-            pass
+        value_item.display_order = parse_non_negative_int(
+            request.POST.get("display_order", value_item.display_order),
+            value_item.display_order,
+        )
 
         value_item.save()
         log_action(
@@ -7532,10 +8769,7 @@ def admin_about_journey_create(request):
         description = request.POST.get("description", "").strip()
         is_active = request.POST.get("is_active") == "on"
 
-        try:
-            display_order = int(request.POST.get("display_order", 0))
-        except (ValueError, TypeError):
-            display_order = 0
+        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
 
         if not title:
             if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
@@ -7582,12 +8816,10 @@ def admin_about_journey_edit(request, id):
         ).strip()
         journey_item.is_active = request.POST.get("is_active") == "on"
 
-        try:
-            journey_item.display_order = int(
-                request.POST.get("display_order", journey_item.display_order)
-            )
-        except (ValueError, TypeError):
-            pass
+        journey_item.display_order = parse_non_negative_int(
+            request.POST.get("display_order", journey_item.display_order),
+            journey_item.display_order,
+        )
 
         journey_item.save()
         log_action(
@@ -7662,6 +8894,18 @@ def admin_reviews(request):
     avg_rating = round(avg_rating_data["avg"] or 0, 1)
     featured_count = Review.objects.filter(is_testimonial=True).count()
 
+    # Star rating distribution (5★ → 1★)
+    rating_distribution = []
+    rating_counts_raw = (
+        Review.objects.values("rating")
+        .annotate(count=Count("id"))
+    )
+    rating_counts_map = {row["rating"]: row["count"] for row in rating_counts_raw}
+    for star in range(5, 0, -1):
+        count = rating_counts_map.get(star, 0)
+        pct = round((count / total_reviews) * 100, 1) if total_reviews else 0
+        rating_distribution.append({"star": star, "count": count, "pct": pct})
+
     paginator = Paginator(reviews_qs, 10)
     page_number = request.GET.get("page", 1)
     reviews_page = paginator.get_page(page_number)
@@ -7673,6 +8917,7 @@ def admin_reviews(request):
             "total_reviews": total_reviews,
             "avg_rating": avg_rating,
             "featured_count": featured_count,
+            "rating_distribution": rating_distribution,
             "search_query": search_query,
             "rating_filter": rating_filter,
             "sort_filter": sort_filter,
@@ -7686,7 +8931,61 @@ def admin_review_detail(request, id):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
     review = get_object_or_404(Review.objects.select_related("user", "booking"), id=id)
-    return render(request, "admin/admin_review_detail.html", {"review": review})
+    try:
+        reply = review.reply
+    except ReviewReply.DoesNotExist:
+        reply = None
+    return render(
+        request,
+        "admin/admin_review_detail.html",
+        {"review": review, "reply": reply},
+    )
+
+
+@login_required
+@require_POST
+def admin_review_reply(request, id):
+    """Create or update the official admin reply to a review."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    review = get_object_or_404(Review, id=id)
+    reply_text = (request.POST.get("reply_text") or "").strip()
+
+    if not reply_text:
+        messages.error(request, "Reply text is required.")
+        return redirect("admin_review_detail", id=review.id)
+
+    if len(reply_text) > 2000:
+        messages.error(request, "Reply is too long (max 2000 characters).")
+        return redirect("admin_review_detail", id=review.id)
+
+    try:
+        existing_reply = review.reply
+    except ReviewReply.DoesNotExist:
+        existing_reply = None
+    if existing_reply:
+        existing_reply.reply_text = reply_text
+        existing_reply.admin = request.user
+        existing_reply.save()
+        log_action(
+            request.user,
+            f"Updated admin reply to review #{review.id}.",
+        )
+        messages.success(request, "Reply updated successfully.")
+    else:
+        ReviewReply.objects.create(
+            review=review,
+            admin=request.user,
+            reply_text=reply_text,
+        )
+        log_action(
+            request.user,
+            f"Posted an admin reply to review #{review.id}.",
+        )
+        messages.success(request, "Reply posted successfully.")
+
+    return redirect("admin_review_detail", id=review.id)
 
 
 @login_required
@@ -8228,6 +9527,7 @@ def payment_page(request, booking_id):
             for pay in payment_history
             if pay.payment_status == "pending"
             and not _is_incomplete_paymongo_payment(pay)
+            and not _is_abandoned_paymongo_payment(pay)
         ),
         None,
     )
@@ -8390,6 +9690,19 @@ def submit_payment(request, booking_id):
         ),
     )
 
+    # Admin alert email (fail-safe)
+    send_admin_alert_email(
+        f"New Payment Proof — Booking #{booking.id}",
+        (
+            f"A customer submitted a payment proof.\n\n"
+            f"Booking ID: #{booking.id}\n"
+            f"Customer: {request.user.get_full_name() or request.user.username}\n"
+            f"Amount: PHP {amount:,.2f} ({payment.get_payment_type_display()})\n"
+            f"GCash Reference: {gcash_ref_number}\n\n"
+            f"Verify it here: {request.build_absolute_uri('/staff/payments/')}"
+        ),
+    )
+
     log_action(
         request.user,
         f"Submitted GCash payment (txn: {transaction_ref}, ref: {gcash_ref_number}) for Booking #{booking.id}.",
@@ -8429,7 +9742,16 @@ def payment_success(request, booking_id):
     ).exists()
     is_fully_paid = remaining_balance <= Decimal("0.00")
 
-    pending_payment = payment_history.filter(payment_status="pending").first()
+    pending_payment = next(
+        (
+            pay
+            for pay in payment_history
+            if pay.payment_status == "pending"
+            and not _is_incomplete_paymongo_payment(pay)
+            and not _is_abandoned_paymongo_payment(pay)
+        ),
+        None,
+    )
     rejected_payment = (
         payment_history.filter(payment_status="rejected")
         .order_by("-updated_at")
@@ -8486,7 +9808,7 @@ def payment_cancel(request, booking_id):
 
 @login_required
 def admin_payment_list(request):
-    if request.user.role != "admin":
+    if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
     check_booking_expirations()
@@ -8496,12 +9818,20 @@ def admin_payment_list(request):
     status_filter = request.GET.get("status", "").strip()
     type_filter = request.GET.get("type", "").strip()
 
-    payments_qs = Payment.objects.select_related(
+    # Pending payments now live in the action queue below, so a legacy
+    # "pending" status filter (e.g. from the dashboard link) is ignored.
+    if status_filter == "pending":
+        status_filter = ""
+
+    # ---- Payment history (verified + rejected) with search/filters ----
+    history_qs = Payment.objects.filter(
+        payment_status__in=["verified", "rejected"]
+    ).select_related(
         "booking", "booking__user", "verified_by"
     ).order_by("-created_at")
 
     if search_query:
-        payments_qs = payments_qs.filter(
+        history_qs = history_qs.filter(
             Q(transaction_ref__icontains=search_query)
             | Q(gcash_reference_number__icontains=search_query)
             | Q(gcash_sender_name__icontains=search_query)
@@ -8511,31 +9841,30 @@ def admin_payment_list(request):
         )
 
     if status_filter:
-        payments_qs = payments_qs.filter(payment_status=status_filter)
+        history_qs = history_qs.filter(payment_status=status_filter)
 
     if type_filter:
-        payments_qs = payments_qs.filter(payment_type=type_filter)
+        history_qs = history_qs.filter(payment_type=type_filter)
 
-    pending_count = Payment.objects.filter(payment_status="pending").exclude(
-        _abandoned_paymongo_payment_query()
-    ).count()
-    verified_count = Payment.objects.filter(payment_status="verified").count()
-    rejected_count = Payment.objects.filter(payment_status="rejected").count()
+    history_count = history_qs.count()
 
-    total_revenue = Payment.objects.filter(payment_status="verified").aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0.00")
+    # ---- Action queue: pending payments awaiting verification ----
+    pending_qs = (
+        Payment.objects.filter(payment_status="pending")
+        .exclude(_abandoned_paymongo_payment_query())
+        .select_related("booking", "booking__user", "verified_by")
+        .order_by("-created_at")
+    )
+    pending_count = pending_qs.count()
 
-    total_payment_records = payments_qs.count()
-
-    # Build list of bookings where downpayment is not yet fully paid
-    # Attach template-expected attributes: booking_id, customer_name, username,
-    # total_paid, remaining_balance so the template can use them directly.
+    # Build booking lists: unpaid / partial (remaining balance) / fully paid
     gcash_config = GCashConfig.objects.first()
     dp_percent = gcash_config.downpayment_percent if gcash_config else 20
-    
+
     all_active_bookings = (
-        Booking.objects.filter(status__in=["pending_payment", "confirmed"])
+        Booking.objects.filter(
+            status__in=["pending_payment", "confirmed", "completed"]
+        )
         .select_related("user")
         .prefetch_related("payments")
         .order_by("-id")
@@ -8543,6 +9872,7 @@ def admin_payment_list(request):
 
     unpaid_bookings = []
     balance_bookings = []
+    fully_paid_bookings = []
     for b in all_active_bookings:
         booking_payments = list(b.payments.all())
         latest_payment = (
@@ -8553,9 +9883,11 @@ def admin_payment_list(request):
         verified_paid = b.payments.filter(payment_status="verified").aggregate(
             total=Sum("amount")
         )["total"] or Decimal("0.00")
-        
+
         total_price = b.total_price or Decimal("0.00")
-        required_downpayment = (total_price * Decimal(dp_percent) / Decimal(100)).quantize(Decimal("0.01"))
+        required_downpayment = (
+            total_price * Decimal(dp_percent) / Decimal(100)
+        ).quantize(Decimal("0.01"))
 
         remaining_total_balance = total_price - verified_paid
         if remaining_total_balance < Decimal("0.00"):
@@ -8568,55 +9900,54 @@ def admin_payment_list(request):
         b.total_paid = verified_paid
         b.total_price = total_price
         b.required_downpayment = required_downpayment
-        b.remaining_downpayment = (
-            required_downpayment - verified_paid
-            if verified_paid < required_downpayment
-            else Decimal("0.00")
-        )
         b.remaining_balance = remaining_total_balance
+        b.can_send_reminder = b.status in ("pending_payment", "confirmed")
 
         if verified_paid <= Decimal("0.00"):
             unpaid_bookings.append(b)
         elif remaining_total_balance > Decimal("0.00"):
             balance_bookings.append(b)
+        else:
+            fully_paid_bookings.append(b)
 
     unpaid_bookings_count = len(unpaid_bookings)
     balance_bookings_count = len(balance_bookings)
+    fully_paid_count = len(fully_paid_bookings)
     bookings_with_balance_count = unpaid_bookings_count + balance_bookings_count
 
-    # Pagination for payments table (6 items per page)
-    paginator = Paginator(payments_qs, 6)
-    page_number = request.GET.get("page", 1)
-    payments_page = paginator.get_page(page_number)
-    
-    # Pagination for unpaid bookings table (6 items per page)
-    unpaid_paginator = Paginator(unpaid_bookings, 6)
-    unpaid_page_number = request.GET.get("unpaid_page", 1)
-    unpaid_page = unpaid_paginator.get_page(unpaid_page_number)
-
-    # Pagination for remaining balance table (6 items per page)
-    balance_paginator = Paginator(balance_bookings, 6)
-    balance_page_number = request.GET.get("balance_page", 1)
-    balance_page = balance_paginator.get_page(balance_page_number)
+    # Pagination (6 items per page for every list)
+    pending_page = Paginator(pending_qs, 6).get_page(
+        request.GET.get("pending_page", 1)
+    )
+    payments_page = Paginator(history_qs, 6).get_page(request.GET.get("page", 1))
+    unpaid_page = Paginator(unpaid_bookings, 6).get_page(
+        request.GET.get("unpaid_page", 1)
+    )
+    balance_page = Paginator(balance_bookings, 6).get_page(
+        request.GET.get("balance_page", 1)
+    )
+    paid_page = Paginator(fully_paid_bookings, 6).get_page(
+        request.GET.get("paid_page", 1)
+    )
 
     return render(
         request,
         "admin/payment/admin_payment_list.html",
         {
             "pending_count": pending_count,
-            "verified_count": verified_count,
-            "rejected_count": rejected_count,
-            "total_revenue": total_revenue,
+            "pending_payments": pending_page,
+            "history_payments": payments_page,
+            "history_count": history_count,
+            "fully_paid_count": fully_paid_count,
             "bookings_with_balance_count": bookings_with_balance_count,
             "unpaid_bookings_count": unpaid_bookings_count,
             "balance_bookings_count": balance_bookings_count,
-            "total_payment_records": total_payment_records,
+            "unpaid_bookings": unpaid_page,
+            "balance_bookings": balance_page,
+            "fully_paid_bookings": paid_page,
             "search_query": search_query,
             "status_filter": status_filter,
             "type_filter": type_filter,
-            "payments": payments_page,
-            "unpaid_bookings": unpaid_page,
-            "balance_bookings": balance_page,
         },
     )
 
@@ -8643,6 +9974,17 @@ def admin_payment_detail(request, id):
         history_payment.display_notes = format_payment_note_for_display(
             history_payment.notes
         )
+        # Failed/expired PayMongo attempts: audit-trail entries that must not
+        # look like actionable "Pending" payments in the timeline.
+        history_payment.is_failed_attempt = _is_abandoned_paymongo_payment(
+            history_payment
+        )
+        if history_payment.is_failed_attempt:
+            history_payment.failed_label = (
+                "Expired"
+                if "expired" in (history_payment.notes or "").lower()
+                else "Failed"
+            )
 
     total_paid = payment_history.filter(payment_status="verified").aggregate(
         total=Sum("amount")
@@ -8657,6 +9999,11 @@ def admin_payment_detail(request, id):
     )
     booking.total_payment_records = payment_history.count()
     payment.display_notes = format_payment_note_for_display(payment.notes)
+    # A failed/expired PayMongo attempt must never show the Approve/Reject bar.
+    payment_is_actionable = (
+        payment.payment_status == "pending"
+        and not _is_abandoned_paymongo_payment(payment)
+    )
 
     return render(
         request,
@@ -8667,6 +10014,7 @@ def admin_payment_detail(request, id):
             "total_paid": total_paid,
             "remaining_balance": remaining_balance,
             "payment_history": payment_history,
+            "payment_is_actionable": payment_is_actionable,
         },
     )
 
@@ -8676,87 +10024,121 @@ def admin_payment_action(request, id, action):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
+    # Where to land after the action. The payments list table passes
+    # ?next=payments so the admin stays on the table instead of being
+    # redirected to the payment detail page. The detail page actions
+    # pass no parameter and land back on the detail page.
+    next_target = request.POST.get("next") or request.GET.get("next")
+    back_to_list = next_target == "payments"
+
     if request.method != "POST":
+        if back_to_list:
+            return redirect("admin_payment_list")
         return redirect("admin_payment_detail", id=id)
 
     payment = get_object_or_404(Payment, id=id)
     booking = payment.booking
 
+    # Idempotency guard: only pending payments can be verified or rejected.
+    # Prevents double-clicks or stale tabs from re-processing an action,
+    # which would fire duplicate notifications or overwrite verification data.
+    if payment.payment_status != "pending":
+        messages.warning(
+            request,
+            f"Payment #{payment.id} is already marked as "
+            f"{payment.get_payment_status_display()}. No further action is needed.",
+        )
+        if back_to_list:
+            return redirect("admin_payment_list")
+        return redirect("admin_payment_detail", id=id)
+
     if action == "verify":
-        payment.payment_status = "verified"
-        payment.paid_at = timezone.now()
-        payment.verified_by = request.user
-        payment.save()
+        with transaction.atomic():
+            payment.payment_status = "verified"
+            payment.paid_at = timezone.now()
+            payment.verified_by = request.user
+            payment.save()
 
-        # Recalculate booking payment status.
-        # Business rule: once admin verifies any customer payment,
-        # booking should be marked as confirmed immediately.
-        total_paid = booking.payments.filter(payment_status="verified").aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0.00")
-        total_price = booking.total_price or Decimal("0.00")
+            # Recalculate booking payment status.
+            # Business rule: once admin verifies any customer payment,
+            # booking should be marked as confirmed immediately.
+            total_paid = booking.payments.filter(payment_status="verified").aggregate(
+                total=Sum("amount")
+            )["total"] or Decimal("0.00")
+            total_price = booking.total_price or Decimal("0.00")
 
-        if total_paid >= total_price:
-            booking.payment_status = "paid"
-        else:
-            booking.payment_status = "partial"
-        booking.status = "confirmed"
-        booking.save()
+            if total_paid >= total_price:
+                booking.payment_status = "paid"
+            else:
+                booking.payment_status = "partial"
+            booking.status = "confirmed"
+            booking.save()
 
-        # Notify the customer
-        Notification.objects.create(
-            user=booking.user,
-            booking=booking,
-            message=(
-                f"Your payment of PHP {payment.amount:,.2f} for Booking #{booking.id} "
-                f"has been verified. Thank you!"
-            ),
-        )
+            # Notify the customer
+            Notification.objects.create(
+                user=booking.user,
+                booking=booking,
+                message=(
+                    f"Your payment of PHP {payment.amount:,.2f} for Booking #{booking.id} "
+                    f"has been verified. Thank you!"
+                ),
+            )
 
-        log_action(
-            request.user, f"Verified payment #{payment.id} for Booking #{booking.id}."
-        )
+            log_action(
+                request.user, f"Verified payment #{payment.id} for Booking #{booking.id}."
+            )
         messages.success(
             request, f"Payment #{payment.id} has been verified successfully."
         )
 
     elif action == "reject":
         admin_notes = request.POST.get("admin_notes", "").strip()
-        payment.payment_status = "rejected"
-        payment.notes = admin_notes
-        payment.save(update_fields=["payment_status", "notes", "updated_at"])
 
-        # Keep booking in pending payment state when payment is rejected,
-        # unless there are other verified payments already recorded.
-        verified_total = booking.payments.filter(payment_status="verified").aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0.00")
-        total_price = booking.total_price or Decimal("0.00")
-        if verified_total <= Decimal("0.00"):
-            booking.payment_status = "pending"
-            booking.status = "pending_payment"
-        elif verified_total >= total_price:
-            booking.payment_status = "paid"
-            booking.status = "confirmed"
-        else:
-            booking.payment_status = "partial"
-            booking.status = "confirmed"
-        booking.save(update_fields=["payment_status", "status", "updated_at"])
+        # Server-side validation: never reject a payment without a reason.
+        if not admin_notes:
+            messages.error(
+                request, "A rejection reason is required before rejecting a payment."
+            )
+            if back_to_list:
+                return redirect("admin_payment_list")
+            return redirect("admin_payment_detail", id=id)
 
-        # Notify the customer
-        Notification.objects.create(
-            user=booking.user,
-            booking=booking,
-            message=(
-                f"Your payment of PHP {payment.amount:,.2f} for Booking #{booking.id} "
-                f"was rejected. Reason: {admin_notes or 'Please contact us for details.'}"
-            ),
-        )
+        with transaction.atomic():
+            payment.payment_status = "rejected"
+            payment.notes = admin_notes
+            payment.save(update_fields=["payment_status", "notes", "updated_at"])
 
-        log_action(
-            request.user,
-            f"Rejected payment #{payment.id} for Booking #{booking.id}. Reason: {admin_notes}",
-        )
+            # Keep booking in pending payment state when payment is rejected,
+            # unless there are other verified payments already recorded.
+            verified_total = booking.payments.filter(payment_status="verified").aggregate(
+                total=Sum("amount")
+            )["total"] or Decimal("0.00")
+            total_price = booking.total_price or Decimal("0.00")
+            if verified_total <= Decimal("0.00"):
+                booking.payment_status = "pending"
+                booking.status = "pending_payment"
+            elif verified_total >= total_price:
+                booking.payment_status = "paid"
+                booking.status = "confirmed"
+            else:
+                booking.payment_status = "partial"
+                booking.status = "confirmed"
+            booking.save(update_fields=["payment_status", "status", "updated_at"])
+
+            # Notify the customer
+            Notification.objects.create(
+                user=booking.user,
+                booking=booking,
+                message=(
+                    f"Your payment of PHP {payment.amount:,.2f} for Booking #{booking.id} "
+                    f"was rejected. Reason: {admin_notes}"
+                ),
+            )
+
+            log_action(
+                request.user,
+                f"Rejected payment #{payment.id} for Booking #{booking.id}. Reason: {admin_notes}",
+            )
         messages.warning(request, f"Payment #{payment.id} has been rejected.")
 
     else:
@@ -8764,6 +10146,8 @@ def admin_payment_action(request, id, action):
             request, f"Unknown action: '{action}'. Expected 'verify' or 'reject'."
         )
 
+    if back_to_list:
+        return redirect("admin_payment_list")
     return redirect("admin_payment_detail", id=id)
 
 
@@ -8807,6 +10191,108 @@ def admin_gcash_config(request):
         return redirect("admin_gcash_config")
 
     return render(request, "admin/payment/admin_gcash_config.html", {"config": config})
+
+
+PAYMENT_REMINDER_COOLDOWN_HOURS = 24
+
+
+@login_required
+@require_POST
+def admin_send_payment_reminder(request, booking_id):
+    """
+    Send a payment reminder to the customer for a booking with an outstanding
+    balance. Creates an in-app Notification and emails the customer.
+    Rate-limited to one reminder per PAYMENT_REMINDER_COOLDOWN_HOURS.
+    """
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    booking = get_object_or_404(
+        Booking.objects.select_related("user"), id=booking_id
+    )
+
+    if booking.status not in ("pending_payment", "confirmed"):
+        messages.error(
+            request,
+            f"Booking #{booking.id} is not awaiting payment (status: {booking.get_status_display()}).",
+        )
+        return redirect("admin_payment_list")
+
+    # Anti-spam cooldown: check the last reminder notification
+    last_reminder = (
+        Notification.objects.filter(
+            user=booking.user,
+            booking=booking,
+            message__icontains="payment reminder",
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if last_reminder:
+        hours_since = (timezone.now() - last_reminder.created_at).total_seconds() / 3600
+        if hours_since < PAYMENT_REMINDER_COOLDOWN_HOURS:
+            messages.warning(
+                request,
+                f"A payment reminder was already sent for booking #{booking.id} "
+                f"{int(hours_since)} hour(s) ago. Please wait 24 hours before sending another.",
+            )
+            return redirect("admin_payment_list")
+
+    gcash_config = GCashConfig.objects.first()
+    dp_percent = gcash_config.downpayment_percent if gcash_config else 20
+    verified_paid = booking.payments.filter(payment_status="verified").aggregate(
+        total=Sum("amount")
+    )["total"] or Decimal("0.00")
+    remaining = (booking.total_price or Decimal("0.00")) - verified_paid
+    if remaining < Decimal("0.00"):
+        remaining = Decimal("0.00")
+
+    reminder_message = (
+        f"Payment Reminder: Booking #{booking.id} for {booking.event_date} "
+        f"still has \u20b1{remaining:,.2f} outstanding. Please settle your payment "
+        f"to secure your slot. Thank you!"
+    )
+
+    # In-app notification for the customer
+    Notification.objects.create(
+        user=booking.user,
+        booking=booking,
+        message=reminder_message,
+    )
+
+    # Email notification (fail-safe)
+    customer_email = (booking.user.email or "").strip()
+    email_status = "in-app only"
+    if customer_email:
+        try:
+            send_mail(
+                subject=f"Payment Reminder — Booking #{booking.id} | Balloorina",
+                message=(
+                    f"Hi {booking.user.get_full_name() or booking.user.username},\n\n"
+                    f"{reminder_message}\n\n"
+                    f"You can settle your payment through the My Payments page:\n"
+                    f"{request.build_absolute_uri('/my-payments/')}\n\n"
+                    f"— Balloorina Team"
+                ),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[customer_email],
+                fail_silently=True,
+            )
+            email_status = "email sent"
+        except Exception:
+            logger.exception("Failed to send payment reminder email for booking #%s", booking.id)
+            email_status = "email failed (in-app sent)"
+
+    log_action(
+        request.user,
+        f"Sent payment reminder for booking #{booking.id} to "
+        f"'{booking.user.username}' ({email_status}).",
+    )
+    messages.success(
+        request,
+        f"Payment reminder sent to {booking.user.username} for booking #{booking.id}.",
+    )
+    return redirect("admin_payment_list")
 
 
 # =============================================================================
@@ -8869,6 +10355,7 @@ def create_paymongo_checkout(request, booking_id):
             pay
             for pay in booking.payments.filter(payment_status="pending").order_by("-created_at")
             if not _is_incomplete_paymongo_payment(pay)
+            and not _is_abandoned_paymongo_payment(pay)
         ),
         None,
     )
@@ -9053,7 +10540,10 @@ def paymongo_success(request, booking_id):
             pending_paymongo.gcash_sender_name = payer_name
         if payer_phone:
             pending_paymongo.paymongo_contact_number = payer_phone
-        pending_paymongo.notes = "Paid via PayMongo. Awaiting admin verification."
+        # Only set fallback notes if the webhook hasn't already confirmed
+        # this payment — never overwrite a webhook-written note.
+        if "webhook" not in (pending_paymongo.notes or "").lower():
+            pending_paymongo.notes = "Paid via PayMongo. Awaiting admin verification."
         pending_paymongo.save(
             update_fields=[
                 "paymongo_payment_id",
@@ -9086,7 +10576,18 @@ def paymongo_success(request, booking_id):
             "Payment received! It is now pending admin verification.",
         )
     elif checkout_status in {"failed", "expired", "cancelled"}:
-        pending_paymongo.delete()
+        # Keep the record as an audit trail (marked as a failed attempt) instead
+        # of deleting it. The marker notes exclude it from all action queues,
+        # so it never blocks a retry or clutters the admin verification queue.
+        if (
+            pending_paymongo.payment_status == "pending"
+            and not pending_paymongo.paymongo_payment_id
+        ):
+            pending_paymongo.notes = (
+                f"PayMongo checkout {checkout_status} — did not complete. "
+                "Customer may retry with a new checkout."
+            )
+            pending_paymongo.save(update_fields=["notes", "updated_at"])
         messages.warning(
             request,
             "Payment did not complete. Please try again.",
@@ -9113,12 +10614,19 @@ def paymongo_cancel(request, booking_id):
         .order_by("-created_at")
         .first()
     )
-    if pending_paymongo:
-        pending_paymongo.delete()
+    if pending_paymongo and pending_paymongo.payment_status == "pending":
+        # Keep the record as an audit trail (marker notes exclude it from
+        # every action queue, so cancelling never blocks a future retry).
+        pending_paymongo.notes = (
+            "PayMongo checkout cancelled — did not complete. "
+            "Customer may retry with a new checkout."
+        )
+        pending_paymongo.save(update_fields=["notes", "updated_at"])
     messages.info(request, "Payment was cancelled. You can try again at any time.")
     return redirect("payment_page", booking_id=booking_id)
 
 
+@csrf_exempt
 @require_POST
 def paymongo_webhook(request):
     payload = request.body.decode('utf-8')
@@ -9170,8 +10678,18 @@ def paymongo_webhook(request):
                 ]
             )
         elif event_type in {"checkout_session.payment.failed", "checkout_session.expired"}:
-            if payment.payment_status == "pending":
-                payment.delete()
+            # Keep the record as an audit trail instead of deleting it. The
+            # marker notes exclude it from all action queues (treated as an
+            # abandoned attempt), so the customer can simply retry.
+            if payment.payment_status == "pending" and not payment.paymongo_payment_id:
+                failure_label = (
+                    "payment failed" if "failed" in event_type else "checkout expired"
+                )
+                payment.notes = (
+                    f"PayMongo {failure_label} — did not complete. "
+                    "Customer may retry with a new checkout."
+                )
+                payment.save(update_fields=["notes", "updated_at"])
 
         return JsonResponse({"success": True})
     except Exception as e:

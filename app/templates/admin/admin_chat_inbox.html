@@ -4,16 +4,14 @@
 {% block title %}Admin Chat - Balloorina{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260906f">
+<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260918c">
 {% endblock %}
 
 {% block content %}
 <div class="admin-chat-shell">
-    <div class="admin-chat-page-head">
-        <div>
-            <h1>Client Support Center</h1>
-            <p>One inbox for all client support requests &mdash; review conversations, respond to inquiries, and resolve issues in real time.</p>
-        </div>
+    <div class="page-header ph-flush">
+        <h1>Client Support Center</h1>
+        <p class="page-subtitle">One inbox for all client support requests &mdash; review conversations, respond to inquiries, and resolve issues in real time.</p>
     </div>
 
     <div class="admin-chat-wrap">
@@ -30,10 +28,19 @@
                     </label>
                 </div>
             </div>
+            <div class="chat-filter-tabs" id="chatFilterTabs" role="tablist" aria-label="Filter chats">
+                <button type="button" class="chat-filter-tab active" data-filter="all">All<span class="tab-count">{{ stats.total|default:0 }}</span></button>
+                <button type="button" class="chat-filter-tab" data-filter="pending_admin">Pending<span class="tab-count">{{ stats.pending|default:0 }}</span></button>
+                <button type="button" class="chat-filter-tab" data-filter="active_admin">Active<span class="tab-count">{{ stats.active_admin|default:0 }}</span></button>
+                <button type="button" class="chat-filter-tab" data-filter="closed">Closed<span class="tab-count">{{ stats.closed|default:0 }}</span></button>
+                <button type="button" class="chat-filter-tab" data-filter="unread">Unread<span class="tab-count">{{ stats.unread_total|default:0 }}</span></button>
+            </div>
         <div class="chat-session-scroll">
             {% for item in sessions %}
             <a href="{% url 'admin_chat_thread' item.id %}"
                class="session-card {% if item.has_unread_for_admin %}has-unread{% endif %}"
+               data-status="{{ item.status }}"
+               data-unread="{% if item.has_unread_for_admin %}1{% else %}0{% endif %}"
                data-search="{{ item.user.get_full_name|default:item.user.username }} {{ item.user.email }} {{ item.title }} {{ item.last_msg_text|default:'' }}">
                 <div class="sc-avatar">{{ item.user.first_name|default:item.user.username|slice:":1"|upper }}</div>
                 <div class="sc-info">
@@ -54,7 +61,7 @@
                     </div>
                 </div>
                 {% if item.unread_admin_count %}
-                <span class="sc-unread-badge">{{ item.unread_admin_count }} new message{{ item.unread_admin_count|pluralize }}</span>
+                <span class="sc-unread-pill">{{ item.unread_admin_count }}</span>
                 {% endif %}
             </a>
             {% empty %}
@@ -99,31 +106,74 @@ document.addEventListener("DOMContentLoaded", function () {
     const searchInput = document.getElementById("adminChatSearch");
     const cards = Array.from(document.querySelectorAll(".session-card"));
     const noResults = document.querySelector(".admin-chat-no-results");
+    const tabs = Array.from(document.querySelectorAll(".chat-filter-tab"));
+    const SEARCH_KEY = "adminChatInboxSearch";
+    let activeFilter = "all";
+
+    // Restore the last search term so a poll-triggered reload never wipes it.
+    if (searchInput && sessionStorage.getItem(SEARCH_KEY)) {
+        searchInput.value = sessionStorage.getItem(SEARCH_KEY);
+    }
 
     function applyChatFilters() {
         const query = (searchInput?.value || "").trim().toLowerCase();
         let visibleCount = 0;
 
         cards.forEach(function (card) {
+            const status = card.dataset.status || "";
+            const unread = card.dataset.unread === "1";
+            let matchesFilter = true;
+            if (activeFilter === "unread") {
+                matchesFilter = unread;
+            } else if (activeFilter !== "all") {
+                matchesFilter = status === activeFilter;
+            }
             const matchesQuery = !query || (card.dataset.search || "").toLowerCase().includes(query);
-            card.hidden = !matchesQuery;
-            if (matchesQuery) visibleCount += 1;
+            const show = matchesFilter && matchesQuery;
+            card.hidden = !show;
+            if (show) visibleCount += 1;
         });
 
         if (noResults) noResults.hidden = visibleCount !== 0 || cards.length === 0;
     }
 
-    if (searchInput) searchInput.addEventListener("input", applyChatFilters);
+    tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+            tabs.forEach(function (t) { t.classList.remove("active"); });
+            tab.classList.add("active");
+            activeFilter = tab.dataset.filter || "all";
+            applyChatFilters();
+        });
+    });
+
+    if (searchInput) {
+        searchInput.addEventListener("input", function () {
+            sessionStorage.setItem(SEARCH_KEY, searchInput.value);
+            applyChatFilters();
+        });
+    }
+
+    applyChatFilters();
+
+    // ── Poll for new activity. Never reload while the admin is focused on
+    //    the search box or while the tab is hidden — reloading used to wipe
+    //    whatever they were typing. ──
+    const pollUrl = "{% url 'admin_chat_unread_poll' %}";
+    const csrfToken = "{{ csrf_token }}";
+    const pendingBaseline = Number("{{ stats.pending|default:0 }}");
+    const unreadBaseline = Number("{{ stats.unread_total|default:0 }}");
 
     setInterval(async function () {
+        if (document.hidden) return;
+        if (searchInput && document.activeElement === searchInput) return;
         try {
-            const response = await fetch("{% url 'admin_chat_unread_poll' %}", {
-                headers: { "X-CSRFToken": "{{ csrf_token }}" }
-            });
+            const response = await fetch(pollUrl, { headers: { "X-CSRFToken": csrfToken } });
+            if (!response.ok) return;
             const data = await response.json();
-            const currentPending = Number("{{ stats.pending|default:0 }}");
-            const currentUnread = Number("{{ stats.unread_total|default:0 }}");
-            if (Number(data.pending_count) !== currentPending || Number(data.unread_total) !== currentUnread) {
+            if (
+                Number(data.pending_count) !== pendingBaseline ||
+                Number(data.unread_total) !== unreadBaseline
+            ) {
                 window.location.reload();
             }
         } catch (error) {}

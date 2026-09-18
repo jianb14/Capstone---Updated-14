@@ -124,6 +124,14 @@
                     value="{{ search_query }}">
             </div>
 
+            <div class="date-range-wrapper" style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="date" id="dateFromInput" name="date_from" title="Event date from"
+                    value="{{ date_from }}" style="background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 0.55rem 0.75rem; border-radius: 8px; font-size: 0.85rem; color-scheme: dark;">
+                <span style="color: #888; font-size: 0.8rem;">to</span>
+                <input type="date" id="dateToInput" name="date_to" title="Event date to"
+                    value="{{ date_to }}" style="background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 0.55rem 0.75rem; border-radius: 8px; font-size: 0.85rem; color-scheme: dark;">
+            </div>
+
             <div class="custom-filter-dropdown" id="bookingStatusDropdown">
                 <div class="dropdown-trigger">
                     <span id="bookingStatusDropdownText">
@@ -197,6 +205,12 @@
                         <div style="font-size: 0.8rem; color: #888;">{{ b.time_range_display|default:"-" }}</div>
                     </td>
                     <td data-label="Status">
+                        {% if b.has_conflict %}
+                        <span class="status-badge inactive" title="This schedule overlaps another active booking" style="display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.45); color: #f87171; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; margin-bottom: 0.35rem;">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            Schedule Conflict
+                        </span>
+                        {% endif %}
                         {% if b.status == 'pending_payment' %}
                         <span class="status-badge pending" style="color: #d97706;">{{ b.get_status_display }}</span>
                         {% elif b.status == 'confirmed' or b.status == 'completed' %}
@@ -260,7 +274,7 @@
     {% if bookings.has_other_pages %}
     <div class="pagination">
         {% if bookings.has_previous %}
-        <a href="?page={{ bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+        <a href="?page={{ bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
             class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
@@ -269,7 +283,7 @@
         <span class="current-page">Page {{ bookings.number }} of {{ bookings.paginator.num_pages }}</span>
 
         {% if bookings.has_next %}
-        <a href="?page={{ bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+        <a href="?page={{ bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
             class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>

@@ -2,7 +2,7 @@
 {% load static tz %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/report_concern.css' %}">
+<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20260913e">
 
 <div class="concern-page">
     <div class="concern-wrap">
@@ -67,7 +67,7 @@
                 <small class="field-error" id="message_error"></small>
 
                 <div class="form-group">
-                    <label for="concern_images"><i class="fa-solid fa-images"></i> Attach Images (Optional)</label>
+                    <label for="concern_images">Attach Images (Optional)</label>
                     <input type="file" id="concern_images" name="concern_images" multiple accept="image/*" class="file-input">
                     <small class="field-info">You can upload up to 4 images to help us understand your concern.</small>
                     <div id="concernImagePreview" class="image-preview-grid"></div>
@@ -79,6 +79,7 @@
 
         <section class="panel concern-history-panel">
             <h2>My Concern History</h2>
+            <p class="history-sub">Track the status of your submitted concerns and feedback.</p>
             {% if my_tickets %}
             <div class="table-wrap">
                 <table>
@@ -121,7 +122,11 @@
                 </table>
             </div>
             {% else %}
-            <p class="empty">You have no submitted concerns yet.</p>
+            <div class="empty-state">
+                <div class="empty-icon"><i class="far fa-envelope"></i></div>
+                <h3>No submitted concerns yet</h3>
+                <p>When you report a concern, it will appear here so you can track its progress.</p>
+            </div>
             {% endif %}
         </section>
     </div>

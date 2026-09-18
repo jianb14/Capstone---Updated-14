@@ -48,13 +48,15 @@ class ServicesPageWidgetsTests(TestCase):
         self.assertIn('id="services-list"', body)
 
     def test_hero_label_default_and_from_db(self):
-        # Default label kapag walang ServiceContent row
+        # Default label kapag walang ServiceContent row (see _SERVICE_DEFAULTS)
         response = self.client.get("/services/")
-        self.assertContains(response, "Balloorina Services")
+        self.assertContains(response, "Balloorina Event Styling")
 
         # Label mula sa DB kapag may existing row
+        # (tanggalin muna ang auto-seeded row galing sa unang GET)
         from .models import ServiceContent
 
+        ServiceContent.objects.all().delete()
         ServiceContent.objects.create(
             hero_label="Custom Label",
             hero_title="Custom Title",

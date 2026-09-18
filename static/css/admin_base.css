@@ -37,6 +37,124 @@ body {
     color: #ffffff;
 }
 
+/* ═══ Canonical Page Header — booking standard (global sa buong admin) ═══
+   Naka-scope sa .main-content para tatalo nito ang mga per-page CSS
+   (hal. admin_user.css na 1.875rem) — iisang laki at responsive behavior
+   sa lahat ng admin pages: list = title + subtitle, detail = title + breadcrumb. */
+.main-content .page-header {
+    margin-bottom: 2rem;
+}
+
+.main-content .page-header h1 {
+    font-size: 1.55rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+}
+
+.main-content .page-header .page-subtitle {
+    font-size: 0.9rem;
+    color: #888888;
+    margin: 0;
+}
+
+.main-content .detail-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.main-content .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #666666;
+}
+
+.main-content .breadcrumb a {
+    color: #666666;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.main-content .breadcrumb a:hover {
+    color: #ffffff;
+}
+
+.main-content .breadcrumb span:not(.separator) {
+    color: #999999;
+}
+
+.main-content .btn-top-back {
+    margin-top: 1rem;
+    margin-right: 1rem;
+    color: #b8b8b8;
+    text-decoration: none;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.main-content .btn-top-back:hover {
+    color: #fff;
+}
+
+/* Section/table title headers (title-header) — compact at malapit sa table,
+   para hindi kalaki ang spacing (paresa ng card titles na 1.08rem) */
+.main-content .page-header.title-header {
+    margin-bottom: 1rem;
+}
+
+.main-content .page-header.title-header h1 {
+    font-size: 1.08rem;
+    margin-bottom: 0;
+}
+
+/* Header flush — para sa mga wrapper na grid/flex na may gap na
+   (dashboard, analytics, concerns, chat, users): walang dagdag na margin */
+.main-content .page-header.ph-flush {
+    margin-bottom: 0;
+}
+
+/* Light mode — canonical header */
+[data-theme="light"] .main-content .page-header h1 {
+    color: #111827;
+}
+
+[data-theme="light"] .main-content .page-header .page-subtitle {
+    color: #6b7280;
+}
+
+[data-theme="light"] .main-content .breadcrumb {
+    color: #9ca3af;
+}
+
+[data-theme="light"] .main-content .breadcrumb a {
+    color: #6b7280;
+}
+
+[data-theme="light"] .main-content .breadcrumb a:hover {
+    color: #111827;
+}
+
+[data-theme="light"] .main-content .breadcrumb span:not(.separator) {
+    color: #6b7280;
+}
+
+[data-theme="light"] .main-content .btn-top-back {
+    color: #4b5563;
+}
+
+[data-theme="light"] .main-content .btn-top-back:hover {
+    color: #111827;
+}
+
 /* SweetAlert2 icon palette (darker error/warning) */
 .swal2-icon.swal2-error {
     border-color: #dc2626 !important;
@@ -149,8 +267,10 @@ body {
     margin: 0.25rem 0.75rem 0.25rem;
 }
 
+/* Hover: subtle, just enough to show the row is interactive.
+   Active uses a different (brighter) bg so it's clearly distinct. */
 .sidebar a:hover {
-    background: #1a1a1a;
+    background: #161616;
     color: #ffffff;
 }
 
@@ -162,7 +282,7 @@ body {
 }
 
 .sidebar a.active {
-    background: #1a1a1a;
+    background: #1f1f1f;
     color: #ffffff;
 }
 
@@ -172,27 +292,22 @@ body {
     height: 20px;
     padding: 0 6px;
     border-radius: 999px;
-    background: #ef4444;
-    color: #ffffff;
+    /* Dark mode (default): WHITE ghost + BLACK text */
+    background: #ffffff !important;
+    color: #111111 !important;
+    font-family: 'Montserrat', sans-serif;
     font-size: 0.65rem;
     font-weight: 800;
+    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Active link: soft rounded shadow/line on the right side */
-.sidebar a.active::before {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 58%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.35));
-    border-radius: 999px;
-    box-shadow: 0 0 10px rgba(255,255,255,0.35);
+/* Light mode: gray ghost + white text */
+[data-theme="light"] .nav-count-badge {
+    background: #6b7280;
+    color: #ffffff;
 }
 
 .sidebar.collapsed a {
@@ -545,13 +660,17 @@ body {
     top: 4px;
     right: 4px;
     background: #ef4444;
-    color: white;
+    /* White text — may override kasi sa light mode kaya !important */
+    color: #ffffff !important;
+    font-family: 'Montserrat', sans-serif;
     font-size: 0.65rem;
     font-weight: bold;
+    line-height: 1;
     height: 16px;
     min-width: 16px;
     border-radius: 8px;
-    display: flex;
+    /* I-center ang number sa loob ng badge */
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0 4px;
@@ -767,9 +886,11 @@ body {
 
 .notif-header-badge {
     background: #ef4444;
-    color: white;
+    color: #ffffff !important;
+    font-family: 'Montserrat', sans-serif;
     font-size: 0.7rem;
     font-weight: 700;
+    line-height: 1;
     padding: 2px 8px;
     border-radius: 12px;
 }
@@ -1073,7 +1194,7 @@ body {
    LIGHT THEME OVERRIDES (Admin Side)
    ======================================================== */
 [data-theme="light"] body {
-    background: #f3f4f6;
+    background: #fafbfc;
     color: #111827;
 }
 
@@ -1092,13 +1213,8 @@ body {
 }
 
 [data-theme="light"] .sidebar a.active {
-    background: #f3f4f6;
+    background: #e5e7eb;
     color: #111827;
-}
-
-[data-theme="light"] .sidebar a.active::before {
-    background: linear-gradient(180deg, #6b7280, #9ca3af);
-    box-shadow: 0 0 8px rgba(107, 114, 128, 0.5);
 }
 
 [data-theme="light"] .nav-section-title {
@@ -1123,7 +1239,7 @@ body {
 [data-theme="light"] .notif-dropdown-menu {
     background: #ffffff;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="light"] .admin-dropdown-menu .dropdown-header,
@@ -1400,5 +1516,35 @@ body {
     .dash-filter-row .btn-reset,
     .dash-filter-row .btn-preset {
         flex: 1 1 100% !important;
+    }
+}
+
+/* ═══ Responsive — canonical page header (booking standard) ═══ */
+@media (max-width: 768px) {
+    .main-content .page-header {
+        margin-bottom: 1.25rem;
+    }
+
+    .main-content .page-header h1 {
+        font-size: 1.4rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .main-content .page-header .page-subtitle {
+        font-size: 0.8rem;
+    }
+
+    .main-content .detail-page-header {
+        margin: 0 0 1rem 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .main-content .detail-page-header .btn-top-back {
+        margin-top: 0.35rem;
+        margin-right: 0;
+        width: auto;
+        align-self: flex-start;
     }
 }

@@ -1,0 +1,728 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Site Settings - Balloorina{% endblock %}
+
+{% block content %}
+<style>
+    /* ============================================
+       SITE SETTINGS — self-contained styles (ss-)
+       ============================================ */
+    .ss-page {
+        max-width: 880px;
+        margin: 0 auto;
+        font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+
+        --ss-card: #141414;
+        --ss-border: #262626;
+        --ss-text: #ffffff;
+        --ss-muted: #8a8a8a;
+        --ss-input-bg: #1b1b1b;
+        --ss-input-border: #2e2e2e;
+        --ss-input-text: #f3f3f3;
+        --ss-icon: #9a9a9a;
+        --ss-accent: #ffffff;
+        --ss-accent-text: #000000;
+        --ss-hover: rgba(255, 255, 255, 0.08);
+        --ss-danger: #ef4444;
+        --ss-danger-bg: rgba(239, 68, 68, 0.08);
+        --ss-success: #22c55e;
+        --ss-success-bg: rgba(34, 197, 94, 0.12);
+        --ss-bar-bg: rgba(20, 20, 20, 0.92);
+    }
+
+    [data-theme="light"] .ss-page {
+        --ss-card: #ffffff;
+        --ss-border: #e5e7eb;
+        --ss-text: #111827;
+        --ss-muted: #6b7280;
+        --ss-input-bg: #f9fafb;
+        --ss-input-border: #d1d5db;
+        --ss-input-text: #111827;
+        --ss-icon: #9ca3af;
+        --ss-accent: #111827;
+        --ss-accent-text: #ffffff;
+        --ss-hover: rgba(0, 0, 0, 0.05);
+        --ss-danger-bg: rgba(239, 68, 68, 0.08);
+        --ss-success: #16a34a;
+        --ss-success-bg: rgba(22, 163, 74, 0.1);
+        --ss-bar-bg: rgba(255, 255, 255, 0.94);
+    }
+
+    /* Spacing sa baba ng page title */
+    .ss-page .page-header {
+        margin-bottom: 1.75rem;
+    }
+
+    /* Thin stroke SVG icons (kapalit ng bold na FA solid icons) */
+    .ss-svg {
+        flex-shrink: 0;
+    }
+
+    .ss-hero-icon .ss-svg { width: 1.5rem; height: 1.5rem; }
+    .ss-card-icon .ss-svg { width: 1.05rem; height: 1.05rem; }
+    .ss-input-wrap .ss-svg { width: 0.95rem; height: 0.95rem; }
+    .ss-badge .ss-svg,
+    .ss-save-status .ss-svg { width: 0.85rem; height: 0.85rem; }
+    .ss-btn-save .ss-svg { width: 0.9rem; height: 0.9rem; }
+
+    .ss-spin {
+        animation: ss-rotate 1s linear infinite;
+    }
+
+    @keyframes ss-rotate {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Light mode: pigilan ang global [data-theme="light"] span na rule
+       ng admin_light_mode.css na kalimutan ang badge colors */
+    [data-theme="light"] .ss-page .ss-badge {
+        color: #6b7280 !important;
+        background: #f3f4f6;
+    }
+
+    [data-theme="light"] .ss-page .ss-badge-on {
+        background: #dcfce7 !important;
+        color: #15803d !important;
+    }
+
+    [data-theme="light"] .ss-page .ss-badge-off {
+        background: #fee2e2 !important;
+        color: #b91c1c !important;
+    }
+
+    [data-theme="light"] .ss-page .ss-save-status.is-dirty {
+        color: #b45309 !important;
+    }
+
+    /* ---- Hero / overview ---- */
+    .ss-hero {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        background: var(--ss-card);
+        border: 1px solid var(--ss-border);
+        border-radius: 14px;
+        padding: 1.5rem 1.75rem;
+        flex-wrap: wrap;
+    }
+
+    .ss-hero-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 14px;
+        background: var(--ss-accent);
+        color: var(--ss-accent-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+
+    .ss-hero-info h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: var(--ss-text);
+    }
+
+    .ss-hero-info p {
+        margin: 0.25rem 0 0.6rem;
+        font-size: 0.82rem;
+        color: var(--ss-muted);
+        line-height: 1.5;
+    }
+
+    .ss-hero-badges {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .ss-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.28rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        background: var(--ss-hover);
+        color: var(--ss-muted);
+        border: 1px solid transparent;
+    }
+
+    .ss-badge-on {
+        background: var(--ss-success-bg);
+        color: var(--ss-success);
+    }
+
+    .ss-badge-off {
+        background: var(--ss-danger-bg);
+        color: var(--ss-danger);
+    }
+
+    /* ---- Section cards ---- */
+    .ss-card {
+        background: var(--ss-card);
+        border: 1px solid var(--ss-border);
+        border-radius: 14px;
+        padding: 1.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .ss-card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .ss-card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--ss-hover);
+        color: var(--ss-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+    }
+
+    .ss-card-head h3 {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 600;
+        color: var(--ss-text);
+    }
+
+    .ss-card-head p {
+        margin: 0.2rem 0 0;
+        font-size: 0.78rem;
+        color: var(--ss-muted);
+        line-height: 1.45;
+    }
+
+    /* ---- Fields ---- */
+    .ss-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem 1.5rem;
+    }
+
+    .ss-field.full { grid-column: 1 / -1; }
+
+    .ss-field > label {
+        display: block;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--ss-muted);
+        font-weight: 600;
+        margin-bottom: 0.45rem;
+    }
+
+    .ss-req { color: var(--ss-danger); }
+
+    .ss-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .ss-input-wrap > i,
+    .ss-input-wrap > svg {
+        position: absolute;
+        left: 0.9rem;
+        font-size: 0.85rem;
+        color: var(--ss-icon);
+        pointer-events: none;
+    }
+
+    .ss-input-wrap input {
+        width: 100%;
+        background: var(--ss-input-bg);
+        border: 1px solid var(--ss-input-border);
+        border-radius: 10px;
+        padding: 0.72rem 0.9rem 0.72rem 2.5rem;
+        color: var(--ss-input-text);
+        font-family: inherit;
+        font-size: 0.88rem;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .ss-input-wrap input:focus {
+        border-color: var(--ss-icon);
+        box-shadow: 0 0 0 3px var(--ss-hover);
+    }
+
+    .ss-help {
+        margin: 0.45rem 0 0;
+        font-size: 0.74rem;
+        color: var(--ss-muted);
+        line-height: 1.5;
+    }
+
+    .ss-error-msg {
+        display: none;
+        margin: 0.45rem 0 0;
+        font-size: 0.74rem;
+        font-weight: 500;
+        color: var(--ss-danger);
+    }
+
+    .ss-field.has-error .ss-input-wrap input {
+        border-color: var(--ss-danger);
+        background: var(--ss-danger-bg);
+    }
+
+    .ss-field.has-error .ss-error-msg { display: block; }
+
+    /* ---- Quick-pick chips (lead time) ---- */
+    .ss-chips {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.6rem;
+    }
+
+    .ss-chip {
+        padding: 0.32rem 0.85rem;
+        border-radius: 20px;
+        border: 1px solid var(--ss-input-border);
+        background: transparent;
+        color: var(--ss-muted);
+        font-family: inherit;
+        font-size: 0.74rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .ss-chip:hover { background: var(--ss-hover); color: var(--ss-text); }
+
+    .ss-chip.active {
+        background: var(--ss-accent);
+        border-color: var(--ss-accent);
+        color: var(--ss-accent-text);
+        font-weight: 600;
+    }
+
+    /* ---- Toggle switch ---- */
+    .ss-toggle {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.9rem;
+        cursor: pointer;
+        padding: 1rem 1.1rem;
+        border: 1px solid var(--ss-input-border);
+        border-radius: 12px;
+        background: var(--ss-input-bg);
+        transition: border-color 0.2s ease;
+    }
+
+    .ss-toggle:hover { border-color: var(--ss-icon); }
+
+    /* I-override ang .ss-field > label (uppercase/block) para gumana ang toggle switch */
+    .ss-field > label.ss-toggle {
+        display: flex;
+        text-transform: none;
+        letter-spacing: normal;
+        font-weight: 400;
+        margin-bottom: 0;
+        font-size: 0.85rem;
+    }
+
+    .ss-toggle input { display: none; }
+
+    .ss-toggle-track {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        border-radius: 20px;
+        background: var(--ss-input-border);
+        flex-shrink: 0;
+        margin-top: 0.1rem;
+        transition: background 0.25s ease;
+    }
+
+    .ss-toggle-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        transition: transform 0.25s ease;
+    }
+
+    .ss-toggle input:checked + .ss-toggle-track { background: var(--ss-success); }
+    .ss-toggle input:checked + .ss-toggle-track .ss-toggle-thumb { transform: translateX(18px); }
+
+    .ss-toggle-text strong {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--ss-text);
+    }
+
+    .ss-toggle-text small {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.74rem;
+        color: var(--ss-muted);
+        line-height: 1.5;
+    }
+
+    /* ---- Sticky save bar ---- */
+    .ss-savebar {
+        position: sticky;
+        bottom: 1.25rem;
+        z-index: 20;
+        margin-top: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.9rem 1.25rem;
+        border-radius: 14px;
+        border: 1px solid var(--ss-border);
+        background: var(--ss-bar-bg);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .ss-save-status {
+        font-size: 0.76rem;
+        color: var(--ss-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .ss-save-status.is-dirty { color: #f59e0b; font-weight: 600; }
+
+    .ss-btn-save {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.62rem 1.5rem;
+        border: none;
+        border-radius: 30px;
+        background: var(--ss-accent);
+        color: var(--ss-accent-text);
+        font-family: inherit;
+        font-size: 0.83rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .ss-btn-save:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.9; }
+    .ss-btn-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 640px) {
+        .ss-grid { grid-template-columns: 1fr; }
+        .ss-card { padding: 1.25rem; }
+        .ss-hero { padding: 1.25rem; }
+        .ss-savebar { flex-direction: column; align-items: stretch; text-align: center; }
+        .ss-btn-save { justify-content: center; }
+    }
+</style>
+
+<div class="ss-page">
+    <div class="page-header">
+        <h1>Site Settings</h1>
+        <p class="page-subtitle">Configure your website identity, booking rules, and notifications.</p>
+    </div>
+
+    <!-- Overview hero -->
+    <div class="ss-hero">
+        <div class="ss-hero-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg></div>
+        <div class="ss-hero-info">
+            <h2>Website Configuration</h2>
+            <p>Manage your business identity, booking rules, and email notifications — all in one place.</p>
+            <div class="ss-hero-badges">
+                <span class="ss-badge {% if settings.email_notifications_enabled %}ss-badge-on{% else %}ss-badge-off{% endif %}" id="ss_notif_badge">
+                    {% if settings.email_notifications_enabled %}
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Email alerts ON
+                    {% else %}
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8c0 2.5 1 4.3 1.9 5.6"/><path d="M17 17H3s3-2 3-9"/><path d="M6.1 6.1A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><line x1="2" x2="22" y1="2" y2="22"/></svg> Email alerts OFF
+                    {% endif %}
+                </span>
+                <span class="ss-badge">
+                    <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Last updated:
+                    {% if settings.updated_at %}{{ settings.updated_at|date:"M d, Y g:i A" }}{% else %}never{% endif %}
+                </span>
+                {% if settings.updated_by %}
+                <span class="ss-badge">
+                    <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> by {{ settings.updated_by.get_username }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="ss_form" novalidate>
+        {% csrf_token %}
+
+        <!-- Business Profile -->
+        <section class="ss-card">
+            <div class="ss-card-head">
+                <div class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg></div>
+                <div>
+                    <h3>Business Profile</h3>
+                    <p>Basic information about your business, shown to customers across the website.</p>
+                </div>
+            </div>
+            <div class="ss-grid">
+                <div class="ss-field" id="ss_field_site_name">
+                    <label for="ss_site_name">Site Name <span class="ss-req">*</span></label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>
+                        <input type="text" id="ss_site_name" name="site_name" value="{{ settings.site_name }}" required placeholder="e.g. Balloorina">
+                    </div>
+                    <p class="ss-error-msg" id="ss_site_name_error">Site name is required.</p>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_contact_email">Contact Email</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <input type="email" id="ss_contact_email" name="contact_email" value="{{ settings.contact_email }}" placeholder="e.g. hello@balloorina.com">
+                    </div>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_contact_phone">Contact Phone</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <input type="text" id="ss_contact_phone" name="contact_phone" value="{{ settings.contact_phone }}" placeholder="e.g. 09363602912">
+                    </div>
+                </div>
+                <div class="ss-field full">
+                    <label for="ss_address">Business Address</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <input type="text" id="ss_address" name="address" value="{{ settings.address }}" placeholder="e.g. San Nicolas 3, Bacoor City, Cavite">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Social Links -->
+        <section class="ss-card">
+            <div class="ss-card-head">
+                <div class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg></div>
+                <div>
+                    <h3>Social Links</h3>
+                    <p>Social media pages displayed on the website footer and contact sections.</p>
+                </div>
+            </div>
+            <div class="ss-grid">
+                <div class="ss-field">
+                    <label for="ss_facebook">Facebook Page</label>
+                    <div class="ss-input-wrap">
+                        <i class="fa-brands fa-facebook-f"></i>
+                        <input type="url" id="ss_facebook" name="facebook_link" value="{{ settings.facebook_link }}" placeholder="https://facebook.com/yourpage">
+                    </div>
+                    <p class="ss-help">Full URL of your Facebook page (including https://).</p>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_instagram">Instagram Profile</label>
+                    <div class="ss-input-wrap">
+                        <i class="fa-brands fa-instagram"></i>
+                        <input type="url" id="ss_instagram" name="instagram_link" value="{{ settings.instagram_link }}" placeholder="https://instagram.com/yourprofile">
+                    </div>
+                    <p class="ss-help">Full URL of your Instagram profile (including https://).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Booking Rules -->
+        <section class="ss-card">
+            <div class="ss-card-head">
+                <div class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></div>
+                <div>
+                    <h3>Booking Rules</h3>
+                    <p>Control how early customers must book their events.</p>
+                </div>
+            </div>
+            <div class="ss-grid">
+                <div class="ss-field full">
+                    <label for="ss_lead_time">Booking Lead Time (days)</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>
+                        <input type="number" id="ss_lead_time" name="booking_lead_time_days" min="0" value="{{ settings.booking_lead_time_days }}" placeholder="0">
+                    </div>
+                    <div class="ss-chips">
+                        <button type="button" class="ss-chip" data-days="0">Same day (0)</button>
+                        <button type="button" class="ss-chip" data-days="1">1 day</button>
+                        <button type="button" class="ss-chip" data-days="3">3 days</button>
+                        <button type="button" class="ss-chip" data-days="7">1 week (7)</button>
+                    </div>
+                    <p class="ss-help">
+                        Minimum number of days between today and the requested event date.
+                        Set to <strong>0</strong> to allow same-day bookings.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Email Notifications -->
+        <section class="ss-card">
+            <div class="ss-card-head">
+                <div class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+                <div>
+                    <h3>Email Notifications</h3>
+                    <p>Get alerted by email when something important happens in the dashboard.</p>
+                </div>
+            </div>
+            <div class="ss-grid">
+                <div class="ss-field full">
+                    <label class="ss-toggle">
+                        <input type="checkbox" name="email_notifications_enabled" id="ss_notif_toggle" {% if settings.email_notifications_enabled %}checked{% endif %}>
+                        <span class="ss-toggle-track"><span class="ss-toggle-thumb"></span></span>
+                        <span class="ss-toggle-text">
+                            <strong>Enable email alerts</strong>
+                            <small>Send an email to admins on new bookings, payment proofs, and customer concerns.</small>
+                        </span>
+                    </label>
+                </div>
+                <div class="ss-field full">
+                    <label for="ss_admin_emails">Admin Alert Emails</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                        <input type="text" id="ss_admin_emails" name="admin_emails_for_notifications"
+                            value="{{ settings.admin_emails_for_notifications }}"
+                            placeholder="admin1@example.com, admin2@example.com">
+                    </div>
+                    <p class="ss-help">Comma-separated list of recipients. Leave empty to disable alerts entirely.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sticky save bar -->
+        <div class="ss-savebar">
+            <span class="ss-save-status" id="ss_save_status">
+                <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> All changes saved
+            </span>
+            <button type="submit" class="ss-btn-save" id="ss_btn_save" disabled>
+                <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('ss_form');
+        var btn = document.getElementById('ss_btn_save');
+        var status = document.getElementById('ss_save_status');
+        var notifToggle = document.getElementById('ss_notif_toggle');
+        var notifBadge = document.getElementById('ss_notif_badge');
+        var siteName = document.getElementById('ss_site_name');
+        var siteNameField = document.getElementById('ss_field_site_name');
+        var leadInput = document.getElementById('ss_lead_time');
+        var chips = Array.prototype.slice.call(document.querySelectorAll('.ss-chip'));
+
+        if (!form) return;
+
+        var STATUS_CLEAN = '<svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.85rem;height:0.85rem"><path d="M20 6 9 17l-5-5"/></svg> All changes saved';
+        var STATUS_DIRTY = '<svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.85rem;height:0.85rem"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Unsaved changes';
+        var initial = {};
+
+        Array.prototype.forEach.call(form.querySelectorAll('input[name]'), function (input) {
+            initial[input.name] = input.type === 'checkbox' ? input.checked : input.value;
+        });
+
+        function isDirty() {
+            return Array.prototype.some.call(form.querySelectorAll('input[name]'), function (input) {
+                var current = input.type === 'checkbox' ? input.checked : input.value;
+                return current !== initial[input.name];
+            });
+        }
+
+        function refresh() {
+            var dirty = isDirty();
+            btn.disabled = !dirty;
+            status.classList.toggle('is-dirty', dirty);
+            status.innerHTML = dirty ? STATUS_DIRTY : STATUS_CLEAN;
+        }
+
+        function syncChips() {
+            var val = String(parseInt(leadInput.value, 10));
+            if (isNaN(parseInt(leadInput.value, 10))) val = null;
+            chips.forEach(function (chip) {
+                chip.classList.toggle('active', val !== null && chip.dataset.days === val);
+            });
+        }
+
+        chips.forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                leadInput.value = chip.dataset.days;
+                syncChips();
+                refresh();
+            });
+        });
+
+        function setNotifBadge(on) {
+            notifBadge.classList.toggle('ss-badge-on', on);
+            notifBadge.classList.toggle('ss-badge-off', !on);
+            notifBadge.innerHTML = on
+                ? '<svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.85rem;height:0.85rem"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Email alerts ON'
+                : '<svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.85rem;height:0.85rem"><path d="M8.7 3A6 6 0 0 1 18 8c0 2.5 1 4.3 1.9 5.6"/><path d="M17 17H3s3-2 3-9"/><path d="M6.1 6.1A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><line x1="2" x2="22" y1="2" y2="22"/></svg> Email alerts OFF';
+        }
+
+        // NOTE: Hindi ina-update agad ang header badge tuwin pinipindot ang toggle.
+        // Ang badge ay dapat sumunod lang sa NA-SAVE na state — mag-uupdate lang ito
+        // pagkatapos i-save (page reload mula sa server) o sa initial page load.
+
+        form.addEventListener('input', function (e) {
+            if (e.target === siteName) {
+                siteNameField.classList.remove('has-error');
+            }
+            if (e.target === leadInput) syncChips();
+            refresh();
+        });
+
+        // Warn bago umalis kapag may hindi na-save na changes
+        // (hindi dapat mag-warning kapag mismong nag-submit na)
+        var submitting = false;
+        window.addEventListener('beforeunload', function (e) {
+            if (!submitting && isDirty()) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        form.addEventListener('submit', function (e) {
+            if (!siteName.value.trim()) {
+                e.preventDefault();
+                siteNameField.classList.add('has-error');
+                siteName.focus();
+                siteName.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            submitting = true;
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="ss-svg ss-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.9rem;height:0.9rem"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Saving...';
+        });
+
+        // Initial state
+        setNotifBadge(notifToggle.checked);
+        syncChips();
+        refresh();
+    });
+</script>
+{% endblock %}

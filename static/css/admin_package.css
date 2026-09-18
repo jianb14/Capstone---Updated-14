@@ -31,15 +31,21 @@
     margin-right: 1rem;
     color: #b8b8b8;
     text-decoration: none;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
+    gap: 0.45rem;
     transition: color 0.2s;
     white-space: nowrap;
 }
 
 .btn-top-back:hover {
     color: #fff;
+}
+
+.btn-top-back i {
+    font-size: 0.85rem;
 }
 
 .breadcrumb {
@@ -272,7 +278,7 @@ td {
 }
 
 .action-buttons a {
-    padding: 0.375rem 0.75rem;
+    padding: 0.55rem 0.7rem;
     font-size: 0.75rem;
     border-radius: 6px;
     border: 1px solid;
@@ -345,105 +351,64 @@ td {
         gap: 0.5rem;
     }
 
-    table,
-    tr,
-    td {
-        display: block;
-        width: 100%;
-    }
-
-
-    tbody {
-        display: flex;
+    /* Section headers (Packages / Add-Ons / Additional Only):
+       title on top, button below but still right-aligned */
+    .title-header {
         flex-direction: column;
-        gap: 1rem;
+        align-items: flex-end;
+        gap: 0.25rem;
     }
 
-    thead {
-        display: none;
-    }
-
-    tbody tr {
-        background: #0f0f0f;
-        border: 1px solid #1f1f1f;
-        border-radius: 8px;
-        margin-bottom: 1.25rem;
-        padding: 1rem 1rem 0 1rem;
-        margin: 0;
-    }
-
-    td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid #1a1a1a;
-        padding: 12px 0;
-    }
-
-    td::before {
-        content: attr(data-label);
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #888;
-        text-transform: uppercase;
-    }
-
-    td:last-child {
-        border-bottom: none;
-    }
-
-    /* 🔥 ACTIONS — EXACT admin_user BEHAVIOR */
-    td[data-label="Actions"] {
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: stretch;
-        gap: 0.75rem;
-    }
-
-    td[data-label="Actions"]::before {
-        text-align: center;
+    .title-header h1 {
         width: 100%;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Keep tables as real tables on mobile — horizontal scroll instead of stacking */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 640px;
+    }
+
+    th,
+    td {
+        white-space: nowrap;
     }
 
     .action-buttons {
-        flex-direction: column;
-        width: 100%;
-        gap: 0.5rem;
-    }
-
-    .action-buttons a {
-        width: 100%;
-        padding: 0.625rem;
-        font-size: 0.8rem;
-        text-align: center;
-        box-sizing: border-box;
-    }
-
-    .table-container {
-        background: transparent;
-        border: none;
-        overflow-x: hidden;
+        justify-content: center;
     }
 }
 
 
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (dark mode) */
+.table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #4a4a4a #141414;
+}
+
 .table-container::-webkit-scrollbar {
-    height: 8px;
+    height: 10px;
 }
 
 .table-container::-webkit-scrollbar-track {
     background: #141414;
+    border-radius: 999px;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
-    border-radius: 4px;
+    background: #4a4a4a;
+    border: 2px solid #141414;
+    border-radius: 999px;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #616161;
 }
 
 /* Smooth Scroll */
@@ -783,6 +748,11 @@ td {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.45rem;
+}
+
+.detail-buttons a i {
+    font-size: 0.85rem;
 }
 
 
@@ -993,7 +963,7 @@ td {
 .form-group input:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.5);
+    border-color: #9ca3af;
 }
 
 .form-group .field-error {
@@ -1194,9 +1164,9 @@ td {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #4b5563 !important;
-    box-shadow: 0 0 0 1px #4b5563 !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
     outline: none !important;
 }
 
@@ -1252,4 +1222,184 @@ td {
 
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
+}
+
+/* ========================================================
+   PACKAGE PAGE LIGHT MODE FIXES
+   (restores per-button colors killed by admin_light_mode.css
+   blanket .action-buttons rule, fixes dividers, scrollbars,
+   checkbox visibility, and back-to-list link)
+   ======================================================== */
+
+/* ── List page: action buttons keep their colors ── */
+[data-theme="light"] .action-buttons a:nth-child(1) {
+    background: #f9fafb !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(1):hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(2) {
+    background: #f9fafb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(2):hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(3) {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(3):hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
+/* ── Detail (view) page: buttons keep color in light mode ── */
+[data-theme="light"] .action-buttons a.btn-back.detail {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-back.detail:hover {
+    background: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-edit.detail {
+    background: #f9fafb !important;
+    color: #4b5563 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-edit.detail:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-delete.detail {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-delete.detail:hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
+/* ── Detail page: black dividers → light gray in light mode ── */
+[data-theme="light"] .detail-title-price {
+    border-bottom-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .detail-left {
+    border-right-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .detail-notes {
+    border-left-color: #d1d5db !important;
+}
+
+[data-theme="light"] .detail-service-charge,
+[data-theme="light"] .detail-solo-price {
+    border-top-color: #e5e7eb !important;
+}
+
+/* ── Detail page: breadcrumb + top back link in light mode ── */
+[data-theme="light"] .breadcrumb a:hover {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .btn-top-back {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .btn-top-back:hover {
+    color: #111827 !important;
+}
+
+/* ── Form textareas: scrollbar colors per theme ── */
+[data-theme="light"] .form-group textarea {
+    scrollbar-color: #c9ced6 #f3f4f6;
+}
+
+[data-theme="light"] .form-group textarea::-webkit-scrollbar {
+    width: 10px;
+}
+
+[data-theme="light"] .form-group textarea::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-left: 1px solid #e5e7eb;
+}
+
+[data-theme="light"] .form-group textarea::-webkit-scrollbar-thumb {
+    background: #c9ced6;
+    border: 2px solid #f3f4f6;
+    border-radius: 10px;
+}
+
+[data-theme="light"] .form-group textarea::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Service charge textarea scrollbar (list page) */
+[data-theme="light"] .service-charge-field textarea {
+    scrollbar-color: #c9ced6 #f3f4f6;
+}
+
+[data-theme="light"] .service-charge-field textarea::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+[data-theme="light"] .service-charge-field textarea::-webkit-scrollbar-thumb {
+    background: #c9ced6;
+    border-radius: 8px;
+}
+
+[data-theme="light"] .service-charge-field textarea::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Table horizontal scroll scrollbar (light mode) */
+[data-theme="light"] .table-container {
+    scrollbar-color: #c9ced6 #f3f4f6;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 999px;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-thumb {
+    background: #c9ced6;
+    border: 2px solid #f3f4f6;
+    border-radius: 999px;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* ── Featured checkbox visible in light mode ── */
+[data-theme="light"] .package-form-card .featured-toggle-group .package-featured-toggle input[type="checkbox"],
+[data-theme="light"] .checkbox-group input[type="checkbox"] {
+    accent-color: #111827;
+}
+
+[data-theme="light"] .package-form-card .featured-toggle-group .package-featured-toggle span {
+    color: #374151;
 }

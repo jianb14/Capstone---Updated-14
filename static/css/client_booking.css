@@ -286,11 +286,11 @@
    #000 backgrounds above; only for available (future, non-disabled) days.
    Uniform na ISA lang ang kulay — transparent ang frame/top sa hover para
    walang 3 stacked grays */
-html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
     background-color: rgba(255, 255, 255, 0.08) !important;
 }
-html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
-html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
     background-color: transparent !important;
 }
 
@@ -503,6 +503,95 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
 #booking-calendar .fc .fc-daygrid-day.fc-day-other *,
 #booking-calendar .fc .fc-daygrid-day.fc-day-disabled * {
     cursor: default !important;
+}
+
+/* ========================================================
+   ADMIN-BLOCKED DATES (Unavailable)
+   SOLID red sa mismong cell — TRANSPARENT lahat ng children
+   para walang banding/hati na shades. May "Unavailable" text
+   sa gitna ng cell (inie-inject sa JS).
+   ======================================================== */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
+    position: relative;
+    background-color: #991b1b !important;
+    cursor: not-allowed !important;
+}
+
+/* TRANSPARENT ang lahat ng inner elements — iisa lang ang kulay,
+   walang magkakahiwalay na strips */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top,
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-events,
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-bg,
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-event-harness {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-weight: 700;
+}
+
+/* "Unavailable" text label sa gitna ng cell */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.95);
+    text-align: center;
+    line-height: 1.2;
+    padding-left: 4px;
+    padding-right: 4px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* MONTH view: nakatago ang "Unavailable" event pill — may text label na sa cell.
+   Iniwan ang event para may makita pa rin sa WEEK view (timeGrid). */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event {
+    display: none !important;
+}
+
+/* Parating may "not-allowed" cursor — kahit sa hover */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked *,
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover *,
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
+    cursor: not-allowed !important;
+}
+
+/* Patayin ang generic hover highlight sa blocked dates */
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
+    background-color: #991b1b !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
+    background-color: #b91c1c !important;
+    cursor: not-allowed !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-events,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-bg {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
+    background-color: #b91c1c !important;
 }
 
 /* Modal Time Inputs Layout */
@@ -2263,7 +2352,7 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
 [data-theme="light"] .custom-select-options {
     background: #ffffff;
     border-color: #e5e7eb;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="light"] .custom-select-options li { color: #111827; }
@@ -2610,11 +2699,11 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
    buong week row). Nasa dulo ng file para talunin ang generic
    `[data-theme="light"] tr:hover td` rule na nasa taas.
    ======================================================== */
-[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
     background-color: rgba(17, 24, 39, 0.04) !important;
 }
-[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
-[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
     background-color: transparent !important;
 }
 

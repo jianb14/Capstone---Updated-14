@@ -5,6 +5,51 @@
     margin-bottom: 2rem;
 }
 
+/* Header row: title + breadcrumb sa kaliwa, Back button sa kanan */
+.page-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Back button — same style as admin_reviews.css */
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #1f1f1f;
+    border-radius: 8px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.btn-back:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #444;
+}
+
+[data-theme="light"] .btn-back {
+    color: #4b5563 !important;
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .btn-back:hover {
+    color: #111827 !important;
+    background: #f3f4f6 !important;
+    border-color: #d1d5db !important;
+}
+
 .page-header h1 {
     font-size: 1.875rem;
     font-weight: 600;
@@ -193,7 +238,7 @@ td[data-label="Phone"] {
 }
 
 .action-buttons a {
-    padding: 0.55rem 0.55rem;
+    padding: 0.55rem 0.7rem;
     border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 500;
@@ -225,6 +270,21 @@ td[data-label="Phone"] {
 }
 
 .action-buttons a:nth-child(2):hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* 3rd button = Deactivate/Activate (toggle) — kailangan may sariling rule,
+   kung hindi default na asul na link color ng browser ang gamit nito.
+   Same neutral color lang ng Edit button (2nd). */
+.action-buttons a:nth-child(3) {
+    background: transparent;
+    color: #999999;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.action-buttons a:nth-child(3):hover {
     background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.15);
@@ -355,16 +415,17 @@ td[data-label="Phone"] {
         width: 8px;
         height: 8px;
         display: inline-block;
-        border-right: 2px solid #ffffff;
-        border-bottom: 2px solid #ffffff;
-        transform: rotate(45deg) translateY(-1px);
+        border-right: 1.5px solid #ffffff;
+        border-bottom: 1.5px solid #ffffff;
+        transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
         transition: transform 0.25s ease;
         opacity: 0.95;
         flex-shrink: 0;
     }
 
     .user-edit-form .role-field .custom-filter-dropdown.open .dropdown-caret {
-        transform: rotate(-135deg) translateY(-1px);
+        transform: translate(-1.6px, -1.6px) rotate(-135deg);
     }
 
     .user-edit-form .role-field .dropdown-options {
@@ -634,7 +695,7 @@ td[data-label="Phone"] {
 
     .action-buttons a {
         width: auto;
-        padding: 0.4rem 0.6rem;
+        padding: 0.55rem 0.7rem;
         font-size: 0.75rem;
     }
 
@@ -784,15 +845,16 @@ td[data-label="Phone"] {
     width: 8px;
     height: 8px;
     display: inline-block;
-    border-right: 2px solid #ffffff;
-    border-bottom: 2px solid #ffffff;
-    transform: rotate(45deg) translateY(-1px);
+    border-right: 1.5px solid #ffffff;
+    border-bottom: 1.5px solid #ffffff;
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.25s ease;
     opacity: 0.95;
 }
 
 .search-bar .custom-filter-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg) translateY(-1px);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
 }
 
 .search-bar .custom-filter-dropdown .dropdown-options {
@@ -946,39 +1008,6 @@ td[data-label="Phone"] {
     overflow: hidden;
     min-width: 0;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.user-summary-grid .booking-summary-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    height: 2px;
-    opacity: 0.95;
-}
-
-.user-summary-grid .booking-summary-card--total::before {
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-}
-
-.user-summary-grid .booking-summary-card--confirmed::before {
-    background: linear-gradient(90deg, #14b8a6, #2dd4bf);
-}
-
-.user-summary-grid .booking-summary-card--cancelled::before {
-    background: linear-gradient(90deg, #dc2626, #ef4444);
-}
-
-.user-summary-grid .booking-summary-card--payment::before {
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
-}
-
-.user-summary-grid .booking-summary-card--pending::before {
-    background: linear-gradient(90deg, #d97706, #f59e0b);
-}
-
-.user-summary-grid .booking-summary-card--expired::before {
-    background: linear-gradient(90deg, #6b7280, #9ca3af);
 }
 
 .user-summary-grid .booking-summary-card:hover {
@@ -1184,22 +1213,21 @@ td[data-label="Phone"] {
     background: #dc2626 !important;
 }
 
-/* Action Buttons â€” visible on white surface */
+/* Action Buttons — matches admin_package.css light mode */
 [data-theme="light"] .action-buttons a:first-child {
     background: #f9fafb !important;
-    color: #374151 !important;
-    border-color: #d1d5db !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
 }
 
 [data-theme="light"] .action-buttons a:first-child:hover {
     background: #f3f4f6 !important;
     color: #111827 !important;
-    border-color: #9ca3af !important;
 }
 
 [data-theme="light"] .action-buttons a:nth-child(2) {
-    background: #ffffff !important;
-    color: #4b5563 !important;
+    background: #f9fafb !important;
+    color: #6b7280 !important;
     border-color: #d1d5db !important;
 }
 
@@ -1209,16 +1237,28 @@ td[data-label="Phone"] {
     border-color: #9ca3af !important;
 }
 
+/* 3rd button = Deactivate/Activate (toggle) — same neutral color ng Edit sa light mode */
+[data-theme="light"] .action-buttons a:nth-child(3) {
+    background: #f9fafb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(3):hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
 [data-theme="light"] .action-buttons a:last-child {
     background: #ffffff !important;
     color: #dc2626 !important;
-    border-color: rgba(220, 38, 38, 0.35) !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
 }
 
 [data-theme="light"] .action-buttons a:last-child:hover {
     background: rgba(220, 38, 38, 0.08) !important;
     color: #b91c1c !important;
-    border-color: #dc2626 !important;
 }
 
 /* Pagination â€” visible in light mode */
@@ -1287,7 +1327,7 @@ td[data-label="Phone"] {
 [data-theme="light"] .search-bar .custom-filter-dropdown .dropdown-options {
     background: #ffffff !important;
     border-color: #e5e7eb !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-theme="light"] .search-bar .custom-filter-dropdown .dropdown-options li {
@@ -1307,7 +1347,7 @@ td[data-label="Phone"] {
 [data-theme="light"] .user-edit-form .role-field .dropdown-options {
     background: #ffffff !important;
     border-color: #e5e7eb !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-theme="light"] .user-edit-form .role-field .dropdown-options li {
@@ -1379,9 +1419,9 @@ td[data-label="Phone"] {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -1436,4 +1476,498 @@ td[data-label="Phone"] {
 
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
+}
+
+/* ── Activity stats ──────────────────────────────────── */
+.ud-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.ud-stat {
+    background: var(--ud-card);
+    border: 1px solid var(--ud-bdr);
+    border-radius: 12px;
+    padding: 0.85rem 1.1rem;
+    min-width: 0;
+}
+
+.ud-stat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.ud-stat-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ud-t3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ud-stat-head svg {
+    width: 15px;
+    height: 15px;
+    color: var(--ud-t3);
+    flex-shrink: 0;
+}
+
+.ud-stat-value {
+    margin-top: 0.35rem;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--ud-t1);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.ud-stat-note {
+    font-size: 0.7rem;
+    color: var(--ud-t3);
+    margin-top: 0.1rem;
+}
+
+/* ── Cards ───────────────────────────────────────────── */
+.ud-card {
+    background: var(--ud-card);
+    border: 1px solid var(--ud-bdr);
+    border-radius: 12px;
+    padding: 1rem 1.25rem 1.15rem;
+}
+
+.ud-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.ud-card-head h3 {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ud-t3);
+}
+
+.ud-count {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--ud-t3);
+    background: var(--ud-card-2);
+    border: 1px solid var(--ud-bdr);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Contact info grid ───────────────────────────────── */
+.ud-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.85rem 1.5rem;
+}
+
+.ud-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.ud-info-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ud-t3);
+}
+
+.ud-info-label svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+}
+
+.ud-info-value {
+    font-size: 0.87rem;
+    color: var(--ud-t1);
+    overflow-wrap: anywhere;
+    padding-left: 0.1rem;
+}
+
+/* ── Status indicators (colored text, no bullet) ─────── */
+.ud-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.ud-status.is-ok { color: var(--ud-ok); }
+.ud-status.is-warn { color: var(--ud-warn); }
+.ud-status.is-bad { color: var(--ud-bad); }
+
+/* Light mode: ibalik ang kulay ng mga status text — tinatabunan ng generic
+   [data-theme="light"] span rule (na !important) ng admin_light_mode.css */
+[data-theme="light"] .ud-status.is-ok {
+    color: #059669 !important;
+}
+
+[data-theme="light"] .ud-status.is-warn {
+    color: #b45309 !important;
+}
+
+[data-theme="light"] .ud-status.is-bad {
+    color: #dc2626 !important;
+}
+
+/* ── Tables ──────────────────────────────────────────── */
+.ud-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.ud-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 620px;
+}
+
+.ud-table thead {
+    background: var(--ud-card-2);
+    border-bottom: 1px solid var(--ud-bdr);
+}
+
+.ud-table th {
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ud-t3);
+    white-space: nowrap;
+}
+
+.ud-table td {
+    padding: 0.7rem 0.75rem;
+    font-size: 0.84rem;
+    color: var(--ud-t1);
+    border-bottom: 1px solid var(--ud-bdr);
+    vertical-align: middle;
+}
+
+.ud-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ud-table tbody tr:hover td {
+    background: var(--ud-hover);
+}
+
+.ud-ref {
+    font-variant-numeric: tabular-nums;
+    color: var(--ud-t1);
+}
+
+.ud-note {
+    font-size: 0.75rem;
+    color: var(--ud-t3);
+}
+
+.ud-cell-action {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.ud-link {
+    font-size: 0.78rem;
+    color: var(--ud-accent);
+    text-decoration: none;
+}
+
+.ud-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Reviews ─────────────────────────────────────────── */
+.ud-reviews {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.ud-review {
+    background: var(--ud-card-2);
+    border: 1px solid var(--ud-bdr);
+    border-radius: 10px;
+    padding: 0.7rem 0.95rem;
+}
+
+.ud-review-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ud-stars {
+    color: var(--ud-warn);
+    font-size: 0.82rem;
+    letter-spacing: 0.1em;
+}
+
+.ud-review-text {
+    margin: 0.35rem 0 0;
+    font-size: 0.84rem;
+    color: var(--ud-t2);
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+.ud-empty {
+    margin: 0;
+    padding: 0.5rem 0;
+    font-size: 0.82rem;
+    color: var(--ud-t3);
+}
+
+/* ========================================================
+   USER DETAIL VIEW (ud-) — minimalist, theme-aware
+   ======================================================== */
+.ud-wrap {
+    --ud-card: #0f0f0f;
+    --ud-card-2: #141414;
+    --ud-bdr: #1f1f1f;
+    --ud-bdr-h: rgba(255, 255, 255, 0.16);
+    --ud-hover: #141414;
+    --ud-t1: #f3f4f6;
+    --ud-t2: #9ca3af;
+    --ud-t3: #6b7280;
+    --ud-ok: #4ade80;
+    --ud-warn: #fbbf24;
+    --ud-bad: #f87171;
+    --ud-accent: #60a5fa;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+[data-theme="light"] .ud-wrap {
+    --ud-card: #ffffff;
+    --ud-card-2: #f9fafb;
+    --ud-bdr: #e5e7eb;
+    --ud-bdr-h: rgba(0, 0, 0, 0.18);
+    --ud-hover: #f9fafb;
+    --ud-t1: #111827;
+    --ud-t2: #4b5563;
+    --ud-t3: #6b7280;
+    --ud-ok: #059669;
+    --ud-warn: #b45309;
+    --ud-bad: #dc2626;
+    --ud-accent: #2563eb;
+}
+
+/* ── Profile header card ─────────────────────────────── */
+/* ── Profile header card ─────────────────────────────── */
+.ud-profile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: var(--ud-card);
+    border: 1px solid var(--ud-bdr);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+.ud-profile-id {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+}
+
+.ud-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #111111;
+    background: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="light"] .ud-avatar {
+    color: #ffffff;
+    background: #111827;
+    border-color: #111827;
+}
+
+.ud-profile-meta {
+    min-width: 0;
+}
+
+.ud-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ud-t1);
+    letter-spacing: -0.01em;
+}
+
+.ud-sub {
+    font-size: 0.78rem;
+    color: var(--ud-t3);
+    margin-top: 0.1rem;
+}
+
+.ud-profile-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.ud-profile-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ud-btn-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+.ud-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    text-decoration: none;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--ud-bdr);
+    color: var(--ud-t2);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.ud-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.ud-btn:hover {
+    color: var(--ud-t1);
+    border-color: var(--ud-bdr-h);
+    background: var(--ud-hover);
+}
+
+.ud-btn--primary {
+    color: #111111;
+    border-color: #ffffff;
+    background: #ffffff;
+    font-weight: 600;
+}
+
+.ud-btn--primary:hover {
+    color: #111111;
+    border-color: #e5e5e5;
+    background: #e5e5e5;
+}
+
+[data-theme="light"] .ud-btn--primary {
+    color: #ffffff;
+    border-color: #111827;
+    background: #111827;
+}
+
+[data-theme="light"] .ud-btn--primary:hover {
+    color: #ffffff;
+    border-color: #1f2937;
+    background: #1f2937;
+}
+
+/* ── Responsive (User Detail) ────────────────────────── */
+/* Dapat nasa PINAKADULO ng file ito para manalo sa source order
+   laban sa mga base .ud- rules sa taas (pareho ang specificity). */
+@media (max-width: 768px) {
+    .ud-profile {
+        flex-direction: column;
+        align-items: flex-start; /* kaliwa: avatar, name, @username, badges */
+    }
+
+    .ud-profile-id,
+    .ud-profile-meta {
+        text-align: left;
+    }
+
+    /* Naka-stack nang vertikal: Edit User sa itaas, Send Password Reset sa ibaba
+       (DOM order ang sundan ng 1fr column, kaya full-width at pantay ang dalawa) */
+    .ud-profile-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .ud-profile-actions .ud-btn {
+        width: 100%;
+        justify-content: center;
+        white-space: normal; /* baka mag-wrap kung sobrangikip, pero pantay pa rin ang height (grid stretch) */
+        text-align: center;
+    }
+
+    .ud-profile-actions .ud-btn-form {
+        display: flex;
+    }
+
+    /* Kung iisa lang ang button (hal. staff viewer), full-width na lang */
+    .ud-profile-actions > .ud-btn:only-child,
+    .ud-profile-actions > .ud-btn-form:only-child {
+        grid-column: 1 / -1;
+    }
+
+    .ud-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .ud-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ud-card {
+        padding: 0.9rem 0.9rem 1rem;
+    }
 }

@@ -50,17 +50,24 @@
 
 .btn-top-back {
     margin-top: 1rem;
+    margin-right: 1rem;
     color: #b8b8b8;
     text-decoration: none;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
+    gap: 0.45rem;
     transition: color 0.2s;
     white-space: nowrap;
 }
 
 .btn-top-back:hover {
     color: #fff;
+}
+
+.btn-top-back i {
+    font-size: 0.85rem;
 }
 
 .title-header {
@@ -154,15 +161,16 @@
     width: 8px;
     height: 8px;
     display: inline-block;
-    border-right: 2px solid #ffffff;
-    border-bottom: 2px solid #ffffff;
-    transform: rotate(45deg) translateY(-1px);
+    border-right: 1.5px solid #ffffff;
+    border-bottom: 1.5px solid #ffffff;
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.25s ease;
     opacity: 0.95;
 }
 
 .gallery-filter-form .custom-filter-dropdown.open .dropdown-trigger .dropdown-caret {
-    transform: rotate(-135deg) translateY(-1px);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
 }
 
 .gallery-filter-form .custom-filter-dropdown .dropdown-options {
@@ -249,6 +257,28 @@
     border-radius: 12px;
     overflow-x: auto;
     transition: opacity 0.2s ease;
+    /* Slim rounded pill scrollbar (dark mode) */
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a #141414;
+}
+
+.table-container::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #141414;
+    border-radius: 999px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #3a3a3a;
+    border-radius: 999px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #4a4a4a;
 }
 
 table {
@@ -445,13 +475,12 @@ td {
 }
 
 .canvas-assets-table td[data-label="Actions"] .action-buttons a {
-    padding: 0.28rem 0.52rem;
-    font-size: 0.7rem;
-    line-height: 1.1;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.75rem;
 }
 
 .action-buttons a {
-    padding: 0.375rem 0.75rem;
+    padding: 0.55rem 0.7rem;
     font-size: 0.75rem;
     border-radius: 6px;
     border: 1px solid;
@@ -691,6 +720,54 @@ td {
     justify-content: flex-end !important;
 }
 
+/* Detail action buttons (kapareho ng admin package detail page) */
+.detail-buttons a {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
+.detail-buttons a i {
+    font-size: 0.85rem;
+}
+
+.action-buttons a.btn-back.detail {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.action-buttons a.btn-back.detail:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.action-buttons a.btn-edit.detail {
+    background: transparent;
+    color: #9ca3af;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.action-buttons a.btn-edit.detail:hover {
+    color: #ffffff;
+}
+
+.action-buttons a.btn-delete.detail {
+    background: transparent;
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.action-buttons a.btn-delete.detail:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
 @media (max-width: 768px) {
     .detail-page-header {
         flex-direction: column;
@@ -712,13 +789,14 @@ td {
 
     .title-header {
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-end;
         gap: 0.6rem;
     }
 
     .title-header h1 {
         font-size: 2rem;
         margin-bottom: 0;
+        width: 100%;
     }
 
     .gallery-images-toolbar {
@@ -746,49 +824,20 @@ td {
         text-overflow: clip;
     }
 
-    table,
-    tr,
-    td {
-        display: block;
-        width: 100%;
+    /* Panatilihing totoong table sa mobile — may horizontal scrollbar
+       imbes na card-style layout */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
-    tbody {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
+    .table-container table {
+        min-width: 760px;
     }
 
-    thead {
-        display: none;
-    }
-
-    tbody tr {
-        background: #0f0f0f;
-        border: 1px solid #1f1f1f;
-        border-radius: 8px;
-        margin: 0;
-        padding: 1rem 1rem 0 1rem;
-    }
-
-    td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid #1a1a1a;
-        padding: 12px 0;
-    }
-
-    td::before {
-        content: attr(data-label);
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #888;
-        text-transform: uppercase;
-    }
-
-    td:last-child {
-        border-bottom: none;
+    .gallery-images-table,
+    .gallery-categories-table {
+        table-layout: auto;
     }
 
     .action-buttons {
@@ -1105,15 +1154,16 @@ td {
     width: 8px;
     height: 8px;
     display: inline-block;
-    border-right: 2px solid #ffffff;
-    border-bottom: 2px solid #ffffff;
-    transform: rotate(45deg) translateY(-1px);
+    border-right: 1.5px solid #ffffff;
+    border-bottom: 1.5px solid #ffffff;
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.25s ease;
     opacity: 0.95;
 }
 
 .gallery-image-form .gallery-category-group .custom-filter-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg) translateY(-1px);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
 }
 
 .gallery-image-form .gallery-category-group .dropdown-options {
@@ -1225,6 +1275,9 @@ td {
 .gallery-image-form .active-toggle-box input[type="checkbox"] {
     width: 1.05rem;
     height: 1.05rem;
+    flex: 0 0 auto;
+    margin: 0;
+    align-self: center;
     accent-color: #ffffff;
     cursor: pointer;
 }
@@ -1235,6 +1288,8 @@ td {
     color: #dfdfdf;
     letter-spacing: 0.01em;
     text-transform: none;
+    line-height: 1.3;
+    align-self: center;
 }
 
 .gallery-image-form .custom-file-input {
@@ -1287,6 +1342,45 @@ td {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Gallery images table preview thumbnail (dark mode: may border, light mode: wala) */
+.gallery-images-table .gallery-preview-thumb {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+}
+
+[data-theme="light"] .gallery-images-table .gallery-preview-thumb {
+    border: none;
+}
+
+/* Light mode — Choose File custom file input (Add/Edit Image form) */
+[data-theme="light"] .gallery-image-form .custom-file-input {
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+}
+
+[data-theme="light"] .gallery-image-form .form-group.has-error .custom-file-input {
+    border-color: #ef4444 !important;
+}
+
+[data-theme="light"] .gallery-image-form .custom-file-input .file-trigger-btn {
+    border: 1px solid #d1d5db;
+    background: #e5e7eb;
+    color: #374151;
+}
+
+[data-theme="light"] .gallery-image-form .custom-file-input .file-trigger-btn:hover {
+    border-color: #9ca3af;
+    background: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .gallery-image-form .custom-file-input .file-name-text {
+    color: #4b5563;
 }
 
 body.modal-open {
@@ -1464,6 +1558,68 @@ body.modal-open {
     background-color: #f9fafb !important;
 }
 
+/* ========================================================
+   LIGHT MODE — Table action buttons (matches admin_package.css)
+   nth-child fallbacks para sa category rows (edit + delete, walang class)
+   ======================================================== */
+[data-theme="light"] .action-buttons a:nth-child(1) {
+    background: #f9fafb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(1):hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(2) {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a:nth-child(2):hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
+/* class-based buttons (gallery images rows at detail page) */
+[data-theme="light"] .action-buttons a.view-btn {
+    background: #f9fafb !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .action-buttons a.view-btn:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a.edit-btn {
+    background: #f9fafb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a.edit-btn:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .action-buttons a.delete-btn {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.delete-btn:hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
 [data-theme="light"] input[type="text"],
 [data-theme="light"] input[type="email"],
 [data-theme="light"] input[type="password"],
@@ -1480,9 +1636,9 @@ body.modal-open {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -1537,4 +1693,176 @@ body.modal-open {
 
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
+}
+
+/* ========================================================
+   LIGHT MODE — Gallery Image Details (view) page
+   (kapareho ng package detail: white card, light borders,
+   dark text, at back-to-list link)
+   ======================================================== */
+
+/* ── Detail card ── */
+[data-theme="light"] .gallery-detail-card {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .gallery-detail-title-row {
+    border-bottom-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .gallery-detail-title-row h2 {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .gallery-detail-status.is-active {
+    color: #059669 !important;
+    border-color: rgba(5, 150, 105, 0.4) !important;
+    background: rgba(16, 185, 129, 0.12) !important;
+}
+
+[data-theme="light"] .gallery-detail-status.is-hidden {
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.35) !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+}
+
+[data-theme="light"] .gallery-detail-field h4 {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .gallery-detail-field p {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .gallery-detail-file {
+    color: #4b5563 !important;
+}
+
+/* ── Top back-to-list link (kapareho ng admin package) ── */
+[data-theme="light"] .btn-top-back {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .btn-top-back:hover {
+    color: #111827 !important;
+}
+
+/* ── Detail action buttons sa light mode (kapareho ng admin package) ── */
+[data-theme="light"] .action-buttons a.btn-back.detail {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-back.detail:hover {
+    background: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-edit.detail {
+    background: #f9fafb !important;
+    color: #4b5563 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-edit.detail:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-delete.detail {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.btn-delete.detail:hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
+/* ── Edit Image form: Active checkbox (active-toggle-box) sa light mode ── */
+[data-theme="light"] .gallery-image-form .active-toggle-box {
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    display: flex;
+    align-items: center;
+}
+
+[data-theme="light"] .gallery-image-form .active-toggle-box input[type="checkbox"] {
+    accent-color: #111827;
+    cursor: pointer;
+    /* I-neutralize ang generic [data-theme="light"] input rule para
+       hindi lumaki/umalis sa center ang checkbox */
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    min-width: 1.05rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    align-self: center !important;
+}
+
+[data-theme="light"] .gallery-image-form .active-toggle-box span {
+    color: #374151;
+    line-height: 1.3;
+    align-self: center;
+}
+
+/* ── "Click to view full image" hint pill — hindi dapat matabunan ng
+   generic [data-theme="light"] span { color: ... } rule (nagiging
+   dark-on-dark kung wala ito) ── */
+[data-theme="light"] .gallery-detail-image-hint {
+    background: rgba(17, 24, 39, 0.78) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .gallery-image-form .current-image-shell .image-preview-hint {
+    background: rgba(17, 24, 39, 0.78) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff !important;
+}
+
+/* ── Edit Image form: Current Image shell — light gray border ── */
+[data-theme="light"] .gallery-image-form .current-image-shell {
+    border-color: #d1d5db;
+    background: #f3f4f6;
+}
+
+/* ── Light mode: table scrollbar (slim pill, kapareho ng admin booking) ── */
+[data-theme="light"] .table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #9ca3af #e5e7eb;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-track {
+    background: #e5e7eb;
+    border-radius: 999px;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-radius: 999px;
+}
+
+[data-theme="light"] .table-container::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* ========================================================
+   LIGHT MODE — Status badges sa gallery tables (Active/Hidden)
+   (dinadagan ng generic [data-theme="light"] span rule ng
+   admin_light_mode.css kung wala ito)
+   ======================================================== */
+[data-theme="light"] .status-badge.active {
+    color: #059669 !important;
+}
+
+[data-theme="light"] .status-badge.inactive {
+    color: #dc2626 !important;
 }

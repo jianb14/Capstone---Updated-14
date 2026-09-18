@@ -80,6 +80,101 @@ class BookingImage(models.Model):
         return f"Image for Booking {self.booking.id}"
 
 
+# -----------------------------
+# 2️⃣b Booking Status Log (status history timeline)
+# -----------------------------
+class BookingStatusLog(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='status_logs')
+    old_status = models.CharField(max_length=20, blank=True, default='')
+    new_status = models.CharField(max_length=20)
+    changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='booking_status_changes')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Booking Status Log'
+        verbose_name_plural = 'Booking Status Logs'
+
+    def __str__(self):
+        return f"Booking #{self.booking_id}: {self.old_status or '—'} → {self.new_status}"
+
+
+# -----------------------------
+# 2️⃣c Blocked Date (blockout dates — dates clients cannot book)
+# -----------------------------
+class BlockedDate(models.Model):
+    date = models.DateField(unique=True)
+    reason = models.CharField(max_length=255, blank=True, default='')
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='blocked_dates'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['date']
+        verbose_name = 'Blocked Date'
+        verbose_name_plural = 'Blocked Dates'
+
+    def __str__(self):
+        return f"{self.date.strftime('%B %d, %Y')} — {self.reason or 'Unavailable'}"
+
+
+# -----------------------------
+# 2️⃣d Site Settings (singleton — central admin configuration)
+# -----------------------------
+class SiteSettings(models.Model):
+    site_name = models.CharField(max_length=150, default='Balloorina')
+    contact_email = models.CharField(max_length=255, blank=True, default='')
+    contact_phone = models.CharField(max_length=50, blank=True, default='')
+    address = models.CharField(max_length=255, blank=True, default='')
+    facebook_link = models.URLField(blank=True, default='')
+    instagram_link = models.URLField(blank=True, default='')
+    booking_lead_time_days = models.PositiveIntegerField(
+        default=0,
+        help_text='Minimum number of days between today and a booking date. 0 = no lead time requirement.',
+    )
+    admin_emails_for_notifications = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text='Comma-separated email addresses that receive admin alert emails. Leave empty to disable.',
+    )
+    email_notifications_enabled = models.BooleanField(
+        default=True,
+        help_text='Send email alerts to admin when new bookings, payments, or concerns come in.',
+    )
+    updated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='site_settings_updates'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+
+    def __str__(self):
+        return f"Site Settings ({self.site_name})"
+
+    @classmethod
+    def load(cls):
+        """Singleton loader — always returns exactly one settings row."""
+        settings_obj = cls.objects.first()
+        if settings_obj is None:
+            settings_obj = cls.objects.create()
+        return settings_obj
+
+    def admin_notification_emails(self):
+        """Return the parsed list of admin alert emails."""
+        if not self.email_notifications_enabled:
+            return []
+        return [
+            email.strip()
+            for email in (self.admin_emails_for_notifications or "").split(",")
+            if email.strip()
+        ]
+
+
 
 # -----------------------------
 # 3️⃣ Design
@@ -186,6 +281,22 @@ class ReviewImage(models.Model):
         return f"Image for Review {self.review.id}"
 
 
+class ReviewReply(models.Model):
+    """Official admin response to a customer review, shown publicly."""
+    review = models.OneToOneField(Review, on_delete=models.CASCADE, related_name='reply')
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='review_replies')
+    reply_text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Review Reply'
+        verbose_name_plural = 'Review Replies'
+
+    def __str__(self):
+        return f"Reply to Review {self.review_id} by {self.admin.username if self.admin else 'Admin'}"
+
+
 # -----------------------------
 # 6️⃣ ChatSession & ChatMessage
 # -----------------------------
@@ -251,6 +362,17 @@ class ChatMessage(models.Model):
         blank=True,
         related_name="replies",
     )
+    # Pinned messages (Messenger-style) — either side (client or admin) can
+    # pin a message so both instantly see the important ones.
+    is_pinned = models.BooleanField(default=False, db_index=True)
+    pinned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="pinned_chat_messages",
+        null=True,
+        blank=True,
+    )
+    pinned_at = models.DateTimeField(null=True, blank=True)
 
     @property
     def is_from_admin(self):
@@ -633,11 +755,9 @@ class CanvasAsset(models.Model):
 
 
 class HomeContent(models.Model):
+    hero_label = models.CharField(max_length=255, blank=True, default='')
     hero_title = models.CharField(max_length=255, blank=True, default='')
     hero_subheadline = models.TextField(blank=True, default='')
-    hero_main_image = models.ImageField(upload_to='home_content/', blank=True, null=True)
-    hero_float_top_image = models.ImageField(upload_to='home_content/', blank=True, null=True)
-    hero_float_bottom_image = models.ImageField(upload_to='home_content/', blank=True, null=True)
     stat_events_styled = models.CharField(max_length=50, blank=True, default='')
     stat_rating = models.CharField(max_length=50, blank=True, default='')
     stat_satisfaction = models.CharField(max_length=50, blank=True, default='')
@@ -657,8 +777,6 @@ class HomeContent(models.Model):
     faq_subtitle = models.TextField(blank=True, default='')
     cta_title = models.CharField(max_length=255, blank=True, default='')
     cta_subtitle = models.TextField(blank=True, default='')
-    cta_primary_text = models.CharField(max_length=100, blank=True, default='')
-    cta_secondary_text = models.CharField(max_length=100, blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

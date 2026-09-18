@@ -1,17 +1,19 @@
 .concern-page {
     min-height: calc(100vh - 120px);
-    padding: 116px 20px 30px;
+    padding: 115px 20px 80px;
+    /* Dot pattern — eksaktong kapareho ng hero section sa home page (18px grid) */
     background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
-    background-size: 25px 25px;
+    background-size: 18px 18px;
 }
 
 .concern-wrap {
     max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+    /* Default: SINGLE COLUMN — ang two-column layout ay nasa @media (min-width: 1200px) sa ibaba */
+    grid-template-columns: 1fr;
     gap: 14px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .panel {
@@ -23,14 +25,19 @@
 }
 
 .concern-history-panel {
-    grid-column: 1;
-    grid-row: 1;
     padding: 16px 12px 12px;
+    display: flex;
+    flex-direction: column;
 }
 
-.concern-report-panel {
-    grid-column: 2;
-    grid-row: 1;
+/* ── Two-column (side-by-side) layout — ONLY kapag ≥1200px ang viewport ──
+   Dati max-width: 1024px ang single-column breakpoint, kaya naghihiwalay pa rin
+   sa 1025px–1199px (maliit na laptop / docked DevTools). Gamit ang min-width,
+   siguradong single column ang lahat ng width na mas maliit sa 1200px. */
+@media (min-width: 1200px) {
+    .concern-wrap { grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); }
+    .concern-history-panel { grid-column: 1; grid-row: 1; }
+    .concern-report-panel { grid-column: 2; grid-row: 1; }
 }
 
 h2 {
@@ -47,10 +54,17 @@ h1 {
     font-size: 0.85rem;
 }
 
+.history-sub {
+    color: #98a1ab;
+    margin: 6px 5px 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
 .concern-form {
     margin-top: 15px;
     display: grid;
-    gap: 9px;
+    gap: 4px;
 }
 
 .concern-form label {
@@ -58,6 +72,12 @@ h1 {
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+/* Reset base.css .form-group label para pantay sa ibang labels */
+.concern-form .form-group label {
+    font-weight: inherit;
+    margin-bottom: 4px;
 }
 
 
@@ -83,6 +103,7 @@ h1 {
     font-family: inherit;
     font-size: 0.95rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    margin-bottom: 10px;
 }
 
 .concern-form input:hover,
@@ -95,8 +116,39 @@ h1 {
 .concern-form textarea:focus,
 .concern-form select:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.45);
-    background: #101010;
+    border-color: #6b7280;
+    background: #0b0b0b;
+    box-shadow: none;
+}
+
+/* Custom file input (Choose Files) — compact padding, kapareho ng file-trigger-btn sa admin gallery */
+.concern-form input[type="file"] {
+    padding: 8px 8px;
+    color: #9aa1ab;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.concern-form input[type="file"]::file-selector-button {
+    border: 1px solid #4b4b4b;
+    background: linear-gradient(180deg, #232323 0%, #181818 100%);
+    color: #f4f4f4;
+    border-radius: 6px;
+    padding: 4px 12px;
+    margin-right: 10px;
+    font-family: Montserrat, sans-serif;
+    font-size: 0.84rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.concern-form input[type="file"]::file-selector-button:hover {
+    border-color: #6a6a6a;
+    background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
 }
 
 .concern-form .field-error {
@@ -179,6 +231,7 @@ h1 {
     gap: 20px;
     cursor: pointer;
     transition: all 0.22s ease;
+    margin-bottom: 10px;
 }
 
 .custom-filter-dropdown .dropdown-trigger i {
@@ -188,8 +241,9 @@ h1 {
 }
 
 .custom-filter-dropdown.open .dropdown-trigger {
-    border-color: rgba(255, 255, 255, 0.45);
-    background: #101010;
+    border-color: #6b7280;
+    background: #0b0b0b;
+    box-shadow: none;
 }
 
 .custom-filter-dropdown.open .dropdown-trigger i {
@@ -198,7 +252,6 @@ h1 {
 
 .custom-filter-dropdown .dropdown-options {
     list-style: none;
-    margin: 6px 0 0;
     padding: 6px;
     position: absolute;
     left: 0;
@@ -329,7 +382,38 @@ td {
 .status-new { color: #f59e0b; }
 .status-in_progress { color: #3b82f6; }
 .status-resolved { color: #10b981; }
-.empty { color: #808894; }
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex: 1;
+    width: 100%;
+    padding: 48px 16px 40px;
+}
+
+.empty-state .empty-icon i {
+    font-size: 4rem;
+    font-weight: 400;
+    line-height: 1;
+    color: #98a1ab;
+}
+
+.empty-state h3 {
+    margin: 12px 0 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+.empty-state p {
+    margin: 6px 0 0;
+    color: #808894;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-width: 340px;
+}
 
 .btn-view-concern {
     border: 1px solid #3a3a3a;
@@ -508,7 +592,6 @@ td {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.5rem;
-    margin-top: 1rem; /* More space for the X button */
     width: 100%;
     padding: 5px; /* Add internal padding so X buttons don't get cut off */
     box-sizing: border-box;
@@ -575,20 +658,41 @@ td {
     transform: scale(1.05);
 }
 
-@media (max-width: 768px) {
-    .concern-page { padding-top: 100px; }
+@media (max-width: 1199px) {
+    /* Single column sa lahat ng viewport na mas maliit sa 1200px (default na ng .concern-wrap) */
+    .concern-page { padding: 90px 1.25rem 30px; }
     .panel { padding: 16px; }
-    .concern-wrap { max-width: 100%; grid-template-columns: 1fr; }
-    .concern-history-panel,
-    .concern-report-panel { grid-column: 1; grid-row: auto; }
+    .concern-history-panel { padding: 16px; }
+    .concern-wrap { max-width: 100%; gap: 12px; }
+    h1 { font-size: 1.35rem; }
+    h2 { font-size: 1.15rem; }
+    .concern-history-panel table { min-width: 640px; }
+    .image-preview-grid { grid-template-columns: repeat(3, 1fr); }
+    /* May padding ang Choose File input field kapag responsive (single column) */
+    .concern-form input[type="file"] { padding: 8px 10px; }
+    .concern-form input[type="file"]::file-selector-button { padding: 4px 10px; }
+}
+
+@media (max-width: 480px) {
+    .concern-page { padding: 84px 1rem 24px; }
+    .concern-form input,
+    .concern-form textarea,
+    .concern-form select { font-size: 0.9rem; }
+    .concern-form input[type="file"] { padding: 6px 8px; }
+    .concern-form input[type="file"]::file-selector-button { padding: 3px 8px; font-size: 0.78rem; margin-right: 8px; }
+    .image-preview-grid { grid-template-columns: repeat(2, 1fr); }
+    .btn-view-concern { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
+    .empty-state { padding: 36px 12px 28px; }
 }
 
 @media (max-width: 700px) {
     .client-concern-modal .concern-modal-head { padding: 1.25rem 1rem 0.35rem; }
     .client-concern-modal .concern-modal-body { padding: 0.35rem 1rem 1.2rem; }
-    .client-concern-modal .concern-modal-head h3 { font-size: 2rem; }
+    /* Fix: dati 2rem ito (mas malaki pa sa desktop) — dapat mas maliit sa mobile */
+    .client-concern-modal .concern-modal-head h3 { font-size: 1.3rem; }
     .client-concern-modal .detail-row span,
-    .client-concern-modal .detail-row strong { font-size: 1rem; }
+    .client-concern-modal .detail-row strong { font-size: 0.85rem; }
+    .client-concern-modal .detail-block p { font-size: 0.85rem; }
 }
 
 
@@ -662,9 +766,9 @@ td {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -719,4 +823,265 @@ td {
 
 [data-theme="light"] .canvas-container {
     background-color: #f3f4f6 !important;
+}
+
+/* ========================================================
+   REPORT CONCERN PAGE — LIGHT THEME FIXES
+   (background shorthand / gradients need explicit resets)
+   ======================================================== */
+[data-theme="light"] .concern-page {
+    background-color: #ffffff;
+    /* Kapareho ng [data-theme="light"] .hero sa base.css (rgba 0.12 @ 18px grid) */
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+[data-theme="light"] .concern-page .panel {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .concern-page .sub,
+[data-theme="light"] .concern-page .history-sub {
+    color: #6b7280;
+}
+
+[data-theme="light"] .concern-page .concern-form label {
+    color: #4b5563;
+}
+
+[data-theme="light"] .concern-page .concern-form input,
+[data-theme="light"] .concern-page .concern-form textarea,
+[data-theme="light"] .concern-page .concern-form select {
+    background: #f9fafb !important;
+    border-color: #d1d5db !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .concern-page .concern-form input:hover,
+[data-theme="light"] .concern-page .concern-form textarea:hover,
+[data-theme="light"] .concern-page .concern-form select:hover {
+    border-color: #9ca3af !important;
+}
+
+[data-theme="light"] .concern-page .concern-form input:focus,
+[data-theme="light"] .concern-page .concern-form textarea:focus,
+[data-theme="light"] .concern-page .concern-form select:focus {
+    /* Border color lang ang nagbabago — walang pagbabago sa background */
+    background: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .concern-page .concern-form textarea {
+    scrollbar-color: #d1d5db #f3f4f6;
+}
+
+[data-theme="light"] .concern-page .concern-form textarea::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+[data-theme="light"] .concern-page .concern-form textarea::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: #f3f4f6;
+}
+
+/* Category dropdown */
+[data-theme="light"] .custom-filter-dropdown .dropdown-trigger {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-trigger i {
+    color: #6b7280;
+}
+
+[data-theme="light"] .custom-filter-dropdown.open .dropdown-trigger,
+[data-theme="light"] .custom-filter-dropdown.has-error .dropdown-trigger {
+    background: #f9fafb;
+}
+
+[data-theme="light"] .custom-filter-dropdown.open .dropdown-trigger {
+    border-color: #9ca3af;
+    box-shadow: none;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options li {
+    color: #374151;
+}
+
+[data-theme="light"] .custom-filter-dropdown .dropdown-options li:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+/* Submit button: dark in light mode for contrast */
+[data-theme="light"] .concern-page .concern-form button {
+    background: #111827;
+    color: #ffffff;
+}
+
+[data-theme="light"] .concern-page .concern-form button:hover {
+    background: #1f2937;
+}
+
+/* History table wrap + view button */
+[data-theme="light"] .table-wrap {
+    border-color: #e5e7eb;
+    scrollbar-color: rgba(0, 0, 0, 0.15) #f3f4f6;
+}
+
+[data-theme="light"] .table-wrap::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+[data-theme="light"] .table-wrap::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .concern-history-panel th {
+    /* Matches admin booking table header bg (admin_booking.css) */
+    background: #f3f4f6 !important;
+    color: #6b7280 !important;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+[data-theme="light"] .concern-history-panel td {
+    background: #ffffff !important;
+    color: #374151 !important;
+    border-top: 1px solid #f3f4f6 !important;
+}
+
+[data-theme="light"] .btn-view-concern {
+    background: #ffffff;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+[data-theme="light"] .btn-view-concern:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+/* Empty state */
+[data-theme="light"] .empty-state .empty-icon i {
+    color: #9ca3af;
+}
+
+[data-theme="light"] .empty-state h3 {
+    color: #111827;
+}
+
+[data-theme="light"] .empty-state p {
+    color: #6b7280;
+}
+
+[data-theme="light"] .concern-page .field-info {
+    color: #6b7280;
+}
+
+/* View-concern modal */
+[data-theme="light"] .client-concern-modal .client-concern-modal-card {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    scrollbar-color: rgba(0, 0, 0, 0.15) #f3f4f6;
+}
+
+[data-theme="light"] .client-concern-modal .concern-modal-head h3 {
+    color: #111827;
+}
+
+[data-theme="light"] .client-concern-modal .concern-modal-id,
+[data-theme="light"] .client-concern-modal .detail-row span,
+[data-theme="light"] .client-concern-modal .detail-block h4 {
+    color: #6b7280;
+}
+
+[data-theme="light"] .client-concern-modal .detail-row strong,
+[data-theme="light"] .client-concern-modal .detail-block p {
+    color: #111827;
+}
+
+[data-theme="light"] .client-concern-modal .detail-block {
+    border-top-color: #e5e7eb;
+}
+
+[data-theme="light"] .client-concern-modal .client-modal-admin-notes.is-empty {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #6b7280;
+}
+
+[data-theme="light"] .client-concern-modal .concern-modal-img {
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .client-concern-modal .concern-modal-close:hover {
+    color: #111827;
+}
+
+/* ========================================================
+   ERROR STATE — ghost red background sa input fields
+   (pareho sa light at dark mode)
+   ======================================================== */
+.concern-form .has-error input,
+.concern-form .has-error textarea,
+.concern-form .has-error select,
+.concern-form input.has-error,
+.concern-form textarea.has-error,
+.concern-form select.has-error {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+    box-shadow: none !important;
+}
+
+.custom-filter-dropdown.has-error .dropdown-trigger {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+    box-shadow: none !important;
+}
+
+/* Light mode error rules — para mag-red border ang LAHAT ng fields (hindi lang category).
+   Mas mataas na specificity kaysa sa [data-theme="light"] .concern-page .concern-form input
+   { border-color: #d1d5db !important }, at huli sa file kaya laging panalo. */
+[data-theme="light"] .concern-page .concern-form .has-error input,
+[data-theme="light"] .concern-page .concern-form .has-error textarea,
+[data-theme="light"] .concern-page .concern-form .has-error select,
+[data-theme="light"] .concern-page .concern-form input.has-error,
+[data-theme="light"] .concern-page .concern-form textarea.has-error,
+[data-theme="light"] .concern-page .concern-form select.has-error {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .custom-filter-dropdown.has-error .dropdown-trigger {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+    box-shadow: none !important;
+}
+
+/* Custom file input — light mode */
+[data-theme="light"] .concern-page .concern-form input[type="file"] {
+    color: #4b5563 !important;
+}
+
+[data-theme="light"] .concern-page .concern-form input[type="file"]::file-selector-button {
+    border-color: #d1d5db !important;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .concern-page .concern-form input[type="file"]::file-selector-button:hover {
+    border-color: #9ca3af !important;
+    background: #e5e7eb !important;
 }

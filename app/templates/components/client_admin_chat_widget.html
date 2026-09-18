@@ -12,6 +12,9 @@
     data-typing-ping-url="{% url 'chat_typing_ping' %}"
     data-reaction-url="{% url 'chat_reaction' %}"
     data-delete-url="{% url 'chat_delete_message' %}"
+    data-pin-url="{% url 'chat_pin_message' %}"
+    data-pinned-url="{% url 'chat_pinned_messages' %}"
+    data-media-url="{% url 'chat_media_files' %}"
     data-csrf-token="{{ csrf_token }}"
 >
     <button type="button" class="admin-chat-toggle" id="adminChatToggle" aria-label="Chat with admin">
@@ -26,15 +29,19 @@
     <section class="admin-chat-panel" id="adminChatPanel" aria-label="Admin chat">
         <header class="admin-chat-panel-head">
             <div class="admin-chat-title">
-                <div class="admin-chat-title-icon">
-                    <i class="fa-solid fa-headset"></i>
-                </div>
-                <div>
-                    <strong>Admin Support</strong>
-                    <span class="admin-chat-status" id="adminChatStatus">
-                        <span class="admin-chat-presence offline"><span class="admin-chat-presence-dot"></span> Offline</span>
-                    </span>
-                </div>
+                <button type="button" class="admin-chat-info-trigger" id="adminChatInfoTrigger"
+                        title="View chat info" aria-haspopup="dialog" aria-expanded="false" aria-controls="adminChatInfoDrawer">
+                    <div class="admin-chat-title-icon" id="adminChatInfoAvatar">
+                        <i class="fa-solid fa-headset"></i>
+                    </div>
+                    <div>
+                        <strong>Admin Support</strong>
+                        <span class="admin-chat-status" id="adminChatStatus">
+                            <span class="admin-chat-presence offline"><span class="admin-chat-presence-dot"></span> Offline</span>
+                        </span>
+                    </div>
+                    <svg class="admin-chat-info-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
             </div>
             <button type="button" class="admin-chat-close" id="adminChatClose" aria-label="Close admin chat">&times;</button>
         </header>
@@ -96,7 +103,55 @@
                 </button>
             </div>
         </form>
+
+        <!-- Chat info drawer (Messenger-style) -->
+        <aside class="admin-chat-info-drawer" id="adminChatInfoDrawer" hidden>
+            <div class="admin-chat-info-backdrop" id="adminChatInfoBackdrop" hidden></div>
+            <div class="admin-chat-info-panel" role="dialog" aria-label="Chat information">
+                <header class="admin-chat-info-head">
+                    <span class="admin-chat-info-title">Chat information</span>
+                    <button type="button" class="admin-chat-info-close" id="adminChatInfoClose" aria-label="Close chat info">&times;</button>
+                </header>
+                <div class="admin-chat-info-scroll">
+                    <div class="admin-chat-info-identity">
+                        <div class="admin-chat-info-avatar" id="adminChatInfoBigAvatar">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+                        <h3 class="admin-chat-info-name">Admin Support</h3>
+                        <p class="admin-chat-info-presence" id="adminChatInfoPresence">
+                            <span class="admin-chat-presence offline"><span class="admin-chat-presence-dot"></span> Offline</span>
+                        </p>
+                        <p class="admin-chat-info-sub">Your support conversation with the Balloorina admin team.</p>
+                    </div>
+                    <section class="admin-chat-info-section">
+                        <div class="admin-chat-info-section-head">
+                            <h4><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"></path></svg> Pinned messages</h4>
+                            <span class="admin-chat-info-count" id="adminChatPinnedCount">0</span>
+                        </div>
+                        <div class="admin-chat-info-pinned-list" id="adminChatPinnedList"></div>
+                        <p class="admin-chat-info-empty" id="adminChatPinnedEmpty">No pinned messages yet. Long-press or hover a message and press the pin icon.</p>
+                    </section>
+                    <section class="admin-chat-info-section">
+                        <div class="admin-chat-info-section-head">
+                            <h4><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Media files</h4>
+                            <span class="admin-chat-info-count" id="adminChatMediaCount">0</span>
+                        </div>
+                        <div class="admin-chat-info-media-grid" id="adminChatMediaGrid"></div>
+                        <p class="admin-chat-info-empty" id="adminChatMediaEmpty">No photos shared yet.</p>
+                    </section>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Media gallery lightbox (info drawer) -->
+        <div class="chat-lightbox" id="adminChatMediaLightbox" hidden>
+            <button type="button" class="lightbox-close" id="adminChatMediaLightboxClose" aria-label="Close preview"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button type="button" class="lightbox-nav lightbox-prev" id="adminChatMediaLightboxPrev" aria-label="Previous image"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+            <img class="lightbox-img" id="adminChatMediaLightboxImg" src="" alt="Chat media">
+            <button type="button" class="lightbox-nav lightbox-next" id="adminChatMediaLightboxNext" aria-label="Next image"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+            <div class="lightbox-caption" id="adminChatMediaLightboxCaption"></div>
+        </div>
     </section>
 </div>
 
-<script src="{% static 'js/client_admin_chat_widget.js' %}"></script>
+<script src="{% static 'js/client_admin_chat_widget.js' %}?v=20260919b"></script>

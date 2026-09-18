@@ -3,457 +3,1194 @@
 
 {% block title %}Payment Detail{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_payment.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_payment.css' %}?v=20260918b">
 <style>
-    .payment-detail-grid {
+    /* ==========================================================
+       Payment Detail UI v4 — minimalist redesign
+       Clean cards, label/value rows, timeline history (no table)
+       ========================================================== */
+
+    /* ===== Layout ===== */
+    .pd-grid {
         display: grid;
-        grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+        grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+        gap: 1.25rem;
+        margin-bottom: 2rem;
         align-items: start;
     }
 
-    .payment-detail-main,
-    .payment-detail-sidebar,
-    .payment-info-grid,
-    .payment-info-grid > div,
-    .payment-wrap {
+    .pd-col {
+        display: flex;
+        flex-direction: column;
+        gap: 1.4rem;
         min-width: 0;
     }
 
-    .payment-info-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
+    /* Back button — smaller, with spacing between icon and text */
+    .detail-page-header .btn-top-back {
+        font-size: 0.88rem;
+        gap: 0.5rem;
     }
 
-    .payment-detail-stack {
+    .detail-page-header .btn-top-back i {
+        font-size: 0.8rem;
+    }
+
+    .pd-card {
+        padding: 1.3rem 1.4rem;
+        min-width: 0;
+    }
+
+    .pd-card-title {
         display: flex;
-        flex-direction: column;
-        gap: 1rem;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #8a8a8a;
+        margin-bottom: 1.1rem;
     }
 
-    .payment-wrap {
-        overflow-wrap: anywhere;
-        word-break: break-word;
+    .pd-card-title svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+        opacity: 0.8;
     }
 
-    .payment-sidebar-row {
+    .pd-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.07);
+        margin: 1.15rem 0;
+    }
+
+    /* ===== Amount header ===== */
+    .pd-amount-row {
         display: flex;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        align-items: flex-start;
+        flex-wrap: wrap;
     }
 
-    .payment-sidebar-row span:last-child {
-        text-align: right;
+    .pd-amount {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
     }
 
-    .payment-history-wrap {
-        overflow-x: auto;
-        overflow-y: hidden;
-        scrollbar-width: thin;
-        scrollbar-color: #3a3a3a #141414;
+    .pd-amount-meta {
+        font-size: 0.78rem;
+        color: #8a8a8a;
+        margin-top: 0.4rem;
+        line-height: 1.5;
     }
 
-    .payment-history-wrap::-webkit-scrollbar {
-        height: 10px;
-    }
-
-    .payment-history-wrap::-webkit-scrollbar-track {
-        background: #141414;
-        border-radius: 999px;
-    }
-
-    .payment-history-wrap::-webkit-scrollbar-thumb {
-        background: #3a3a3a;
-        border-radius: 999px;
-    }
-
-    .payment-history-wrap::-webkit-scrollbar-thumb:hover {
-        background: #4a4a4a;
-    }
-
-    .payment-history-card {
-        overflow: hidden;
-    }
-
-    .payment-history-table {
-        width: max-content;
-        min-width: 100%;
-        table-layout: auto;
-        border-collapse: collapse;
-    }
-
-    .payment-history-table th,
-    .payment-history-table td {
-        vertical-align: top;
+    /* ===== Status badge ===== */
+    .pd-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.85rem;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border: 1px solid transparent;
         white-space: nowrap;
     }
 
-    .payment-history-table th {
-        padding-top: 0.9rem;
-        padding-bottom: 0.9rem;
+    .pd-badge svg {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
 
-    .payment-history-table td {
-        line-height: 1.35;
+    .pd-badge--success { color: #34d399; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.35); }
+    .pd-badge--danger { color: #f87171; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.35); }
+    .pd-badge--warning { color: #fbbf24; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.35); }
+    .pd-badge--neutral { color: #9ca3af; background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.12); }
+    /* ===== Label / value rows ===== */
+    .pd-rows {
+        display: flex;
+        flex-direction: column;
     }
 
-    .payment-history-table th:nth-child(1),
-    .payment-history-table td:nth-child(1),
-    .payment-history-table th:nth-child(3),
-    .payment-history-table td:nth-child(3),
-    .payment-history-table th:nth-child(4),
-    .payment-history-table td:nth-child(4),
-    .payment-history-table th:nth-child(6),
-    .payment-history-table td:nth-child(6) {
-        white-space: normal;
+    .pd-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1.25rem;
+        padding: 0.6rem 0;
     }
 
-    .payment-history-table th:nth-child(1),
-    .payment-history-table td:nth-child(1) {
-        min-width: 120px;
+    .pd-row + .pd-row {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    .payment-history-table th:nth-child(2),
-    .payment-history-table td:nth-child(2) {
-        min-width: 126px;
+    .pd-row-label {
+        font-size: 0.8rem;
+        color: #8a8a8a;
+        flex-shrink: 0;
     }
 
-    .payment-history-table th:nth-child(3),
-    .payment-history-table td:nth-child(3) {
-        min-width: 124px;
+    .pd-row-value {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #e5e7eb;
+        text-align: right;
+        overflow-wrap: anywhere;
+        min-width: 0;
     }
 
-    .payment-history-table th:nth-child(4),
-    .payment-history-table td:nth-child(4) {
-        min-width: 108px;
+    .pd-row-value .pd-sub {
+        display: block;
+        font-size: 0.74rem;
+        font-weight: 400;
+        color: #8a8a8a;
+        margin-top: 0.1rem;
     }
 
-    .payment-history-table th:nth-child(5),
-    .payment-history-table td:nth-child(5) {
-        min-width: 92px;
+    .pd-mono {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.8rem;
     }
 
-    .payment-history-table th:nth-child(6),
-    .payment-history-table td:nth-child(6) {
-        min-width: 124px;
+    .pd-muted { color: #6b7280; font-weight: 400; }
+
+    .pd-link {
+        color: #e5e7eb;
+        text-decoration: none;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+        transition: border-color 0.2s ease;
     }
 
-    .payment-history-table th:nth-child(7),
-    .payment-history-table td:nth-child(7),
-    .payment-history-table th:nth-child(8),
-    .payment-history-table td:nth-child(8),
-    .payment-history-table th:nth-child(9),
-    .payment-history-table td:nth-child(9),
-    .payment-history-table th:nth-child(10),
-    .payment-history-table td:nth-child(10) {
-        min-width: 110px;
+    .pd-link:hover { border-bottom-color: rgba(255, 255, 255, 0.6); }
+
+    /* ===== Balance summary ===== */
+    .pd-progress-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
     }
 
+    .pd-progress-pct {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #e5e7eb;
+    }
+
+    .pd-progress-track {
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+    }
+
+    .pd-progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: #d4d4d4;
+        transition: width 0.6s ease;
+    }
+
+    .pd-progress-sub {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.72rem;
+        color: #8a8a8a;
+        margin-top: 0.4rem;
+    }
+
+    .pd-balance {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-top: 1.15rem;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .pd-balance-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #8a8a8a;
+    }
+
+    .pd-balance-value {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #ffffff;
+        white-space: nowrap;
+        overflow-wrap: anywhere;
+    }
+
+    .pd-balance--due .pd-balance-value { color: #e5e7eb; }
+
+    /* ===== Status dot (booking statuses) ===== */
+    .pd-dot-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .pd-dot--success { color: #34d399; }
+    .pd-dot--warning { color: #fbbf24; }
+    .pd-dot--danger { color: #f87171; }
+
+    /* ===== Simple button ===== */
+    .pd-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        margin-top: 1.15rem;
+        padding: 0.72rem 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #e5e7eb;
+        border-radius: 9px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.84rem;
+        transition: all 0.2s ease;
+    }
+
+    .pd-btn svg {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+    }
+
+    .pd-btn:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.24);
+        color: #ffffff;
+    }
+    /* ===== Pending action bar (quiet) ===== */
+    .pd-action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1.05rem 1.3rem;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        margin-bottom: 1rem;
+    }
+
+    .pd-action-title {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #e5e7eb;
+        line-height: 1.3;
+    }
+
+    .pd-action-sub {
+        font-size: 0.76rem;
+        color: #8a8a8a;
+        margin-top: 0.15rem;
+    }
+
+    .pd-action-btns {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .pd-btn-approve,
+    .pd-btn-reject {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-width: 9.5rem;
+        padding: 0.58rem 1.2rem;
+        border-radius: 9px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        border: 1px solid transparent;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .pd-btn-approve {
+        background: #f5f5f4;
+        border-color: #f5f5f4;
+        color: #111111;
+    }
+
+    .pd-btn-approve svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .pd-btn-approve:hover {
+        background: #ffffff;
+        border-color: #ffffff;
+    }
+
+    .pd-btn-reject {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.16);
+        color: #a1a1a1;
+    }
+
+    .pd-btn-reject svg {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .pd-btn-reject:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #e5e7eb;
+    }
+    /* ===== Notes & receipt ===== */
+    .pd-notes {
+        margin-top: 1.15rem;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .pd-notes .pd-note-text {
+        font-size: 0.85rem;
+        color: #d1d5db;
+        line-height: 1.5;
+    }
+
+    .pd-receipt-box { margin-top: 1.15rem; }
+
+    .pd-receipt-thumb {
+        position: relative;
+        display: block;
+        max-width: 340px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        cursor: zoom-in;
+        transition: border-color 0.2s ease;
+    }
+
+    .pd-receipt-thumb:hover {
+        border-color: rgba(255, 255, 255, 0.32);
+    }
+
+    .pd-receipt-thumb img {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    .pd-receipt-hint {
+        position: absolute;
+        inset: auto 0 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+        color: #ffffff;
+        font-size: 0.72rem;
+        font-weight: 600;
+        pointer-events: none;
+    }
+
+    .pd-receipt-hint svg {
+        width: 13px;
+        height: 13px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* ===== Payment history — timeline (no table) ===== */
+
+    .pd-timeline {
+        position: relative;
+        padding-left: 2.5rem;
+        padding-top: 0.35rem;
+    }
+
+    .pd-timeline::before {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 8px;
+        bottom: 10px;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.09);
+        border-radius: 999px;
+    }
+
+    .pd-tl-item {
+        position: relative;
+        margin: 0 -0.85rem 0.9rem -0.85rem;
+        padding: 0.7rem 0.85rem;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+    }
+
+    .pd-tl-item:last-child {
+        margin-bottom: 0.45rem;
+    }
+
+    .pd-tl-item::before {
+        content: '';
+        position: absolute;
+        left: -1.65rem;
+        top: 1.1rem;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #0f0f0f;
+        border: 2px solid #71717a;
+    }
+
+    .pd-tl-item--success::before { border-color: #10b981; }
+    .pd-tl-item--warning::before { border-color: #f59e0b; }
+    .pd-tl-item--danger::before { border-color: #ef4444; }
+
+    .pd-tl-item--current {
+        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .pd-tl-item--current::before {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+    }
+
+    .pd-tl-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .pd-tl-date {
+        font-size: 0.76rem;
+        color: #8a8a8a;
+    }
+
+    .pd-tl-status {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .pd-tl-item--success .pd-tl-status { color: #34d399; }
+    .pd-tl-item--warning .pd-tl-status { color: #fbbf24; }
+    .pd-tl-item--danger .pd-tl-status { color: #f87171; }
+    .pd-tl-item--neutral .pd-tl-status { color: #9ca3af; }
+
+    .pd-tl-amount-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+    }
+
+    .pd-tl-amount {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .pd-tl-tag {
+        padding: 0.14rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #d4d4d4;
+    }
+
+    .pd-tl-detail {
+        font-size: 0.78rem;
+        color: #8a8a8a;
+        margin-top: 0.3rem;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+    }
+
+    .pd-tl-detail .pd-mono { color: #9ca3af; }
+    /* ===== Image lightbox ===== */
+    .pd-lightbox {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        background: rgba(0, 0, 0, 0.88);
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .pd-lightbox.open { display: flex; }
+
+    .pd-lightbox img {
+        max-width: min(920px, 92vw);
+        max-height: 88vh;
+        object-fit: contain;
+        border-radius: 10px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    }
+
+    .pd-lightbox-close {
+        position: absolute;
+        top: 1.25rem;
+        right: 1.5rem;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.5);
+        color: #ffffff;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease;
+    }
+
+    .pd-lightbox-close:hover { background: rgba(255, 255, 255, 0.15); }
+
+    /* ===== Light mode ===== */
+    [data-theme="light"] .pd-card-title { color: #6b7280; }
+    [data-theme="light"] .pd-divider { background: #e5e7eb; }
+    [data-theme="light"] .pd-amount { color: #111827; }
+    [data-theme="light"] .pd-amount-meta { color: #6b7280; }
+
+    [data-theme="light"] .pd-row + .pd-row { border-top-color: #f3f4f6; }
+    [data-theme="light"] .pd-row-label { color: #6b7280; }
+    [data-theme="light"] .pd-row-value { color: #111827; }
+    [data-theme="light"] .pd-row-value .pd-sub { color: #6b7280; }
+    [data-theme="light"] .pd-muted { color: #9ca3af; }
+    [data-theme="light"] .pd-link { color: #111827; border-bottom-color: rgba(17, 24, 39, 0.25); }
+    [data-theme="light"] .pd-link:hover { border-bottom-color: rgba(17, 24, 39, 0.6); }
+
+    [data-theme="light"] .pd-progress-track { background: #e5e7eb; }
+    [data-theme="light"] .pd-progress-fill { background: #111827; }
+    [data-theme="light"] .pd-progress-pct { color: #111827; }
+    [data-theme="light"] .pd-progress-sub { color: #6b7280; }
+
+    [data-theme="light"] .pd-balance {
+        background: #f9fafb;
+        border-color: #e5e7eb;
+    }
+
+    [data-theme="light"] .pd-balance-label { color: #6b7280; }
+    [data-theme="light"] .pd-balance-value { color: #111827; }
+    [data-theme="light"] .pd-balance--due .pd-balance-value { color: #111827; }
+
+    [data-theme="light"] .pd-dot--success { color: #059669; }
+    [data-theme="light"] .pd-dot--warning { color: #b45309; }
+    [data-theme="light"] .pd-dot--danger { color: #dc2626; }
+
+    [data-theme="light"] .pd-badge--success { color: #059669; background: rgba(5, 150, 105, 0.07); border-color: rgba(5, 150, 105, 0.3); }
+    [data-theme="light"] .pd-badge--danger { color: #dc2626; background: rgba(220, 38, 38, 0.06); border-color: rgba(220, 38, 38, 0.3); }
+    [data-theme="light"] .pd-badge--warning { color: #b45309; background: rgba(180, 83, 9, 0.07); border-color: rgba(180, 83, 9, 0.3); }
+    [data-theme="light"] .pd-badge--neutral { color: #6b7280; background: #f3f4f6; border-color: #e5e7eb; }
+
+    [data-theme="light"] .pd-btn {
+        background: #111827;
+        border-color: #111827;
+        color: #ffffff;
+    }
+
+    [data-theme="light"] .pd-btn:hover {
+        background: #1f2937;
+        border-color: #1f2937;
+        color: #ffffff;
+    }
+
+    [data-theme="light"] .pd-action-bar {
+        background: #fafafa;
+        border-color: #e5e7eb;
+    }
+
+    [data-theme="light"] .pd-action-title { color: #111827; }
+    [data-theme="light"] .pd-action-sub { color: #6b7280; }
+    [data-theme="light"] .pd-btn-approve { background: #111827; border-color: #111827; color: #ffffff; }
+    [data-theme="light"] .pd-btn-approve:hover { background: #000000; border-color: #000000; }
+    [data-theme="light"] .pd-btn-reject { border-color: #d1d5db; color: #4b5563; }
+    [data-theme="light"] .pd-btn-reject:hover { background: #f3f4f6; border-color: #9ca3af; color: #111827; }
+
+    [data-theme="light"] .pd-notes {
+        background: #f9fafb;
+        border-color: #e5e7eb;
+    }
+
+    [data-theme="light"] .pd-notes .pd-note-text { color: #374151; }
+    [data-theme="light"] .pd-receipt-thumb { border-color: #e5e7eb; }
+    [data-theme="light"] .pd-receipt-thumb:hover { border-color: #9ca3af; }
+
+    [data-theme="light"] .pd-timeline::before { background: #e5e7eb; }
+
+    [data-theme="light"] .pd-tl-item::before {
+        background: #ffffff;
+        border-color: #9ca3af;
+    }
+
+    [data-theme="light"] .pd-tl-item {
+        background: #fafafa;
+        border-color: #e5e7eb;
+    }
+
+    [data-theme="light"] .pd-tl-item--success::before { border-color: #059669; }
+    [data-theme="light"] .pd-tl-item--warning::before { border-color: #d97706; }
+    [data-theme="light"] .pd-tl-item--danger::before { border-color: #dc2626; }
+
+    [data-theme="light"] .pd-tl-item--current {
+        background: #f5f5f4;
+        border-color: #d6d3d1;
+    }
+
+    [data-theme="light"] .pd-tl-item--current::before {
+        box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+    }
+
+    [data-theme="light"] .pd-tl-date { color: #6b7280; }
+    [data-theme="light"] .pd-tl-amount { color: #111827; }
+    [data-theme="light"] .pd-tl-status { color: #6b7280; }
+    [data-theme="light"] .pd-tl-item--success .pd-tl-status { color: #059669; }
+    [data-theme="light"] .pd-tl-item--warning .pd-tl-status { color: #b45309; }
+    [data-theme="light"] .pd-tl-item--danger .pd-tl-status { color: #dc2626; }
+    [data-theme="light"] .pd-tl-tag {
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #4b5563;
+    }
+    [data-theme="light"] .pd-tl-detail { color: #6b7280; }
+    [data-theme="light"] .pd-tl-detail .pd-mono { color: #4b5563; }
+    /* Admin_light_mode.css forces ALL <span> elements to gray via
+       [data-theme="light"] span { color: var(--light-text-sec) !important }.
+       These higher-specificity !important rules restore the intended
+       colors for this page (button labels, badges, timeline statuses). */
+    [data-theme="light"] .pd-btn,
+    [data-theme="light"] .pd-btn span {
+        color: #ffffff !important;
+    }
+
+    [data-theme="light"] .pd-btn:hover,
+    [data-theme="light"] .pd-btn:hover span {
+        color: #ffffff !important;
+    }
+
+    [data-theme="light"] .pd-badge--success { color: #059669 !important; }
+    [data-theme="light"] .pd-badge--danger { color: #dc2626 !important; }
+    [data-theme="light"] .pd-badge--warning { color: #b45309 !important; }
+    [data-theme="light"] .pd-badge--neutral { color: #6b7280 !important; }
+
+    [data-theme="light"] .pd-tl-date { color: #6b7280 !important; }
+    [data-theme="light"] .pd-tl-amount { color: #111827 !important; }
+    [data-theme="light"] .pd-tl-item--success .pd-tl-status { color: #059669 !important; }
+    [data-theme="light"] .pd-tl-item--warning .pd-tl-status { color: #b45309 !important; }
+    [data-theme="light"] .pd-tl-item--danger .pd-tl-status { color: #dc2626 !important; }
+    [data-theme="light"] .pd-tl-item--neutral .pd-tl-status { color: #6b7280 !important; }
+    [data-theme="light"] .pd-tl-detail { color: #6b7280 !important; }
+    [data-theme="light"] .pd-tl-detail .pd-mono { color: #4b5563 !important; }
+    [data-theme="light"] .pd-tl-tag { color: #4b5563 !important; }
+
+    /* ===== SweetAlert confirm button (white bg needs dark text) ===== */
+    .pd-swal-dark-text.swal2-confirm { color: #111111 !important; }
+
+    /* ===== Responsive ===== */
     @media (max-width: 1080px) {
-        .payment-detail-grid {
-            grid-template-columns: 1fr;
-        }
+        .pd-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 720px) {
-        .payment-info-grid {
-            grid-template-columns: 1fr;
-        }
+        .pd-card { padding: 1.1rem; }
 
-        .payment-sidebar-row {
+        .pd-amount { font-size: 1.65rem; }
+
+        .pd-action-bar {
             flex-direction: column;
-            gap: 0.2rem;
+            align-items: stretch;
         }
 
-        .payment-sidebar-row span:last-child {
-            text-align: left;
+        .pd-action-btns { width: 100%; }
+
+        .pd-action-btns .pd-btn-approve,
+        .pd-action-btns .pd-btn-reject {
+            flex: 1;
+            justify-content: center;
         }
 
-        .payment-history-wrap {
-            padding: 0 0.9rem 0.9rem;
-        }
-
-        .payment-history-table,
-        .payment-history-table thead,
-        .payment-history-table tbody,
-        .payment-history-table th,
-        .payment-history-table td,
-        .payment-history-table tr {
-            display: revert;
-        }
-
-        .payment-history-table thead {
-            display: table-header-group;
-        }
-
-        .payment-history-table tbody {
-            display: table-row-group;
-        }
-
-        .payment-history-table tr {
-            display: table-row;
-        }
-
-        .payment-history-table th,
-        .payment-history-table td {
-            display: table-cell;
-        }
+        .pd-receipt-thumb { max-width: 100%; }
     }
 </style>
 {% endblock %}
-
 {% block content %}
-<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+<div class="page-header detail-page-header">
     <div>
         <h1>Payment #{{ payment.id }}</h1>
         <div class="breadcrumb">
-            <span>Admin</span>
+            <a href="{% url 'admin_payment_list' %}">Payments</a>
             <span class="separator">/</span>
-            <span>Payments</span>
-            <span class="separator">/</span>
-            <span>Detail</span>
+            <span>Payment #{{ payment.id }}</span>
         </div>
     </div>
-    <a href="{% url 'admin_payment_list' %}" style="padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s ease;"><i class="fas fa-arrow-left"></i> Back</a>
+    <a href="{% url 'admin_payment_list' %}" class="btn-top-back">
+        <i class="fas fa-arrow-left"></i> Back to Payments
+    </a>
 </div>
 
-<div class="payment-detail-grid">
-    <div class="payment-detail-main payment-detail-stack">
-        <div class="table-container" style="padding: 1.25rem;">
-            <div style="font-size: 0.875rem; font-weight: 600; color: #fff; margin-bottom: 1rem;">Payment Information</div>
-            <div class="payment-info-grid">
+{% if payment_is_actionable %}
+<div class="pd-action-bar">
+    <div>
+        <div class="pd-action-title"><span class="pd-badge pd-badge--warning">Pending</span>&nbsp;&nbsp;This payment is awaiting verification</div>
+        <div class="pd-action-sub">Review the receipt and details below, then approve or reject.</div>
+    </div>
+    <div class="pd-action-btns">
+        <a href="{% url 'admin_payment_action' payment.id 'verify' %}" class="pd-btn-approve"
+           onclick="return pdConfirmVerify(this);">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Approve Payment
+        </a>
+        <button type="button" class="pd-btn-reject" onclick="pdOpenReject()">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            Reject
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<div class="pd-grid">
+    <div class="pd-col">
+        <!-- ===== Payment Information ===== -->
+        <div class="table-container pd-card">
+            <div class="pd-card-title">
+                <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><line x1="8" y1="8" x2="16" y2="8"></line><line x1="8" y1="12" x2="16" y2="12"></line><line x1="8" y1="16" x2="12" y2="16"></line></svg>
+                Payment Information
+            </div>
+
+            <div class="pd-amount-row">
                 <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Amount</div>
-                    <div class="payment-wrap" style="font-weight: 600; font-size: 1.1rem;">PHP {{ payment.amount|floatformat:2|intcomma }}</div>
-                </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Status</div>
-                    <div class="payment-wrap">
-                        {% if payment.payment_status == 'verified' %}
-                        <span style="color: #10b981; font-weight: 500;">Verified</span>
-                        {% elif payment.payment_status == 'rejected' %}
-                        <span style="color: #ef4444; font-weight: 500;">Rejected</span>
-                        {% elif payment.payment_status == 'pending' %}
-                        <span style="color: #d97706; font-weight: 500;">Pending</span>
-                        {% else %}
-                        <span style="color: #999;">{{ payment.get_payment_status_display }}</span>
-                        {% endif %}
+                    <div class="pd-amount">₱{{ payment.amount|floatformat:2|intcomma }}</div>
+                    <div class="pd-amount-meta">
+                        {{ payment.get_payment_method_display }} · {{ payment.get_payment_type_display }} ·
+                        Submitted {{ payment.created_at|date:"M d, Y h:i A" }}
                     </div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Method</div>
-                    <div class="payment-wrap">{{ payment.get_payment_method_display }}</div>
+                {% if payment.payment_status == 'verified' %}
+                <span class="pd-badge pd-badge--success">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Verified
+                </span>
+                {% elif payment.payment_status == 'rejected' %}
+                <span class="pd-badge pd-badge--danger">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    Rejected
+                </span>
+                {% elif payment.payment_status == 'pending' %}
+                <span class="pd-badge pd-badge--warning">Pending</span>
+                {% else %}
+                <span class="pd-badge pd-badge--neutral">{{ payment.get_payment_status_display }}</span>
+                {% endif %}
+            </div>
+
+            <div class="pd-divider"></div>
+
+            <div class="pd-rows">
+                <div class="pd-row">
+                    <div class="pd-row-label">Method</div>
+                    <div class="pd-row-value">{{ payment.get_payment_method_display }}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Type</div>
-                    <div class="payment-wrap">{{ payment.get_payment_type_display }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Type</div>
+                    <div class="pd-row-value">{{ payment.get_payment_type_display }}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Internal Transaction Ref</div>
-                    <div class="payment-wrap">{{ payment.transaction_ref }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Internal Transaction Ref</div>
+                    <div class="pd-row-value"><span class="pd-mono">{{ payment.transaction_ref|default:"—" }}</span></div>
                 </div>
                 {% if payment.payment_method|slice:":9" == "paymongo_" %}
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Payment ID</div>
-                    <div class="payment-wrap">{{ payment.paymongo_payment_id|default:"None" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Payment ID</div>
+                    <div class="pd-row-value"><span class="pd-mono">{{ payment.paymongo_payment_id|default:"—" }}</span></div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Checkout Session ID</div>
-                    <div class="payment-wrap">{{ payment.paymongo_checkout_session_id|default:"None" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Checkout Session ID</div>
+                    <div class="pd-row-value"><span class="pd-mono">{{ payment.paymongo_checkout_session_id|default:"—" }}</span></div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Payer Name</div>
-                    <div class="payment-wrap">{{ payment.gcash_sender_name|default:"None" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Payer Name</div>
+                    <div class="pd-row-value">{{ payment.gcash_sender_name|default:"—" }}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Payer Contact Number</div>
-                    <div class="payment-wrap">{{ payment.paymongo_contact_number|default:"None" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Payer Contact Number</div>
+                    <div class="pd-row-value">{{ payment.paymongo_contact_number|default:"—" }}</div>
                 </div>
                 {% endif %}
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Submitted</div>
-                    <div class="payment-wrap">{{ payment.created_at|date:"M d, Y h:i A" }}</div>
+                {% if payment.payment_method == "gcash" %}
+                <div class="pd-row">
+                    <div class="pd-row-label">GCash Ref</div>
+                    <div class="pd-row-value"><span class="pd-mono">{{ payment.gcash_reference_number|default:"—" }}</span></div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Verified At</div>
-                    <div class="payment-wrap">{{ payment.paid_at|date:"M d, Y h:i A"|default:"-" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">GCash Sender</div>
+                    <div class="pd-row-value">{{ payment.gcash_sender_name|default:"—" }}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Verifier</div>
-                    <div class="payment-wrap">
+                {% endif %}
+                <div class="pd-row">
+                    <div class="pd-row-label">Verified At</div>
+                    <div class="pd-row-value">{{ payment.paid_at|date:"M d, Y h:i A"|default:"—" }}</div>
+                </div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Verifier</div>
+                    <div class="pd-row-value">
                         {% if payment.verified_by %}
                             {{ payment.verified_by.get_full_name|default:payment.verified_by.username }}
                         {% else %}
-                            -
+                            <span class="pd-muted">—</span>
                         {% endif %}
                     </div>
                 </div>
-                {% if payment.payment_method == "gcash" %}
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">GCash Ref</div>
-                    <div class="payment-wrap">{{ payment.gcash_reference_number|default:"None" }}</div>
-                </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">GCash Sender</div>
-                    <div class="payment-wrap">{{ payment.gcash_sender_name|default:"None" }}</div>
-                </div>
-                {% endif %}
             </div>
-            <div style="margin-top: 1.25rem;">
-                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Notes</div>
-                <div class="payment-wrap">{{ payment.display_notes|default:"-" }}</div>
+
+            {% if payment.display_notes %}
+            <div class="pd-notes">
+                <div class="pd-row-label">Notes</div>
+                <div class="pd-note-text">{{ payment.display_notes }}</div>
             </div>
+            {% endif %}
+
             {% if payment.receipt_image %}
-            <div style="margin-top: 1.25rem;">
-                <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Receipt Image</div>
-                <a href="{{ payment.receipt_image.url }}" target="_blank">
-                    <img src="{{ payment.receipt_image.url }}" alt="Receipt" style="max-width: 400px; width: 100%; border-radius: 8px; border: 1px solid #2a2a2a;">
+            <div class="pd-receipt-box">
+                <div class="pd-row-label" style="margin-bottom: 0.45rem;">Receipt Image</div>
+                <a href="{{ payment.receipt_image.url }}" class="pd-receipt-thumb"
+                   onclick="pdOpenLightbox('{{ payment.receipt_image.url }}'); return false;">
+                    <img src="{{ payment.receipt_image.url }}" alt="Payment receipt">
+                    <span class="pd-receipt-hint">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                        Click to zoom
+                    </span>
                 </a>
             </div>
             {% endif %}
         </div>
 
-        <div class="table-container" style="padding: 1.25rem;">
-            <div style="font-size: 0.875rem; font-weight: 600; color: #fff; margin-bottom: 1rem;">Booking Information</div>
-            <div class="payment-info-grid">
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Booking</div>
-                    <div class="payment-wrap">
-                        <a href="{% url 'admin_booking_detail' booking.id %}" style="color: #fff; font-weight: 600; text-decoration: none;">#{{ booking.id }}</a>
+        <!-- ===== Booking Information ===== -->
+        <div class="table-container pd-card">
+            <div class="pd-card-title">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                Booking Information
+            </div>
+
+            <div class="pd-rows">
+                <div class="pd-row">
+                    <div class="pd-row-label">Name</div>
+                    <div class="pd-row-value">{{ booking.user.get_full_name|default:booking.user.username }}</div>
+                </div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Username</div>
+                    <div class="pd-row-value">@{{ booking.user.username }}</div>
+                </div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Booking</div>
+                    <div class="pd-row-value">
+                        <a href="{% url 'admin_booking_detail' booking.id %}" class="pd-link">#{{ booking.id }}</a>
                     </div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Customer</div>
-                    <div class="payment-wrap" style="font-weight: 500;">{{ booking.user.get_full_name|default:booking.user.username }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Phone</div>
+                    <div class="pd-row-value">{{ booking.user.phone_number|default:"—" }}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Username</div>
-                    <div class="payment-wrap">@{{ booking.user.username }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Event Type</div>
+                    <div class="pd-row-value">{{ booking.event_type|default:"—" }}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Phone</div>
-                    <div class="payment-wrap">{{ booking.user.phone_number|default:"-" }}</div>
-                </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Event Type</div>
-                    <div class="payment-wrap">{{ booking.event_type|default:"-" }}</div>
-                </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Schedule</div>
-                    <div class="payment-wrap">
+                <div class="pd-row">
+                    <div class="pd-row-label">Schedule</div>
+                    <div class="pd-row-value">
                         {{ booking.event_date|date:"M d, Y" }}
                         {% if booking.time_range_display %}
-                        <div style="font-size: 0.82rem; color: #888; margin-top: 0.15rem;">{{ booking.time_range_display }}</div>
+                        <span class="pd-sub">{{ booking.time_range_display }}</span>
                         {% endif %}
                     </div>
                 </div>
-                <div>
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Package</div>
-                    <div class="payment-wrap">{{ booking.package_type|default:"-" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Package</div>
+                    <div class="pd-row-value">{{ booking.package_type|default:"—" }}</div>
                 </div>
-                <div style="grid-column: 1 / -1;">
-                    <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.25rem;">Location</div>
-                    <div class="payment-wrap">{{ booking.event_location|default:"-" }}</div>
+                <div class="pd-row">
+                    <div class="pd-row-label">Location</div>
+                    <div class="pd-row-value">{{ booking.event_location|default:"—" }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="payment-detail-sidebar" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div class="table-container" style="padding: 1.25rem;">
-            <div style="font-size: 0.875rem; font-weight: 600; color: #fff; margin-bottom: 1rem;">Booking Balance</div>
-            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <div class="payment-sidebar-row">
-                    <span style="color: #888;">Total Price</span>
-                    <span class="payment-wrap" style="font-weight: 600;">PHP {{ booking.total_price|floatformat:2|intcomma }}</span>
+    <!-- ===== Booking Balance (sidebar) ===== -->
+    <aside class="pd-col">
+        <div class="table-container pd-card">
+            <div class="pd-card-title">
+                <svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                Booking Balance
+            </div>
+
+            {% widthratio total_paid booking.total_price 100 as paid_pct %}
+            <div class="pd-progress-head">
+                <span class="pd-row-label">Payment Progress</span>
+                <span class="pd-progress-pct">{% if paid_pct > 100 %}100{% else %}{{ paid_pct }}{% endif %}%</span>
+            </div>
+            <div class="pd-progress-track">
+                <div class="pd-progress-fill" style="width: {% if paid_pct > 100 %}100{% else %}{{ paid_pct }}{% endif %}%;"></div>
+            </div>
+            <div class="pd-progress-sub">
+                <span>PHP {{ total_paid|floatformat:2|intcomma }} collected</span>
+                <span>of PHP {{ booking.total_price|floatformat:2|intcomma }}</span>
+            </div>
+
+            <div class="pd-rows" style="margin-top: 1rem;">
+                <div class="pd-row">
+                    <div class="pd-row-label">Total Price</div>
+                    <div class="pd-row-value">PHP {{ booking.total_price|floatformat:2|intcomma }}</div>
                 </div>
-                <div class="payment-sidebar-row">
-                    <span style="color: #888;">Total Verified Paid</span>
-                    <span class="payment-wrap" style="font-weight: 600;">PHP {{ total_paid|floatformat:2|intcomma }}</span>
+                <div class="pd-row">
+                    <div class="pd-row-label">Total Verified Paid</div>
+                    <div class="pd-row-value">PHP {{ total_paid|floatformat:2|intcomma }}</div>
                 </div>
-                <div class="payment-sidebar-row">
-                    <span style="color: #888;">Remaining Balance</span>
-                    <span class="payment-wrap" style="font-weight: 600; {% if remaining_balance > 0 %}color: #ef4444;{% else %}color: #10b981;{% endif %}">PHP {{ remaining_balance|floatformat:2|intcomma }}</span>
+                <div class="pd-row">
+                    <div class="pd-row-label">Payment Count</div>
+                    <div class="pd-row-value">{{ booking.total_payment_records }}</div>
                 </div>
-                <div class="payment-sidebar-row">
-                    <span style="color: #888;">Payment Count</span>
-                    <span class="payment-wrap" style="font-weight: 600;">{{ booking.total_payment_records }}</span>
+                <div class="pd-row">
+                    <div class="pd-row-label">Payment Status</div>
+                    <span class="pd-dot-text {% if booking.payment_status == 'paid' %}pd-dot--success{% elif booking.payment_status == 'unpaid' %}pd-dot--danger{% else %}pd-dot--warning{% endif %}">{{ booking.get_payment_status_display }}</span>
                 </div>
-                <div class="payment-sidebar-row" style="padding-top: 0.5rem; border-top: 1px solid #2a2a2a;">
-                    <span style="color: #888;">Booking Payment Status</span>
-                    <span class="payment-wrap" style="font-weight: 600;">{{ booking.get_payment_status_display }}</span>
-                </div>
-                <div class="payment-sidebar-row">
-                    <span style="color: #888;">Booking Status</span>
-                    <span class="payment-wrap" style="font-weight: 600;">{{ booking.get_status_display }}</span>
+                <div class="pd-row">
+                    <div class="pd-row-label">Booking Status</div>
+                    <span class="pd-dot-text {% if booking.status == 'completed' or booking.status == 'confirmed' %}pd-dot--success{% elif booking.status == 'denied' or booking.status == 'cancelled' %}pd-dot--danger{% else %}pd-dot--warning{% endif %}">{{ booking.get_status_display }}</span>
                 </div>
             </div>
-            <a href="{% url 'admin_booking_detail' booking.id %}" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; width: 100%; margin-top: 1rem; padding: 0.875rem 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                <i class="fas fa-external-link-alt"></i>
+
+            <div class="pd-balance {% if remaining_balance > 0 %}pd-balance--due{% endif %}">
+                <div class="pd-balance-label">{% if remaining_balance > 0 %}Remaining Balance{% else %}Fully Paid{% endif %}</div>
+                <div class="pd-balance-value">PHP {{ remaining_balance|floatformat:2|intcomma }}</div>
+            </div>
+
+            <a href="{% url 'admin_booking_detail' booking.id %}" class="pd-btn">
+                <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                 <span>Open Booking Details</span>
             </a>
         </div>
-    </div>
+
+        <!-- ===== Booking Payment History ===== -->
+        <div class="table-container pd-card">
+            <div class="pd-card-title">
+                <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+                Booking Payment History
+            </div>
+
+            {% if payment_history %}
+            <div class="pd-timeline">
+                {% for pay in payment_history %}
+                <div class="pd-tl-item {% if pay.is_failed_attempt %}pd-tl-item--neutral{% elif pay.payment_status == 'verified' %}pd-tl-item--success{% elif pay.payment_status == 'rejected' %}pd-tl-item--danger{% elif pay.payment_status == 'pending' %}pd-tl-item--warning{% else %}pd-tl-item--neutral{% endif %} {% if pay.id == payment.id %}pd-tl-item--current{% endif %}">
+                    <div class="pd-tl-head">
+                        <span class="pd-tl-date">{{ pay.created_at|date:"M d, Y h:i A" }}</span>
+                        <span class="pd-tl-status">{% if pay.is_failed_attempt %}{{ pay.failed_label }}{% else %}{{ pay.get_payment_status_display }}{% endif %}</span>
+                    </div>
+                    <div class="pd-tl-amount-row">
+                        <span class="pd-tl-amount">PHP {{ pay.amount|floatformat:2|intcomma }}</span>
+                        {% if pay.id == payment.id %}<span class="pd-tl-tag">This payment</span>{% endif %}
+                    </div>
+                    <div class="pd-tl-detail">
+                        {{ pay.get_payment_method_display }} · {{ pay.get_payment_type_display }}
+                        {% if pay.transaction_ref %} · Ref <span class="pd-mono">{{ pay.transaction_ref }}</span>{% endif %}
+                        {% if pay.gcash_sender_name %} · Sender {{ pay.gcash_sender_name }}{% endif %}
+                        {% if pay.verified_by %} · Verified by {{ pay.verified_by.get_full_name|default:pay.verified_by.username }}{% endif %}
+                        {% if pay.paid_at %} · Verified {{ pay.paid_at|date:"M d, Y h:i A" }}{% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="pd-tl-detail" style="padding-left: 0;">No payment history available.</div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="pd-tl-detail">No payment history available.</div>
+            {% endif %}
+        </div>
+    </aside>
 </div>
 
-<div class="table-container payment-history-card">
-    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
-        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Booking Payment History</h3>
-    </div>
-    <div class="payment-history-wrap">
-    <table class="payment-history-table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Method</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Transaction Ref</th>
-                <th>Sender</th>
-                <th>Verified By</th>
-                <th>Verified At</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for pay in payment_history %}
-            <tr>
-                <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
-                <td data-label="Amount">{{ pay.amount|floatformat:2|intcomma }}</td>
-                <td data-label="Method">{{ pay.get_payment_method_display }}</td>
-                <td data-label="Type">{{ pay.get_payment_type_display }}</td>
-                <td data-label="Status">
-                    {% if pay.payment_status == 'verified' %}
-                    <span style="color: #10b981; font-weight: 500; font-size: 0.8rem;">Verified</span>
-                    {% elif pay.payment_status == 'rejected' %}
-                    <span style="color: #ef4444; font-weight: 500; font-size: 0.8rem;">Rejected</span>
-                    {% elif pay.payment_status == 'pending' %}
-                    <span style="color: #d97706; font-weight: 500; font-size: 0.8rem;">Pending</span>
-                    {% else %}
-                    <span style="color: #999; font-weight: 500; font-size: 0.8rem;">{{ pay.get_payment_status_display }}</span>
-                    {% endif %}
-                </td>
-                <td data-label="Transaction Ref">{{ pay.transaction_ref }}</td>
-                <td data-label="Sender">{{ pay.gcash_sender_name|default:"-" }}</td>
-                <td data-label="Verified By">
-                    {% if pay.verified_by %}
-                        {{ pay.verified_by.get_full_name|default:pay.verified_by.username }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-                <td data-label="Verified At">{{ pay.paid_at|date:"M d, Y h:i A"|default:"-" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="10" style="text-align: center; padding: 2rem; color: #666;">No payment history available.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    </div>
+<!-- Receipt lightbox -->
+<div id="pdLightbox" class="pd-lightbox" onclick="pdCloseLightbox(event);">
+    <button type="button" class="pd-lightbox-close" aria-label="Close preview" onclick="pdCloseLightbox(event);">&times;</button>
+    <img id="pdLightboxImg" src="" alt="Receipt preview">
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    /* ===== Receipt lightbox ===== */
+    function pdOpenLightbox(src) {
+        var lb = document.getElementById('pdLightbox');
+        document.getElementById('pdLightboxImg').src = src;
+        lb.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function pdCloseLightbox(e) {
+        if (e && e.target && e.target.tagName === 'IMG') return;
+        var lb = document.getElementById('pdLightbox');
+        if (lb) lb.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') pdCloseLightbox();
+    });
+
+    /* ===== Approve / Reject actions ===== */
+    function pdPostAction(url, extra) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+
+        var csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = '{{ csrf_token }}';
+        form.appendChild(csrf);
+
+        if (extra && extra.name) {
+            var field = document.createElement('input');
+            field.type = 'hidden';
+            field.name = extra.name;
+            field.value = extra.value;
+            form.appendChild(field);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function pdConfirmVerify(linkEl) {
+        if (!linkEl || !linkEl.href) return false;
+
+        if (typeof Swal === 'undefined') {
+            return window.confirm('Are you sure you want to approve this payment?');
+        }
+
+        Swal.fire({
+            title: 'Approve this payment?',
+            text: 'Payment #{{ payment.id }} will be marked as verified and the customer will be notified.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Approve',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true,
+            background: '#131313',
+            color: '#ffffff',
+            confirmButtonColor: '#f5f5f4',
+            cancelButtonColor: '#374151',
+            customClass: { confirmButton: 'pd-swal-dark-text' }
+        }).then(function (result) {
+            if (result.isConfirmed) pdPostAction(linkEl.href);
+        });
+        return false;
+    }
+
+    function pdOpenReject() {
+        var rejectUrl = '{% url "admin_payment_action" payment.id "reject" %}';
+
+        if (typeof Swal === 'undefined') {
+            var reason = window.prompt('Enter the reason for rejection (Required):');
+            if (reason && reason.trim()) {
+                if (window.confirm('Are you sure you want to reject this payment?')) {
+                    pdPostAction(rejectUrl, { name: 'admin_notes', value: reason.trim() });
+                }
+            } else if (reason !== null) {
+                window.alert('Rejection reason is required.');
+            }
+            return;
+        }
+
+        Swal.fire({
+            title: 'Reject this payment?',
+            text: 'Please provide a reason for the customer.',
+            input: 'textarea',
+            inputPlaceholder: 'Reason for rejection (Required)',
+            showCancelButton: true,
+            confirmButtonText: 'Reject Payment',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true,
+            background: '#131313',
+            color: '#ffffff',
+            confirmButtonColor: '#4b5563',
+            cancelButtonColor: '#374151',
+            inputValidator: function (value) {
+                if (!value || !value.trim()) {
+                    return 'Rejection reason is required*';
+                }
+                return null;
+            }
+        }).then(function (result) {
+            if (result.isConfirmed && result.value && result.value.trim()) {
+                pdPostAction(rejectUrl, { name: 'admin_notes', value: result.value.trim() });
+            }
+        });
+    }
+</script>
 {% endblock %}

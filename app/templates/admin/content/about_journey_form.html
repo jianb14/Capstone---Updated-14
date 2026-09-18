@@ -4,13 +4,16 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_content.css' %}">
 
-<div class="page-header">
-    <h1>{{ action }} Journey Step</h1>
-    <div class="breadcrumb">
-        <a href="{% url 'admin_about_content' %}">About Page</a>
-        <span class="separator">/</span>
-        <span>{{ action }}</span>
+<div class="page-header detail-page-header">
+    <div>
+        <h1>{{ action }} Journey Step</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_about_content' %}">About Page</a>
+            <span class="separator">/</span>
+            <span>{{ action }}</span>
+        </div>
     </div>
+    <a href="{% url 'admin_about_content' %}" class="btn-top-back"><i class="fas fa-arrow-left"></i> Back to About Page</a>
 </div>
 
 <div class="form-container">
@@ -41,7 +44,7 @@
 
             <div class="form-group">
                 <label>Display Order</label>
-                <input type="number" name="display_order" id="display_order"
+                <input type="number" name="display_order" id="display_order" min="0"
                     value="{% if journey_item.display_order %}{{ journey_item.display_order }}{% elif post_data.display_order %}{{ post_data.display_order }}{% else %}0{% endif %}"
                     placeholder="0">
                 <small class="help-text">Only the first 4 active steps (by order) are shown on the page.</small>

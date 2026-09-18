@@ -4,7 +4,7 @@
 {% block title %}Chat with {{ session.user.get_full_name|default:session.user.username }} - Balloorina{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260906f">
+<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260919e">
 {% endblock %}
 
 {% block content %}
@@ -54,7 +54,7 @@
                         </div>
                     </div>
                     {% if item.unread_admin_count %}
-                    <span class="sc-unread-badge">{{ item.unread_admin_count }} new message{{ item.unread_admin_count|pluralize }}</span>
+                    <span class="sc-unread-pill">{{ item.unread_admin_count }}</span>
                     {% endif %}
                 </a>
                 {% empty %}
@@ -70,9 +70,12 @@
                 <a href="{% url 'admin_chat_inbox' %}" class="thread-back" title="Back to inbox" aria-label="Back to inbox">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <div class="thread-user">
-                    <div class="thread-avatar">{{ session.user.first_name|default:session.user.username|slice:":1"|upper }}</div>
-                    <div>
+                <button type="button" class="thread-user thread-info-trigger" id="threadInfoTrigger"
+                        title="View chat info" aria-haspopup="dialog" aria-expanded="false" aria-controls="chatInfoDrawer">
+                    <div class="thread-avatar">
+                        {{ session.user.first_name|default:session.user.username|slice:":1"|upper }}
+                    </div>
+                    <div class="thread-user-names">
                         <h3>{{ session.user.get_full_name|default:session.user.username }}</h3>
                         <div id="clientPresenceStatus" class="presence-status">
                             {% if client_is_online %}
@@ -82,7 +85,8 @@
                             {% endif %}
                         </div>
                     </div>
-                </div>
+                    <svg class="thread-info-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
                 <div class="thread-actions">
                     <div class="thread-search-wrap">
                         <label class="admin-thread-search" for="threadSearchInput">
@@ -104,9 +108,6 @@
                             </div>
                         </div>
                     </div>
-                    <a href="{% url 'admin_chat_inbox' %}" class="btn-back">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
                 </div>
             </header>
 
@@ -120,7 +121,7 @@
                 {% endif %}
 
                 {% for message in chat_messages %}
-                <div class="admin-msg-row {% if message.is_from_admin %}admin{% else %}client{% endif %} {% if not message.is_deleted and message.reaction_emojis %}has-reactions{% endif %}" data-message-id="{{ message.id }}">
+                <div class="admin-msg-row {% if message.is_from_admin %}admin{% else %}client{% endif %} {% if not message.is_deleted and message.reaction_emojis %}has-reactions{% endif %}{% if message.is_pinned %} pinned-row{% endif %}" data-message-id="{{ message.id }}">
                     {% if message.reply_to %}
                     <div class="reply-preview{% if not message.reply_to.is_deleted and not message.reply_to.message and message.reply_to.image %} has-photo{% endif %}" data-reply-to-id="{{ message.reply_to.id }}" title="Jump to original message">
                         {% if message.reply_to.is_deleted %}
@@ -137,6 +138,9 @@
                     {% endif %}
 
                     <div class="chat-bubble">
+                        {% if message.is_pinned and not message.is_deleted %}
+                        <span class="pin-flag {% if message.pinned_by %}{% if message.pinned_by.is_staff or message.pinned_by.is_superuser %}flag-right{% else %}flag-left{% endif %}{% else %}flag-right{% endif %}" aria-hidden="true"><svg viewBox="0 0 384 512" width="11" height="11" fill="currentColor"><path d="M298.028 214.267L285.793 96H328c13.255 0 24-10.745 24-24s-10.745-24-24-24H56c-13.255 0-24 10.745-24 24s10.745 24 24 24h42.207L86.028 214.267C70.485 229.81 64 244.038 64 256c0 30.928 25.072 56 56 56h56v110.057c0 11.612 9.417 21.028 21.028 21.028s21.028-9.417 21.028-21.028V312h56c30.928 0 56-25.072 56-56 0-11.962-6.485-26.19-21.972-41.733z"></path></svg><span>Pinned</span></span>
+                        {% endif %}
                         {% if message.is_deleted %}
                         <div class="chat-message-text deleted">This message was deleted</div>
                         {% else %}
@@ -179,6 +183,8 @@
                     <div class="msg-actions">
                         <button type="button" class="msg-action-btn react-btn" title="React" aria-label="React"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg></button>
                         <button type="button" class="msg-action-btn reply-btn" title="Reply" aria-label="Reply"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg></button>
+                        <button type="button" class="msg-action-btn pin-btn{% if message.is_pinned %} active{% endif %}" data-message-id="{{ message.id }}"
+                                title="{% if message.is_pinned %}Unpin message{% else %}Pin message{% endif %}" aria-label="{% if message.is_pinned %}Unpin message{% else %}Pin message{% endif %}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"></path></svg></button>
                         {% if message.is_from_admin %}
                         {% if message.message and not message.image %}
                         <button type="button" class="msg-action-btn edit-btn" title="Edit message" aria-label="Edit message"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg></button>
@@ -188,6 +194,12 @@
                     </div>
                     {% endif %}
 
+                    {% if message.is_pinned %}
+                    <div class="pin-event-line">
+                        <span class="pin-event-text">{% if message.pinned_by %}{% if message.pinned_by.is_staff or message.pinned_by.is_superuser %}You pinned a message.{% else %}{{ message.pinned_by.get_full_name|default:message.pinned_by.username }} pinned a message.{% endif %}{% else %}You pinned a message.{% endif %}</span>
+                        <button type="button" class="pin-event-seeall" data-see-all-pins>See all</button>
+                    </div>
+                    {% endif %}
                 </div>
                 {% empty %}
                 <div class="empty-state">
@@ -230,6 +242,50 @@
                 </div>
                 <small class="reply-hint">Images only. Up to 15MB each. Enter to send, Shift+Enter for newline.</small>
             </form>
+
+            <!-- Chat info drawer (Messenger-style) -->
+            <aside class="chat-info-drawer" id="chatInfoDrawer" hidden aria-hidden="true">
+                <div class="chat-info-backdrop" id="infoDrawerBackdrop" hidden></div>
+                <div class="chat-info-panel" role="dialog" aria-label="Chat information">
+                    <header class="chat-info-head">
+                        <span class="chat-info-title">Chat information</span>
+                        <button type="button" class="chat-info-close" id="infoDrawerClose" aria-label="Close chat info">&times;</button>
+                    </header>
+                    <div class="chat-info-scroll">
+                        <div class="chat-info-identity">
+                            <div class="chat-info-avatar">
+                                {{ session.user.first_name|default:session.user.username|slice:":1"|upper }}
+                            </div>
+                            <h3 class="chat-info-name">{{ session.user.get_full_name|default:session.user.username }}</h3>
+                            <p class="chat-info-presence" id="infoPresence">
+                                {% if client_is_online %}
+                                <span class="thread-status online"><span class="thread-status-dot"></span> Online</span>
+                                {% else %}
+                                <span class="thread-status offline"><span class="thread-status-dot"></span> Offline</span>
+                                {% endif %}
+                            </p>
+                            <p class="chat-info-email">{{ session.user.email }}</p>
+                        </div>
+                        <section class="chat-info-section">
+                            <div class="chat-info-section-head">
+                                <h4><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"></path></svg> Pinned messages</h4>
+                                <span class="chat-info-count" id="pinnedCountBadge">{{ pinned_messages|length }}</span>
+                            </div>
+                            <div class="chat-info-pinned-list" id="pinnedList"
+                                 data-initial="{{ pinned_messages_json }}"></div>
+                            <p class="chat-info-empty" id="pinnedEmpty">No pinned messages yet. Hover a message and press the pin icon to pin it here.</p>
+                        </section>
+                        <section class="chat-info-section">
+                            <div class="chat-info-section-head">
+                                <h4><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Media files</h4>
+                                <span class="chat-info-count" id="mediaCountBadge">{{ media_messages|length }}</span>
+                            </div>
+                            <div class="chat-info-media-grid" id="mediaGrid"></div>
+                            <p class="chat-info-empty" id="mediaEmpty">No photos shared yet.</p>
+                        </section>
+                    </div>
+                </div>
+            </aside>
         </main>
     </div>
 </div>
@@ -248,11 +304,20 @@
 
 <!-- Image lightbox -->
 <div class="chat-lightbox" id="chatLightbox" hidden>
-    <button type="button" class="lightbox-close" id="chatLightboxClose" aria-label="Close preview">&times;</button>
-    <button type="button" class="lightbox-prev" id="chatLightboxPrev" aria-label="Previous image">&#8249;</button>
+    <button type="button" class="lightbox-close" id="chatLightboxClose" aria-label="Close preview"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    <button type="button" class="lightbox-nav lightbox-prev" id="chatLightboxPrev" aria-label="Previous image"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
     <img class="lightbox-img" id="chatLightboxImg" src="" alt="Chat image">
-    <button type="button" class="lightbox-next" id="chatLightboxNext" aria-label="Next image">&#8250;</button>
+    <button type="button" class="lightbox-nav lightbox-next" id="chatLightboxNext" aria-label="Next image"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
     <div class="lightbox-caption" id="chatLightboxCaption"></div>
+</div>
+
+<!-- Media gallery lightbox (info drawer) -->
+<div class="chat-lightbox" id="mediaLightbox" hidden>
+    <button type="button" class="lightbox-close" id="mediaLightboxClose" aria-label="Close preview"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    <button type="button" class="lightbox-nav lightbox-prev" id="mediaLightboxPrev" aria-label="Previous image"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+    <img class="lightbox-img" id="mediaLightboxImg" src="" alt="Chat media">
+    <button type="button" class="lightbox-nav lightbox-next" id="mediaLightboxNext" aria-label="Next image"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+    <div class="lightbox-caption" id="mediaLightboxCaption"></div>
 </div>
 {% endblock %}
 {% block extra_js %}
@@ -281,6 +346,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const ICON_EDIT = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>';
     const ICON_DELETE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
     const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+    const ICON_PIN = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"></path></svg>';
     const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
     const POLL_URL = "{% url 'admin_chat_poll' %}";
@@ -289,6 +355,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const EDIT_URL = "{% url 'chat_edit_message' %}";
     const DELETE_URL = "{% url 'chat_delete_message' %}";
     const TYPING_URL = "{% url 'chat_typing_ping' %}";
+    const PIN_URL = "{% url 'chat_pin_message' %}";
+    const MEDIA_URL = "{% url 'chat_media_files' %}";
 
     let lastMessageId = 0;
     let activeReactionPicker = null;
@@ -377,9 +445,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const editedMark = msg.is_edited ? ' <span class="am-edited">(Edited)</span>' : "";
+        if (msg.is_pinned) row.classList.add("pinned-row");
         row.innerHTML =
             replyHtml +
-            '<div class="chat-bubble">' + bodyHtml + '</div>' +
+            '<div class="chat-bubble">' + (msg.is_pinned ? PIN_FLAG_HTML : "") + bodyHtml + '</div>' +
             '<div class="msg-meta">' +
             '<span class="am-time">' + escapeHtml(msg.sent_at || "") + editedMark + '</span>' +
             receiptHtml(isAdmin, msg.seen, msg.delivered, msg.seen_at) +
@@ -388,6 +457,7 @@ document.addEventListener("DOMContentLoaded", function () {
             '<div class="msg-actions">' +
             '<button type="button" class="msg-action-btn react-btn" title="React">' + ICON_REACT + '</button>' +
             '<button type="button" class="msg-action-btn reply-btn" title="Reply">' + ICON_REPLY + '</button>' +
+            '<button type="button" class="msg-action-btn pin-btn' + (msg.is_pinned ? " active" : "") + '" data-message-id="' + msg.id + '" title="' + (msg.is_pinned ? "Unpin message" : "Pin message") + '">' + ICON_PIN + '</button>' +
             (isAdmin && msg.content && !msg.image_url
                 ? '<button type="button" class="msg-action-btn edit-btn" title="Edit message">' + ICON_EDIT + '</button>'
                 : "") +
@@ -846,6 +916,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     /* ── Attachment lightbox (gallery + prev/next) ── */
+    /* ILIPAT SA <body> ang lightboxes + confirm overlay: ang .main-content ay
+       may z-index: 1 (stacking context), at ang sidebar ay z-index: 1000 —
+       kapag naiwan ang lightbox sa loob, nasa ilalim ito ng sidebar kahit
+       anong z-index (kaya nakatago ang kaliwang arrow at hindi sinasakop
+       ang buong screen). Sa <body>, viewport-wide na talaga ito. */
+    ["chatConfirmOverlay", "chatLightbox", "mediaLightbox"].forEach(function (overlayId) {
+        const overlayEl = document.getElementById(overlayId);
+        if (overlayEl && overlayEl.parentElement !== document.body) {
+            document.body.appendChild(overlayEl);
+        }
+    });
+
     const lightbox = document.getElementById("chatLightbox");
     const lightboxImg = document.getElementById("chatLightboxImg");
     const lightboxCaption = document.getElementById("chatLightboxCaption");
@@ -913,7 +995,8 @@ document.addEventListener("DOMContentLoaded", function () {
         return JSON.stringify([
             msg.is_deleted, msg.is_edited, msg.content || "", msg.seen, msg.delivered,
             msg.seen_at || "", msg.reactions || {}, msg.my_reactions || [],
-            msg.reply_to ? msg.reply_to.text : null, msg.image_url || ""
+            msg.reply_to ? msg.reply_to.text : null, msg.image_url || "",
+            Boolean(msg.is_pinned)
         ]);
     }
     function upsertPolledMessage(msg) {
@@ -950,10 +1033,15 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
     function updatePresence(online) {
-        if (!clientPresence) return;
         const state = online ? "online" : "offline";
         const label = online ? "Online" : "Offline";
-        clientPresence.innerHTML = '<span class="thread-status ' + state + '"><span class="thread-status-dot"></span> ' + label + '</span>';
+        if (clientPresence) {
+            clientPresence.innerHTML = '<span class="thread-status ' + state + '"><span class="thread-status-dot"></span> ' + label + '</span>';
+        }
+        // Keep the info drawer presence text in sync
+        if (infoPresence) {
+            infoPresence.innerHTML = '<span class="thread-status ' + state + '"><span class="thread-status-dot"></span> ' + label + '</span>';
+        }
     }
 
     let typingIdleTimer = null;
@@ -1016,11 +1104,309 @@ document.addEventListener("DOMContentLoaded", function () {
                 (data.messages || []).forEach(upsertPolledMessage);
                 updateTypingIndicator(data.client_typing);
                 updatePresence(data.client_online);
+                if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
             })
             .catch(function () {});
     }
     pollTick();
     setInterval(pollTick, 4000);
+
+    /* ════════════════════════════════════════════════════════════════
+       CHAT INFO DRAWER — big avatar, name, pinned messages & media
+       (Messenger-style). Opens when the header avatar/name is clicked.
+       ════════════════════════════════════════════════════════════════ */
+    const threadWrap = document.querySelector(".thread-view");
+    const infoTrigger = document.getElementById("threadInfoTrigger");
+    const infoDrawer = document.getElementById("chatInfoDrawer");
+    const infoCloseBtn = document.getElementById("infoDrawerClose");
+    const infoBackdrop = document.getElementById("infoDrawerBackdrop");
+    const infoPresence = document.getElementById("infoPresence");
+    const pinnedList = document.getElementById("pinnedList");
+    const pinnedEmpty = document.getElementById("pinnedEmpty");
+    const mediaGrid = document.getElementById("mediaGrid");
+    const mediaEmpty = document.getElementById("mediaEmpty");
+    const mediaCountBadge = document.getElementById("mediaCountBadge");
+    const pinnedCountBadge = document.getElementById("pinnedCountBadge");
+
+    // Messenger-style red pushpin shown on pinned bubbles (nakatusok sa bubble)
+    const PIN_FLAG_SVG = '<svg viewBox="0 0 384 512" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M298.028 214.267L285.793 96H328c13.255 0 24-10.745 24-24s-10.745-24-24-24H56c-13.255 0-24 10.745-24 24s10.745 24 24 24h42.207L86.028 214.267C70.485 229.81 64 244.038 64 256c0 30.928 25.072 56 56 56h56v110.057c0 11.612 9.417 21.028 21.028 21.028s21.028-9.417 21.028-21.028V312h56c30.928 0 56-25.072 56-56 0-11.962-6.485-26.19-21.972-41.733z"></path></svg>';
+    const PIN_FLAG_HTML = '<span class="pin-flag" aria-hidden="true">' + PIN_FLAG_SVG + '<span>Pinned</span></span>';
+
+    let pinnedMessages = [];
+    let mediaItems = [];
+    let lightboxList = [];
+
+    function setPinned(list) {
+        const next = Array.isArray(list) ? list : [];
+        if (JSON.stringify(next) === JSON.stringify(pinnedMessages)) return;
+        pinnedMessages = next;
+        renderPinnedList();
+        syncPinButtons();
+        if (pinnedCountBadge) pinnedCountBadge.textContent = String(next.length);
+    }
+
+    function pinnedSnippet(pin) {
+        if (pin.snippet) return pin.snippet;
+        if (pin.has_image) return "📷 Photo";
+        return "Message";
+    }
+
+    function renderPinnedList() {
+        if (!pinnedList || !pinnedEmpty) return;
+        pinnedList.innerHTML = "";
+        if (!pinnedMessages.length) {
+            pinnedEmpty.hidden = false;
+            return;
+        }
+        pinnedEmpty.hidden = true;
+        pinnedMessages.forEach(function (pin) {
+            const item = document.createElement("div");
+            item.className = "pinned-item";
+            item.dataset.messageId = pin.id;
+            const byWho = pin.pinned_by
+                ? '<div class="pinned-item-meta">Pinned by ' +
+                  escapeHtml(pin.pinned_by) + (pin.pinned_by_is_admin ? " (Admin)" : "") +
+                  (pin.pinned_at ? " · " + escapeHtml(pin.pinned_at) : "") + '</div>'
+                : "";
+            // Siya lang ang nakapin ang pwedeng mag-unpin — itago ang X kapag
+            // ang kabila ang nag-pin ng mensahe.
+            const unpinHtml = pin.pinned_by_is_admin
+                ? '<button type="button" class="pinned-item-unpin" data-unpin-id="' + pin.id + '" title="Unpin" aria-label="Unpin message">' +
+                      '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+                  '</button>'
+                : "";
+            item.innerHTML =
+                '<div class="pinned-item-icon">' + ICON_PIN + '</div>' +
+                '<div class="pinned-item-body">' +
+                    '<div class="pinned-item-sender">' + escapeHtml(pin.sender_name || "") + '</div>' +
+                    '<div class="pinned-item-text">' + escapeHtml(pinnedSnippet(pin)) + '</div>' +
+                    byWho +
+                '</div>' +
+                unpinHtml;
+            item.addEventListener("click", function (event) {
+                if (event.target.closest(".pinned-item-unpin")) return;
+                jumpToMessage(pin.id);
+            });
+            pinnedList.appendChild(item);
+        });
+    }
+
+    function syncPinButtons() {
+        const pinnedMap = {};
+        pinnedMessages.forEach(function (pin) { pinnedMap[pin.id] = pin; });
+        threadMessages.querySelectorAll(".admin-msg-row").forEach(function (row) {
+            const id = Number(row.dataset.messageId);
+            const pin = pinnedMap[id] || null;
+            const isPinned = Boolean(pin);
+            row.classList.toggle("pinned-row", isPinned);
+            const btn = row.querySelector(".msg-action-btn.pin-btn");
+            if (btn) {
+                // Siya lang ang nakapin ang pwedeng mag-unpin — itago ang
+                // action kapag ang kabila ang nag-pin ng mensahe.
+                btn.hidden = isPinned && !pin.pinned_by_is_admin;
+                btn.classList.toggle("active", isPinned);
+                btn.title = isPinned ? "Unpin message" : "Pin message";
+                btn.setAttribute("aria-label", isPinned ? "Unpin message" : "Pin message");
+            }
+            const bubble = row.querySelector(".chat-bubble");
+            if (bubble) {
+                let flag = bubble.querySelector(".pin-flag");
+                if (isPinned && !flag) {
+                    flag = document.createElement("span");
+                    flag.setAttribute("aria-hidden", "true");
+                    flag.innerHTML = PIN_FLAG_SVG + "<span>Pinned</span>";
+                    bubble.insertBefore(flag, bubble.firstChild);
+                }
+                if (isPinned && flag) {
+                    // Naka-tusok sa gilid ng nag-pin: admin → kanan, client → kaliwa
+                    flag.className = "pin-flag " + (pin.pinned_by_is_admin ? "flag-right" : "flag-left");
+                } else if (!isPinned && flag) {
+                    flag.remove();
+                }
+            }
+        });
+        updatePinEventLines();
+    }
+
+    /* ── "You pinned a message. See all" system line under each pinned message ── */
+    function updatePinEventLines() {
+        threadMessages.querySelectorAll(".pin-event-line").forEach(function (el) { el.remove(); });
+        if (!pinnedMessages.length) return;
+        pinnedMessages.forEach(function (pin) {
+            const target = threadMessages.querySelector('.admin-msg-row[data-message-id="' + pin.id + '"]');
+            if (!target) return;
+            const line = document.createElement("div");
+            line.className = "pin-event-line";
+            const who = pin.pinned_by_is_admin
+                ? "You pinned a message."
+                : escapeHtml(pin.pinned_by || "Someone") + " pinned a message.";
+            line.innerHTML = '<span class="pin-event-text">' + who + '</span>' +
+                '<button type="button" class="pin-event-seeall" data-see-all-pins>See all</button>';
+            target.after(line);
+        });
+    }
+
+    function renderMedia(items) {
+        mediaItems = Array.isArray(items) ? items : [];
+        if (mediaCountBadge) mediaCountBadge.textContent = String(mediaItems.length);
+        if (!mediaGrid || !mediaEmpty) return;
+        mediaGrid.innerHTML = "";
+        if (!mediaItems.length) {
+            mediaEmpty.hidden = false;
+            return;
+        }
+        mediaEmpty.hidden = true;
+        lightboxList = [];
+        mediaItems.forEach(function (item) {
+            const idx = lightboxList.length;
+            lightboxList.push(item);
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.className = "media-thumb";
+            cell.title = (item.name || "Chat image") + " — " + (item.sent_at || "");
+            cell.innerHTML =
+                '<img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(item.name || "Chat image") + '" loading="lazy">' +
+                '<span class="media-thumb-overlay">' + escapeHtml(item.sent_at || "") + '</span>';
+            cell.addEventListener("click", function () { openMediaLightbox(idx); });
+            mediaGrid.appendChild(cell);
+        });
+    }
+
+    function loadMedia() {
+        fetch(MEDIA_URL + "?session_id=" + SESSION_ID)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && Array.isArray(data.media)) renderMedia(data.media);
+            })
+            .catch(function () {});
+    }
+
+    function openMediaLightbox(index) {
+        if (!lightboxList.length) return;
+        const chatLightbox = document.getElementById("mediaLightbox");
+        if (!chatLightbox) return;
+        const total = lightboxList.length;
+        let current = ((index % total) + total) % total;
+        const lightboxImg = document.getElementById("mediaLightboxImg");
+        const lightboxCaption = document.getElementById("mediaLightboxCaption");
+        const show = function () {
+            const item = lightboxList[current];
+            if (lightboxImg) lightboxImg.src = item.url;
+            if (lightboxCaption) lightboxCaption.textContent = (current + 1) + " / " + total + " — " + (item.name || "Chat image");
+            chatLightbox.hidden = false;
+        };
+        const prevBtn = document.getElementById("mediaLightboxPrev");
+        const nextBtn = document.getElementById("mediaLightboxNext");
+        if (prevBtn) prevBtn.onclick = function () { current = (current - 1 + total) % total; show(); };
+        if (nextBtn) nextBtn.onclick = function () { current = (current + 1) % total; show(); };
+        show();
+    }
+
+    function openInfoDrawer() {
+        if (!infoDrawer || !threadWrap) return;
+        threadWrap.classList.add("info-open");
+        infoDrawer.hidden = false;
+        if (infoBackdrop) infoBackdrop.hidden = false;
+        if (infoTrigger) infoTrigger.setAttribute("aria-expanded", "true");
+        loadMedia();
+    }
+
+    function closeInfoDrawer() {
+        if (!infoDrawer || !threadWrap) return;
+        threadWrap.classList.remove("info-open");
+        infoDrawer.hidden = true;
+        if (infoBackdrop) infoBackdrop.hidden = true;
+        if (infoTrigger) infoTrigger.setAttribute("aria-expanded", "false");
+    }
+
+    function togglePin(messageId) {
+        const id = Number(messageId);
+        if (!id) return Promise.resolve();
+        return fetch(PIN_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF },
+            body: JSON.stringify({ message_id: id }),
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) { alert(data.error); return; }
+                if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
+                const row = threadMessages.querySelector('.admin-msg-row[data-message-id="' + id + '"]');
+                if (row && row.dataset.sig) {
+                    try {
+                        const sig = JSON.parse(row.dataset.sig);
+                        sig[10] = Boolean(data.is_pinned);
+                        row.dataset.sig = JSON.stringify(sig);
+                    } catch (err) { /* ignore malformed signature */ }
+                }
+                syncPinButtons();
+            })
+            .catch(function () { alert("Could not update pin."); });
+    }
+
+    // Pin buttons toggle directly (Messenger-style — walang floating menu)
+    // + "See all" on the pinned event line opens the chat info drawer.
+    threadMessages.addEventListener("click", function (event) {
+        const pinBtn = event.target.closest(".msg-action-btn.pin-btn");
+        if (pinBtn) {
+            event.preventDefault();
+            event.stopPropagation();
+            togglePin(pinBtn.dataset.messageId);
+            return;
+        }
+        if (event.target.closest(".pin-event-seeall")) {
+            event.preventDefault();
+            openInfoDrawer();
+        }
+    });
+    if (pinnedList) {
+        pinnedList.addEventListener("click", function (event) {
+            const unpinBtn = event.target.closest(".pinned-item-unpin");
+            if (unpinBtn) {
+                event.preventDefault();
+                togglePin(unpinBtn.dataset.unpinId);
+            }
+        });
+    }
+
+    if (infoTrigger) infoTrigger.addEventListener("click", function () {
+        if (!infoDrawer || infoDrawer.hidden) openInfoDrawer();
+        else closeInfoDrawer();
+    });
+    if (infoCloseBtn) infoCloseBtn.addEventListener("click", closeInfoDrawer);
+    if (infoBackdrop) infoBackdrop.addEventListener("click", closeInfoDrawer);
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+            if (infoDrawer && !infoDrawer.hidden) closeInfoDrawer();
+        }
+    });
+
+    // Media gallery lightbox controls
+    const chatLightbox = document.getElementById("mediaLightbox");
+    if (chatLightbox) {
+        const chatLightboxClose = document.getElementById("mediaLightboxClose");
+        if (chatLightboxClose) chatLightboxClose.addEventListener("click", function () {
+            chatLightbox.hidden = true;
+            const lightboxImg = document.getElementById("mediaLightboxImg");
+            if (lightboxImg) lightboxImg.src = "";
+        });
+        chatLightbox.addEventListener("click", function (event) {
+            if (event.target === chatLightbox) {
+                chatLightbox.hidden = true;
+                const lightboxImg = document.getElementById("mediaLightboxImg");
+                if (lightboxImg) lightboxImg.src = "";
+            }
+        });
+    }
+
+    // Initial state from the server-rendered pinned list
+    if (pinnedList && pinnedList.dataset.initial) {
+        try { setPinned(JSON.parse(pinnedList.dataset.initial)); }
+        catch (err) { renderPinnedList(); }
+    } else {
+        renderPinnedList();
+    }
+    syncPinButtons();
 
     });
 </script>

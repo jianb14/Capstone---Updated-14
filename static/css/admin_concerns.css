@@ -364,31 +364,6 @@
     overflow: hidden;
 }
 
-.booking-summary-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    height: 2px;
-    opacity: 0.95;
-}
-
-.booking-summary-card--total::before {
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-}
-
-.booking-summary-card--pending::before {
-    background: linear-gradient(90deg, #d97706, #f59e0b);
-}
-
-.booking-summary-card--confirmed::before {
-    background: linear-gradient(90deg, #14b8a6, #2dd4bf);
-}
-
-.booking-summary-card--completed::before {
-    background: linear-gradient(90deg, #059669, #10b981);
-}
-
 .booking-summary-head {
     display: flex;
     align-items: center;
@@ -542,18 +517,18 @@
     display: inline-block;
     width: 8px;
     height: 8px;
-    border-right: 2px solid #fff;
-    border-bottom: 2px solid #fff;
-    transform: rotate(45deg);
+    border-right: 1.5px solid #fff;
+    border-bottom: 1.5px solid #fff;
+    /* Centered rotation: translate bago ang rotate para hindi gumalaw ang center */
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.2s ease, border-color 0.2s ease;
-    margin-top: -3px;
     flex-shrink: 0;
 }
 
 .queue-status-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
     border-color: #ffffff;
-    margin-top: 3px;
 }
 
 .table-wrap {
@@ -689,9 +664,9 @@ tbody tr:last-child td {
     border: 1px solid #3a3a3a;
     background: #181818;
     color: #e5e7eb;
-    border-radius: 8px;
-    padding: 0.38rem 0.7rem;
-    font-size: 0.78rem;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.75rem;
     letter-spacing: 0.02em;
     cursor: pointer;
     transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
@@ -2003,18 +1978,18 @@ td {
     display: inline-block;
     width: 8px;
     height: 8px;
-    border-right: 2px solid #fff;
-    border-bottom: 2px solid #fff;
-    transform: rotate(45deg);
+    border-right: 1.5px solid #fff;
+    border-bottom: 1.5px solid #fff;
+    /* Centered rotation: translate bago ang rotate para hindi gumalaw ang center */
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.2s ease, border-color 0.2s ease;
-    margin-top: -3px;
     flex-shrink: 0;
 }
 
 .admin-concern-modal .concern-status-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
     border-color: #ffffff;
-    margin-top: 3px;
 }
 
 .admin-concern-modal .concern-status-dropdown .dropdown-options {
@@ -2112,9 +2087,9 @@ td {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -2130,6 +2105,20 @@ td {
 [data-theme="light"] h4,
 [data-theme="light"] h5,
 [data-theme="light"] h6 {
+    color: #111827 !important;
+}
+
+/* ========================================================
+   LIGHT MODE — Table action button (matches admin_package.css)
+   ======================================================== */
+[data-theme="light"] .btn-view-concern {
+    background: #f9fafb !important;
+    color: #111827 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+[data-theme="light"] .btn-view-concern:hover {
+    background: #f3f4f6 !important;
     color: #111827 !important;
 }
 

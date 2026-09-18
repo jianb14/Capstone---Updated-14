@@ -26,6 +26,20 @@
     const lightboxImg = document.getElementById("adminChatLightboxImg");
     const lightboxCaption = document.getElementById("adminChatLightboxCaption");
 
+    // Info drawer + pinned messages
+    const infoTrigger = document.getElementById("adminChatInfoTrigger");
+    const infoDrawer = document.getElementById("adminChatInfoDrawer");
+    const infoCloseBtn = document.getElementById("adminChatInfoClose");
+    const infoBackdrop = document.getElementById("adminChatInfoBackdrop");
+    const infoPresence = document.getElementById("adminChatInfoPresence");
+    const pinnedList = document.getElementById("adminChatPinnedList");
+    const pinnedEmpty = document.getElementById("adminChatPinnedEmpty");
+    const pinnedCountBadge = document.getElementById("adminChatPinnedCount");
+    const mediaGrid = document.getElementById("adminChatMediaGrid");
+    const mediaEmpty = document.getElementById("adminChatMediaEmpty");
+    const mediaCountBadge = document.getElementById("adminChatMediaCount");
+    const mediaLightbox = document.getElementById("adminChatMediaLightbox");
+
     let currentSessionId = null;
     let editingMessageId = null;
     let replyToId = null;
@@ -42,6 +56,10 @@
     const ICON_REPLY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>';
     const ICON_EDIT = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>';
     const ICON_DELETE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+    const ICON_PIN = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"></path></svg>';
+    // Messenger-style red pushpin shown on pinned bubbles (nakatusok sa bubble)
+    const PIN_FLAG_SVG = '<svg viewBox="0 0 384 512" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M298.028 214.267L285.793 96H328c13.255 0 24-10.745 24-24s-10.745-24-24-24H56c-13.255 0-24 10.745-24 24s10.745 24 24 24h42.207L86.028 214.267C70.485 229.81 64 244.038 64 256c0 30.928 25.072 56 56 56h56v110.057c0 11.612 9.417 21.028 21.028 21.028s21.028-9.417 21.028-21.028V312h56c30.928 0 56-25.072 56-56 0-11.962-6.485-26.19-21.972-41.733z"></path></svg>';
+    const PIN_FLAG_HTML = '<span class="pin-flag" aria-hidden="true">' + PIN_FLAG_SVG + '<span>Pinned</span></span>';
 
     const urls = {
         sessions: widget.dataset.sessionsUrl,
@@ -53,6 +71,8 @@
         typingPing: widget.dataset.typingPingUrl,
         reaction: widget.dataset.reactionUrl,
         delete: widget.dataset.deleteUrl,
+        pin: widget.dataset.pinUrl,
+        media: widget.dataset.mediaUrl,
     };
     const csrfToken = widget.dataset.csrfToken;
 
@@ -135,6 +155,12 @@
         statusEl.innerHTML = online
             ? '<span class="admin-chat-presence online"><span class="admin-chat-presence-dot"></span> Online</span>'
             : '<span class="admin-chat-presence offline"><span class="admin-chat-presence-dot"></span> Offline</span>';
+        // Mirror the presence into the info drawer (status line)
+        if (infoPresence) {
+            infoPresence.innerHTML = online
+                ? '<span class="admin-chat-presence online"><span class="admin-chat-presence-dot"></span> Online</span>'
+                : '<span class="admin-chat-presence offline"><span class="admin-chat-presence-dot"></span> Offline</span>';
+        }
     }
 
     function scrollBottom() {
@@ -146,6 +172,7 @@
             msg.id, msg.role, msg.content, msg.image_url, msg.sent_at,
             msg.is_edited, msg.seen, msg.delivered, msg.is_deleted,
             JSON.stringify(msg.reactions || {}), JSON.stringify(msg.reply_to || null),
+            Boolean(msg.is_pinned),
         ]));
     }
 
@@ -206,7 +233,8 @@
                 const editBtn = (isClient && msg.content)
                     ? `<button type="button" class="admin-chat-act" data-act="edit" title="Edit message" aria-label="Edit message">${ICON_EDIT}</button>`
                     : "";
-                actionsHtml = `<div class="admin-chat-actions"><button type="button" class="admin-chat-act" data-act="react" title="React" aria-label="React">${ICON_REACT}</button><button type="button" class="admin-chat-act" data-act="reply" title="Reply" aria-label="Reply">${ICON_REPLY}</button>${editBtn}${isClient ? `<button type="button" class="admin-chat-act" data-act="delete" title="Delete message" aria-label="Delete message">${ICON_DELETE}</button>` : ""}</div>`;
+                const pinBtn = `<button type="button" class="admin-chat-act pin-act${msg.is_pinned ? " active" : ""}" data-act="pin" data-message-id="${msg.id}" title="${msg.is_pinned ? "Unpin message" : "Pin message"}" aria-label="${msg.is_pinned ? "Unpin message" : "Pin message"}">${ICON_PIN}</button>`;
+                actionsHtml = `<div class="admin-chat-actions"><button type="button" class="admin-chat-act" data-act="react" title="React" aria-label="React">${ICON_REACT}</button><button type="button" class="admin-chat-act" data-act="reply" title="Reply" aria-label="Reply">${ICON_REPLY}</button>${pinBtn}${editBtn}${isClient ? `<button type="button" class="admin-chat-act" data-act="delete" title="Delete message" aria-label="Delete message">${ICON_DELETE}</button>` : ""}</div>`;
             }
             let reactionsHtml = "";
             if (!msg.is_deleted && msg.reactions && Object.keys(msg.reactions).length) {
@@ -221,11 +249,12 @@
                 : "";
             row.innerHTML = `
                 ${replyHtml}
-                <div class="admin-chat-bubble">${textHtml}${imageHtml}${reactionsHtml}</div>
+                <div class="admin-chat-bubble">${msg.is_pinned && !msg.is_deleted ? PIN_FLAG_HTML : ""}${textHtml}${imageHtml}${reactionsHtml}</div>
                 ${actionsHtml}
                 <div class="admin-chat-time">${escapeHtml(msg.sent_at || "")} ${editedHtml}${deletedHtml} ${receipt}</div>
             `;
             if (msg.id) row.dataset.id = msg.id;
+            if (msg.is_pinned) row.classList.add("pinned-row");
             if (reactionsHtml) row.classList.add("has-reactions");
             messagesEl.appendChild(row);
             const imgEl = row.querySelector("img.admin-chat-image-link");
@@ -237,6 +266,7 @@
         // Only jump to the bottom when a new message arrived or the user was
         // already reading at the bottom — never on reaction-only updates.
         if (messages.length > prevCount || wasNearBottom) scrollBottom();
+        renderPinEventLines();
     }
 
     // ── Hover actions: reaction picker, reply, delete, lightbox ──
@@ -472,6 +502,7 @@
             setStatus(data.session.status, data.session.assigned_admin);
             updatePresence(data.session);
         }
+        if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
         renderMessages(data.messages || []);
         if (widget.classList.contains("open")) await markRead();
     }
@@ -649,6 +680,14 @@
             return;
         }
 
+        // "See all" on the pinned event line → open the chat info drawer
+        const seeAll = event.target.closest(".admin-chat-pin-seeall");
+        if (seeAll) {
+            event.preventDefault();
+            openInfoDrawer();
+            return;
+        }
+
         const row = event.target.closest(".admin-chat-msg");
 
         // Lightbox open (image click)
@@ -699,6 +738,8 @@
                 setReplyTo(row);
             } else if (action === "edit") {
                 startEdit(row);
+            } else if (action === "pin") {
+                await togglePin(act.dataset.messageId);
             } else if (action === "delete") {
                 await deleteMessage(row.dataset.id);
             }
@@ -714,6 +755,9 @@
             closeReactionPicker();
         }
     });
+
+    // Pin buttons toggle directly (Messenger-style — walang floating menu).
+    // Hanapin sa messagesEl click handler ang "See all" ng pin note.
 
     if (cancelEditBtn) cancelEditBtn.addEventListener("click", cancelEdit);
     if (cancelReplyBtn) cancelReplyBtn.addEventListener("click", cancelReply);
@@ -766,6 +810,252 @@
     loadSessions().then(() => {
         if (currentSessionId) loadHistory();
     }).catch(() => {});
+
+    /* ════════════════════════════════════════════════════════════════
+       CHAT INFO DRAWER + PINNED MESSAGES (Messenger-style)
+       Opens when the header avatar/name is clicked.
+       ════════════════════════════════════════════════════════════════ */
+    let pinnedMessages = [];
+    let mediaItems = [];
+    let mediaLightboxList = [];
+    let mediaLightboxIndex = 0;
+
+    function pinnedSnippet(pin) {
+        if (pin.snippet) return pin.snippet;
+        if (pin.has_image) return "📷 Photo";
+        return "Message";
+    }
+
+    function setPinned(list) {
+        const next = Array.isArray(list) ? list : [];
+        if (JSON.stringify(next) === JSON.stringify(pinnedMessages)) return;
+        pinnedMessages = next;
+        renderPinnedList();
+        syncPinButtons();
+    }
+
+    function renderPinnedList() {
+        if (!pinnedList || !pinnedEmpty) return;
+        pinnedList.innerHTML = "";
+        if (pinnedCountBadge) pinnedCountBadge.textContent = String(pinnedMessages.length);
+        if (!pinnedMessages.length) {
+            pinnedEmpty.hidden = false;
+            return;
+        }
+        pinnedEmpty.hidden = true;
+        pinnedMessages.forEach(function (pin) {
+            const item = document.createElement("div");
+            item.className = "admin-chat-pinned-item";
+            const byWho = pin.pinned_by
+                ? `<div class="admin-chat-pinned-meta">Pinned by ${escapeHtml(pin.pinned_by)}${pin.pinned_by_is_admin ? " (Admin)" : ""}${pin.pinned_at ? " · " + escapeHtml(pin.pinned_at) : ""}</div>`
+                : "";
+            // Ikaw lang (client) ang nakapin mo ang pwedeng mag-unpin — itago
+            // ang X kapag si admin ang nag-pin ng mensahe.
+            const unpinHtml = !pin.pinned_by_is_admin
+                ? `<button type="button" class="admin-chat-pinned-item-unpin" data-unpin-id="${pin.id}" title="Unpin" aria-label="Unpin message"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`
+                : "";
+            item.innerHTML =
+                `<div class="admin-chat-pinned-item-icon">${ICON_PIN}</div>` +
+                `<div class="admin-chat-pinned-item-body">` +
+                    `<div class="admin-chat-pinned-sender">${escapeHtml(pin.sender_name || "")}</div>` +
+                    `<div class="admin-chat-pinned-text">${escapeHtml(pinnedSnippet(pin))}</div>` +
+                    byWho +
+                `</div>` +
+                unpinHtml;
+            item.addEventListener("click", function (event) {
+                if (event.target.closest(".admin-chat-pinned-item-unpin")) return;
+                jumpToQuotedMessage(pin.id);
+            });
+            pinnedList.appendChild(item);
+        });
+    }
+
+    function syncPinButtons() {
+        const pinnedMap = {};
+        pinnedMessages.forEach(function (pin) { pinnedMap[pin.id] = pin; });
+        messagesEl.querySelectorAll(".admin-chat-msg").forEach(function (row) {
+            const pin = (row.dataset.id && pinnedMap[row.dataset.id]) || null;
+            const isPinned = Boolean(pin);
+            row.classList.toggle("pinned-row", isPinned);
+            const btn = row.querySelector(".admin-chat-act.pin-act");
+            if (btn) {
+                // Ikaw lang (client) ang pwedeng mag-unpin ng pin mo — itago ang
+                // action kapag si admin ang nag-pin ng mensahe.
+                btn.hidden = isPinned && Boolean(pin.pinned_by_is_admin);
+                btn.classList.toggle("active", isPinned);
+                btn.title = isPinned ? "Unpin message" : "Pin message";
+                btn.setAttribute("aria-label", isPinned ? "Unpin message" : "Pin message");
+            }
+            const bubble = row.querySelector(".admin-chat-bubble");
+            if (bubble) {
+                let flag = bubble.querySelector(".pin-flag");
+                if (isPinned && !flag) {
+                    flag = document.createElement("span");
+                    flag.setAttribute("aria-hidden", "true");
+                    flag.innerHTML = PIN_FLAG_SVG + "<span>Pinned</span>";
+                    bubble.insertBefore(flag, bubble.firstChild);
+                }
+                if (isPinned && flag) {
+                    // Naka-tusok sa gilid ng nag-pin: admin → kaliwa, client → kanan
+                    flag.className = "pin-flag " + (pin.pinned_by_is_admin ? "flag-left" : "flag-right");
+                } else if (!isPinned && flag) {
+                    flag.remove();
+                }
+            }
+        });
+        renderPinEventLines();
+    }
+
+    /* ── "You pinned a message. See all" system line under each pinned message ── */
+    function renderPinEventLines() {
+        messagesEl.querySelectorAll(".admin-chat-pin-note").forEach(function (el) { el.remove(); });
+        if (!pinnedMessages.length) return;
+        pinnedMessages.forEach(function (pin) {
+            const target = messagesEl.querySelector('.admin-chat-msg[data-id="' + pin.id + '"]');
+            if (!target) return;
+            const line = document.createElement("div");
+            line.className = "admin-chat-pin-note";
+            const who = pin.pinned_by_is_admin
+                ? "Admin pinned a message."
+                : "You pinned a message.";
+            line.innerHTML = '<span class="admin-chat-pin-note-text">' + escapeHtml(who) + '</span>' +
+                '<button type="button" class="admin-chat-pin-seeall">See all</button>';
+            target.after(line);
+        });
+    }
+
+    function renderMedia(items) {
+        mediaItems = Array.isArray(items) ? items : [];
+        if (mediaCountBadge) mediaCountBadge.textContent = String(mediaItems.length);
+        if (!mediaGrid || !mediaEmpty) return;
+        mediaGrid.innerHTML = "";
+        if (!mediaItems.length) {
+            mediaEmpty.hidden = false;
+            return;
+        }
+        mediaEmpty.hidden = true;
+        mediaLightboxList = [];
+        mediaItems.forEach(function (item) {
+            const idx = mediaLightboxList.length;
+            mediaLightboxList.push(item);
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.className = "admin-chat-media-thumb";
+            cell.title = (item.name || "Chat image") + " — " + (item.sent_at || "");
+            cell.innerHTML =
+                `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.name || "Chat image")}" loading="lazy">` +
+                `<span class="admin-chat-media-overlay">${escapeHtml(item.sent_at || "")}</span>`;
+            cell.addEventListener("click", function () { openMediaLightbox(idx); });
+            mediaGrid.appendChild(cell);
+        });
+    }
+
+    function loadMedia() {
+        if (!currentSessionId) return;
+        fetch(`${urls.media}?session_id=${encodeURIComponent(currentSessionId)}`, {
+            headers: { "X-CSRFToken": csrfToken },
+        })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && Array.isArray(data.media)) renderMedia(data.media);
+            })
+            .catch(function () {});
+    }
+
+    function openMediaLightbox(index) {
+        if (!mediaLightboxList.length || !mediaLightbox) return;
+        const total = mediaLightboxList.length;
+        mediaLightboxIndex = ((index % total) + total) % total;
+        const item = mediaLightboxList[mediaLightboxIndex];
+        const mediaLightboxImg = document.getElementById("adminChatMediaLightboxImg");
+        const mediaLightboxCaption = document.getElementById("adminChatMediaLightboxCaption");
+        if (mediaLightboxImg) mediaLightboxImg.src = item.url;
+        if (mediaLightboxCaption) mediaLightboxCaption.textContent = (mediaLightboxIndex + 1) + " / " + total + " — " + (item.name || "Chat image");
+        mediaLightbox.hidden = false;
+    }
+
+    function openInfoDrawer() {
+        if (!infoDrawer) return;
+        infoDrawer.hidden = false;
+        if (infoBackdrop) infoBackdrop.hidden = false;
+        if (infoTrigger) infoTrigger.setAttribute("aria-expanded", "true");
+        loadMedia();
+    }
+
+    function closeInfoDrawer() {
+        if (!infoDrawer) return;
+        infoDrawer.hidden = true;
+        if (infoBackdrop) infoBackdrop.hidden = true;
+        if (infoTrigger) infoTrigger.setAttribute("aria-expanded", "false");
+    }
+
+    function togglePin(messageId) {
+        const id = Number(messageId);
+        if (!id || !urls.pin) return Promise.resolve();
+        return fetch(urls.pin, {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({ message_id: id }),
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) { setError(data.error); return; }
+                if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
+                lastMessageSignature = ""; // let the next poll re-render pin states
+                return loadHistory(); // instant re-render with the new pin flag + event line
+            })
+            .catch(function () { setError("Could not update pin."); });
+    }
+
+    if (infoTrigger) infoTrigger.addEventListener("click", function () {
+        if (!infoDrawer || infoDrawer.hidden) openInfoDrawer();
+        else closeInfoDrawer();
+    });
+    if (infoCloseBtn) infoCloseBtn.addEventListener("click", closeInfoDrawer);
+    if (infoBackdrop) infoBackdrop.addEventListener("click", closeInfoDrawer);
+    if (pinnedList) {
+        pinnedList.addEventListener("click", function (event) {
+            const unpinBtn = event.target.closest(".admin-chat-pinned-item-unpin");
+            if (unpinBtn) {
+                event.preventDefault();
+                togglePin(unpinBtn.dataset.unpinId);
+            }
+        });
+    }
+
+    // Media gallery lightbox controls
+    if (mediaLightbox) {
+        const mediaLightboxClose = document.getElementById("adminChatMediaLightboxClose");
+        const mediaLightboxPrev = document.getElementById("adminChatMediaLightboxPrev");
+        const mediaLightboxNext = document.getElementById("adminChatMediaLightboxNext");
+        const mediaLightboxImg = document.getElementById("adminChatMediaLightboxImg");
+        function closeMediaLightbox() {
+            mediaLightbox.hidden = true;
+            if (mediaLightboxImg) mediaLightboxImg.src = "";
+        }
+        if (mediaLightboxClose) mediaLightboxClose.addEventListener("click", closeMediaLightbox);
+        if (mediaLightboxPrev) mediaLightboxPrev.addEventListener("click", function () { openMediaLightbox(mediaLightboxIndex - 1); });
+        if (mediaLightboxNext) mediaLightboxNext.addEventListener("click", function () { openMediaLightbox(mediaLightboxIndex + 1); });
+        mediaLightbox.addEventListener("click", function (event) {
+            if (event.target === mediaLightbox) closeMediaLightbox();
+        });
+    }
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+            if (mediaLightbox && !mediaLightbox.hidden) { mediaLightbox.hidden = true; return; }
+            if (lightboxEl && !lightboxEl.hidden) { closeLightbox(); return; }
+            if (infoDrawer && !infoDrawer.hidden) closeInfoDrawer();
+        }
+        if (mediaLightbox && !mediaLightbox.hidden) {
+            if (event.key === "ArrowLeft") openMediaLightbox(mediaLightboxIndex - 1);
+            if (event.key === "ArrowRight") openMediaLightbox(mediaLightboxIndex + 1);
+        }
+        if (lightboxEl && !lightboxEl.hidden) {
+            if (event.key === "ArrowLeft") openLightbox(lightboxIndex - 1);
+            if (event.key === "ArrowRight") openLightbox(lightboxIndex + 1);
+        }
+    });
 
     setInterval(function () {
         if (widget.classList.contains("open")) {

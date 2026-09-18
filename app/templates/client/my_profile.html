@@ -2,15 +2,12 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_profile.css' %}?v=20260430a">
+<link rel="stylesheet" href="{% static 'css/my_profile.css' %}?v=20260913j">
 
 <div class="my-profile-page">
     <div class="my-profile-wrapper">
         
         <div class="my-profile-card">
-            
-            <!-- Cover Section -->
-            <div class="my-profile-cover"></div>
 
             <!-- Header Section -->
             <div class="my-profile-header">
@@ -56,11 +53,73 @@
                 </div>
 
                 <div class="profile-section">
-                    <h3 class="section-title"><i class="fas fa-fingerprint"></i> Account Security</h3>
+                    <h3 class="section-title"><i class="far fa-user-circle"></i> Account Security</h3>
                     <p class="security-desc">Ensure your account is using a long, random password to stay secure. Change it regularly.</p>
+                    <div class="last-login-row">
+                        <svg class="last-login-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>
+                            {% if user.last_login %}
+                                Last login: {{ user.last_login|date:"M d, Y" }} at {{ user.last_login|time:"g:i A" }}
+                            {% else %}
+                                Welcome! This is your first login.
+                            {% endif %}
+                        </span>
+                    </div>
                     <button class="btn-change-password" onclick="openPasswordModal()">
-                        <i class="fas fa-key"></i> Change Password
+                        <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                        </svg> Change Password
                     </button>
+                </div>
+
+                <!-- Recent Activity Timeline -->
+                <div class="profile-section">
+                    <h3 class="section-title"><i class="far fa-clock"></i> Recent Activity</h3>
+                    {% if activity_logs %}
+                    <ul class="activity-timeline" id="activityTimeline">
+                        {% for log in activity_logs %}
+                        <li class="activity-item{% if forloop.counter > 4 %} activity-extra{% endif %}">
+                            <span class="activity-marker" title="{{ log.created_at|date:'M d, Y, g:i A' }}">
+                                {% with action=log.action|lower %}
+                                    {% if 'password' in action %}
+                                        <svg class="activity-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                                    {% elif 'booking' in action %}
+                                        <i class="far fa-calendar"></i>
+                                    {% elif 'review' in action %}
+                                        <i class="far fa-star"></i>
+                                    {% elif 'payment' in action %}
+                                        <i class="far fa-credit-card"></i>
+                                    {% elif 'concern' in action %}
+                                        <i class="far fa-envelope"></i>
+                                    {% elif 'logged in' in action or 'logged out' in action %}
+                                        <i class="far fa-user"></i>
+                                    {% else %}
+                                        <i class="far fa-circle"></i>
+                                    {% endif %}
+                                {% endwith %}
+                            </span>
+                            <div class="activity-content">
+                                <p class="activity-text">{{ log.action }}</p>
+                                <span class="activity-time">{{ log.created_at|timesince }} ago &middot; {{ log.created_at|date:"M d, Y, g:i A" }}</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% if activity_logs|length > 4 %}
+                    <button type="button" class="btn-activity-toggle" id="btnActivityToggle" onclick="toggleActivity()" aria-expanded="false" aria-controls="activityTimeline">
+                        <span id="activityToggleLabel">Show all activity ({{ activity_logs|length }})</span>
+                        <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    {% endif %}
+                    {% else %}
+                    <p class="activity-empty">No activity yet. Your recent actions will show up here.</p>
+                    {% endif %}
                 </div>
 
             </div>
@@ -252,7 +311,9 @@
 
         const getValidationMessage = (input) => {
             if (input.validity.valueMissing) {
-                const label = input.closest('.form-group')?.querySelector('label')?.textContent?.trim() || input.name;
+                const rawLabel = input.closest('.form-group')?.querySelector('label')?.textContent?.trim() || input.name;
+                // Tanggalin ang trailing " *" sa label para walang dobleng asterisk sa message
+                const label = rawLabel.replace(/\s*\*\s*$/, '');
                 return `${label} is required*`;
             }
             return '';
@@ -434,6 +495,27 @@
         });
 
         syncChangePasswordChecklist();
+    }
+
+    // --- RECENT ACTIVITY SHOW MORE / LESS ---
+    function toggleActivity() {
+        const timeline = document.getElementById('activityTimeline');
+        const btn = document.getElementById('btnActivityToggle');
+        const label = document.getElementById('activityToggleLabel');
+        if (!timeline || !btn) return;
+
+        const expanded = timeline.classList.toggle('expanded');
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+
+        const total = timeline.querySelectorAll('.activity-item').length;
+        if (label) {
+            label.textContent = expanded ? 'Show less' : `Show all activity (${total})`;
+        }
+
+        const chevron = btn.querySelector('.toggle-chevron');
+        if (chevron) {
+            chevron.style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
     }
 
     // Close on outside click

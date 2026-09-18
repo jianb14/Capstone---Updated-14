@@ -97,43 +97,6 @@
     overflow: hidden;
 }
 
-.booking-summary-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    height: 2px;
-    opacity: 0.95;
-}
-
-.booking-summary-card--total::before {
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-}
-
-.booking-summary-card--pending::before {
-    background: linear-gradient(90deg, #d97706, #f59e0b);
-}
-
-.booking-summary-card--payment::before {
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
-}
-
-.booking-summary-card--confirmed::before {
-    background: linear-gradient(90deg, #14b8a6, #2dd4bf);
-}
-
-.booking-summary-card--cancelled::before {
-    background: linear-gradient(90deg, #dc2626, #ef4444);
-}
-
-.booking-summary-card--completed::before {
-    background: linear-gradient(90deg, #059669, #10b981);
-}
-
-.booking-summary-card--expired::before {
-    background: linear-gradient(90deg, #6b7280, #9ca3af);
-}
-
 .booking-summary-head {
     display: flex;
     align-items: center;
@@ -333,9 +296,9 @@ td:last-child {
 }
 
 .action-icon-btn {
-    width: 2.2rem;
-    height: 2.2rem;
-    padding: 0;
+    width: auto;
+    height: auto;
+    padding: 0.55rem 0.7rem;
 }
 
 .action-icon-btn svg {
@@ -446,8 +409,8 @@ td:last-child {
     }
 
     .action-icon-btn {
-        width: 2rem;
-        height: 2rem;
+        width: auto;
+        height: auto;
     }
 }
 
@@ -565,7 +528,7 @@ td:last-child {
     .action-buttons a,
     .action-buttons button {
         width: auto;
-        padding: 0.4rem 0.6rem;
+        padding: 0.55rem 0.7rem;
         font-size: 0.75rem;
     }
 
@@ -713,15 +676,16 @@ td:last-child {
     width: 8px;
     height: 8px;
     display: inline-block;
-    border-right: 2px solid #ffffff;
-    border-bottom: 2px solid #ffffff;
-    transform: rotate(45deg) translateY(-1px);
+    border-right: 1.5px solid #ffffff;
+    border-bottom: 1.5px solid #ffffff;
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.25s ease;
     opacity: 0.95;
 }
 
 .custom-filter-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg) translateY(-1px);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
 }
 
 .custom-filter-dropdown .dropdown-options {
@@ -1384,6 +1348,52 @@ td[data-label="Date"] {
     background-color: #f9fafb !important;
 }
 
+/* ========================================================
+   LIGHT MODE — Table action buttons (matches admin_package.css)
+   ======================================================== */
+[data-theme="light"] .action-buttons a.action-view,
+[data-theme="light"] .action-buttons button.action-view {
+    background: #f9fafb !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .action-buttons a.action-view:hover,
+[data-theme="light"] .action-buttons button.action-view:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a.action-approve,
+[data-theme="light"] .action-buttons button.action-approve,
+[data-theme="light"] .action-buttons a.btn-complete,
+[data-theme="light"] .action-buttons button.btn-complete {
+    background: #ffffff !important;
+    color: #059669 !important;
+    border-color: rgba(5, 150, 105, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.action-approve:hover,
+[data-theme="light"] .action-buttons button.action-approve:hover,
+[data-theme="light"] .action-buttons a.btn-complete:hover,
+[data-theme="light"] .action-buttons button.btn-complete:hover {
+    background: rgba(16, 185, 129, 0.08) !important;
+    color: #047857 !important;
+}
+
+[data-theme="light"] .action-buttons a.action-deny,
+[data-theme="light"] .action-buttons button.action-deny {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.action-deny:hover,
+[data-theme="light"] .action-buttons button.action-deny:hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
 /* Light-mode table scrollbar */
 [data-theme="light"] .table-container {
     scrollbar-color: #9ca3af #e5e7eb;
@@ -1418,9 +1428,9 @@ td[data-label="Date"] {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,

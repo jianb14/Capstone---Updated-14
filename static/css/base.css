@@ -3789,31 +3789,6 @@ nav.scrolled {
     font-size: 1rem;
 }
 
-.gallery-cta {
-    text-align: center;
-    margin: clamp(10rem, 10vh, 8rem) auto 0;
-    padding: clamp(1.5rem, 4vw, 3rem);
-    max-width: 1160px;
-    width: min(100%, 1160px);
-    background: var(--gray);
-    color: var(--white);
-    border: 1px solid var(--light-gray);
-    border-radius: 10px;
-}
-
-.gallery-cta-title {
-    font-size: clamp(1.3rem, 2.8vw, 2rem);
-    margin-bottom: 0.9rem;
-    color: var(--white);
-    line-height: 1.2;
-}
-
-.gallery-cta-text {
-    font-size: clamp(0.95rem, 1.6vw, 1.1rem);
-    margin-bottom: 1.6rem;
-    opacity: 0.9;
-}
-
 /* Lightbox */
 .gallery-lightbox {
     position: fixed;
@@ -4087,6 +4062,12 @@ nav.scrolled {
 [data-theme="light"] .dropdown-item:hover {
     background-color: #f3f4f6;
     color: #111827;
+}
+
+/* Light mode: Log Out keeps the red text + ghost red hover (same as dark mode) */
+[data-theme="light"] .dropdown-item.logout-text:hover {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
 }
 
 [data-theme="light"] .hero {
@@ -5332,7 +5313,6 @@ nav.scrolled {
     .service-content h2,
     h2.section-title,
     .cta-banner h2,
-    .gallery-cta-title,
     .hero-text h1,
     .about-hero h1,
     .services-hero h1,
@@ -5364,7 +5344,6 @@ nav.scrolled {
     .service-content h2,
     h2.section-title,
     .cta-banner h2,
-    .gallery-cta-title,
     .hero-text h1,
     .about-hero h1,
     .services-hero h1,
@@ -5505,6 +5484,12 @@ nav.scrolled {
     outline: none;
     border-color: #facc15;
     box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+}
+
+/* Light mode: walang makapal na focus ring sa select/input (minimal lang) */
+[data-theme="light"] .tool-field select:focus,
+[data-theme="light"] .tool-field input:focus {
+    box-shadow: none;
 }
 
 /* Native dropdown list: panatilihing madilim sa dark mode at maliwanag sa
@@ -5818,7 +5803,8 @@ nav.scrolled {
 }
 
 [data-theme="light"] .comparison-table thead th {
-    background: rgba(0, 0, 0, 0.05);
+    /* Matches admin booking table header bg (admin_booking.css) */
+    background: #f3f4f6;
 }
 
 [data-theme="light"] .comparison-table tbody tr:hover,
@@ -5849,89 +5835,8 @@ nav.scrolled {
     }
 }
 
-/* ========================================================
-   GALLERY CTA — "Ready to Style Your Event?" banner
-   ======================================================== */
-.gallery-cta {
-    margin: 0 auto clamp(3rem, 6vw, 5rem);
-    width: 90%;
-    max-width: none;
-    padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 4vw, 3rem);
-    border-radius: 16px;
-    text-align: center;
-    background: #111111;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Subtle balloon-dot accent sa likod */
-.gallery-cta::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1.01px, transparent 1.01px);
-    background-size: 22px 22px;
-    pointer-events: none;
-}
-
-.gallery-cta h2 {
-    position: relative;
-    font-size: clamp(1.5rem, 4vw, 2.2rem);
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0;
-}
-
-.gallery-cta p {
-    position: relative;
-    color: #a1a1aa;
-    font-size: clamp(0.9rem, 2vw, 1rem);
-    line-height: 1.6;
-    max-width: 560px;
-    margin: 0.7rem auto 1.6rem;
-}
-
-.gallery-cta-actions {
-    position: relative;
-    display: flex;
-    gap: 0.8rem;
-    justify-content: center !important;
-    align-items: center;
-    width: 100%;
-    flex-wrap: wrap;
-}
-
-/* Same buttons as home CTA (.cta-btn) */
-
-/* Light mode */
-[data-theme="light"] .gallery-cta {
-    background: #f4f4f5;
-    border-color: #e4e4e7;
-}
-
-[data-theme="light"] .gallery-cta::before {
-    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.06) 1.01px, transparent 1.01px);
-}
-
-[data-theme="light"] .gallery-cta h2 {
-    color: #111111;
-}
-
-[data-theme="light"] .gallery-cta p {
-    color: #52525b;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-    .gallery-cta {
-        width: 92%;
-        margin: 0 auto clamp(2.5rem, 5vw, 4rem);
-        border-radius: 12px;
-    }
-    .gallery-cta-actions .cta-btn {
-        width: 100%;
-        justify-content: center;
-    }
-}
+/* GALLERY CTA — gumagamit na ngayon ng kaparehong .cta-banner-section /
+   .cta-banner markup ng homepage (tingnan ang .cta-banner rules sa taas),
+   kaya automatic nang pantay ang laki, button style, dot-pattern bg,
+   at light-mode styles nito. Walang hiwalay na CSS dito. */
 

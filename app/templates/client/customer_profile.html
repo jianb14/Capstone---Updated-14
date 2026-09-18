@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20260913d">
+<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20260913z">
 
 <div class="profile-page" style="animation: fadeInPage 0.5s ease forwards;">
     <div class="profile-shell">
@@ -10,59 +10,63 @@
         <p class="profile-subtitle">Track your booking status and manage upcoming events.</p>
 
         <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-icon stat-icon-total">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                </div>
-                <div>
+            <!-- Kapareho ng design ng Admin Booking summary cards -->
+            <div class="stat-card stat-card--total">
+                <div class="stat-head">
                     <span class="stat-label">Total Bookings</span>
-                    <span class="stat-value">{{ total_bookings }}</span>
+                    <span class="stat-icon stat-icon-total" aria-hidden="true">
+                        <i class="far fa-calendar"></i>
+                    </span>
                 </div>
+                <span class="stat-value">{{ total_bookings }}</span>
+                <span class="stat-sub">All your bookings</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon stat-icon-confirmed">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                </div>
-                <div>
+            <div class="stat-card stat-card--confirmed">
+                <div class="stat-head">
                     <span class="stat-label">Confirmed</span>
-                    <span class="stat-value">{{ confirmed_count }}</span>
+                    <span class="stat-icon stat-icon-confirmed" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M20 6 9 17l-5-5"></path>
+                        </svg>
+                    </span>
                 </div>
+                <span class="stat-value">{{ confirmed_count }}</span>
+                <span class="stat-sub">Approved and ready</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon stat-icon-pending">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                </div>
-                <div>
+            <div class="stat-card stat-card--pending">
+                <div class="stat-head">
                     <span class="stat-label">Pending</span>
-                    <span class="stat-value">{{ pending_count }}</span>
+                    <span class="stat-icon stat-icon-pending" aria-hidden="true">
+                        <i class="far fa-clock"></i>
+                    </span>
                 </div>
+                <span class="stat-value">{{ pending_count }}</span>
+                <span class="stat-sub">Waiting for review</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon stat-icon-complete">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="8 12 11 15 16 9"></polyline>
-                    </svg>
-                </div>
-                <div>
+            <div class="stat-card stat-card--complete">
+                <div class="stat-head">
                     <span class="stat-label">Completed</span>
-                    <span class="stat-value">{{ completed_count }}</span>
+                    <span class="stat-icon stat-icon-complete" aria-hidden="true">
+                        <i class="far fa-check-circle"></i>
+                    </span>
                 </div>
+                <span class="stat-value">{{ completed_count }}</span>
+                <span class="stat-sub">Finished events</span>
             </div>
         </div>
 
         <div class="bookings-section">
 
             <form method="GET" action="{% url 'customer_profile' %}" class="filter-form" id="filterForm" onsubmit="event.preventDefault(); return false;">
-                    <input type="text" name="search" placeholder="Search ID or Event..." value="{{ search_query }}" class="filter-input" id="searchFilterInput">
-                    
+                    <div class="search-input-wrap">
+                        <svg class="search-input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7.5"></circle><line x1="21" y1="21" x2="16.4" y2="16.4"></line></svg>
+                        <input type="text" name="search" placeholder="Search ID or Event..." value="{{ search_query }}" class="filter-input" id="searchFilterInput" autocomplete="off">
+                    </div>
+
                     <div class="custom-filter-dropdown" id="statusDropdown">
                         <div class="dropdown-trigger">
                             <span id="statusDropdownText">All Status</span>
-                            <i class="fas fa-chevron-down"></i>
+                            <svg class="dropdown-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
                         </div>
                         <ul class="dropdown-options">
                             <li data-value="all" {% if status_filter == 'all' or not status_filter %}class="selected"{% endif %}>All Status</li>
@@ -92,7 +96,7 @@
                                 {% elif sort_date == 'oldest' %}Event Date (Oldest First)
                                 {% else %}Event Date (Newest First){% endif %}
                             </span>
-                            <i class="fas fa-chevron-down"></i>
+                            <svg class="dropdown-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
                         </div>
                         <ul class="dropdown-options">
                             <li data-value="id_desc" {% if sort_date == 'id_desc' %}class="selected"{% endif %}>ID (High to Low)</li>
@@ -228,11 +232,18 @@
                         {% empty %}
                         <tr>
                             <td colspan="5" class="bookings-empty">
-                                {% if total_bookings == 0 and not search_query and status_filter == 'all' %}
-                                You don't have any bookings yet.
-                                {% else %}
-                                No bookings found matching your criteria.
-                                {% endif %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon" aria-hidden="true">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    </div>
+                                    {% if total_bookings == 0 and not search_query and status_filter == 'all' %}
+                                    <p class="empty-state-title">You don't have any bookings yet</p>
+                                    <p class="empty-state-subtitle">Start by booking your first event — all of your bookings will show up here.</p>
+                                    {% else %}
+                                    <p class="empty-state-title">No bookings found</p>
+                                    <p class="empty-state-subtitle">We couldn't find any bookings matching your search or filters. Try adjusting them.</p>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -275,34 +286,35 @@
         </div>
 
         <div class="modal-row">
-            <span class="modal-label">Event Type</span>
+            <span class="modal-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>Event Type</span>
             <span class="modal-value" id="modalType"></span>
         </div>
         <div class="modal-row">
-            <span class="modal-label">Date & Time</span>
-            <span class="modal-value"><span id="modalDate"></span> <br> <small style="color: white"
+            <span class="modal-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Date & Time</span>
+            <span class="modal-value"><span id="modalDate"></span> <br> <small
+                    style="font-size: 0.85rem;"
                     id="modalTime"></small></span>
         </div>
         <div class="modal-row">
-            <span class="modal-label">Location(Venue Address)</span>
+            <span class="modal-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>Location (Venue Address)</span>
             <span class="modal-value" id="modalLocation"></span>
         </div>
         <div class="modal-row" id="modalPackageRow">
-            <span class="modal-label">Package</span>
+            <span class="modal-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>Package</span>
             <span class="modal-value" id="modalPackage"></span>
         </div>
-        <div class="modal-row" style="align-items: center;">
-            <span class="modal-label">Status</span>
+        <div class="modal-row">
+            <span class="modal-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>Status</span>
             <span id="modalStatusBadge" class="status-badge-lg"></span>
         </div>
         <div class="modal-row" id="viewImageRow" style="display: none; flex-direction: column; align-items: flex-start;">
-            <span class="modal-label">Reference Images</span>
+            <span class="modal-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Reference Images</span>
             <div id="viewMultiImageGrid" style="width: 100%; margin-top: 10px;">
                 <!-- Filled via JS -->
             </div>
         </div>
         <div id="modalRequestsBlock" style="display: none;">
-            <span class="modal-label modal-section-label">Special Requests</span>
+            <span class="modal-label modal-section-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>Special Requests</span>
             <div id="modalRequestsContainer"
                 style="margin-top: 0.5rem; padding: 1rem; border-radius: 8px; border: 1px dashed #333;">
                 <p id="modalRequests"
@@ -311,7 +323,7 @@
             </div>
         </div>
         <div id="modalDenialBlock" style="display: none;">
-            <span class="modal-label modal-section-label">Denial Reason</span>
+            <span class="modal-label modal-section-label"><svg class="label-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Denial Reason</span>
             <div id="modalDenialContainer"
                 style="margin-top: 0.5rem; padding: 1rem; border-radius: 8px; border: 1px dashed rgba(239,68,68,0.45); background: rgba(239,68,68,0.08);">
                 <p id="modalDenialReason"
@@ -455,7 +467,7 @@
                     <div class="form-group full-width">
                         <!-- Custom Select UI -->
                         <div class="custom-select-container" id="editEventTypeCustomSelect">
-                            <label><i class="fa-solid fa-list-ul"></i> Event Type <span class="input-required">*</span></label>
+                            <label><i class="far fa-clipboard"></i> Event Type <span class="input-required">*</span></label>
                             <div class="custom-select-trigger">
                                 <span>Select an Event</span>
                                 <i class="fa-solid fa-chevron-down"></i>
@@ -466,8 +478,6 @@
                                 <li data-value="Anniversary">Anniversary</li>
                                 <li data-value="Corporate Event">Corporate Event</li>
                                 <li data-value="Christening">Christening</li>
-                                <li data-value="Bridal Shower">Bridal Shower</li>
-                                <li data-value="Baby Shower">Baby Shower</li>
                                 <li data-value="Other">Other</li>
                             </ul>
                             <!-- Hidden input -->
@@ -480,13 +490,13 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label><i class="fa-solid fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
+                        <label><i class="far fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
                         <input type="date" id="edit_event_date" name="event_date" required>
                         <small class="review-field-error" id="edit_event_date_error"></small>
                     </div>
 
                     <div class="form-group full-width">
-                        <label><i class="fa-solid fa-clock"></i> Event Duration <span class="input-required">*</span></label>
+                        <label><i class="far fa-clock"></i> Event Duration <span class="input-required">*</span></label>
                         <div class="time-row">
                             <div class="time-field">
                                 <small>Start</small>
@@ -502,7 +512,7 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label><i class="fa-solid fa-location-dot"></i> Location (Venue Address) <span class="input-required">*</span></label>
+                        <label><i class="far fa-map"></i> Location (Venue Address) <span class="input-required">*</span></label>
                         <input type="text" id="edit_event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" required>
                         <small class="review-field-error" id="edit_event_location_error"></small>
                     </div>
@@ -513,13 +523,13 @@
 
                     <!-- Special Requests -->
                     <div class="form-group full-width">
-                        <label for="edit_special_requests"><i class="fa-solid fa-comment"></i> Special Requests (Optional)</label>
+                        <label for="edit_special_requests"><i class="far fa-comment"></i> Special Requests (Optional)</label>
                         <textarea id="edit_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                     </div>
 
                     <!-- Unified Images -->
                     <div class="form-group full-width" id="edit_images_section">
-                        <label for="edit_reference_images_ui"><i class="fa-solid fa-images"></i> Add Reference Pictures (Optional)</label>
+                        <label for="edit_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
                         <input type="file" id="edit_reference_images_ui" accept="image/*" multiple class="file-input">
                         <!-- Hidden proper input for backend submission -->
                         <input type="file" id="edit_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
@@ -537,7 +547,7 @@
                 </div>
 
                 <div class="modal-actions split-actions">
-                    <button type="button" class="booking-back-btn" id="btnPrevEditStep">Back</button>
+                    <button type="button" class="booking-back-btn" id="btnPrevEditStep"><i class="fa-solid fa-arrow-left"></i> Back</button>
                     <button type="button" class="btn-submit" id="btnNextEditToSummary">Next Step</button>
                 </div>
             </div>
@@ -545,15 +555,15 @@
             <!-- STEP 3: REVIEW & CONFIRM -->
             <div class="stepper-step" id="edit-step-3" style="display: none;">
                 <h3>Review & Confirm</h3>
-                <p class="step-desc">Review your selected package and event details before updating.</p>
+                <p class="step-desc">Review your selected package and event details before submitting.</p>
                 <div class="booking-review-grid">
                     <div class="booking-summary-container">
-                        <h4 class="summary-title"><i class="fa-solid fa-clipboard-check"></i> Booking Details</h4>
+                        <h4 class="summary-title"><i class="far fa-clipboard"></i> Booking Details</h4>
                         <div id="edit-booking-details-list" class="summary-items"></div>
                     </div>
 
                     <div class="booking-summary-container">
-                        <h4 class="summary-title"><i class="fa-solid fa-receipt"></i> Booking Summary</h4>
+                        <h4 class="summary-title"><i class="far fa-file-lines"></i> Booking Summary</h4>
                         <div id="edit-booking-item-list" class="summary-items"></div>
 
                         <div class="summary-divider"></div>
@@ -575,8 +585,10 @@
                     </div>
                 </div>
 
+                <p class="review-note"><i class="fa-solid fa-circle-info"></i>Our team will verify availability and confirm your booking after submission.</p>
+
                 <div class="modal-actions split-actions">
-                    <button type="button" class="booking-back-btn" id="btnPrevEditToDetails">Back</button>
+                    <button type="button" class="booking-back-btn" id="btnPrevEditToDetails"><i class="fa-solid fa-arrow-left"></i> Back</button>
                     <button type="submit" class="btn-submit">Update Booking</button>
                 </div>
             </div>
@@ -810,7 +822,7 @@
                 editEventTypeOtherEl &&
                 !editEventTypeOtherEl.value.trim()
             ) {
-                setEditBookingFieldError('event_type_other', 'Please specify your event type.');
+                setEditBookingFieldError('event_type_other', 'Please specify your event type.*');
                 if (!firstInvalidField) firstInvalidField = 'event_type_other';
             }
 
@@ -1353,7 +1365,7 @@
         }
 
         if (editEventTypeSelect && editEventTypeSelect.value === 'Other' && (!editEventTypeOtherEl || !editEventTypeOtherEl.value.trim())) {
-            setEditBookingFieldError('event_type_other', 'Please specify your event type.');
+            setEditBookingFieldError('event_type_other', 'Please specify your event type.*');
             if (!firstInvalidField) firstInvalidField = 'event_type_other';
         }
 
@@ -1518,12 +1530,12 @@
             const endDisplay = formatTimeWithMeridiem(endTimeVal);
             const timeRange = (startDisplay === '-' || endDisplay === '-') ? '-' : `${startDisplay} - ${endDisplay}`;
             const specialRequestsRow = specialRequestsVal
-                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsVal}</span></div>`
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsVal}</span></div>`
                 : '';
             const referenceImageSources = getEditReviewImageSources();
             const referencePicturesRow = referenceImageSources.length
                 ? `<div class="summary-row" id="editReferencePicturesRow">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-images"></i> Reference Pictures</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-images"></i> Reference Pictures</span></div>
                     <span class="row-value">
                         <span class="booking-summary-image-list">
                             ${referenceImageSources.map((src, index) => `<img class="booking-summary-thumb" src="${src}" alt="Reference picture ${index + 1}">`).join('')}
@@ -1534,23 +1546,23 @@
 
             editBookingDetailsList.innerHTML = `
                 <div class="summary-row">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-box-open"></i> Package / Items</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-square-check"></i> Package / Items</span></div>
                     <span class="row-value">${buildEditPackageTypeString() || '-'}</span>
                 </div>
                 <div class="summary-row">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-list-ul"></i> Event Type</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-clipboard"></i> Event Type</span></div>
                     <span class="row-value">${getSelectedEditEventTypeDisplay()}</span>
                 </div>
                 <div class="summary-row">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-calendar-days"></i> Event Date</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-calendar-days"></i> Event Date</span></div>
                     <span class="row-value">${eventDateVal}</span>
                 </div>
                 <div class="summary-row">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-clock"></i> Event Duration</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-clock"></i> Event Duration</span></div>
                     <span class="row-value">${timeRange}</span>
                 </div>
                 <div class="summary-row">
-                    <div class="row-info"><span class="row-label"><i class="fa-solid fa-location-dot"></i> Location</span></div>
+                    <div class="row-info"><span class="row-label"><i class="far fa-map"></i> Location</span></div>
                     <span class="row-value">${locationVal || '-'}</span>
                 </div>
                 ${specialRequestsRow}
@@ -1759,7 +1771,7 @@
 
                 const diffMins = (endNode - startNode) / 60000;
                 if (diffMins < 120) {
-                    setEditBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+                    setEditBookingFieldError('end_time', 'Event duration must be at least 2 hours.*');
                     editEndTimeEl.focus();
                     return;
                 }
@@ -1770,20 +1782,20 @@
                 const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
                 if (startHour < 7 || startHour >= 18) {
-                    setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
+                    setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.*');
                     editStartTimeEl.focus();
                     return;
                 }
 
                 if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
-                    setEditBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
+                    setEditBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.*');
                     editEndTimeEl.focus();
                     return;
                 }
 
                 const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
                 if (crossesMidnight) {
-                    setEditBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+                    setEditBookingFieldError('end_time', 'End time must be later than start time on the same day.*');
                     editEndTimeEl.focus();
                     return;
                 }
@@ -1858,11 +1870,11 @@
         const selectEl = document.getElementById('edit_event_type_select');
         const otherEl = document.getElementById('edit_event_type_other');
         const customTriggerText = document.querySelector('#editEventTypeCustomSelect .custom-select-trigger span');
-        const commonTypes = ['Birthday', 'Wedding', 'Anniversary', 'Corporate Event', 'Christening', 'Bridal Shower', 'Baby Shower'];
+        const commonTypes = ['Birthday', 'Wedding', 'Anniversary', 'Corporate Event', 'Christening'];
 
         if (commonTypes.includes(type)) {
             selectEl.value = type;
-            if (customTriggerText) { customTriggerText.textContent = type; customTriggerText.style.color = '#fff'; }
+            if (customTriggerText) { customTriggerText.textContent = type; customTriggerText.classList.add('selected-value'); }
             otherEl.style.display = 'none';
             otherEl.required = false;
             otherEl.removeAttribute('name');
@@ -1870,7 +1882,7 @@
             otherEl.value = '';
         } else {
             selectEl.value = 'Other';
-            if (customTriggerText) { customTriggerText.textContent = 'Other'; customTriggerText.style.color = '#fff'; }
+            if (customTriggerText) { customTriggerText.textContent = 'Other'; customTriggerText.classList.add('selected-value'); }
             otherEl.style.display = 'block';
             otherEl.required = true;
             otherEl.name = 'event_type';
@@ -2404,7 +2416,7 @@
 
                 // Update visual trigger
                 triggerText.textContent = text;
-                triggerText.style.color = '#fff';
+                triggerText.classList.add('selected-value');
 
                 // Update hidden input
                 hiddenInput.value = value;

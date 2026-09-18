@@ -369,9 +369,16 @@
 [data-theme="light"] textarea:focus,
 [data-theme="light"] .form-control:focus,
 [data-theme="light"] .form-select:focus,
-[data-theme="light"] .search-input-wrapper input:focus,
 [data-theme="light"] .service-charge-field input:focus,
-[data-theme="light"] .service-charge-field textarea:focus,
+[data-theme="light"] .service-charge-field textarea:focus {
+    border-color: #9ca3af !important;
+    /* Border color lang ang nagbabago — bg kapareho ng base (#f9fafb), hindi white */
+    background-color: #f9fafb !important;
+    outline: none !important;
+}
+
+/* Search inputs at dropdown triggers: white ang base bg — walang pagbabago sa focus */
+[data-theme="light"] .search-input-wrapper input:focus,
 [data-theme="light"] .custom-filter-dropdown.open .dropdown-trigger {
     border-color: #9ca3af !important;
     background-color: var(--light-surface) !important;
@@ -414,7 +421,8 @@
 [data-theme="light"] .data-table thead,
 [data-theme="light"] thead,
 [data-theme="light"] .table-header {
-    background: #e5e7eb !important;
+    /* Matches admin booking table header bg (admin_booking.css) */
+    background: #f3f4f6 !important;
     border-bottom: 1px solid #d1d5db !important;
 }
 
@@ -451,9 +459,14 @@
     color: var(--light-text-sec) !important;
 }
 
-[data-theme="light"] .sidebar-nav-menu a:hover,
-[data-theme="light"] .sidebar-nav-menu a.active {
+[data-theme="light"] .sidebar-nav-menu a:hover {
     background-color: var(--light-hover) !important;
+    color: var(--light-text) !important;
+}
+
+/* Active: darker shade para malinaw na pagkakaiba sa hover */
+[data-theme="light"] .sidebar-nav-menu a.active {
+    background-color: #e5e7eb !important;
     color: var(--light-text) !important;
 }
 
@@ -570,15 +583,35 @@
    SPECIFIC FIXES (Booking, Topbar, Sidebar, Packages)
    ======================================================== */
 
-/* Topbar Background */
+/* Topbar Background (matches the lighter page bg above) */
 [data-theme="light"] .admin-topbar {
-    background-color: #f3f4f6 !important;
+    background-color: #fafbfc !important;
     border-bottom: none !important;
 }
 
 /* Topbar Avatar */
 [data-theme="light"] .admin-avatar {
     background-color: #111827 !important;
+    color: #ffffff !important;
+}
+
+/* Notification count badge: dark ring only fits dark mode —
+   use a white ring + subtle shadow on the light topbar */
+[data-theme="light"] .notification-badge {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    /* Red bg manatili, pero PUTI ang numero (dating black) */
+    color: #ffffff !important;
+}
+
+/* Notif "N New" badge: puti ang text sa light mode */
+[data-theme="light"] .notif-header-badge {
+    color: #ffffff !important;
+}
+
+/* Sidebar chat badge: GRAY GHOST bg + WHITE text sa light mode */
+[data-theme="light"] .nav-count-badge {
+    background: #6b7280 !important;
     color: #ffffff !important;
 }
 
@@ -614,11 +647,6 @@
    (same 40x40 round shape, gray icon like the notification bell) */
 
 /* Sidebar Scrollbar */
-
-[data-theme="light"] .sidebar a.active::before {
-    background: linear-gradient(180deg, #6b7280, #9ca3af);
-    box-shadow: 0 0 8px rgba(107, 114, 128, 0.5);
-}
 
 /* Sidebar Custom Scrollbar */
 [data-theme="light"] .sidebar::-webkit-scrollbar-thumb,
@@ -658,9 +686,12 @@
     border: 1px solid var(--light-border) !important;
 }
 
-[data-theme="light"] .custom-filter-dropdown .dropdown-options {
+[data-theme="light"] .custom-filter-dropdown .dropdown-options,
+[data-theme="light"] .dropdown-options {
     background-color: var(--light-surface) !important;
     border: 1px solid var(--light-border) !important;
+    /* Minimal shadow — tatalo sa kahit anong makapal na dark-mode dropdown shadow */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-theme="light"] .custom-filter-dropdown .dropdown-options li {
@@ -814,6 +845,46 @@
     border-color: rgba(59, 130, 246, 0.2) !important;
 }
 
+[data-theme="light"] .action-buttons button.action-reminder {
+    background: #ffffff !important;
+    color: #b45309 !important;
+    border-color: rgba(180, 83, 9, 0.35) !important;
+}
+
+[data-theme="light"] .action-buttons button.action-reminder:hover {
+    background: rgba(245, 158, 11, 0.07) !important;
+    color: #92400e !important;
+}
+
+/* Payment Management page — text colors (light mode) */
+[data-theme="light"] .pm-section-title {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .pm-cust-name {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .pm-cust-user {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .pm-amt-danger {
+    color: #dc2626 !important;
+}
+
+[data-theme="light"] .pm-amt-success {
+    color: #059669 !important;
+}
+
+[data-theme="light"] .pm-status-verified {
+    color: #059669 !important;
+}
+
+[data-theme="light"] .pm-status-rejected {
+    color: #dc2626 !important;
+}
+
 [data-theme="light"] .payment-summary-icon svg {
     color: inherit !important;
 }
@@ -829,7 +900,8 @@
 }
 
 [data-theme="light"] .table-container thead {
-    background: #e5e7eb !important;
+    /* Matches admin booking table header bg (admin_booking.css) */
+    background: #f3f4f6 !important;
     border-bottom: 1px solid #d1d5db !important;
 }
 

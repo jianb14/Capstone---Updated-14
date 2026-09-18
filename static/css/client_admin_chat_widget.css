@@ -84,7 +84,7 @@
     position: absolute;
     right: 0;
     bottom: 64px;
-    width: min(450px, calc(100vw - 48px));
+    width: min(480px, calc(100vw - 48px));
     height: 520px;
     max-height: calc(100vh - 160px);
     max-height: calc(100dvh - 160px);
@@ -138,9 +138,9 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--gray);
-    border: 1px solid var(--light-gray);
-    color: var(--white);
+    background: #ffffff;
+    border: 1px solid #ffffff;
+    color: #111111;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -742,12 +742,15 @@
 .admin-chat-text.is-deleted { font-style: italic; color: #6b7280; }
 .admin-chat-deleted-at { font-style: italic; color: #6b7280; }
 
-.chat-lightbox { position: absolute; inset: 0; background: rgba(10,10,12,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 60; padding: 20px; }
+.chat-lightbox { position: absolute; inset: 0; background: rgba(10,10,12,0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 60; padding: 20px; }
 .chat-lightbox[hidden] { display: none; }
-.chat-lightbox .lightbox-img { max-width: 88%; max-height: 74%; border-radius: 10px; object-fit: contain; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
-.chat-lightbox .lightbox-close { position: absolute; top: 10px; right: 14px; background: transparent; border: none; color: #e5e7eb; font-size: 28px; cursor: pointer; line-height: 1; }
-.chat-lightbox .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #e5e7eb; font-size: 26px; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; line-height: 1; }
-.chat-lightbox .lightbox-nav:hover { background: rgba(255,255,255,0.18); }
+.chat-lightbox .lightbox-img { width: auto; height: auto; max-width: 80%; max-height: 62%; border-radius: 10px; object-fit: contain; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
+.chat-lightbox .lightbox-close { position: absolute; top: 10px; right: 12px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #e5e7eb; cursor: pointer; line-height: 0; padding: 0; border-radius: 50%; z-index: 2; transition: background 0.15s ease; }
+.chat-lightbox .lightbox-close svg { display: block; }
+.chat-lightbox .lightbox-close:hover { background: rgba(0,0,0,0.8); }
+.chat-lightbox .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25); color: #ffffff; cursor: pointer; line-height: 0; padding: 0; border-radius: 50%; z-index: 2; transition: background 0.15s ease, border-color 0.15s ease; }
+.chat-lightbox .lightbox-nav svg { display: block; }
+.chat-lightbox .lightbox-nav:hover { background: rgba(0,0,0,0.85); border-color: rgba(255,255,255,0.45); }
 .chat-lightbox .lightbox-prev { left: 12px; }
 .chat-lightbox .lightbox-next { right: 12px; }
 .chat-lightbox .lightbox-caption { margin-top: 12px; color: #9ca3af; font-size: 12px; text-align: center; }
@@ -971,3 +974,344 @@ html[data-theme="light"] .admin-chat-toggle::after {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   CHAT INFO DRAWER + PINNED MESSAGES (Messenger-style)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Clickable header (avatar + name + status) ── */
+.admin-chat-info-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 10px;
+    min-width: 0;
+    transition: background 0.18s ease;
+}
+.admin-chat-info-trigger:hover { background: rgba(255, 255, 255, 0.08); }
+.admin-chat-info-trigger > div:nth-child(2) { min-width: 0; }
+.admin-chat-info-chevron { margin-left: auto; color: #9ca3af; flex-shrink: 0; }
+
+/* Presence dot removed (doble na sa Online/Offline text) */
+.admin-chat-title-icon { position: relative; }
+
+/* ── Pinned banner (under the header) ── */
+/* (removed — Messenger style: pinned messages live in the info drawer) */
+
+/* Pin action button active state — gray pill bg para halata agad */
+.admin-chat-act.pin-act.active { color: #eeeeee; background: rgba(107, 114, 128, 0.32); }
+.admin-chat-act.pin-act.active svg { fill: rgba(255, 255, 255, 0.2); }
+html[data-theme="light"] .admin-chat-act.pin-act.active { background: rgba(17, 24, 39, 0.1); color: #111827; }
+/* Itago ang pin action kapag si admin ang nag-pin (hindi pwedeng mag-unpin ng client) */
+.admin-chat-act[hidden] { display: none !important; }
+
+/* ── Messenger-style pin flag (red pushpin nakatusok sa pinned bubble) ── */
+.admin-chat-msg.pinned-row { margin-top: 16px; }
+.admin-chat-pin-flag,
+.admin-chat-bubble .pin-flag {
+    position: absolute;
+    top: -19px;
+    right: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.admin-chat-pin-flag svg,
+.admin-chat-bubble .pin-flag svg {
+    color: #ef4444;
+    transform: rotate(35deg);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+/* Naka-tusok sa gilid ng nag-pin: admin-pinned = kaliwa, client-pinned = kanan
+   (mirror ng admin thread view) */
+.admin-chat-bubble .pin-flag.flag-left { left: 2px; right: auto; }
+.admin-chat-bubble .pin-flag.flag-right { left: auto; right: 2px; }
+
+/* ── "You pinned a message. See all" event line ── */
+.admin-chat-pin-note {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+    margin: 4px 0 10px;
+    font-size: 11px;
+    color: #6b7280;
+}
+.admin-chat-pin-seeall {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    color: #3b82f6;
+    padding: 0;
+}
+.admin-chat-pin-seeall:hover { text-decoration: underline; }
+
+/* ── Info drawer: overlays the chat panel ── */
+.admin-chat-info-drawer { position: absolute; inset: 0; z-index: 55; }
+.admin-chat-info-drawer[hidden] { display: none; }
+.admin-chat-info-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+}
+.admin-chat-info-backdrop[hidden] { display: none; }
+.admin-chat-info-panel {
+    position: absolute;
+    inset: 0;
+    background: #171717;
+    display: flex;
+    flex-direction: column;
+    animation: adminChatInfoIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes adminChatInfoIn {
+    from { transform: translateY(14px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.admin-chat-info-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+.admin-chat-info-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #eeeeee;
+    letter-spacing: 0.02em;
+}
+.admin-chat-info-close {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 6px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.admin-chat-info-close:hover { background: rgba(255, 255, 255, 0.08); color: #eeeeee; }
+.admin-chat-info-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 16px 22px;
+}
+
+/* Identity */
+.admin-chat-info-identity { text-align: center; padding-bottom: 18px; }
+.admin-chat-info-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid #ffffff;
+    color: #111111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin: 0 auto 12px;
+    position: relative;
+}
+.admin-chat-info-name { margin: 0 0 5px; font-size: 15px; color: #eeeeee; font-weight: 800; }
+.admin-chat-info-presence { margin: 0 0 6px; font-size: 12px; }
+.admin-chat-info-sub { margin: 0; font-size: 11px; color: #8b949e; line-height: 1.5; }
+
+/* Sections */
+.admin-chat-info-section { border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px; margin-top: 6px; }
+.admin-chat-info-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+}
+.admin-chat-info-section-head h4 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: #d1d5db;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.admin-chat-info-section-head h4 svg { color: #8b949e; }
+.admin-chat-info-section-head h4 i { color: #8b949e; }
+.admin-chat-info-count {
+    background: rgba(255, 255, 255, 0.08);
+    color: #8b949e;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+/* Pinned list */
+.admin-chat-info-pinned-list { display: flex; flex-direction: column; gap: 7px; }
+.admin-chat-pinned-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 9px;
+    padding: 8px 9px;
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease;
+}
+.admin-chat-pinned-item:hover { background: rgba(255, 255, 255, 0.075); border-color: rgba(255, 255, 255, 0.16); }
+.admin-chat-pinned-item-icon { color: #8b949e; margin-top: 1px; flex-shrink: 0; }
+.admin-chat-pinned-item-body { flex: 1; min-width: 0; }
+.admin-chat-pinned-sender {
+    font-size: 10px;
+    font-weight: 800;
+    color: #d1d5db;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.admin-chat-pinned-text {
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.admin-chat-pinned-meta { font-size: 10px; color: #6b7280; margin-top: 3px; }
+.admin-chat-pinned-item-unpin {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    /* Masikip + line-height:0 — hindi na lumalawak paibaba ang red hover box */
+    padding: 4px;
+    line-height: 0;
+    align-self: flex-start;
+    display: inline-flex;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.admin-chat-pinned-item-unpin:hover { background: rgba(239, 68, 68, 0.14); color: #ef4444; }
+
+/* Media grid */
+.admin-chat-info-media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 6px;
+}
+.admin-chat-media-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 9px;
+    overflow: hidden;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.18s ease;
+}
+/* Hover: subtle lift lang — WALANG blue border */
+.admin-chat-media-thumb:hover { transform: translateY(-1px); }
+.admin-chat-media-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.admin-chat-media-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 9px;
+    padding: 10px 3px 3px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+.admin-chat-media-thumb:hover .admin-chat-media-overlay { opacity: 1; }
+
+.admin-chat-info-empty {
+    margin: 3px 0 0;
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.55;
+}
+
+/* ── Light theme (client site theme toggle) ── */
+html[data-theme="light"] .admin-chat-info-trigger:hover { background: rgba(17, 24, 39, 0.055); }
+html[data-theme="light"] .admin-chat-title-icon {
+    background: #111111;
+    border-color: #111111;
+    color: #ffffff;
+}
+html[data-theme="light"] .admin-chat-info-panel { background: #ffffff; }
+html[data-theme="light"] .admin-chat-info-head { border-bottom-color: #e5e7eb; }
+html[data-theme="light"] .admin-chat-info-title { color: #111827; }
+html[data-theme="light"] .admin-chat-info-close:hover { background: rgba(17, 24, 39, 0.06); color: #111827; }
+html[data-theme="light"] .admin-chat-info-avatar {
+    background: #111827;
+    border-color: #111827;
+    color: #ffffff;
+}
+html[data-theme="light"] .admin-chat-info-name { color: #111827; }
+html[data-theme="light"] .admin-chat-info-sub { color: #6b7280; }
+html[data-theme="light"] .admin-chat-info-section { border-top-color: #e5e7eb; }
+html[data-theme="light"] .admin-chat-info-section-head h4 { color: #374151; }
+html[data-theme="light"] .admin-chat-info-count { background: rgba(17, 24, 39, 0.06); color: #6b7280; }
+html[data-theme="light"] .admin-chat-pinned-item {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+html[data-theme="light"] .admin-chat-pinned-item:hover { background: #f3f4f6; border-color: #d1d5db; }
+html[data-theme="light"] .admin-chat-pinned-sender { color: #374151; }
+html[data-theme="light"] .admin-chat-pinned-meta { color: #9ca3af; }
+html[data-theme="light"] .admin-chat-media-thumb { border-color: #e5e7eb; background: #f9fafb; }
+html[data-theme="light"] .admin-chat-media-overlay {
+    background: linear-gradient(transparent, rgba(17, 24, 39, 0.88));
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .admin-chat-info-empty { color: #9ca3af; }
+html[data-theme="light"] .admin-chat-pin-flag,
+html[data-theme="light"] .admin-chat-bubble .pin-flag { color: #6b7280; }
+html[data-theme="light"] .admin-chat-pin-note { color: #6b7280; }
+
+/* Light mode: keep the hover overlay visible/readable sa media files
+   (dating halos hindi nakikita kapag light theme) */
+html[data-theme="light"] .admin-chat-media-overlay {
+    background: linear-gradient(transparent, rgba(17, 24, 39, 0.85));
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+/* (tinanggal ang blue hover border sa light mode — mananatili ang dark
+   gradient overlay para makita ang date) */
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+    .admin-chat-info-media-grid { grid-template-columns: repeat(3, 1fr); }
+    .admin-chat-info-trigger { padding: 2px 4px; margin: -2px -4px; }
+}
+

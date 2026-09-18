@@ -1099,6 +1099,43 @@
             });
         }
 
+        /* =============================================
+           ADMIN-BLOCKED DATES (Unavailable)
+           Buong day cell ang magiging pula; kapag na-click
+           ay may toast — hindi bubuksan ang booking form. */
+        var blockedDates = [
+            {% for bd in blocked_dates %}
+            { date: '{{ bd.date }}', reason: '{{ bd.reason|escapejs }}' },
+            {% endfor %}
+        ];
+
+        function isBlockedDate(dateStr) {
+            if (!dateStr) return false;
+            return blockedDates.some(function (bd) { return bd.date === dateStr; });
+        }
+
+        function getBlockedDateLabel(dateStr) {
+            var bd = blockedDates.find(function (b) { return b.date === dateStr; });
+            var label = 'This date is unavailable.';
+            if (bd && bd.reason) label = 'Unavailable — ' + bd.reason;
+            return label;
+        }
+
+        function showUnavailableToast() {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'This date is unavailable. Please choose another date.',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                background: '#1a1a1a',
+                color: '#fff',
+                iconColor: '#ef4444'
+            });
+        }
+
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             /* Height 'auto': hindi na gagamitin ng FullCalendar ang default
@@ -1121,6 +1158,9 @@
                 if (cellDate < todayLocal) {
                     return ['is-past-date', 'booking-day-disabled'];
                 }
+                if (isBlockedDate(cellDate)) {
+                    return ['booking-day-blocked'];
+                }
                 return [];
             },
             dayCellDidMount: function (arg) {
@@ -1132,6 +1172,17 @@
                     if (dayNumber) {
                         dayNumber.classList.add('booking-day-number-disabled');
                         dayNumber.style.opacity = '0.45';
+                    }
+                    return;
+                }
+                if (isBlockedDate(cellDate)) {
+                    arg.el.setAttribute('title', getBlockedDateLabel(cellDate));
+                    /* "Unavailable" text sa gitna ng buong cell */
+                    if (!arg.el.querySelector('.booking-day-blocked-label')) {
+                        var blockedLabel = document.createElement('div');
+                        blockedLabel.className = 'booking-day-blocked-label';
+                        blockedLabel.textContent = 'Unavailable';
+                        arg.el.appendChild(blockedLabel);
                     }
                 }
             },
@@ -1209,6 +1260,12 @@
                     color: '#fff',
                     iconColor: '#ef4444'
                 });
+                return;
+            }
+
+            /* ADMIN-BLOCKED DATE: huwag nang buksan ang booking form */
+            if (isBlockedDate(clickedDate)) {
+                showUnavailableToast();
                 return;
             }
 
@@ -1440,6 +1497,13 @@
     function validateBookingStepTwoFields() {
         clearBookingValidationErrors();
         let firstInvalidField = null;
+
+        /* ADMIN-BLOCKED DATE: hindi dapat maka-proceed kapag blocked */
+        if (dateInput.value && isBlockedDate(dateInput.value)) {
+            setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
+            showUnavailableToast();
+            firstInvalidField = 'event_date';
+        }
 
         if (!eventTypeSelect.value) {
             setBookingFieldError('event_type', 'Event Type is required*');
@@ -1692,7 +1756,14 @@
         showStep(3);
     });
 
-    dateInput.addEventListener('change', updateTimeConstraints);
+    dateInput.addEventListener('change', function () {
+        updateTimeConstraints();
+        /* ADMIN-BLOCKED DATE: toast + inline error agad kapag blocked ang napili */
+        if (dateInput.value && isBlockedDate(dateInput.value)) {
+            setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
+            showUnavailableToast();
+        }
+    });
     startTimeInput.addEventListener('change', validateEndTime);
     dateInput.addEventListener('input', () => {
         if (bookingSubmitAttempted) validateBookingStepTwoFields();

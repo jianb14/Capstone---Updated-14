@@ -7,41 +7,34 @@
 <!-- Page Header -->
 <div class="page-header">
     <h1>Manage Service Page</h1>
-    <div class="breadcrumb">
-        <span>Admin</span>
-        <span class="separator">/</span>
-        <span>Service Page</span>
-    </div>
+    <p class="page-subtitle">Update the services hero and the list of offered services.</p>
 </div>
 
 <form method="POST" enctype="multipart/form-data" class="content-form">
     {% csrf_token %}
-    
+
     <!-- Hero Section -->
     <div class="form-section">
         <h3 class="section-title">Hero Section</h3>
-        <div class="form-grid">
+        <div class="form-grid title-subtitle-row">
             <div class="form-group">
                 <label for="hero_label">Hero Label</label>
-                <input type="text" name="hero_label" id="hero_label" value="{{ content.hero_label }}" class="form-control" placeholder="e.g. Balloorina Services">
+                <input type="text" name="hero_label" id="hero_label" value="{{ content.hero_label }}" class="form-control" placeholder="Small text above the title">
             </div>
             <div class="form-group">
                 <label for="hero_title">Hero Title</label>
                 <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control">
             </div>
-            <div class="form-group">
-                <label for="hero_subtitle">Hero Subtitle</label>
-                <textarea name="hero_subtitle" id="hero_subtitle" rows="3" class="form-control">{{ content.hero_subtitle }}</textarea>
-            </div>
+        </div>
+        <div class="form-group">
+            <label for="hero_subtitle">Hero Subtitle</label>
+            <input type="text" name="hero_subtitle" id="hero_subtitle" value="{{ content.hero_subtitle }}" class="form-control">
+        </div>
+        <div class="card-actions">
+            <button type="submit" class="btn-save">Save Hero Section</button>
         </div>
     </div>
-
-    <div class="form-actions">
-        <button type="submit" class="btn-save">Save Service Content</button>
-    </div>
 </form>
-
-<br><br>
 
 <!-- Services List -->
 <div class="page-header title-header">

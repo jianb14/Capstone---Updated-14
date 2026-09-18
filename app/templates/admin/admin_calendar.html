@@ -4,26 +4,104 @@
 {% block title %}Events Calendar - Admin{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20260916f">
 {% endblock %}
 
 {% block content %}
 <div class="admin-calendar-page">
 
+    <div class="page-header">
+        <h1>Events Calendar</h1>
+        <p class="page-subtitle">An overview of all scheduled events. Click any date to see its bookings.</p>
+    </div>
+
     <div class="admin-calendar-panel">
-        <div class="panel-header">
-            <h2>Events Calendar</h2>
-            <p>An overview of all scheduled events.</p>
-        </div>
         <div class="calendar-wrapper">
             <div class="calendar-legend">
-                <div class="legend-item"><span class="legend-color confirmed"></span>Confirmed</div>
-                <div class="legend-item"><span class="legend-color pending"></span>Pending</div>
-                <div class="legend-item"><span class="legend-color completed"></span>Completed</div>
-                <div class="legend-item"><span class="legend-color expired"></span>Expired</div>
-                <div class="legend-item"><span class="legend-color cancelled"></span>Cancelled</div>
+                <div class="legend-item legend-filter active" data-status="all"><span class="legend-color confirmed"></span>All</div>
+                <div class="legend-item legend-filter" data-status="confirmed"><span class="legend-color confirmed"></span>Confirmed</div>
+                <div class="legend-item legend-filter" data-status="pending"><span class="legend-color pending"></span>Pending</div>
+                <div class="legend-item legend-filter" data-status="completed"><span class="legend-color completed"></span>Completed</div>
+                <div class="legend-item legend-filter" data-status="expired"><span class="legend-color expired"></span>Expired</div>
+                <div class="legend-item legend-filter" data-status="cancelled"><span class="legend-color cancelled"></span>Cancelled</div>
+                <div class="legend-item legend-filter" data-status="blocked"><span class="legend-color" style="background: #7f1d1d;"></span>Blocked</div>
             </div>
+            <!-- Custom Calendar Toolbar (same design as client booking page) -->
+            <div class="cal-toolbar">
+                <div class="cal-nav-group">
+                    <button type="button" id="cal-prev" class="cal-nav-btn" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button type="button" id="cal-next" class="cal-nav-btn" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <button type="button" id="cal-title" class="cal-title-btn" aria-haspopup="true" aria-expanded="false">
+                    <span id="cal-title-text">Loading...</span>
+                    <i class="fa-solid fa-chevron-down cal-title-caret"></i>
+                </button>
+                <div class="cal-view-group" role="group" aria-label="Calendar view">
+                    <button type="button" class="cal-view-btn active" data-view="dayGridMonth">Month</button>
+                    <button type="button" class="cal-view-btn" data-view="timeGridWeek">Week</button>
+                    <button type="button" id="cal-today" class="cal-view-btn cal-today-btn">Today</button>
+                </div>
+            </div>
+
+            <!-- Custom Month/Year Picker Modal -->
+            <div id="custom-month-year-picker" class="month-year-picker" style="display: none;">
+                <div class="myp-header">
+                    <button type="button" id="myp-prev-year"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span id="myp-year-display">2026</span>
+                    <button type="button" id="myp-next-year"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <div class="myp-months-grid">
+                    <button type="button" data-month="0">Jan</button>
+                    <button type="button" data-month="1">Feb</button>
+                    <button type="button" data-month="2">Mar</button>
+                    <button type="button" data-month="3">Apr</button>
+                    <button type="button" data-month="4">May</button>
+                    <button type="button" data-month="5">Jun</button>
+                    <button type="button" data-month="6">Jul</button>
+                    <button type="button" data-month="7">Aug</button>
+                    <button type="button" data-month="8">Sep</button>
+                    <button type="button" data-month="9">Oct</button>
+                    <button type="button" data-month="10">Nov</button>
+                    <button type="button" data-month="11">Dec</button>
+                </div>
+            </div>
+
             <div id="admin-calendar"><div id="admin-calendar-mount"></div></div>
+        </div>
+    </div>
+
+    <!-- Blocked Dates Management -->
+    <div class="admin-calendar-panel" style="margin-top: 1.25rem;">
+        <div class="panel-header">
+            <h2>Blocked Dates</h2>
+            <p>Dates marked here are unavailable for customer bookings.</p>
+        </div>
+        <form method="POST" action="{% url 'admin_blocked_date_create' %}" class="blocked-form">
+            {% csrf_token %}
+            <input type="date" name="date" class="blocked-input blocked-date-input" required min="{{ today_iso }}" value="">
+            <input type="text" name="reason" maxlength="255" class="blocked-input blocked-reason-input"
+                placeholder="Reason (optional, e.g. Holiday / Maintenance)">
+            <button type="submit" class="blocked-submit-btn">Block Date</button>
+        </form>
+        <div class="blocked-list">
+            {% if blocked_dates %}
+                {% for blocked in blocked_dates %}
+                <div class="blocked-item">
+                    <div>
+                        <div class="blocked-item-date">{{ blocked.date|date:"F d, Y (D)" }}</div>
+                        {% if blocked.reason %}
+                        <div class="blocked-item-reason">{{ blocked.reason }}</div>
+                        {% endif %}
+                    </div>
+                    <form method="POST" action="{% url 'admin_blocked_date_delete' blocked.id %}" onsubmit="return confirm('Unblock this date and allow bookings again?');">
+                        {% csrf_token %}
+                        <button type="submit" class="blocked-unblock-btn">Unblock</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p class="blocked-empty">No blocked dates. All future dates are open for booking.</p>
+            {% endif %}
         </div>
     </div>
 
@@ -50,51 +128,223 @@
         var popDate = document.getElementById('calPopDate');
         var todayIso = '{{ today_iso }}';
 
+        // Build event data once so filtering and day-click can reuse it
+        var allEvents = [
+            {% for event in calendar_events %}
+            {
+                title: '{{ event.title|escapejs }}',
+                start: '{{ event.start }}',
+                {% if event.end %}end: '{{ event.end }}',{% endif %}
+                backgroundColor: '{{ event.color }}',
+                borderColor: '{{ event.color }}',
+                textColor: '#ffffff',
+                extendedProps: {
+                    client_name: '{{ event.client_name|escapejs }}',
+                    event_type: '{{ event.event_type|escapejs }}',
+                    time_range: '{{ event.time_range|escapejs }}',
+                    status_raw: '{{ event.status_raw }}',
+                    event_date: '{{ event.event_date|escapejs }}'
+                }
+            },
+            {% endfor %}
+        ];
+
+        var activeFilter = 'all';
+
+        function eventsForFilter() {
+            if (activeFilter === 'all') return allEvents;
+            return allEvents.filter(function (ev) {
+                return ev.extendedProps.status_raw === activeFilter;
+            });
+        }
+
+        /* ADMIN-BLOCKED DATES: buong day cell na pula + "Unavailable" text */
+        function formatIsoLocal(dateObj) {
+            var y = dateObj.getFullYear();
+            var m = ('0' + (dateObj.getMonth() + 1)).slice(-2);
+            var d = ('0' + dateObj.getDate()).slice(-2);
+            return y + '-' + m + '-' + d;
+        }
+
+        var blockedIsoSet = {};
+        allEvents.forEach(function (ev) {
+            if (ev.extendedProps && ev.extendedProps.status_raw === 'blocked') {
+                blockedIsoSet[(ev.start || '').slice(0, 10)] = true;
+            }
+        });
+
+        function isAdminBlockedDate(dateIso) {
+            return !!blockedIsoSet[dateIso];
+        }
+
+        function showDayDetails(dateIso, clickRect) {
+            var dayEvents = allEvents.filter(function (ev) {
+                return (ev.start || '').slice(0, 10) === dateIso;
+            });
+
+            popDate.textContent = dateIso;
+
+            if (!dayEvents.length) {
+                popBody.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No bookings on this date.</div>';
+            } else {
+                var html = '';
+                dayEvents.forEach(function (ev) {
+                    var p = ev.extendedProps;
+                    var statusLabel = (p.status_raw || '').charAt(0).toUpperCase() + (p.status_raw || '').slice(1).replace('_', ' ');
+                    html += '<div class="cal-pop-event" style="border-left:4px solid ' + ev.backgroundColor + ';">'
+                        + '<div class="cal-pop-name">' + p.client_name + '</div>'
+                        + '<div class="cal-pop-detail">' + p.event_type + '</div>'
+                        + '<div class="cal-pop-detail">' + p.time_range + '</div>'
+                        + '<div class="cal-pop-detail">' + statusLabel + '</div>'
+                        + '</div>';
+                });
+                popBody.innerHTML = html;
+            }
+
+            var top, left;
+            if (clickRect) {
+                top = clickRect.bottom + 6;
+                left = clickRect.left;
+            } else {
+                top = 120;
+                left = window.innerWidth / 2 - 130;
+            }
+            if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
+            if (top + 200 > window.innerHeight) top = Math.max(10, (clickRect ? clickRect.top : 120) - 180);
+
+            popover.style.top = top + 'px';
+            popover.style.left = left + 'px';
+            popover.classList.add('show');
+        }
+
+        /* =============================================
+           RESPONSIVE CALENDAR HELPER (same approach as client booking page)
+           - isMobileCalendar: totoo bang mobile (<=768px) ang viewport?
+           - calendarUsesDots: mobile O sikip lang ang calendar (<620px)
+           - makeEventDot / restoreEventPill / applyCalendarEventMode:
+             pill <-> dot conversion gamit ang inline styles (deterministic
+             kahit mag-re-render ang FullCalendar). */
+        function isMobileCalendar() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function calendarUsesDots() {
+            if (isMobileCalendar()) return true;
+            var w = calendarEl ? calendarEl.offsetWidth : 0;
+            return w > 0 && w < 620;
+        }
+
+        var lastMobileCalendarState = isMobileCalendar();
+
+        var DOT_PROPS = ['width', 'height', 'minHeight', 'padding', 'borderRadius', 'overflow', 'fontSize', 'lineHeight', 'borderColor'];
+
+        function makeEventDot(el) {
+            var main = el.querySelector('.fc-event-main');
+            if (main) main.style.display = 'none';
+            el.style.borderColor = 'transparent';
+            el.style.width = '12px';
+            el.style.height = '6px';
+            el.style.minHeight = '6px';
+            el.style.padding = '0';
+            el.style.borderRadius = '3px';
+            el.style.overflow = 'hidden';
+            el.style.fontSize = '0';
+            el.style.lineHeight = '0';
+        }
+
+        function restoreEventPill(el) {
+            DOT_PROPS.forEach(function (p) { el.style[p] = ''; });
+            var main = el.querySelector('.fc-event-main');
+            if (main) main.style.display = '';
+        }
+
+        function applyCalendarEventMode() {
+            var useDots = calendarUsesDots();
+            document.querySelectorAll('#admin-calendar .fc .fc-event').forEach(function (el) {
+                /* Ang events sa loob ng "+N more" popover: text pills palagi */
+                if (el.closest('.fc-popover')) return;
+                /* WEEK VIEW (timeGrid): block na may oras, hindi dots */
+                if (el.closest('.fc-timegrid')) { restoreEventPill(el); return; }
+                /* Blocked-date events sa MONTH view: display:none na sa CSS
+                   (may "Unavailable" text label na sa cell), huwag galawin */
+                if (el.closest('.booking-day-blocked')) { restoreEventPill(el); return; }
+                if (useDots) makeEventDot(el); else restoreEventPill(el);
+            });
+        }
+
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             showNonCurrentDates: false,
             fixedWeekCount: false,
-            headerToolbar: {
-                left: 'prev,next',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,today'
-            },
+            /* Sariling custom toolbar (.cal-toolbar sa taas) - katulad ng
+               client booking page. Wala nang default FullCalendar header. */
+            headerToolbar: false,
             eventDisplay: 'block',
             displayEventTime: false,
-            dayMaxEvents: false,
+            /* Mobile / sikip na calendar: mas maraming event dots ang kasya kada cell */
+            dayMaxEvents: calendarUsesDots() ? 3 : false,
             height: 'auto',
+            dayCellClassNames: function (info) {
+                if (isAdminBlockedDate(formatIsoLocal(info.date))) {
+                    return ['booking-day-blocked'];
+                }
+                return [];
+            },
             dayCellDidMount: function (info) {
-                var cellDate = info.date.toISOString().slice(0, 10);
+                var cellDate = formatIsoLocal(info.date);
                 if (cellDate < todayIso) {
                     info.el.classList.add('admin-past-day');
                 }
+                /* ADMIN-BLOCKED DATE: punuin ang buong cell + "Unavailable" text */
+                var localIso = formatIsoLocal(info.date);
+                if (isAdminBlockedDate(localIso)) {
+                    info.el.classList.add('booking-day-blocked');
+                    info.el.setAttribute('title', 'Unavailable — blocked date');
+                    if (!info.el.querySelector('.booking-day-blocked-label')) {
+                        var blockedLabel = document.createElement('div');
+                        blockedLabel.className = 'booking-day-blocked-label';
+                        blockedLabel.textContent = 'Unavailable';
+                        info.el.appendChild(blockedLabel);
+                    }
+                }
             },
 
-            events: [
-                {% for event in calendar_events %}
-                {
-                title: '{{ event.title|escapejs }}',
-                start: '{{ event.start }}',
-                    {% if event.end %}end: '{{ event.end }}', {% endif %}
-        backgroundColor: '{{ event.color }}',
-        borderColor: '{{ event.color }}',
-        textColor: '#ffffff',
-        extendedProps: {
-        client_name: '{{ event.client_name|escapejs }}',
-        event_type: '{{ event.event_type|escapejs }}',
-        time_range: '{{ event.time_range|escapejs }}',
-        status_raw: '{{ event.status_raw }}',
-        event_date: '{{ event.event_date|escapejs }}'
-    }
-                },
-        {% endfor %}
-            ],
+            /* DOTS MODE (mobile O sikip na calendar): i-convert ang default pill
+               into compact event dot gamit ang inline styles — deterministic ito.
+               WIDE: normal na full-text pill. WEEK VIEW (timeGrid): huwag dot —
+               block na may totoong sakop na oras. Ang events sa loob ng "+N more"
+               popover: text pills palagi para readable ang listahan. */
+            eventDidMount: function (info) {
+                if (calendarUsesDots() && !info.el.closest('.fc-popover') && !info.el.closest('.fc-timegrid') && !info.el.closest('.booking-day-blocked')) {
+                    makeEventDot(info.el);
+                }
+            },
 
-        eventTimeFormat: {
-        hour: '2-digit',
-        minute: '2-digit',
-        meridiem: false
-    },
+            /* Kapag nag-resize ang window (o nag-rotate ang phone): i-refresh ang
+               dayMaxEvents kapag nag-cross ng dots breakpoint, AT laging i-sweep
+               ang lahat ng events para tama ang pill <-> dot mode. */
+            windowResize: function () {
+                var dotsNow = calendarUsesDots();
+                if (dotsNow !== lastMobileCalendarState) {
+                    lastMobileCalendarState = dotsNow;
+                    calendar.setOption('dayMaxEvents', dotsNow ? 3 : false);
+                }
+                applyCalendarEventMode();
+            },
+
+            events: eventsForFilter(),
+
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: false
+            },
+
+            dateClick: function (info) {
+                showDayDetails(info.dateStr, info.jsEvent && info.jsEvent.target
+                    ? info.jsEvent.target.getBoundingClientRect()
+                    : null);
+            },
 
         eventClick: function (info) {
             info.jsEvent.preventDefault();
@@ -130,16 +380,167 @@
         }
         });
 
-    calendar.render();
+        calendar.render();
 
-    popClose.addEventListener('click', function () {
-        popover.classList.remove('show');
-    });
-    document.addEventListener('click', function (e) {
-        if (!popover.contains(e.target) && !e.target.closest('.fc-event')) {
-            popover.classList.remove('show');
+        /* Initial sweep: siguradong tama ang pill <-> dot mode sa unang render
+           (hal. nag-load nang mobile ang page o sikip ang calendar container). */
+        applyCalendarEventMode();
+
+        // =============================================
+        // CUSTOM TOOLBAR WIRING (same design as client booking page)
+        // =============================================
+        function updateCalendarNavState() {
+            var titleTextEl = document.getElementById('cal-title-text');
+            if (titleTextEl) titleTextEl.textContent = calendar.view.title || '';
+
+            document.querySelectorAll('.cal-view-btn[data-view]').forEach(function (btn) {
+                btn.classList.toggle('active', btn.getAttribute('data-view') === calendar.view.type);
+            });
+
+            /* TODAY BUTTON: i-disable kapag nasa loob na ng kasalukuyang
+               biniview na range (current month o current week). */
+            var todayBtn = document.getElementById('cal-today');
+            if (todayBtn) {
+                var now = new Date();
+                var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                var todayInView = todayStart >= calendar.view.activeStart && todayStart < calendar.view.activeEnd;
+                todayBtn.disabled = todayInView;
+                todayBtn.setAttribute('aria-disabled', todayInView ? 'true' : 'false');
+                todayBtn.title = todayInView ? "You're already viewing today." : 'Go back to today';
+            }
         }
-    });
+
+        var calPrevBtn = document.getElementById('cal-prev');
+        var calNextBtn = document.getElementById('cal-next');
+        var calTodayBtn = document.getElementById('cal-today');
+
+        /* Admin calendar: pwedeng bumalik sa past months (booking history),
+           kaya laging enabled ang prev button. */
+        if (calPrevBtn) calPrevBtn.addEventListener('click', function () { calendar.prev(); });
+        if (calNextBtn) calNextBtn.addEventListener('click', function () { calendar.next(); });
+        if (calTodayBtn) calTodayBtn.addEventListener('click', function () {
+            if (!calTodayBtn.disabled) calendar.today();
+        });
+
+        document.querySelectorAll('.cal-view-btn[data-view]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (btn.classList.contains('active')) return;
+                calendar.changeView(btn.getAttribute('data-view'));
+            });
+        });
+
+        calendar.on('datesSet', updateCalendarNavState);
+        updateCalendarNavState();
+
+        // =============================================
+        // CUSTOM MONTH/YEAR PICKER LOGIC
+        // (Admin: walang date restrictions - libreng mag-navigate
+        //  kahit past months para makita ang booking history)
+        // =============================================
+        var mypModal = document.getElementById('custom-month-year-picker');
+        var mypYearDisplay = document.getElementById('myp-year-display');
+        var mypPrevYearBtn = document.getElementById('myp-prev-year');
+        var mypNextYearBtn = document.getElementById('myp-next-year');
+        var mypMonthBtns = document.querySelectorAll('.myp-months-grid button');
+
+        var currentPickerYear = new Date().getFullYear();
+
+        function updateMonthYearPickerState() {
+            mypYearDisplay.textContent = currentPickerYear;
+        }
+
+        // Intercept clicks on the custom calendar title (opens month/year picker)
+        document.getElementById('cal-title').addEventListener('click', function () {
+            var currentDate = calendar.getDate();
+            currentPickerYear = currentDate.getFullYear();
+            var currentMonth = currentDate.getMonth();
+
+            // Highlight current month
+            mypMonthBtns.forEach(function (btn) {
+                if (parseInt(btn.getAttribute('data-month'), 10) === currentMonth) {
+                    btn.classList.add('active-month');
+                } else {
+                    btn.classList.remove('active-month');
+                }
+            });
+
+            updateMonthYearPickerState();
+            this.setAttribute('aria-expanded', 'true');
+
+            /* I-anchor ang picker sa ILALIM ng title (dropdown style, gaya ng
+               client booking page) imbes na naka-center sa gitna ng calendar.
+               Naka-compute mula sa wrapper (position: relative sa CSS) kaya
+               tama kahit mag-resize o mag-mobile. */
+            var wrapEl = this.closest('.calendar-wrapper');
+            if (wrapEl) {
+                var wrapRect = wrapEl.getBoundingClientRect();
+                var titleRect = this.getBoundingClientRect();
+                mypModal.style.top = (titleRect.bottom - wrapRect.top + 8) + 'px';
+                mypModal.style.left = (titleRect.left + titleRect.width / 2 - wrapRect.left) + 'px';
+                mypModal.style.transform = 'translateX(-50%)';
+            }
+
+            mypModal.style.display = 'block';
+        });
+
+        // Close modal if clicked outside
+        document.addEventListener('click', function (e) {
+            if (mypModal.style.display === 'block') {
+                if (!mypModal.contains(e.target) && !e.target.closest('#cal-title') && !e.target.closest('.myp-header')) {
+                    mypModal.style.display = 'none';
+                    var titleBtn = document.getElementById('cal-title');
+                    if (titleBtn) titleBtn.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
+        // Year navigation
+        mypPrevYearBtn.addEventListener('click', function () {
+            currentPickerYear--;
+            updateMonthYearPickerState();
+        });
+
+        mypNextYearBtn.addEventListener('click', function () {
+            currentPickerYear++;
+            updateMonthYearPickerState();
+        });
+
+        // Month selection
+        mypMonthBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var selectedMonth = parseInt(this.getAttribute('data-month'), 10);
+                // Navigate FullCalendar to the 1st day of chosen month/year
+                calendar.gotoDate(new Date(currentPickerYear, selectedMonth, 1));
+
+                mypModal.style.display = 'none';
+                var titleBtn = document.getElementById('cal-title');
+                if (titleBtn) titleBtn.setAttribute('aria-expanded', 'false');
+            });
+        });
+
+        // Status filter chips
+        document.querySelectorAll('.legend-filter').forEach(function (chip) {
+            chip.style.cursor = 'pointer';
+            chip.addEventListener('click', function () {
+                activeFilter = chip.getAttribute('data-status') || 'all';
+                document.querySelectorAll('.legend-filter').forEach(function (c) {
+                    c.classList.toggle('active', c === chip);
+                });
+                calendar.removeAllEvents();
+                eventsForFilter().forEach(function (ev) { calendar.addEvent(ev); });
+                /* Panatilihing tama ang dot mode pagkatapos ng filter re-render */
+                applyCalendarEventMode();
+            });
+        });
+
+        popClose.addEventListener('click', function () {
+            popover.classList.remove('show');
+        });
+        document.addEventListener('click', function (e) {
+            if (!popover.contains(e.target) && !e.target.closest('.fc-event') && !e.target.closest('.fc-daygrid-day')) {
+                popover.classList.remove('show');
+            }
+        });
     });
 </script>
 {% endblock %}

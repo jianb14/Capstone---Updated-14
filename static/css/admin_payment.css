@@ -105,31 +105,6 @@
     overflow: hidden;
 }
 
-.payment-summary-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    height: 2px;
-    opacity: 0.95;
-}
-
-.payment-summary-card--pending::before {
-    background: linear-gradient(90deg, #d97706, #f59e0b);
-}
-
-.payment-summary-card--verified::before {
-    background: linear-gradient(90deg, #059669, #10b981);
-}
-
-.payment-summary-card--rejected::before {
-    background: linear-gradient(90deg, #dc2626, #ef4444);
-}
-
-.payment-summary-card--balance::before {
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-}
-
 .payment-summary-head {
     display: flex;
     align-items: center;
@@ -328,10 +303,12 @@ td:last-child {
     display: inline;
 }
 
-.action-icon-btn {
-    width: 2.2rem;
-    height: 2.2rem;
+.action-buttons .action-icon-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
     padding: 0;
+    justify-content: center;
 }
 
 .action-icon-btn svg {
@@ -346,6 +323,43 @@ td:last-child {
 
 .action-icon-btn span {
     display: none;
+}
+
+/* Payment page text colors (dark defaults; light-mode overrides sa admin_light_mode.css) */
+.pm-section-title {
+    color: #ffffff;
+}
+
+.pm-cust-name {
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.pm-cust-user {
+    font-size: 0.8rem;
+    color: #888888;
+}
+
+.pm-amt-danger {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.pm-amt-success {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.pm-status-verified {
+    color: #10b981;
+    font-weight: 500;
+    font-size: 0.8rem;
+}
+
+.pm-status-rejected {
+    color: #ef4444;
+    font-weight: 500;
+    font-size: 0.8rem;
 }
 
 .action-view {
@@ -379,6 +393,16 @@ td:last-child {
     border-color: rgba(239, 68, 68, 0.5);
 }
 
+.action-reminder {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.action-reminder:hover {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
 .action-buttons a.btn-complete {
     background: transparent !important;
     color: #10b981 !important;
@@ -405,9 +429,11 @@ td:last-child {
         min-width: 800px;
     }
 
-    .action-icon-btn {
-        width: 2rem;
-        height: 2rem;
+    .action-buttons .action-icon-btn {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        padding: 0;
     }
 
     /* Search + both dropdowns shrink to fit one row (right-aligned).
@@ -552,13 +578,15 @@ td:last-child {
     .action-buttons a,
     .action-buttons button {
         width: auto;
-        padding: 0.4rem 0.6rem;
+        padding: 0.55rem 0.7rem;
         font-size: 0.75rem;
     }
 
-    .action-icon-btn {
-        height: auto;
-        min-width: 30px;
+    .action-buttons .action-icon-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        padding: 0;
     }
 
     .action-icon-btn span {
@@ -643,6 +671,7 @@ td:last-child {
 
 /* Search Bar & Filters */
 .search-bar {
+    margin-top: 1.75rem;
     margin-bottom: 1.5rem;
 }
 
@@ -699,15 +728,16 @@ td:last-child {
     width: 8px;
     height: 8px;
     display: inline-block;
-    border-right: 2px solid #ffffff;
-    border-bottom: 2px solid #ffffff;
-    transform: rotate(45deg) translateY(-1px);
+    border-right: 1.5px solid #ffffff;
+    border-bottom: 1.5px solid #ffffff;
+    transform: translate(-1.6px, -1.6px) rotate(45deg);
+    transform-origin: 5.6px 5.6px;
     transition: transform 0.25s ease;
     opacity: 0.95;
 }
 
 .custom-filter-dropdown.open .dropdown-caret {
-    transform: rotate(-135deg) translateY(-1px);
+    transform: translate(-1.6px, -1.6px) rotate(-135deg);
 }
 
 .custom-filter-dropdown .dropdown-options {
@@ -1003,9 +1033,9 @@ td[data-label="Date"] {
 [data-theme="light"] input:focus,
 [data-theme="light"] select:focus,
 [data-theme="light"] textarea:focus {
-    background-color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -1022,6 +1052,69 @@ td[data-label="Date"] {
 [data-theme="light"] h5,
 [data-theme="light"] h6 {
     color: #111827 !important;
+}
+
+/* ========================================================
+   LIGHT MODE — Table action buttons (matches admin_package.css)
+   ======================================================== */
+[data-theme="light"] .action-buttons a.action-view,
+[data-theme="light"] .action-buttons button.action-view {
+    background: #f9fafb !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .action-buttons a.action-view:hover,
+[data-theme="light"] .action-buttons button.action-view:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a.action-approve,
+[data-theme="light"] .action-buttons button.action-approve,
+[data-theme="light"] .action-buttons a.btn-complete,
+[data-theme="light"] .action-buttons button.btn-complete {
+    background: #ffffff !important;
+    color: #059669 !important;
+    border-color: rgba(5, 150, 105, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.action-approve:hover,
+[data-theme="light"] .action-buttons button.action-approve:hover,
+[data-theme="light"] .action-buttons a.btn-complete:hover,
+[data-theme="light"] .action-buttons button.btn-complete:hover {
+    background: rgba(16, 185, 129, 0.08) !important;
+    color: #047857 !important;
+}
+
+[data-theme="light"] .action-buttons a.action-deny,
+[data-theme="light"] .action-buttons button.action-deny {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+[data-theme="light"] .action-buttons a.action-deny:hover,
+[data-theme="light"] .action-buttons button.action-deny:hover {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
+[data-theme="light"] .action-buttons .action-view span {
+    color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons .action-approve span,
+[data-theme="light"] .action-buttons .btn-complete span {
+    color: #059669 !important;
+}
+
+[data-theme="light"] .action-buttons .action-deny span {
+    color: #dc2626 !important;
+}
+
+[data-theme="light"] .action-buttons .action-reminder span {
+    color: #b45309 !important;
 }
 
 [data-theme="light"] .btn-outline {

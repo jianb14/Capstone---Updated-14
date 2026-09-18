@@ -1,9 +1,9 @@
 {% extends 'admin/admin_base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block title %}Payment Management{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_payment.css' %}?v=20260906a">
+<link rel="stylesheet" href="{% static 'css/admin_payment.css' %}?v=20260918b">
 {% endblock %}
 
 {% block content %}
@@ -35,35 +35,9 @@
         <div class="payment-summary-value">{{ pending_count }}</div>
         <div class="payment-summary-sub">Awaiting verification</div>
     </div>
-    <div class="payment-summary-card payment-summary-card--verified">
-        <div class="payment-summary-head">
-            <span class="payment-summary-label">Verified</span>
-            <span class="payment-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <path d="M20 6 9 17l-5-5"></path>
-                </svg>
-            </span>
-        </div>
-        <div class="payment-summary-value">{{ verified_count }}</div>
-        <div class="payment-summary-sub">Successfully processed</div>
-    </div>
     <div class="payment-summary-card payment-summary-card--rejected">
         <div class="payment-summary-head">
-            <span class="payment-summary-label">Rejected</span>
-            <span class="payment-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="m15 9-6 6"></path>
-                    <path d="m9 9 6 6"></path>
-                </svg>
-            </span>
-        </div>
-        <div class="payment-summary-value">{{ rejected_count }}</div>
-        <div class="payment-summary-sub">Declined payments</div>
-    </div>
-    <div class="payment-summary-card payment-summary-card--balance">
-        <div class="payment-summary-head">
-            <span class="payment-summary-label">With Balance</span>
+            <span class="payment-summary-label">Incomplete Payments</span>
             <span class="payment-summary-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="9"></circle>
@@ -73,10 +47,387 @@
             </span>
         </div>
         <div class="payment-summary-value">{{ bookings_with_balance_count }}</div>
-        <div class="payment-summary-sub">Unpaid downpayment</div>
+        <div class="payment-summary-sub">Bookings not yet fully paid</div>
+    </div>
+    <div class="payment-summary-card payment-summary-card--balance">
+        <div class="payment-summary-head">
+            <span class="payment-summary-label">Confirmed, No Payment</span>
+            <span class="payment-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                    <path d="M8 10h8"></path>
+                    <path d="M8 14h5"></path>
+                </svg>
+            </span>
+        </div>
+        <div class="payment-summary-value">{{ unpaid_bookings_count }}</div>
+        <div class="payment-summary-sub">Confirmed bookings with no verified payment yet</div>
+    </div>
+    <div class="payment-summary-card payment-summary-card--verified">
+        <div class="payment-summary-head">
+            <span class="payment-summary-label">Fully Paid</span>
+            <span class="payment-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 6 9 17l-5-5"></path>
+                </svg>
+            </span>
+        </div>
+        <div class="payment-summary-value">{{ fully_paid_count }}</div>
+        <div class="payment-summary-sub">Bookings fully paid</div>
     </div>
 </div>
 
+<h2 class="pm-section-title" style="margin: 2rem 0 0.25rem; font-size: 1rem; font-weight: 700;">Needs Your Action</h2>
+<p style="margin: 0; font-size: 0.85rem; color: #888;">Payments and bookings that need verification or follow-up.</p>
+
+<div class="table-container" style="margin-top: 1rem;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Payments Awaiting Verification ({{ pending_count }})</h3>
+        <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Newly submitted payments. Once verified or rejected, they automatically move to the payment history below.</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Payment ID</th>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in pending_payments %}
+            <tr>
+                <td data-label="Payment ID">#{{ pay.id }}</td>
+                <td data-label="Customer">
+                    <div class="pm-cust-name">{{ pay.booking.user.get_full_name|default:pay.booking.user.username }}</div>
+                    <div class="pm-cust-user">@{{ pay.booking.user.username }}</div>
+                </td>
+                <td data-label="Amount">
+                    <div style="font-weight: 500;">PHP {{ pay.amount|floatformat:2 }}</div>
+                </td>
+                <td data-label="Method">{{ pay.get_payment_method_display }}</td>
+                <td data-label="Type">{{ pay.get_payment_type_display }}</td>
+                <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_payment_detail' pay.id %}" class="action-icon-btn action-view" title="View payment" aria-label="View payment">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <span>View</span>
+                        </a>
+                        <a href="{% url 'admin_payment_action' pay.id 'verify' %}?next=payments" class="action-icon-btn action-approve" title="Approve payment" aria-label="Approve payment" onclick="return confirmPaymentAction(this, 'Approve Payment', 'Are you sure you want to approve this payment?', 'Yes, Approve')">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20 6 9 17l-5-5"></path>
+                            </svg>
+                            <span>Approve</span>
+                        </a>
+                        <button type="button" onclick="openRejectPaymentPrompt('{{ pay.id }}')" class="action-icon-btn action-deny" title="Reject payment" aria-label="Reject payment">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 6 6 18"></path>
+                                <path d="m6 6 12 12"></path>
+                            </svg>
+                            <span>Reject</span>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">No payments awaiting verification.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if pending_payments.has_other_pages %}
+<div class="pagination">
+    {% if pending_payments.has_previous %}
+    <a href="?pending_page={{ pending_payments.previous_page_number }}&page={{ history_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </a>
+    {% else %}
+    <span class="page-link disabled">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </span>
+    {% endif %}
+    <span class="current-page">Page {{ pending_payments.number }} of {{ pending_payments.paginator.num_pages }}</span>
+    {% if pending_payments.has_next %}
+    <a href="?pending_page={{ pending_payments.next_page_number }}&page={{ history_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </a>
+    {% else %}
+    <span class="page-link disabled">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </span>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="pm-mt">
+    <div class="table-container" style="margin-top: 1.25rem;">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+            <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Confirmed Bookings With No Payment ({{ unpaid_bookings_count }})</h3>
+            <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Approved or confirmed bookings that still have no verified payment submitted.</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment ID</th>
+                    <th>Customer</th>
+                    <th>Total Price</th>
+                    <th>Required Downpayment</th>
+                    <th>Total Paid</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in unpaid_bookings %}
+                <tr>
+                    <td data-label="Payment ID">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Required Downpayment" class="pm-amt-danger">PHP {{ b.required_downpayment|floatformat:2 }}</td>
+                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Action">
+                        {% if b.can_send_reminder %}
+                        <div class="action-buttons">
+                            <form method="POST" action="{% url 'admin_send_payment_reminder' b.id %}" class="action-form">
+                                {% csrf_token %}
+                                <button type="submit" class="action-icon-btn action-reminder" title="Send payment reminder" aria-label="Send payment reminder" onclick="return confirm('Send a payment reminder to {{ b.customer_name }} for booking #{{ b.id }}?');">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                                    </svg>
+                                    <span>Send Reminder</span>
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span style="color: #6b7280; font-size: 0.78rem;">Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">All approved or confirmed bookings already have a verified payment.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if unpaid_bookings.has_other_pages %}
+    <div class="pagination" style="margin-top: 1rem;">
+        {% if unpaid_bookings.has_previous %}
+        <a href="?pending_page={{ pending_payments.number }}&page={{ history_payments.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.number }}&unpaid_page={{ unpaid_bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <span class="page-link disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </span>
+        {% endif %}
+        <span class="current-page">Page {{ unpaid_bookings.number }} of {{ unpaid_bookings.paginator.num_pages }}</span>
+        {% if unpaid_bookings.has_next %}
+        <a href="?pending_page={{ pending_payments.number }}&page={{ history_payments.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.number }}&unpaid_page={{ unpaid_bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <span class="page-link disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+    <div class="table-container" style="margin-top: 1.25rem;">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+            <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Bookings With Remaining Balance ({{ balance_bookings_count }})</h3>
+            <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Customers already paid a verified amount, but the booking is still not fully paid.</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment ID</th>
+                    <th>Customer</th>
+                    <th>Total Price</th>
+                    <th>Total Paid</th>
+                    <th>Remaining Balance</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in balance_bookings %}
+                <tr>
+                    <td data-label="Payment ID">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Remaining Balance" class="pm-amt-danger">PHP {{ b.remaining_balance|floatformat:2 }}</td>
+                    <td data-label="Action">
+                        {% if b.can_send_reminder %}
+                        <div class="action-buttons">
+                            <form method="POST" action="{% url 'admin_send_payment_reminder' b.id %}" class="action-form">
+                                {% csrf_token %}
+                                <button type="submit" class="action-icon-btn action-reminder" title="Send payment reminder" aria-label="Send payment reminder" onclick="return confirm('Send a payment reminder to {{ b.customer_name }} for booking #{{ b.id }}?');">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                                    </svg>
+                                    <span>Send Reminder</span>
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span style="color: #6b7280; font-size: 0.78rem;">Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">No bookings currently have a remaining balance.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% if balance_bookings.has_other_pages %}
+<div class="pagination">
+    {% if balance_bookings.has_previous %}
+    <a href="?pending_page={{ pending_payments.number }}&page={{ history_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&paid_page={{ fully_paid_bookings.number }}&balance_page={{ balance_bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </a>
+    {% else %}
+    <span class="page-link disabled">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </span>
+    {% endif %}
+    <span class="current-page">Page {{ balance_bookings.number }} of {{ balance_bookings.paginator.num_pages }}</span>
+    {% if balance_bookings.has_next %}
+    <a href="?pending_page={{ pending_payments.number }}&page={{ history_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&paid_page={{ fully_paid_bookings.number }}&balance_page={{ balance_bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </a>
+    {% else %}
+    <span class="page-link disabled">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </span>
+    {% endif %}
+</div>
+{% endif %}
+
+    <div class="table-container" style="margin-top: 1.25rem;">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+            <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Bookings Fully Paid ({{ fully_paid_count }})</h3>
+            <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Verified payments already cover the total price. No further action needed.</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Booking ID</th>
+                    <th>Customer</th>
+                    <th>Total Price</th>
+                    <th>Total Paid</th>
+                    <th>Latest Payment</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in fully_paid_bookings %}
+                <tr>
+                    <td data-label="Booking ID">#{{ b.id }}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Total Paid" class="pm-amt-success">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Latest Payment">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
+                    <td data-label="Action">
+                        {% if b.latest_payment_id %}
+                        <div class="action-buttons">
+                            <a href="{% url 'admin_payment_detail' b.latest_payment_id %}" class="action-icon-btn action-view" title="View payment" aria-label="View payment">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span>View</span>
+                            </a>
+                        </div>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">No fully paid bookings yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if fully_paid_bookings.has_other_pages %}
+    <div class="pagination" style="margin-top: 1rem;">
+        {% if fully_paid_bookings.has_previous %}
+        <a href="?pending_page={{ pending_payments.number }}&page={{ history_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <span class="page-link disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </span>
+        {% endif %}
+        <span class="current-page">Page {{ fully_paid_bookings.number }} of {{ fully_paid_bookings.paginator.num_pages }}</span>
+        {% if fully_paid_bookings.has_next %}
+        <a href="?pending_page={{ pending_payments.number }}&page={{ history_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <span class="page-link disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+    
 <div class="search-bar">
     <form method="GET" action="">
         <div class="search-controls">
@@ -92,9 +443,7 @@
             <div class="custom-filter-dropdown" id="paymentStatusDropdown">
                 <div class="dropdown-trigger">
                     <span id="paymentStatusDropdownText">
-                        {% if status_filter == 'pending' %}
-                        Pending
-                        {% elif status_filter == 'verified' %}
+                        {% if status_filter == 'verified' %}
                         Verified
                         {% elif status_filter == 'rejected' %}
                         Rejected
@@ -106,13 +455,11 @@
                 </div>
                 <ul class="dropdown-options">
                     <li data-value="">All Status</li>
-                    <li data-value="pending">Pending</li>
                     <li data-value="verified">Verified</li>
                     <li data-value="rejected">Rejected</li>
                 </ul>
                 <select name="status" class="filter-select" id="paymentStatusSelect">
                     <option value="">All Status</option>
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
                     <option value="verified" {% if status_filter == 'verified' %}selected{% endif %}>Verified</option>
                     <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
                 </select>
@@ -150,6 +497,10 @@
 </div>
 
 <div class="table-container">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Payment History ({{ history_count }})</h3>
+        <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">All verified and rejected payment transactions.</p>
+    </div>
     <table>
         <thead>
             <tr>
@@ -164,12 +515,12 @@
             </tr>
         </thead>
         <tbody>
-            {% for pay in payments %}
+            {% for pay in history_payments %}
             <tr>
                 <td data-label="Payment ID">#{{ pay.id }}</td>
                 <td data-label="Customer">
-                    <div style="font-weight: 500; color: #fff;">{{ pay.booking.user.get_full_name|default:pay.booking.user.username }}</div>
-                    <div style="font-size: 0.8rem; color: #888;">@{{ pay.booking.user.username }}</div>
+                    <div class="pm-cust-name">{{ pay.booking.user.get_full_name|default:pay.booking.user.username }}</div>
+                    <div class="pm-cust-user">@{{ pay.booking.user.username }}</div>
                 </td>
                 <td data-label="Amount">
                     <div style="font-weight: 500;">PHP {{ pay.amount|floatformat:2 }}</div>
@@ -179,13 +530,9 @@
                 <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
                 <td data-label="Status">
                     {% if pay.payment_status == 'verified' %}
-                    <span style="color: #10b981; font-weight: 500; font-size: 0.8rem;">Verified</span>
-                    {% elif pay.payment_status == 'rejected' %}
-                    <span style="color: #ef4444; font-weight: 500; font-size: 0.8rem;">Rejected</span>
-                    {% elif pay.payment_status == 'pending' %}
-                    <span style="color: #d97706; font-weight: 500; font-size: 0.8rem;">Pending</span>
+                    <span class="pm-status-verified">Verified</span>
                     {% else %}
-                    <span style="color: #999; font-weight: 500; font-size: 0.8rem;">{{ pay.get_payment_status_display }}</span>
+                    <span class="pm-status-rejected">Rejected</span>
                     {% endif %}
                 </td>
                 <td data-label="Actions">
@@ -197,21 +544,6 @@
                             </svg>
                             <span>View</span>
                         </a>
-                        {% if pay.payment_status == 'pending' %}
-                        <a href="{% url 'admin_payment_action' pay.id 'verify' %}" class="action-icon-btn action-approve" title="Approve payment" aria-label="Approve payment" onclick="return confirmPaymentAction(this, 'Approve Payment', 'Are you sure you want to approve this payment?', 'Yes, Approve')">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M20 6 9 17l-5-5"></path>
-                            </svg>
-                            <span>Approve</span>
-                        </a>
-                        <button type="button" onclick="openRejectPaymentPrompt('{{ pay.id }}')" class="action-icon-btn action-deny" title="Reject payment" aria-label="Reject payment">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M18 6 6 18"></path>
-                                <path d="m6 6 12 12"></path>
-                            </svg>
-                            <span>Reject</span>
-                        </button>
-                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -224,10 +556,10 @@
     </table>
 </div>
 
-{% if payments.has_other_pages %}
+{% if history_payments.has_other_pages %}
 <div class="pagination">
-    {% if payments.has_previous %}
-    <a href="?page={{ payments.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}&type={{ type_filter }}" class="page-link">
+    {% if history_payments.has_previous %}
+    <a href="?pending_page={{ pending_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.number }}&page={{ history_payments.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
@@ -239,9 +571,9 @@
         </svg>
     </span>
     {% endif %}
-    <span class="current-page">Page {{ payments.number }} of {{ payments.paginator.num_pages }}</span>
-    {% if payments.has_next %}
-    <a href="?page={{ payments.next_page_number }}&search={{ search_query }}&status={{ status_filter }}&type={{ type_filter }}" class="page-link">
+    <span class="current-page">Page {{ history_payments.number }} of {{ history_payments.paginator.num_pages }}</span>
+    {% if history_payments.has_next %}
+    <a href="?pending_page={{ pending_payments.number }}&unpaid_page={{ unpaid_bookings.number }}&balance_page={{ balance_bookings.number }}&paid_page={{ fully_paid_bookings.number }}&page={{ history_payments.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"></polyline>
         </svg>
@@ -256,139 +588,8 @@
 </div>
 {% endif %}
 
-<div class="pm-mt">
-    <div class="table-container" style="margin-top: 1.25rem;">
-        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f; ">
-            <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Bookings With No Payment Yet ({{ unpaid_bookings_count }})</h3>
-            <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Approved or confirmed bookings that still have no verified payment submitted.</p>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Payment ID</th>
-                    <th>Customer</th>
-                    <th>Total Price</th>
-                    <th>Required Downpayment</th>
-                    <th>Total Paid</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for b in unpaid_bookings %}
-                <tr>
-                    <td data-label="Payment ID">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
-                    <td data-label="Customer">{{ b.customer_name }}</td>
-                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
-                    <td data-label="Required Downpayment" style="color: #ef4444; font-weight: 600;">PHP {{ b.required_downpayment|floatformat:2 }}</td>
-                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" style="text-align: center; padding: 2rem; color: #666;">All approved or confirmed bookings already have a verified payment.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
-    {% if unpaid_bookings.has_other_pages %}
-    <div class="pagination" style="margin-top: 1rem;">
-        {% if unpaid_bookings.has_previous %}
-        <a href="?page={{ payments.number }}&unpaid_page={{ unpaid_bookings.previous_page_number }}{% if balance_bookings.number %}&balance_page={{ balance_bookings.number }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        </a>
-        {% else %}
-        <span class="page-link disabled">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        </span>
-        {% endif %}
-        <span class="current-page">Page {{ unpaid_bookings.number }} of {{ unpaid_bookings.paginator.num_pages }}</span>
-        {% if unpaid_bookings.has_next %}
-        <a href="?page={{ payments.number }}&unpaid_page={{ unpaid_bookings.next_page_number }}{% if balance_bookings.number %}&balance_page={{ balance_bookings.number }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        </a>
-        {% else %}
-        <span class="page-link disabled">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        </span>
-        {% endif %}
-    </div>
-    {% endif %}
 
-    <div class="table-container" style="margin-top: 1.25rem;">
-        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
-            <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Bookings With Remaining Balance ({{ balance_bookings_count }})</h3>
-            <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #888;">Customers already paid a verified amount, but the booking is still not fully paid.</p>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Payment ID</th>
-                    <th>Customer</th>
-                    <th>Total Price</th>
-                    <th>Total Paid</th>
-                    <th>Remaining Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for b in balance_bookings %}
-                <tr>
-                    <td data-label="Payment ID">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
-                    <td data-label="Customer">{{ b.customer_name }}</td>
-                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
-                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
-                    <td data-label="Remaining Balance" style="color: #ef4444; font-weight: 600;">PHP {{ b.remaining_balance|floatformat:2 }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">No bookings currently have a remaining balance.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
-    {% if balance_bookings.has_other_pages %}
-    <div class="pagination" style="margin-top: 1rem;">
-        {% if balance_bookings.has_previous %}
-        <a href="?page={{ payments.number }}{% if unpaid_bookings.number %}&unpaid_page={{ unpaid_bookings.number }}{% endif %}&balance_page={{ balance_bookings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        </a>
-        {% else %}
-        <span class="page-link disabled">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        </span>
-        {% endif %}
-        <span class="current-page">Page {{ balance_bookings.number }} of {{ balance_bookings.paginator.num_pages }}</span>
-        {% if balance_bookings.has_next %}
-        <a href="?page={{ payments.number }}{% if unpaid_bookings.number %}&unpaid_page={{ unpaid_bookings.number }}{% endif %}&balance_page={{ balance_bookings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" class="page-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        </a>
-        {% else %}
-        <span class="page-link disabled">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        </span>
-        {% endif %}
-    </div>
-    {% endif %}
-</div>
-
-<form id="rejectPaymentForm" method="post" action="{% url 'admin_payment_action' 0 'reject' %}" style="display:none;">
+<form id="rejectPaymentForm" method="post" action="{% url 'admin_payment_action' 0 'reject' %}?next=payments" style="display:none;">
     {% csrf_token %}
     <input type="hidden" name="admin_notes" id="rejectPaymentReasonInput">
 </form>
@@ -549,7 +750,23 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        return window.confirm(text || 'Are you sure?');
+        // No-Swal fallback: still submit as POST so the action works
+        // (the view only accepts POST — a plain link navigation would be a no-op).
+        if (window.confirm(text || 'Are you sure?')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = linkEl.href;
+
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token }}';
+
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+        return false;
     };
 });
 </script>

@@ -8,13 +8,17 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+<div class="page-header detail-page-header">
     <div>
         <h1>Review Details</h1>
-        <p class="page-subtitle">View and manage customer feedback for this booking.</p>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_reviews' %}">Reviews</a>
+            <span class="separator">/</span>
+            <span>Review Details</span>
+        </div>
     </div>
-    <a href="{% url 'admin_reviews' %}" class="btn-back">
-        <i class="fas fa-arrow-left"></i></i>
+    <a href="{% url 'admin_reviews' %}" class="btn-top-back">
+        <i class="fas fa-arrow-left"></i>
         Back
     </a>
 </div>
@@ -85,6 +89,31 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- Admin Reply -->
+            <div class="glass-box">
+                <span class="box-title" style="display: block; margin-bottom: 1.5rem;">
+                    {% if reply %}Admin Reply (Public){% else %}Write Admin Reply (Public){% endif %}
+                </span>
+                <form method="POST" action="{% url 'admin_review_reply' review.id %}">
+                    {% csrf_token %}
+                    <textarea name="reply_text" rows="4" maxlength="2000" required
+                        placeholder="Write an official response that will be shown publicly under this review..."
+                        style="width: 100%; background: #141414; border: 1px solid #333; color: #fff; padding: 0.75rem 0.9rem; border-radius: 8px; font-size: 0.88rem; resize: vertical; font-family: inherit;">{{ reply.reply_text|default:'' }}</textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; gap: 1rem;">
+                        {% if reply %}
+                        <span style="font-size: 0.75rem; color: #6b7280;">
+                            Posted {{ reply.created_at|date:"M d, Y g:i A" }}{% if reply.updated_at != reply.created_at %} · updated {{ reply.updated_at|date:"M d, Y g:i A" }}{% endif %}
+                        </span>
+                        {% else %}
+                        <span style="font-size: 0.78rem; color: #6b7280;">This reply will appear on the public Reviews page.</span>
+                        {% endif %}
+                        <button type="submit" style="background: #3b82f6; color: #fff; border: none; padding: 0.55rem 1.2rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; flex-shrink: 0;">
+                            {% if reply %}Update Reply{% else %}Post Reply{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
 
             <!-- Quick Actions -->
             <div class="action-bar">

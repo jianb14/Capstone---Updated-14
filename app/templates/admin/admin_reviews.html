@@ -48,6 +48,24 @@
     </div>
 </div>
 
+<!-- Star Rating Distribution -->
+<div class="table-container" style="margin-top: 1.25rem;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
+        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Rating Breakdown</h3>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 1.25rem;">
+        {% for row in rating_distribution %}
+        <div style="display: flex; align-items: center; gap: 0.9rem;">
+            <span style="width: 52px; color: #fbbf24; font-size: 0.85rem; flex-shrink: 0;">{{ row.star }} ★</span>
+            <div style="flex: 1; height: 10px; background: #1f1f1f; border-radius: 999px; overflow: hidden;">
+                <div style="height: 100%; width: {{ row.pct }}%; background: linear-gradient(90deg, #fbbf24, #d97706); border-radius: 999px;"></div>
+            </div>
+            <span style="width: 110px; text-align: right; color: #9ca3af; font-size: 0.8rem; flex-shrink: 0;">{{ row.count }} review{{ row.count|pluralize }} ({{ row.pct }}%)</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
     <div class="filter-form">
         <div class="search-input-wrapper">
             <span class="search-icon">

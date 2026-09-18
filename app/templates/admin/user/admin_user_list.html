@@ -2,16 +2,12 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_user.css' %}?v=20260907b">
+<link rel="stylesheet" href="{% static 'css/admin_user.css' %}?v=20260916g">
 
-<!-- Page Header with Breadcrumb -->
-<div class="page-header">
+<!-- Page Header -->
+<div class="page-header ph-flush">
     <h1>User Management</h1>
-    <div class="breadcrumb">
-        <span>Admin</span>
-        <span class="separator">/</span>
-        <span>Users</span>
-    </div>
+    <p class="page-subtitle">View, add, edit, and manage all registered customer accounts.</p>
 </div>
 
 <!-- User Summary Cards (same design as Admin Booking) -->
@@ -104,6 +100,31 @@
             </select>
         </div>
 
+        <div class="custom-filter-dropdown" id="userStatusDropdown">
+            <div class="dropdown-trigger">
+                <span id="userStatusDropdownText">
+                    {% if request.GET.status == 'active' %}
+                    Active
+                    {% elif request.GET.status == 'inactive' %}
+                    Inactive
+                    {% else %}
+                    All Status
+                    {% endif %}
+                </span>
+                <span class="dropdown-caret" aria-hidden="true"></span>
+            </div>
+            <ul class="dropdown-options">
+                <li data-value="" {% if not request.GET.status %}class="selected"{% endif %}>All Status</li>
+                <li data-value="active" {% if request.GET.status == 'active' %}class="selected"{% endif %}>Active</li>
+                <li data-value="inactive" {% if request.GET.status == 'inactive' %}class="selected"{% endif %}>Inactive</li>
+            </ul>
+            <select name="status" id="statusFilterSelect" class="filter-select">
+                <option value="" {% if not request.GET.status %}selected{% endif %}>All Status</option>
+                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+
     </form>
 </div>
 
@@ -142,6 +163,7 @@
                 {% if user.role == 'admin' %}
                 <td data-label="Actions">
                     <div class="action-buttons">
+                        <a href="{% url 'admin_user_detail' u.id %}" title="View user"><i class="far fa-eye"></i></a>
                         <a href="{% url 'admin_user_edit' u.id %}" title="Edit"><i class="far fa-edit"></i></a>
                         <a href="{% url 'admin_user_toggle' u.id %}" title="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}">
                             {% if u.is_active %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check-circle"></i>{% endif %}
@@ -169,7 +191,7 @@
 {% if users.has_other_pages %}
 <div class="pagination">
     {% if users.has_previous %}
-    <a href="?page={{ users.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.role %}&role={{ request.GET.role }}{% endif %}"
+    <a href="?page={{ users.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.role %}&role={{ request.GET.role }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
         class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
     {% else %}
     <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
@@ -178,7 +200,7 @@
     <span class="current-page">Page {{ users.number }} of {{ users.paginator.num_pages }}</span>
 
     {% if users.has_next %}
-    <a href="?page={{ users.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.role %}&role={{ request.GET.role }}{% endif %}"
+    <a href="?page={{ users.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.role %}&role={{ request.GET.role }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
         class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
     {% else %}
     <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
@@ -202,11 +224,14 @@
         function fetchUsers() {
             const searchQuery = searchInput.value;
             const roleQuery = roleFilter.value;
+            const statusSelect = document.getElementById('statusFilterSelect');
+            const statusQuery = statusSelect ? statusSelect.value : '';
 
             // Construct URL
             const url = new URL(window.location.href);
             url.searchParams.set('search', searchQuery);
             url.searchParams.set('role', roleQuery);
+            url.searchParams.set('status', statusQuery);
             url.searchParams.set('page', 1); // Reset to page 1 on new search/filter
 
             // Update URL in browser without reload
@@ -234,6 +259,40 @@
         });
 
         roleFilter.addEventListener('change', fetchUsers);
+
+        const statusFilterSelect = document.getElementById('statusFilterSelect');
+        const userStatusDropdown = document.getElementById('userStatusDropdown');
+        const userStatusTrigger = userStatusDropdown ? userStatusDropdown.querySelector('.dropdown-trigger') : null;
+        const userStatusOptions = userStatusDropdown ? userStatusDropdown.querySelectorAll('.dropdown-options li') : [];
+        const userStatusText = document.getElementById('userStatusDropdownText');
+
+        if (statusFilterSelect) {
+            statusFilterSelect.addEventListener('change', fetchUsers);
+        }
+
+        if (userStatusTrigger && userStatusOptions.length) {
+            userStatusTrigger.addEventListener('click', function () {
+                userStatusDropdown.classList.toggle('open');
+            });
+
+            userStatusOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const selectedValue = this.getAttribute('data-value') || '';
+                    statusFilterSelect.value = selectedValue;
+                    userStatusText.textContent = this.textContent.trim();
+                    userStatusOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    userStatusDropdown.classList.remove('open');
+                    fetchUsers();
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                if (userStatusDropdown && !userStatusDropdown.contains(e.target)) {
+                    userStatusDropdown.classList.remove('open');
+                }
+            });
+        }
 
         function closeRoleMenu() {
             if (!roleDropdown) return;

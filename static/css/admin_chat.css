@@ -50,7 +50,6 @@
 
 .chat-sidebar-head {
     padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--card-bdr);
 }
 
 .chat-sidebar-head h2 {
@@ -165,9 +164,11 @@
 .sc-name {
     font-weight: 700;
     font-size: 0.82rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 26px;
     color: var(--t1);
 }
 
@@ -404,9 +405,10 @@ body.light-mode .thread-status.online {
 }
 .btn-back:hover { color: var(--t1); }
 
-/* ── Icon-only back button — Messenger-style mobile thread header ── */
+/* ── Icon-only back button — nakalagay sa kaliwa ng avatar (palaging
+   nakikita, walang "Back" label — Messenger-style) ── */
 .thread-back {
-    display: none;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 34px;
@@ -781,7 +783,6 @@ body.light-mode .thread-status.online {
 
 .chat-sidebar-head {
     padding: 0.9rem 1rem;
-    border-bottom: 1px solid var(--card-bdr);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1324,8 +1325,8 @@ body.light-mode .chat-input-wrap {
     background: rgba(17,24,39,0.012);
 }
 body.light-mode .thread-reply-input-row {
-    background: #f3f4f6;
-    border-color: #d1d5db;
+    background: #f9fafb;
+    border-color: #e5e7eb;
 }
 body.light-mode .thread-reply-box textarea {
     background: transparent;
@@ -2385,13 +2386,21 @@ body.light-mode .reply-preview {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 2000;
 }
 .chat-lightbox[hidden] { display: none; }
 .chat-lightbox img.lightbox-img {
-    max-width: 86vw;
-    max-height: 82vh;
-    border-radius: 8px;
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: auto;
+    height: auto;
+    /* Sapat na lapag para hindi kailanman natatabunan o nakadikit ang
+       prev/next arrows, at hindi na bumubuo ng buong screen */
+    max-width: min(720px, calc(100vw - 340px));
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 12px;
     box-shadow: 0 12px 32px rgba(0,0,0,0.45);
 }
 .chat-lightbox .lightbox-caption {
@@ -2407,30 +2416,54 @@ body.light-mode .reply-preview {
 }
 .chat-lightbox .lightbox-close {
     position: absolute;
-    top: 14px;
+    top: 16px;
     right: 18px;
-    background: transparent;
-    border: none;
+    /* Mas laki, at ang X icon (SVG) ay naka-flex-center sa loob */
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 15, 18, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     color: #fff;
-    font-size: 30px;
     cursor: pointer;
-    line-height: 1;
+    line-height: 0;
+    padding: 0;
+    border-radius: 50%;
+    z-index: 2;
+    transition: background 0.15s ease;
 }
-.chat-lightbox .lightbox-nav {
+.chat-lightbox .lightbox-close svg { display: block; }
+.chat-lightbox .lightbox-close:hover { background: rgba(15, 15, 18, 0.85); }
+/* Round floating prev/next arrows — kasama ang .lightbox-prev/.lightbox-next
+   na dati walang styling kaya sira ang dating (parang text lang na "‹ ›") */
+.chat-lightbox .lightbox-nav,
+.chat-lightbox .lightbox-prev,
+.chat-lightbox .lightbox-next {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255,255,255,0.08);
-    border: none;
-    color: #fff;
-    font-size: 28px;
-    padding: 10px 14px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 15, 18, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    line-height: 0;
+    padding: 0;
     cursor: pointer;
-    border-radius: 10px;
-    transition: background 0.15s ease;
+    border-radius: 50%;
+    z-index: 2;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
-.chat-lightbox .lightbox-nav:hover {
-    background: rgba(255,255,255,0.2);
+.chat-lightbox .lightbox-nav:hover,
+.chat-lightbox .lightbox-prev:hover,
+.chat-lightbox .lightbox-next:hover {
+    background: rgba(15, 15, 18, 0.85);
+    border-color: rgba(255, 255, 255, 0.45);
 }
 .chat-lightbox .lightbox-prev { left: 16px; }
 .chat-lightbox .lightbox-next { right: 16px; }
@@ -2672,8 +2705,16 @@ body.light-mode .chat-seen-status.seen {
 }
 [data-theme="light"] .am-time,
 [data-theme="light"] .msg-meta { color: #9ca3af; }
-[data-theme="light"] .am-receipt { color: #6b7280; }
-[data-theme="light"] .am-receipt.seen { color: #2563eb; }
+/* !important — ang generic [data-theme="light"] span rule ng admin_light_mode.css
+   (may !important din) ang nagpapagray ng "✓ Seen" sa light mode */
+[data-theme="light"] .am-receipt,
+[data-theme="light"] span.am-receipt { color: #6b7280 !important; }
+[data-theme="light"] .am-receipt.seen,
+[data-theme="light"] span.am-receipt.seen { color: #2563eb !important; }
+body.light-mode .am-receipt,
+body.light-mode span.am-receipt { color: #6b7280 !important; }
+body.light-mode .am-receipt.seen,
+body.light-mode span.am-receipt.seen { color: #2563eb !important; }
 
 /* Reactions */
 [data-theme="light"] .reaction-chip {
@@ -2701,7 +2742,7 @@ body.light-mode .chat-seen-status.seen {
 [data-theme="light"] .msg-action-btn:hover { background: rgba(17, 24, 39, 0.06); color: #111827; }
 
 /* Reply box */
-[data-theme="light"] .thread-reply-input-row { background: #f3f4f6; border-color: #d1d5db; }
+[data-theme="light"] .thread-reply-input-row { background: #f9fafb; border-color: #e5e7eb; }
 [data-theme="light"] .thread-reply-box textarea { color: #111827; }
 [data-theme="light"] .thread-reply-box textarea::placeholder { color: #9ca3af; }
 [data-theme="light"] .thread-reply-box textarea { scrollbar-color: rgba(17, 24, 39, 0.22) transparent; }
@@ -2732,11 +2773,19 @@ body.light-mode .chat-seen-status.seen {
 [data-theme="light"] .typing-indicator { color: #6b7280; }
 [data-theme="light"] .typing-indicator .typing-dots span { background: #6b7280; }
 
+/* Minimal lang ang shadow ng malalaking chat cards — ayaw ng user ng
+   malalaking anino (masakit sa mata). Dapat bago ang light-mode rule
+   sa ibaba para manalo iyon sa light theme. */
+.admin-chat-sidebar,
+.admin-chat-main {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+
 /* ── Light-mode inbox list (theme toggle only sets html[data-theme], so these
       must live on [data-theme="light"] — body.light-mode rules are dead code) ── */
 [data-theme="light"] .admin-chat-sidebar,
 [data-theme="light"] .admin-chat-main {
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 [data-theme="light"] .session-card:hover {
     background: rgba(17, 24, 39, 0.035);
@@ -2790,7 +2839,7 @@ body.light-mode .chat-seen-status.seen {
 
 /* Light-mode composer */
 [data-theme="light"] .thread-reply-input-row {
-    background: #f3f4f6;
+    background: #f9fafb;
     border: 1px solid #e5e7eb;
 }
 [data-theme="light"] .thread-reply-input-row:focus-within { border-color: #9ca3af; }
@@ -3030,3 +3079,519 @@ body.light-mode .chat-seen-status.seen {
 [data-theme="light"] .chat-confirm-dialog p { color: #6b7280; }
 [data-theme="light"] .chat-confirm-cancel { border-color: #d1d5db; color: #374151; }
 [data-theme="light"] .chat-confirm-cancel:hover { background: rgba(17, 24, 39, 0.05); color: #111827; }
+
+/* ════════════════════════════════════════════════════════════════
+   INBOX FILTER TABS + SESSION CARD STATUS  (2026-09-18 rev2)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Filter tabs: single row, horizontal scroll, border at the BOTTOM ── */
+.chat-filter-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 5px;
+    padding: 0 0.9rem 0.6rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.chat-filter-tabs::-webkit-scrollbar { height: 4px; }
+.chat-filter-tabs::-webkit-scrollbar-track { background: transparent; }
+.chat-filter-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
+
+.chat-filter-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px 3px 9px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    color: #d1d5db;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.chat-filter-tab:hover { background: rgba(255,255,255,0.09); color: #ffffff; }
+.chat-filter-tab.active {
+    background: #ffffff;
+    border-color: #ffffff;
+    color: #0a0a0a;
+}
+.chat-filter-tab .tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    font-size: 0.6rem;
+    font-weight: 800;
+    line-height: 1;
+    color: inherit;
+    flex-shrink: 0;
+}
+.chat-filter-tab.active .tab-count { background: rgba(0,0,0,0.16); color: #0a0a0a; }
+
+/* ── Session card status line (own line, below the date) ── */
+.sc-status-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 0.28rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9aa4b2;
+    width: fit-content;
+}
+.sc-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.sc-status-dot.pending { background: #fbbf24; }
+.sc-status-dot.active { background: #34d399; }
+.sc-status-dot.closed { background: #6b7280; }
+
+/* ── Compact numeric unread pill (top-right, absolute — never pushes layout) ── */
+.sc-unread-pill {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 0.62rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* ── Light mode: filter tabs ── */
+body.light-mode .chat-filter-tab,
+[data-theme="light"] .chat-filter-tab {
+    background: rgba(17,24,39,0.04);
+    border-color: rgba(17,24,39,0.10);
+    color: #374151;
+}
+body.light-mode .chat-filter-tab:hover,
+[data-theme="light"] .chat-filter-tab:hover { background: rgba(17,24,39,0.08); color: #111827; }
+body.light-mode .chat-filter-tab.active,
+[data-theme="light"] .chat-filter-tab.active { background: #111827; border-color: #111827; color: #ffffff; }
+body.light-mode .chat-filter-tab .tab-count,
+[data-theme="light"] .chat-filter-tab .tab-count { background: rgba(17,24,39,0.08); color: #374151; }
+/* Active count: solid white circle on the dark pill — always readable */
+body.light-mode .chat-filter-tab.active .tab-count,
+[data-theme="light"] .chat-filter-tab.active .tab-count { background: #ffffff; color: #111827; }
+body.light-mode .chat-filter-tabs,
+[data-theme="light"] .chat-filter-tabs { border-bottom-color: rgba(17,24,39,0.08); }
+[data-theme="light"] .chat-filter-tabs::-webkit-scrollbar-thumb { background: rgba(17,24,39,0.25); }
+
+/* Thread sidebar has no filter tabs — keep its separator under the search head */
+.thread-view .chat-sidebar-head { border-bottom: 1px solid var(--card-bdr); }
+
+/* ── Light mode: session card status + unread pill ── */
+body.light-mode .sc-status-line,
+[data-theme="light"] .sc-status-line { color: #6b7280; }
+body.light-mode .sc-unread-pill,
+[data-theme="light"] .sc-unread-pill { background: #111827; color: #ffffff; box-shadow: none; }
+
+/* ── Small screens ── */
+@media (max-width: 900px) {
+    .chat-filter-tabs { padding: 0 0.6rem 0.5rem; }
+    .chat-filter-tab { font-size: 0.66rem; }
+    .sc-unread-pill { top: 0.45rem; right: 0.5rem; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   17. CHAT INFO DRAWER + PINNED MESSAGES (Messenger-style)
+   ════════════════════════════════════════════════════════════════ */
+
+.admin-chat-main { position: relative; }
+
+/* ── Clickable header user (opens the drawer) ── */
+.thread-info-trigger {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--r);
+    padding: 0.25rem 0.5rem;
+    margin: -0.25rem -0.5rem;
+    transition: background 0.18s ease;
+}
+.thread-info-trigger:hover { background: rgba(255, 255, 255, 0.05); }
+.thread-info-chevron { margin-left: 2px; color: var(--t3); flex-shrink: 0; transition: transform 0.2s ease; }
+.thread-info-trigger:hover .thread-info-chevron { transform: translateY(2px); }
+
+/* ── Presence dot on avatars removed (doble na sa Online/Offline text) ── */
+
+/* ── Pinned banner (above the messages) ── */
+/* (removed — Messenger style: pinned messages live in the info drawer) */
+
+/* ── Pin action button active state — gray pill bg para halata agad ── */
+.msg-action-btn.pin-btn.active {
+    color: var(--t1);
+    background: rgba(107, 114, 128, 0.32);
+    border-radius: 8px;
+}
+.msg-action-btn.pin-btn.active svg { fill: rgba(255, 255, 255, 0.2); }
+[data-theme="light"] .msg-action-btn.pin-btn.active,
+body.light-mode .msg-action-btn.pin-btn.active {
+    background: rgba(17, 24, 39, 0.1);
+    color: #111827;
+}
+/* Itago ang pin action kapag ang kabila ang nag-pin (hindi pwedeng mag-unpin) */
+.msg-action-btn[hidden] { display: none !important; }
+
+/* ── Messenger-style pin flag (red pushpin nakatusok sa pinned bubble) ── */
+.chat-bubble { position: relative; }
+.admin-msg-row.pinned-row { margin-top: 1.35rem; }
+.pin-flag {
+    position: absolute;
+    top: -21px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--t3);
+    pointer-events: none;
+    white-space: nowrap;
+}
+.pin-flag svg {
+    color: #ef4444;
+    transform: rotate(35deg);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+/* Naka-tusok sa gilid ng nag-pin ng mensahe:
+   admin (kaliwang bubble side sa sarili niyang view ay kanan) → flag-right,
+   client → flag-left. Sa admin thread: admin-pinned = kanan, client-pinned = kaliwa. */
+.pin-flag.flag-right { left: auto; right: 4px; }
+.pin-flag.flag-left { left: 4px; right: auto; }
+
+/* ── "You pinned a message. See all" event line ── */
+.pin-event-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0.2rem 0 0.7rem;
+    font-size: 0.72rem;
+    color: var(--t3);
+}
+.pin-event-seeall {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--blue);
+    padding: 0;
+}
+.pin-event-seeall:hover { text-decoration: underline; }
+body.light-mode .pin-flag,
+[data-theme="light"] .pin-flag { color: #6b7280; }
+body.light-mode .pin-event-line,
+[data-theme="light"] .pin-event-line { color: #6b7280; }
+body.light-mode .pin-event-seeall,
+[data-theme="light"] .pin-event-seeall { color: #2563eb; }
+
+/* ── Info drawer: slides over the thread's right edge ── */
+.chat-info-drawer {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+}
+.chat-info-drawer[hidden] { display: none; }
+.chat-info-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+}
+.chat-info-backdrop[hidden] { display: none; }
+.chat-info-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 420px;
+    max-width: 92%;
+    background: var(--card-bg-s);
+    border-left: 1px solid var(--card-bdr);
+    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    animation: infoPanelIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes infoPanelIn {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+.chat-info-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--card-bdr);
+}
+.chat-info-title {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--t1);
+    letter-spacing: 0.02em;
+}
+.chat-info-close {
+    background: transparent;
+    border: none;
+    color: var(--t3);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.chat-info-close:hover { background: rgba(255, 255, 255, 0.06); color: var(--t1); }
+.chat-info-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.1rem 1rem 1.4rem;
+}
+
+/* Identity block */
+.chat-info-identity { text-align: center; padding: 0.3rem 0 1.1rem; }
+.chat-info-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid #ffffff;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.9rem;
+    margin: 0 auto 0.7rem;
+    position: relative;
+}
+.chat-info-name { margin: 0 0 0.25rem; font-size: 1.05rem; color: var(--t1); font-weight: 800; }
+.chat-info-presence { margin: 0 0 0.4rem; }
+.chat-info-email {
+    margin: 0;
+    font-size: 0.76rem;
+    color: var(--t3);
+    word-break: break-all;
+}
+
+/* Sections */
+.chat-info-section { border-top: 1px solid var(--card-bdr); padding-top: 0.9rem; margin-top: 0.5rem; }
+.chat-info-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+.chat-info-section-head h4 {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--t2);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.chat-info-section-head h4 svg { color: var(--t3); }
+.chat-info-section-head h4 i { color: var(--t3); font-size: 0.8rem; }
+.chat-info-count {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--t3);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+/* Pinned list */
+.chat-info-pinned-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.pinned-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-bdr);
+    border-radius: 8px;
+    padding: 0.55rem 0.6rem;
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease;
+}
+.pinned-item:hover { background: rgba(255, 255, 255, 0.055); border-color: var(--card-bdr-h); }
+.pinned-item-icon { color: var(--t4); margin-top: 1px; flex-shrink: 0; }
+.pinned-item-body { flex: 1; min-width: 0; }
+.pinned-item-sender {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--t2);
+    margin-bottom: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pinned-item-text {
+    font-size: 0.78rem;
+    color: var(--t2);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.pinned-item-meta { font-size: 0.65rem; color: var(--t4); margin-top: 0.25rem; }
+.pinned-item-unpin {
+    background: transparent;
+    border: none;
+    color: var(--t4);
+    cursor: pointer;
+    /* Masikip na padding + line-height:0 para hindi na lumalawak paibaba
+       ang red hover box (dating sobrang laki ng space sa ilalim) */
+    padding: 0.3rem;
+    line-height: 0;
+    align-self: flex-start;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: inline-flex;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.pinned-item-unpin:hover { background: rgba(239, 68, 68, 0.12); color: var(--red); }
+
+/* Media grid */
+.chat-info-media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 6px;
+}
+.media-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid var(--card-bdr);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.18s ease;
+}
+/* Hover: subtle lift lang — WALANG blue border (doble ang kulay at
+   nagtatago pa sa date overlay kapag light mode) */
+.media-thumb:hover { transform: translateY(-1px); }
+.media-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.media-thumb-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+    /* !important — dinadagan ng generic [data-theme="light"] span rule ng
+       admin_light_mode.css kaya nawawala ang puting date sa light mode */
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 0.58rem;
+    padding: 0.7rem 0.3rem 0.25rem;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+.media-thumb:hover .media-thumb-overlay { opacity: 1; }
+
+/* Light mode: keep the hover overlay visible/readable sa media files
+   (dating halos hindi nakikita kapag light theme) */
+body.light-mode .media-thumb-overlay,
+[data-theme="light"] .media-thumb-overlay {
+    background: linear-gradient(transparent, rgba(17, 24, 39, 0.88));
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+/* (tinanggal ang blue hover border sa light mode — panatilihin lang
+   ang dark gradient overlay para makita ang date) */
+
+.chat-info-empty {
+    margin: 0.2rem 0 0;
+    font-size: 0.74rem;
+    color: var(--t4);
+    line-height: 1.5;
+}
+
+/* ── Light theme (shared admin theme toggle) ── */
+[data-theme="light"] .thread-info-trigger:hover { background: rgba(17, 24, 39, 0.05); }
+[data-theme="light"] .chat-info-panel {
+    background: #ffffff;
+    border-left-color: var(--light-border, #e5e7eb);
+    box-shadow: -12px 0 32px rgba(17, 24, 39, 0.12);
+}
+[data-theme="light"] .chat-info-head { border-bottom-color: var(--light-border, #e5e7eb); }
+[data-theme="light"] .chat-info-title { color: #111827; }
+[data-theme="light"] .chat-info-name { color: #111827; }
+[data-theme="light"] .chat-info-section-head h4 { color: #374151; }
+[data-theme="light"] .chat-info-close:hover { background: rgba(17, 24, 39, 0.06); color: #111827; }
+[data-theme="light"] .chat-info-avatar { background: #111827; border-color: #111827; color: #ffffff; }
+[data-theme="light"] .chat-info-email { color: #6b7280; }
+[data-theme="light"] .chat-info-section { border-top-color: var(--light-border, #e5e7eb); }
+[data-theme="light"] .chat-info-section-head h4 { color: #374151; }
+[data-theme="light"] .chat-info-count { background: rgba(17, 24, 39, 0.06); color: #6b7280; }
+[data-theme="light"] .pinned-item {
+    background: #f9fafb;
+    border-color: var(--light-border, #e5e7eb);
+}
+[data-theme="light"] .pinned-item:hover { background: #f3f4f6; border-color: #d1d5db; }
+[data-theme="light"] .pinned-item-text { color: #4b5563; }
+[data-theme="light"] .pinned-item-meta { color: #9ca3af; }
+[data-theme="light"] .media-thumb { border-color: var(--light-border, #e5e7eb); background: #f9fafb; }
+
+/* ── Responsive: tablet — narrower drawer ── */
+@media (max-width: 1024px) {
+    .chat-info-panel { width: 360px; }
+}
+
+/* ── Responsive: mobile — full-screen sheet ── */
+@media (max-width: 768px) {
+    .chat-info-drawer { z-index: 60; }
+    .chat-info-panel {
+        width: 100%;
+        max-width: 100%;
+        border-left: none;
+        animation: infoPanelInMobile 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes infoPanelInMobile {
+        from { transform: translateY(18px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .chat-info-close { font-size: 1.6rem; padding: 0.2rem 0.55rem; }
+    .chat-info-media-grid { grid-template-columns: repeat(3, 1fr); }
+}

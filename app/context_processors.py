@@ -1,4 +1,4 @@
-from .models import Booking, ChatMessage, ChatSession, Notification, AdminNotification
+from .models import Booking, ChatMessage, ChatSession, Notification, AdminNotification, Payment, ConcernTicket
 
 
 def admin_notifications(request):
@@ -61,10 +61,22 @@ def admin_notifications(request):
             if not notif['is_read']:
                 unread_count += 1
 
+        # Sidebar action badges (pareho ng Chat badge — itago kapag 0)
+        # Pending payments must match the admin action queue: exclude abandoned
+        # PayMongo checkout attempts so the badge never overcounts.
+        from .views import _abandoned_paymongo_payment_query
+
         return {
             'notif_today': notif_today,
             'notif_earlier': notif_earlier,
             'notif_count': unread_count,
+            'pending_bookings_count': Booking.objects.filter(status='pending').count(),
+            'pending_payments_count': (
+                Payment.objects.filter(payment_status='pending')
+                .exclude(_abandoned_paymongo_payment_query())
+                .count()
+            ),
+            'new_concerns_count': ConcernTicket.objects.filter(status='new').count(),
         }
     return {}
 

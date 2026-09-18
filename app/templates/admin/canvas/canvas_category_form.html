@@ -4,15 +4,16 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
 
-<div class="page-header">
-    <h1>{% if category %}Edit Canvas Category{% else %}Create Canvas Category{% endif %}</h1>
-    <div class="breadcrumb">
-        <span>Admin</span>
-        <span class="separator">/</span>
-        <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
-        <span class="separator">/</span>
-        <span>{% if category %}Edit{% else %}Create{% endif %} Category</span>
+<div class="page-header detail-page-header">
+    <div>
+        <h1>{% if category %}Edit Canvas Category{% else %}Create Canvas Category{% endif %}</h1>
+        <div class="breadcrumb">
+            <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
+            <span class="separator">/</span>
+            <span>{% if category %}Edit{% else %}Create{% endif %} Category</span>
+        </div>
     </div>
+    <a href="{% url 'admin_canvas_assets' %}" class="btn-top-back"><i class="fas fa-arrow-left"></i> Back to Canvas Assets</a>
 </div>
 
 <div class="form-container canvas-category-container">

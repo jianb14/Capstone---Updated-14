@@ -8,11 +8,9 @@
 {% block content %}
 <div class="analytics-wrap">
     <!-- Header -->
-    <div class="analytics-head">
-        <div>
-            <h1>Report Analytics</h1>
-            <p class="analytics-sub">Detailed reports on bookings, revenue, and customer insights.</p>
-        </div>
+    <div class="page-header ph-flush">
+        <h1>Report Analytics</h1>
+        <p class="page-subtitle">Detailed reports on bookings, revenue, and customer insights.</p>
     </div>
 
     <!-- Filter Bar (matches Admin Dashboard) -->
@@ -267,7 +265,40 @@
                         <div class="insight-val">{{ returning_customers_count }} ({{ returning_customers_pct }}%)</div>
                     </div>
                 </div>
+                <div class="insight-card">
+                    <div class="insight-icon ic-users"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><path d="M22 4 12 14.01l-3-3"></path></svg></div>
+                    <div class="insight-text">
+                        <div class="insight-label">Booking Conversion Rate</div>
+                        <div class="insight-val">{{ conversion_rate_pct }}% <span style="font-size: 0.8rem; color: var(--text-muted);">({{ booked_customers }} of {{ registered_customers }} registered)</span></div>
+                    </div>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ═══ PEAK SEASON HEATMAP ═══ -->
+    <div class="glass-panel">
+        <div class="panel-head">
+            <h2>Peak Season — Bookings per Month</h2>
+            <span class="tag">{{ heatmap_current_year }} vs {{ heatmap_prev_year }}</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.6rem; padding: 0.25rem 0.5rem 1rem;">
+            {% for m in heatmap_months %}
+            <div style="text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.25rem;">{{ m.label }}</div>
+                <div style="display: flex; flex-direction: column; justify-content: flex-end; height: 90px; gap: 3px;">
+                    <div title="{{ heatmap_current_year }}: {{ m.current }} booking(s)"
+                        style="border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #3b82f6, #1d4ed8); {% if max_heatmap_count > 0 %}height: {% widthratio m.current max_heatmap_count 80 %}px;{% else %}height: 2px;{% endif %} min-height: 2px;"></div>
+                    <div title="{{ heatmap_prev_year }}: {{ m.prev }} booking(s)"
+                        style="border-radius: 0 0 6px 6px; background: rgba(148, 163, 184, 0.45); {% if max_heatmap_count > 0 %}height: {% widthratio m.prev max_heatmap_count 80 %}px;{% else %}height: 2px;{% endif %} min-height: 2px;"></div>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-strong, #fff); font-weight: 600; margin-top: 0.3rem;">{{ m.current }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div style="display: flex; gap: 1.25rem; padding: 0 1.25rem 1rem; font-size: 0.75rem; color: var(--text-muted);">
+            <span style="display: inline-flex; align-items: center; gap: 0.4rem;"><span style="width: 10px; height: 10px; border-radius: 3px; background: linear-gradient(180deg, #3b82f6, #1d4ed8); display: inline-block;"></span> {{ heatmap_current_year }} (current)</span>
+            <span style="display: inline-flex; align-items: center; gap: 0.4rem;"><span style="width: 10px; height: 10px; border-radius: 3px; background: rgba(148, 163, 184, 0.45); display: inline-block;"></span> {{ heatmap_prev_year }} (previous)</span>
         </div>
     </div>
 

@@ -7,47 +7,51 @@
 <!-- Page Header -->
 <div class="page-header">
     <h1>Manage About Page</h1>
-    <div class="breadcrumb">
-        <span>Admin</span>
-        <span class="separator">/</span>
-        <span>About Page</span>
-    </div>
+    <p class="page-subtitle">Update the story, core values, and journey sections of the About page.</p>
 </div>
 
 <form method="POST" enctype="multipart/form-data" class="content-form">
     {% csrf_token %}
-    
     <!-- Hero Section -->
     <div class="form-section">
         <h3 class="section-title">Hero Section</h3>
-        <div class="form-grid">
+        <div class="form-grid title-subtitle-row">
             <div class="form-group">
-                <label for="hero_label">Hero Label (Small text above title)</label>
-                <input type="text" name="hero_label" id="hero_label" value="{{ content.hero_label }}" class="form-control">
+                <label for="hero_label">Hero Label</label>
+                <input type="text" name="hero_label" id="hero_label" value="{{ content.hero_label }}" class="form-control" placeholder="Small text above the title">
             </div>
             <div class="form-group">
-                <label for="hero_title">Hero Title (Use | to split: first part normal, second part accent. e.g. Celebrating Moments, | The Balloorina Way)</label>
-                <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="hero_subtitle">Hero Subtitle</label>
-                <textarea name="hero_subtitle" id="hero_subtitle" rows="3" class="form-control">{{ content.hero_subtitle }}</textarea>
+                <label for="hero_title">Hero Title</label>
+                <input type="text" name="hero_title" id="hero_title" value="{{ content.hero_title }}" class="form-control" placeholder="e.g. Celebrating Moments, | The Balloorina Way">
+                <small class="help-text">Use | to split: first part normal, second part accent.</small>
             </div>
         </div>
+        <div class="form-group">
+            <label for="hero_subtitle">Hero Subtitle</label>
+            <input type="text" name="hero_subtitle" id="hero_subtitle" value="{{ content.hero_subtitle }}" class="form-control">
+        </div>
+        <div class="card-actions">
+            <button type="submit" class="btn-save">Save Hero Section</button>
+        </div>
     </div>
+</form>
 
     <!-- Our Story Section -->
+    <form method="POST" enctype="multipart/form-data" class="content-form">
+    {% csrf_token %}
     <div class="form-section">
         <h3 class="section-title">Our Story Section</h3>
-        <div class="form-grid">
+        <div class="form-grid title-subtitle-row">
             <div class="form-group">
-                <label for="story_label">Story Label (Small text above title)</label>
-                <input type="text" name="story_label" id="story_label" value="{{ content.story_label }}" class="form-control">
+                <label for="story_label">Story Label</label>
+                <input type="text" name="story_label" id="story_label" value="{{ content.story_label }}" class="form-control" placeholder="Small text above the title">
             </div>
             <div class="form-group">
                 <label for="story_title">Story Title</label>
                 <input type="text" name="story_title" id="story_title" value="{{ content.story_title }}" class="form-control">
             </div>
+        </div>
+        <div class="form-grid title-subtitle-row">
             <div class="form-group">
                 <label for="story_paragraph_1">Story Paragraph 1</label>
                 <textarea name="story_paragraph_1" id="story_paragraph_1" rows="3" class="form-control">{{ content.story_paragraph_1 }}</textarea>
@@ -56,12 +60,13 @@
                 <label for="story_paragraph_2">Story Paragraph 2</label>
                 <textarea name="story_paragraph_2" id="story_paragraph_2" rows="3" class="form-control">{{ content.story_paragraph_2 }}</textarea>
             </div>
-            <div class="form-group">
-                <label for="story_points">Story Checklist Points (one per line, shown under the story text)</label>
-                <textarea name="story_points" id="story_points" rows="4" class="form-control" placeholder="Professional balloon styling for all events&#10;Fast and reliable setup team">{{ content.story_points }}</textarea>
-            </div>
         </div>
-        
+        <div class="form-group">
+            <label for="story_points">Story Checklist Points</label>
+            <textarea name="story_points" id="story_points" rows="4" class="form-control" placeholder="Professional balloon styling for all events&#10;Fast and reliable setup team">{{ content.story_points }}</textarea>
+            <small class="help-text">One point per line, shown as a checklist under the story text.</small>
+        </div>
+
         <div class="form-grid mt-4">
             <div class="form-group">
                 <label for="story_image">Story Image</label>
@@ -75,56 +80,45 @@
         </div>
 
         <h4 class="section-subtitle mt-4">Story Floating Stat Card</h4>
-        <div class="form-grid">
+        <div class="form-grid title-subtitle-row">
             <div class="form-group">
-                <label for="story_stat_number">Stat Card Number (e.g. 1,000+)</label>
-                <input type="text" name="story_stat_number" id="story_stat_number" value="{{ content.story_stat_number }}" class="form-control">
+                <label for="story_stat_number">Stat Card Number</label>
+                <input type="text" name="story_stat_number" id="story_stat_number" value="{{ content.story_stat_number }}" class="form-control" placeholder="e.g. 1,000+">
             </div>
             <div class="form-group">
-                <label for="story_stat_text">Stat Card Text (e.g. People trust Balloorina.ph.)</label>
-                <input type="text" name="story_stat_text" id="story_stat_text" value="{{ content.story_stat_text }}" class="form-control">
+                <label for="story_stat_text">Stat Card Text</label>
+                <input type="text" name="story_stat_text" id="story_stat_text" value="{{ content.story_stat_text }}" class="form-control" placeholder="e.g. People trust Balloorina.ph.">
             </div>
         </div>
-    </div>
 
+        <div class="card-actions">
+            <button type="submit" class="btn-save">Save Our Story Section</button>
+        </div>
+    </div>
+    </form>
+
+<form method="POST" enctype="multipart/form-data" class="content-form">
+    {% csrf_token %}
     <!-- Core Values Header -->
     <div class="form-section">
         <h3 class="section-title">Core Values Header</h3>
-        <div class="form-grid">
+        <div class="form-grid title-subtitle-row">
             <div class="form-group">
                 <label for="values_title">Values Section Title</label>
                 <input type="text" name="values_title" id="values_title" value="{{ content.values_title }}" class="form-control">
             </div>
             <div class="form-group">
                 <label for="values_subtitle">Values Section Subtitle</label>
-                <textarea name="values_subtitle" id="values_subtitle" rows="2" class="form-control">{{ content.values_subtitle }}</textarea>
+                <input type="text" name="values_subtitle" id="values_subtitle" value="{{ content.values_subtitle }}" class="form-control">
             </div>
         </div>
-    </div>
-
-    <!-- Our Journey Header -->
-    <div class="form-section">
-        <h3 class="section-title">Our Journey Section</h3>
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="journey_title">Journey Section Title</label>
-                <input type="text" name="journey_title" id="journey_title" value="{{ content.journey_title }}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="journey_subtitle">Journey Section Subtitle</label>
-                <textarea name="journey_subtitle" id="journey_subtitle" rows="2" class="form-control">{{ content.journey_subtitle }}</textarea>
-            </div>
+        <div class="card-actions">
+            <button type="submit" class="btn-save">Save Core Values Header</button>
         </div>
-    </div>
-
-    <div class="form-actions">
-        <button type="submit" class="btn-save">Save About Content</button>
     </div>
 </form>
 
-<br><br>
-
-<!-- Core Value Cards Section -->
+<!-- Core Value Cards table — kasama ng card nito -->
 <div class="page-header title-header">
     <h1>Core Value Cards</h1>
     <a href="{% url 'admin_about_value_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add New Value</a>
@@ -175,14 +169,33 @@
     </table>
 </div>
 
-<br><br>
+<form method="POST" enctype="multipart/form-data" class="content-form">
+    {% csrf_token %}
+    <!-- Our Journey Header -->
+    <div class="form-section">
+        <h3 class="section-title">Our Journey Section</h3>
+        <div class="form-grid title-subtitle-row">
+            <div class="form-group">
+                <label for="journey_title">Journey Section Title</label>
+                <input type="text" name="journey_title" id="journey_title" value="{{ content.journey_title }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="journey_subtitle">Journey Section Subtitle</label>
+                <input type="text" name="journey_subtitle" id="journey_subtitle" value="{{ content.journey_subtitle }}" class="form-control">
+            </div>
+        </div>
+        <div class="card-actions">
+            <button type="submit" class="btn-save">Save Our Journey Section</button>
+        </div>
+    </div>
+</form>
 
-<!-- Journey Steps Section -->
+<!-- Journey Steps table — kasama ng card nito -->
 <div class="page-header title-header">
     <h1>Journey Steps</h1>
     <a href="{% url 'admin_about_journey_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add New Journey Step</a>
 </div>
-<p style="color: #94a3b8; margin: -0.5rem 0 1rem;">Only the first 4 active steps (by order) are shown on the About page. The big number (01., 02., ...) is automatic based on position.</p>
+<p class="table-note">Only the first 4 active steps (by order) are shown on the About page. The big number (01., 02., ...) is automatic based on position.</p>
 
 <div class="table-container">
     <table>
