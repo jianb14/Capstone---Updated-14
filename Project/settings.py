@@ -183,9 +183,21 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+# Keep the leading slash explicit: WhiteNoise matches this prefix when serving
+# files, so the URL shape should be unambiguous in every environment.
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# WhiteNoise can serve files straight from the staticfiles finders (the repo's
+# static/ and app/static/ directories) instead of only from STATIC_ROOT. On
+# Railway the container is rebuilt on every deploy and collectstatic output is
+# not guaranteed to exist when gunicorn boots -- when it was missing, every
+# /static/... request fell through to Django's 404 page (unstyled pages, broken
+# logo). Serving from the finders keeps CSS/JS/images working even if
+# collectstatic is skipped or writes nothing. Set WHITENOISE_USE_FINDERS=False
+# to disable (e.g. on a host that guarantees a populated STATIC_ROOT).
+WHITENOISE_USE_FINDERS = env_bool("WHITENOISE_USE_FINDERS", True)
 
 if os.getenv('CLOUDINARY_CLOUD_NAME'):
     STORAGES = {
