@@ -122,9 +122,27 @@ WSGI_APPLICATION = 'Project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# An empty DATABASE_URL (rather than an unset one) means a platform variable
+# failed to resolve -- e.g. a "${{Service.VAR}}" reference that points at
+# itself, which Railway resolves to an empty string. dj_database_url then
+# ignores its `default=` and returns {}, failing later with the misleading
+# "settings.DATABASES is improperly configured" error.
+_database_url = (os.getenv("DATABASE_URL") or "").strip()
+
+if not _database_url:
+    if os.getenv("RAILWAY_ENVIRONMENT_ID") or os.getenv("RAILWAY_PROJECT_ID"):
+        raise RuntimeError(
+            "DATABASE_URL resolved to an empty value. Fix the service variable "
+            "(check its ${{...}} references) and redeploy -- the app must not "
+            "boot against an empty database."
+        )
+    _database_url = f'sqlite:///{BASE_DIR / "db.sqlite3"}'
+
+# parse() is used instead of config(): config() re-reads DATABASE_URL from the
+# environment and returns {} for an empty value, ignoring the URL resolved above.
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+    'default': dj_database_url.parse(
+        _database_url,
         conn_max_age=600,
         conn_health_checks=True,
     )
