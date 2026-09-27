@@ -381,47 +381,29 @@
         <a href="{% url 'reviews' %}" class="view-reviews-btn"><i class="fas fa-arrow-left"></i> View all Reviews</a>
 
         {% if top_reviews %}
-        <div class="marquee-wrapper">
-            <div class="marquee-track">
-                {% for review in top_reviews %}
-                <div class="testimonial-card">
-                    <div class="testimonial-quote">"</div>
-                    <p class="testimonial-text">{{ review.comment }}</p>
-                    <div class="stars">
-                        {% if review.rating == 5 %}★★★★★
-                        {% elif review.rating == 4 %}★★★★☆
-                        {% elif review.rating == 3 %}★★★☆☆
-                        {% elif review.rating == 2 %}★★☆☆☆
-                        {% elif review.rating == 1 %}★☆☆☆☆
-                        {% else %}☆☆☆☆☆{% endif %}
+        <div class="testimonial-carousel" data-carousel>
+            <div class="carousel-viewport">
+                <div class="carousel-track">
+                    {% for review in top_reviews %}
+                    <div class="tcarousel-card">
+                        <span class="tcarousel-avatar">{{ review.user.get_full_name|default:review.user.username|slice:":1"|upper }}</span>
+                        <div class="tcarousel-quote" aria-hidden="true">&ldquo;</div>
+                        <p class="tcarousel-name">{{ review.user.get_full_name|default:review.user.username }}</p>
+                        <p class="tcarousel-role">{{ review.booking_selection_display|default:review.booking.event_type|default:"Customer" }}</p>
+                        <div class="tcarousel-stars" aria-label="{{ review.rating }} out of 5 stars">
+                            {% if review.rating >= 5 %}★★★★★
+                            {% elif review.rating >= 4 %}★★★★☆
+                            {% elif review.rating >= 3 %}★★★☆☆
+                            {% elif review.rating >= 2 %}★★☆☆☆
+                            {% elif review.rating >= 1 %}★☆☆☆☆
+                            {% else %}☆☆☆☆☆{% endif %}
+                        </div>
+                        <p class="tcarousel-text">&ldquo;{{ review.comment }}&rdquo;</p>
                     </div>
-                    <div class="testimonial-footer">
-                        <p class="testimonial-author">{{ review.user.get_full_name|default:review.user.username }}</p>
-                        <p class="testimonial-event">{{ review.booking_selection_display }}</p>
-                        <p class="testimonial-event-sub">{{ review.booking.event_type|default:"Event" }}</p>
-                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-                {% for review in top_reviews %}
-                <div class="testimonial-card" aria-hidden="true">
-                    <div class="testimonial-quote">"</div>
-                    <p class="testimonial-text">{{ review.comment }}</p>
-                    <div class="stars">
-                        {% if review.rating == 5 %}★★★★★
-                        {% elif review.rating == 4 %}★★★★☆
-                        {% elif review.rating == 3 %}★★★☆☆
-                        {% elif review.rating == 2 %}★★☆☆☆
-                        {% elif review.rating == 1 %}★☆☆☆☆
-                        {% else %}☆☆☆☆☆{% endif %}
-                    </div>
-                    <div class="testimonial-footer">
-                        <p class="testimonial-author">{{ review.user.get_full_name|default:review.user.username }}</p>
-                        <p class="testimonial-event">{{ review.booking_selection_display }}</p>
-                        <p class="testimonial-event-sub">{{ review.booking.event_type|default:"Event" }}</p>
-                    </div>
-                </div>
-                {% endfor %}
             </div>
+            <div class="carousel-dots" aria-label="Testimonial navigation"></div>
         </div>
         {% else %}
         <div style="text-align: center; padding: 2rem; opacity: 0.6;">

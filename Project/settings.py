@@ -38,18 +38,35 @@ def env_list(name, default=None):
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-aqcbu(9ds5a=f9-c+0eqo$5a_(c_xe%ds$0jo(l)n9vfn@a*ue",
-)
+# SECURITY: The secret key MUST come from the environment (.env).
+# No insecure fallback -- the app fails fast if SECRET_KEY is missing.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY is not set. Add it to your .env file "
+        "(see .env.example) before running the project."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool("DEBUG", True)
+# Defaults to False so production never leaks stack traces or settings.
+DEBUG = env_bool("DEBUG", False)
 
-ALLOWED_HOSTS = ["*"]
+# SECURITY: explicit hosts only -- never "*" in production.
+# Set ALLOWED_HOSTS in .env (comma-separated), e.g. your-app.vercel.app
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", ["https://*.vercel.app"])
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# --- Production security hardening (applied only when DEBUG is off) ---
+if not DEBUG:
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = env_int("SECURE_HSTS_SECONDS", 31536000)  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
 USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", False)
 
 
@@ -215,6 +232,10 @@ sanitize_dead_local_proxy_env()
 
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 
+# Timeout (seconds) for HuggingFace requests — prevents hung calls from
+# stalling Django worker threads.
+HUGGINGFACE_TIMEOUT = int(os.getenv("HUGGINGFACE_TIMEOUT", "90"))
+
 # PayMongo Config
 PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "")
 PAYMONGO_PUBLIC_KEY = os.getenv("PAYMONGO_PUBLIC_KEY", "")
@@ -240,7 +261,4 @@ FORGOT_PASSWORD_RATE_LIMIT_PER_EMAIL = env_int("FORGOT_PASSWORD_RATE_LIMIT_PER_E
 FORGOT_PASSWORD_RATE_LIMIT_WINDOW_SECONDS = env_int("FORGOT_PASSWORD_RATE_LIMIT_WINDOW_SECONDS", 3600)
 FORGOT_PASSWORD_COOLDOWN_SECONDS = env_int("FORGOT_PASSWORD_COOLDOWN_SECONDS", 60)
 
-# PayMongo Configuration
-PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "")
-PAYMONGO_PUBLIC_KEY = os.getenv("PAYMONGO_PUBLIC_KEY", "")
-PAYMONGO_WEBHOOK_SECRET = os.getenv("PAYMONGO_WEBHOOK_SECRET", "")
+

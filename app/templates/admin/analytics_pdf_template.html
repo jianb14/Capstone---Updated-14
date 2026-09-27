@@ -8,201 +8,262 @@
     <style>
         @page {
             size: A4;
-            margin: 1cm;
-            @frame footer {
+            margin: 1.4cm 1.2cm 1.9cm 1.2cm;
+            @frame footer_frame {
                 -pdf-frame-content: footerContent;
-                bottom: 1cm;
-                margin-left: 1cm;
-                margin-right: 1cm;
-                height: 1cm;
+                bottom: 0.7cm;
+                margin-left: 1.2cm;
+                margin-right: 1.2cm;
+                height: 0.9cm;
             }
         }
 
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
-            color: #333;
-            line-height: 1.4;
-            padding-bottom: 50px;
+            color: #1e293b;
+            font-size: 10px;
+            line-height: 1.45;
         }
 
+        /* ================= Header ================= */
         .header-table {
             width: 100%;
-            border: none;
             margin: 0;
             padding: 0;
         }
 
         .header-table td {
-            padding: 0;
             border: none;
-            line-height: 1;
-        }
-
-        .header-content h1 {
-            color: #1e293b;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin: 8px 0 3px;
             padding: 0;
+            vertical-align: bottom;
         }
 
-        .header-content p {
+        .brand-cell { width: 60%; }
+        .confidential-cell { text-align: right; }
+
+        .confidential-stamp {
+            border: 1px solid #94a3b8;
             color: #64748b;
-            font-size: 11px;
-            margin: 0 0 10px;
+            font-size: 7.5px;
+            font-weight: bold;
+            padding: 3px 8px;
+        }
+
+        .title-block {
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+        }
+
+        .title-block h1 {
+            font-size: 15px;
+            font-weight: bold;
+            margin: 8px 0 2px;
             padding: 0;
         }
 
-        .report-info {
-            font-size: 11px;
-            line-height: 1.2;
-            padding-top: 5px;
+        .title-block p {
+            font-size: 9.5px;
+            color: #64748b;
+            margin: 0;
+            padding: 0;
         }
 
+        /* ============ Report metadata ============= */
+        .meta-table {
+            width: 100%;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 12px;
+        }
+
+        .meta-table td {
+            font-size: 9.5px;
+            padding: 5px 10px;
+            border: none;
+        }
+
+        .meta-label {
+            color: #64748b;
+            font-size: 8px;
+            font-weight: bold;
+            width: 18%;
+        }
+
+        .meta-value { width: 32%; }
+
+        /* ============ KPI summary grid ============ */
         .summary-grid {
             width: 100%;
-            margin-bottom: 20px;
-            border: 1px solid #e2e8f0;
-            padding-top: -20px;
+            margin-bottom: 6px;
         }
 
         .summary-box {
-            padding: 10px;
-            text-align: center;
+            background: #f8fafc;
             border: 1px solid #e2e8f0;
+            text-align: center;
+            padding: 7px 4px;
+            width: 25%;
         }
 
         .summary-box .label {
             display: block;
-            font-size: 10px;
+            font-size: 7.5px;
             color: #64748b;
-            text-transform: uppercase;
-            margin-bottom: 5px;
+            font-weight: bold;
+            margin-bottom: 4px;
         }
 
         .summary-box .value {
             display: block;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
             color: #1e293b;
         }
 
+        /* ============ Section headings ============ */
         h2 {
-            font-size: 14px;
+            font-size: 10.5px;
+            font-weight: bold;
             color: #1e293b;
-            margin: 10px 0 0;
+            margin: 12px 0 6px;
+            padding: 0;
+            -pdf-keep-with-next: true;
+        }
+
+        /* ============== Data tables =============== */
+        table.data {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        table.data th {
+            background: #f1f5f9;
+            color: #334155;
+            font-size: 8.5px;
+            font-weight: bold;
+            text-align: left;
+            padding: 5px 10px;
+        }
+
+        table.data th.r { text-align: right; }
+
+        table.data td {
+            padding: 5px 10px;
+            font-size: 9.5px;
+            color: #1e293b;
+            border-bottom: 0.5px solid #e2e8f0;
+        }
+
+        table.data tr.total td {
+            background: #f1f5f9;
+            font-weight: bold;
+        }
+
+        .text-right { text-align: right; }
+        .empty { text-align: center; font-style: italic; color: #94a3b8; }
+
+        /* ========= Highlights / definitions ======= */
+        ul.notes {
+            margin: 2px 0 8px 16px;
             padding: 0;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 5px;
-            margin-bottom: 10px;
+        ul.notes li {
+            font-size: 9.5px;
+            color: #334155;
+            margin-bottom: 3px;
         }
 
-        th {
-            background: #f1f5f9;
-            color: #475569;
-            font-size: 10px;
-            text-align: left;
-            padding: 8px;
-            border-bottom: 1px solid #e2e8f0;
+        .definitions {
+            background: #f8fafc;
+            padding: 7px 10px;
+            margin-top: 12px;
         }
 
-        td {
-            padding: 8px;
-            font-size: 10px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .text-right {
-            text-align: right;
+        .definitions p {
+            font-size: 8.5px;
+            color: #64748b;
+            margin: 2px 0;
         }
 
         .footer {
             text-align: center;
             font-size: 8px;
             color: #94a3b8;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 5px;
+            border-top: 0.5px solid #e2e8f0;
+            padding-top: 4px;
         }
+
+        .spacer { height: 20px; }
     </style>
 </head>
-
 <body>
     <div id="footerContent" class="footer">
-        Confidential Analytics Report - For Administrative Use Only | Page <pdf:pagenumber>
+        Balloorina - Confidential Analytics Report | For Administrative Use Only | Page <pdf:pagenumber> of <pdf:pagecount>
     </div>
 
     <table class="header-table">
         <tr>
-            <td style="padding-bottom: 5px;">
-                <img src="{% static 'images/BalloorinaBlack.png' %}" style="width: 150px;">
+            <td class="brand-cell">
+                <img src="{% static 'images/BalloorinaBlack.png' %}" style="width: 130px;">
             </td>
-        </tr>
-        <tr>
-            <td>
-                <div class="header-content">
-                    <h1>Analytics Report</h1>
-                    <p>Generated on {{ now }}</p>
-                </div>
+            <td class="confidential-cell">
+                <span class="confidential-stamp">CONFIDENTIAL</span>
             </td>
         </tr>
     </table>
 
-    <div class="report-info">
-        <strong>Period:</strong> {{ start_date_str }} - {{ end_date_str }}<br>
-        <strong>Event Type:</strong> {{ selected_event_type }}
+    <div class="title-block">
+        <h1>ANALYTICS REPORT</h1>
+        <p>Business Performance Report - Balloorina</p>
     </div>
+
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">PERIOD</td>
+            <td class="meta-value">{{ start_date_str }} - {{ end_date_str }}</td>
+            <td class="meta-label">GENERATED ON</td>
+            <td>{{ now }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">EVENT TYPE</td>
+            <td class="meta-value">{{ selected_event_type }}</td>
+            <td class="meta-label">PREPARED FOR</td>
+            <td>Balloorina Management</td>
+        </tr>
+    </table>
 
     <table class="summary-grid">
         <tr>
-            <td class="summary-box">
-                <span class="label">Total Bookings</span>
-                <span class="value">{{ total_bookings }}</span>
-            </td>
-            <td class="summary-box">
-                <span class="label">Total Revenue</span>
-                <span class="value">PHP {{ total_revenue }}</span>
-            </td>
-            <td class="summary-box">
-                <span class="label">Completion Rate</span>
-                <span class="value">{{ completion_rate }}%</span>
-            </td>
-            <td class="summary-box">
-                <span class="label">Cancellation Rate</span>
-                <span class="value">{{ cancellation_rate }}%</span>
-            </td>
+            <td class="summary-box"><span class="label">TOTAL BOOKINGS</span><span class="value">{{ total_bookings }}</span></td>
+            <td class="summary-box"><span class="label">TOTAL REVENUE</span><span class="value">PHP {{ total_revenue }}</span></td>
+            <td class="summary-box"><span class="label">COMPLETION RATE</span><span class="value">{{ completion_rate }}%</span></td>
+            <td class="summary-box"><span class="label">CANCELLATION RATE</span><span class="value">{{ cancellation_rate }}%</span></td>
         </tr>
         <tr>
-            <td class="summary-box">
-                <span class="label">Avg. Booking Value</span>
-                <span class="value">PHP {{ avg_booking_value }}</span>
-            </td>
-            <td class="summary-box">
-                <span class="label">Active Customers</span>
-                <span class="value">{{ active_users }}</span>
-            </td>
-            <td class="summary-box">
-                <span class="label">Completed</span>
-                <span class="value">{{ completed_count }}</span>
-            </td>
-            <td class="summary-box">
-                <span class="label">Cancelled</span>
-                <span class="value">{{ cancelled_count }}</span>
-            </td>
+            <td class="summary-box"><span class="label">AVG. BOOKING VALUE</span><span class="value">PHP {{ avg_booking_value }}</span></td>
+            <td class="summary-box"><span class="label">ACTIVE CUSTOMERS</span><span class="value">{{ active_users }}</span></td>
+            <td class="summary-box"><span class="label">COMPLETED</span><span class="value">{{ completed_count }}</span></td>
+            <td class="summary-box"><span class="label">CANCELLED</span><span class="value">{{ cancelled_count }}</span></td>
         </tr>
     </table>
 
+    <h2>Report Highlights</h2>
+    <ul class="notes">
+        {% for note in summary_notes %}
+        <li>{{ note }}</li>
+        {% empty %}
+        <li>No highlights for this period.</li>
+        {% endfor %}
+    </ul>
+
     <h2>Status Breakdown</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Status</th>
-                <th class="text-right">Count</th>
-                <th class="text-right">Percentage</th>
+                <th style="width: 40%;">Booking Status</th>
+                <th class="r" style="width: 30%;">Count</th>
+                <th class="r" style="width: 30%;">Share of Total</th>
             </tr>
         </thead>
         <tbody>
@@ -213,21 +274,19 @@
                 <td class="text-right">{{ item.share_pct }}%</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="3" style="text-align: center;">No data available.</td>
-            </tr>
+            <tr><td colspan="3" class="empty">No bookings recorded for this period.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
     <h2>Revenue by Event Type</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Event Type</th>
-                <th class="text-right">Bookings</th>
-                <th class="text-right">Revenue (PHP)</th>
-                <th class="text-right">Avg. Value</th>
+                <th style="width: 34%;">Event Type</th>
+                <th class="r" style="width: 22%;">Completed Bookings</th>
+                <th class="r" style="width: 22%;">Revenue (PHP)</th>
+                <th class="r" style="width: 22%;">Avg. Value (PHP)</th>
             </tr>
         </thead>
         <tbody>
@@ -239,20 +298,18 @@
                 <td class="text-right">PHP {{ item.avg_value }}</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="4" style="text-align: center;">No data available for this period.</td>
-            </tr>
+            <tr><td colspan="4" class="empty">No completed bookings for this period.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
     <h2>Top Packages</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Package Name</th>
-                <th class="text-right">Bookings</th>
-                <th class="text-right">Revenue (PHP)</th>
+                <th style="width: 46%;">Package Name</th>
+                <th class="r" style="width: 27%;">Completed Bookings</th>
+                <th class="r" style="width: 27%;">Revenue (PHP)</th>
             </tr>
         </thead>
         <tbody>
@@ -263,20 +320,18 @@
                 <td class="text-right">PHP {{ item.revenue }}</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="3" style="text-align: center;">No data available.</td>
-            </tr>
+            <tr><td colspan="3" class="empty">No completed package bookings for this period.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
     <h2>Top Customers</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Customer Name</th>
-                <th class="text-right">Bookings</th>
-                <th class="text-right">Total Spent (PHP)</th>
+                <th style="width: 46%;">Customer Name</th>
+                <th class="r" style="width: 27%;">Completed Bookings</th>
+                <th class="r" style="width: 27%;">Total Spent (PHP)</th>
             </tr>
         </thead>
         <tbody>
@@ -287,20 +342,18 @@
                 <td class="text-right">PHP {{ customer.total_spent }}</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="3" style="text-align: center;">No data available.</td>
-            </tr>
+            <tr><td colspan="3" class="empty">No customer spending recorded for this period.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
     <h2>Customer Retention</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Customer Type</th>
-                <th class="text-right">Count</th>
-                <th class="text-right">Percentage</th>
+                <th style="width: 40%;">Customer Type</th>
+                <th class="r" style="width: 30%;">Count</th>
+                <th class="r" style="width: 30%;">Percentage</th>
             </tr>
         </thead>
         <tbody>
@@ -318,11 +371,11 @@
     </table>
 
     <h2>Action Queue Summary</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Category</th>
-                <th class="text-right">Count</th>
+                <th style="width: 70%;">Category</th>
+                <th class="r" style="width: 30%;">Count</th>
             </tr>
         </thead>
         <tbody>
@@ -330,21 +383,21 @@
                 <td>Pending Approvals</td>
                 <td class="text-right">{{ pending_approvals }}</td>
             </tr>
-            <tr>
-                <td style="font-weight: bold; background: #f8fafc;">Total Action Required</td>
-                <td class="text-right" style="font-weight: bold; background: #f8fafc;">{{ action_queue_total }}</td>
+            <tr class="total">
+                <td>Total Action Required</td>
+                <td class="text-right">{{ action_queue_total }}</td>
             </tr>
         </tbody>
     </table>
 
     <h2>Upcoming Deadlines (Next 3 Days)</h2>
-    <table>
+    <table class="data">
         <thead>
             <tr>
-                <th>Event Date</th>
-                <th>Customer</th>
-                <th>Event Type</th>
-                <th class="text-right">Days Left</th>
+                <th style="width: 22%;">Event Date</th>
+                <th style="width: 33%;">Customer</th>
+                <th style="width: 27%;">Event Type</th>
+                <th class="r" style="width: 18%;">Days Left</th>
             </tr>
         </thead>
         <tbody>
@@ -356,14 +409,17 @@
                 <td class="text-right">{{ booking.days_left }} day{{ booking.days_left|pluralize }}</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="4" style="text-align: center;">No upcoming deadlines.</td>
-            </tr>
+            <tr><td colspan="4" class="empty">No upcoming deadlines.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <div class="footer-spacer" style="height: 20px;"></div>
+    <div class="definitions">
+        <p><strong>Notes &amp; Definitions:</strong> Revenue, average booking value, package rankings, and customer spending figures are computed from <strong>completed</strong> bookings only. Total bookings include all bookings with an event date within the reporting period, regardless of status. Active customers refers to all registered customer accounts as of the report date. Pending approvals are listed as of the report generation time and may change after this report was produced.</p>
+        <p>This report was automatically generated by the Balloorina system and is intended for administrative use only.</p>
+    </div>
+
+    <div class="spacer"></div>
 </body>
 
 </html>

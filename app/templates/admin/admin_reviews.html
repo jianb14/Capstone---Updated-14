@@ -4,7 +4,7 @@
 {% block title %}Review Management - Balloorina{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_reviews.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_reviews.css' %}?v=20260921c">
 {% endblock %}
 
 {% block content %}
@@ -49,18 +49,18 @@
 </div>
 
 <!-- Star Rating Distribution -->
-<div class="table-container" style="margin-top: 1.25rem;">
-    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #1f1f1f;">
-        <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600;">Rating Breakdown</h3>
+<div class="table-container rating-breakdown">
+    <div class="rating-breakdown-head">
+        <h3>Rating Breakdown</h3>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 1.25rem;">
+    <div class="rating-breakdown-body">
         {% for row in rating_distribution %}
-        <div style="display: flex; align-items: center; gap: 0.9rem;">
-            <span style="width: 52px; color: #fbbf24; font-size: 0.85rem; flex-shrink: 0;">{{ row.star }} ★</span>
-            <div style="flex: 1; height: 10px; background: #1f1f1f; border-radius: 999px; overflow: hidden;">
-                <div style="height: 100%; width: {{ row.pct }}%; background: linear-gradient(90deg, #fbbf24, #d97706); border-radius: 999px;"></div>
+        <div class="bd-row">
+            <span class="bd-star">{{ row.star }} ★</span>
+            <div class="bd-track">
+                <div class="bd-fill" style="width: {{ row.pct }}%;"></div>
             </div>
-            <span style="width: 110px; text-align: right; color: #9ca3af; font-size: 0.8rem; flex-shrink: 0;">{{ row.count }} review{{ row.count|pluralize }} ({{ row.pct }}%)</span>
+            <span class="bd-count">{{ row.count }} review{{ row.count|pluralize }} ({{ row.pct }}%)</span>
         </div>
         {% endfor %}
     </div>
@@ -68,8 +68,11 @@
 
     <div class="filter-form">
         <div class="search-input-wrapper">
-            <span class="search-icon">
-                <i class="fas fa-search"></i>
+            <span class="search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                </svg>
             </span>
             <input type="text" id="adminSearchInput" name="search" class="search-input" placeholder="Search comments or users..." value="{{ search_query }}">
         </div>

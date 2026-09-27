@@ -29,7 +29,7 @@ class ChatModerationTests(TestCase):
         result = analyze_text_for_moderation("What is the meaning of 'gago'?")
         self.assertFalse(result["is_violation"])
 
-    def test_strike_escalation_to_one_hour_ban(self):
+    def test_strike_escalation_to_ten_minute_ban(self):
         first = evaluate_chat_moderation(self.user, "g4go ka")
         self.assertIsNotNone(first)
         self.assertTrue(first["is_warning"])
@@ -46,7 +46,9 @@ class ChatModerationTests(TestCase):
         self.assertIsNotNone(third)
         self.assertTrue(third["is_warning"])
         self.assertTrue(third["is_banned"])
-        self.assertGreaterEqual(third["ban_remaining_seconds"], 3590)
+        # 10-minute ban: ~599s (just under 600) after the ban is applied.
+        self.assertGreaterEqual(third["ban_remaining_seconds"], 590)
+        self.assertLessEqual(third["ban_remaining_seconds"], 600)
 
     def test_active_ban_blocks_next_message(self):
         evaluate_chat_moderation(self.user, "gago ka")

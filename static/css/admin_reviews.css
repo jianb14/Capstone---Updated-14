@@ -133,8 +133,18 @@
     left: 0.75rem;
     top: 50%;
     transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
     color: var(--text-muted);
-    font-size: 0.9rem;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-icon svg {
+    width: 100%;
+    height: 100%;
 }
 
 .search-input {
@@ -334,18 +344,31 @@ tr:last-child td {
     font-weight: 500;
     text-decoration: none;
     transition: all 0.2s;
-    background: #1a1a1a;
-    color: #a0a0a0;
-    border: 1px solid #2a2a2a;
+    border: 1px solid;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
-.action-buttons a:hover {
-    background: #252525;
+/* Kapareho ng admin_package.css: 1st btn = solid-ish, 2nd btn = ghost */
+.action-buttons a.view-btn {
+    background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
-    border-color: #444444;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.action-buttons a.view-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.action-buttons a.toggle-btn {
+    background: transparent;
+    color: #9ca3af;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.action-buttons a.toggle-btn:hover {
+    color: #ffffff;
 }
 
 .action-buttons a.toggle-btn.active {
@@ -480,12 +503,32 @@ tr:last-child td {
     border-color: #444;
 }
 
-/* Main Grid Layout */
+/* Main Grid Layout — Assessment/Photos sa KALIWA (1fr), profile + reply sa KANAN (340px) */
 .detail-grid {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: 1.5rem;
+    align-items: start;
 }
+
+/* Right rail: profile card + admin reply + actions */
+.detail-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+/* Sticky rail sa malalaking screen — nakikita ang profile/reply habang
+   nag-i-scroll sa mga attached photos sa kaliwa */
+@media (min-width: 1025px) {
+    .detail-side {
+        position: sticky;
+        top: 1.5rem;
+    }
+}
+
+.review-main { min-width: 0; }
 
 /* Sidebar / Profile Card */
 .profile-card {
@@ -595,6 +638,19 @@ tr:last-child td {
     font-weight: 600;
 }
 
+/* Block titles sa loob ng glass boxes (dating inline style) */
+.box-title-block {
+    display: block;
+    margin-bottom: 1.5rem;
+}
+
+/* Star sa tabi ng rating number (dating inline style) */
+.rating-badge-star {
+    font-size: 1.2rem;
+    margin-left: 0.5rem;
+    color: #f59e0b;
+}
+
 /* Rating Display */
 .rating-display-row {
     display: flex;
@@ -645,11 +701,20 @@ tr:last-child td {
 
 /* Comment Content */
 .comment-container {
-    padding: 2rem;
+    padding: 2.5rem 2rem 1.5rem;
     background: rgba(255,255,255,0.015);
     border: 1px solid var(--border);
     border-radius: 16px;
     position: relative;
+}
+
+.quote-icon-dev {
+    position: absolute;
+    top: 1rem;
+    left: 1.5rem;
+    font-size: 1.3rem;
+    color: #f59e0b;
+    opacity: 0.9;
 }
 
 .comment-text {
@@ -728,15 +793,16 @@ tr:last-child td {
     color: #bbb;
 }
 
-/* Action Footer */
+/* Action Footer — nasa right rail na, full width ang button */
 .action-bar {
     display: flex;
-    justify-content: flex-end;
 }
 
 .btn-toggle {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    width: 100%;
     gap: 0.75rem;
     padding: 0.6rem 1rem;
     border-radius: 8px;
@@ -744,12 +810,30 @@ tr:last-child td {
     font-size: 0.95rem;
     text-decoration: none;
     transition: all 0.2s;
-    background: #fff;
-    color: #000;
+    border: 1px solid;
 }
 
-.btn-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.9);
+/* "Set as Testimonial" = primary (white pill, kapareho ng ibang admin CTAs) */
+.btn-toggle.not-featured {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.btn-toggle.not-featured:hover {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* "Remove from Testimonial" = ghost/outline (destructive-ish, hindi puting solid) */
+.btn-toggle.featured {
+    background: transparent;
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-toggle.featured:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 @media (max-width: 1024px) {
@@ -991,29 +1075,16 @@ tr:last-child td {
     color: #111827 !important;
 }
 
-/* Summary icons: keep brand colors, give them tinted chips in light mode */
+/* Summary icons in light mode: mas maliwanag na gray chip, keep brand icon colors
+   (icon colors dinilaw-an din: #d97706 → #f59e0b para hindi mukhang madilim) */
 [data-theme="light"] .summary-icon {
-    background: #f3f4f6 !important;
+    background: #f9fafb !important;
     border: 1px solid #e5e7eb !important;
 }
 
-[data-theme="light"] .summary-card--total .summary-icon {
-    background: #dbeafe !important;
-    border-color: #bfdbfe !important;
-    color: #3b82f6 !important;
-}
-
-[data-theme="light"] .summary-card--rating .summary-icon {
-    background: #fef3c7 !important;
-    border-color: #fde68a !important;
-    color: #d97706 !important;
-}
-
-[data-theme="light"] .summary-card--featured .summary-icon {
-    background: #d1fae5 !important;
-    border-color: #a7f3d0 !important;
-    color: #059669 !important;
-}
+[data-theme="light"] .summary-card--total .summary-icon    { color: #3b82f6 !important; }
+[data-theme="light"] .summary-card--rating .summary-icon   { color: #f59e0b !important; }
+[data-theme="light"] .summary-card--featured .summary-icon { color: #059669 !important; }
 
 /* Table text that was hardcoded white */
 [data-theme="light"] .user-name {
@@ -1028,16 +1099,29 @@ tr:last-child td {
     color: #111827 !important;
 }
 
-/* Row action buttons (view / testimonial toggle) — matches admin_package.css */
-[data-theme="light"] .action-buttons a {
+/* Row action buttons (view / testimonial toggle) — exact copy ng
+   admin_package.css light rules (kasing-size din ang padding/spec nito) */
+[data-theme="light"] .action-buttons a.view-btn {
     background: #f9fafb !important;
     color: #111827 !important;
-    border: 1px solid #e5e7eb !important;
+    border-color: #e5e7eb !important;
 }
 
-[data-theme="light"] .action-buttons a:hover {
+[data-theme="light"] .action-buttons a.view-btn:hover {
     background: #f3f4f6 !important;
     color: #111827 !important;
+}
+
+[data-theme="light"] .action-buttons a.toggle-btn {
+    background: #f9fafb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .action-buttons a.toggle-btn:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
 }
 
 [data-theme="light"] .action-buttons a.toggle-btn.active {
@@ -1109,4 +1193,294 @@ tr:last-child td {
     color: #111827 !important;
     background: #f3f4f6 !important;
     border-color: #9ca3af !important;
+}
+
+/* ========================================================
+   RATING BREAKDOWN CARD (class-based, para ma-theme sa light mode
+   — dati puro inline styles kaya hindi maimbestuhan ng light theme)
+   ======================================================== */
+.rating-breakdown {
+    margin-top: 1.25rem;
+    /* Dati walang margin-bottom kaya dumidikit sa filter row sa baba */
+    margin-bottom: 1.25rem;
+}
+
+.rating-breakdown-head {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #1f1f1f;
+}
+
+.rating-breakdown-head h3 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.rating-breakdown-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem;
+}
+
+.bd-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.bd-star {
+    width: 52px;
+    color: #fbbf24;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.bd-track {
+    flex: 1;
+    height: 10px;
+    background: #1f1f1f;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.bd-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #fbbf24, #d97706);
+    border-radius: 999px;
+}
+
+.bd-count {
+    width: 110px;
+    text-align: right;
+    color: #9ca3af;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+/* ── Rating breakdown: LIGHT MODE ── */
+[data-theme="light"] .rating-breakdown-head {
+    border-bottom-color: #e5e7eb;
+}
+
+/* !important — dinadagan ng generic [data-theme="light"] span rule ng
+   admin_light_mode.css kung wala ito.
+   #f59e0b (mas maliwanag) sa light mode — masyadong madilim dati ang #d97706 */
+[data-theme="light"] .rating-breakdown .bd-star {
+    color: #f59e0b !important;
+}
+
+[data-theme="light"] .rating-breakdown .bd-fill {
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+
+[data-theme="light"] .rating-breakdown .bd-track {
+    background: #e5e7eb;
+}
+
+[data-theme="light"] .rating-breakdown .bd-count {
+    color: #6b7280 !important;
+}
+
+/* ========================================================
+   TABLE BADGES / RATING — LIGHT MODE
+   (dinadagan din ng blanket span rule ng admin_light_mode.css:
+   nawawala ang amber na rating at berdeng "Featured" sa light mode)
+   ======================================================== */
+[data-theme="light"] .table-container .rating-number {
+    color: #f59e0b !important;
+}
+
+[data-theme="light"] .table-container .status-badge {
+    color: #6b7280 !important;
+}
+
+[data-theme="light"] .table-container .status-badge.featured {
+    color: #059669 !important;
+}
+
+/* ========================================================
+   REVIEW DETAIL — RIGHT RAIL / REPLY / TOGGLE (light + dark polish)
+   ======================================================== */
+
+/* Reply form (dating inline styles) */
+.reply-textarea {
+    width: 100%;
+    background: #141414;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 0.75rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    resize: vertical;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.reply-textarea:focus {
+    outline: none;
+    border-color: #555;
+}
+
+.reply-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.reply-note {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Post/Update Reply — monochrome (dating asul na #3b82f6) */
+.btn-post-reply {
+    background: #fff;
+    color: #000;
+    border: 1px solid #fff;
+    padding: 0.55rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.btn-post-reply:hover {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Light mode: detail page ── */
+
+/* Framed quote box + photo tiles: #222 borders sobrang dilim sa puti */
+[data-theme="light"] .comment-container {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .image-item {
+    border-color: #e5e7eb;
+    background: #ffffff;
+}
+
+[data-theme="light"] .image-item:hover {
+    border-color: #9ca3af;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.1);
+}
+
+[data-theme="light"] .quote-icon-dev {
+    color: #f59e0b;
+}
+
+[data-theme="light"] .comment-text {
+    color: #374151 !important;
+}
+
+/* Reply textarea (tatalunin ang dark inline-era defaults + global rules) */
+[data-theme="light"] .reply-textarea {
+    background: #f9fafb !important;
+    border: 1px solid #d1d5db !important;
+    color: #111827 !important;
+}
+
+[data-theme="light"] .reply-textarea:focus {
+    border-color: #6b7280 !important;
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+}
+
+[data-theme="light"] .reply-note {
+    color: #6b7280 !important;
+}
+
+/* Post Reply: solid black pill sa light mode (monochrome, hindi blue) */
+[data-theme="light"] .btn-post-reply {
+    background: #111827 !important;
+    color: #ffffff !important;
+    border-color: #111827 !important;
+}
+
+[data-theme="light"] .btn-post-reply:hover {
+    background: #1f2937 !important;
+}
+
+/* Toggle states sa light mode:
+   - "Set as Testimonial" (not-featured) = solid black pill
+   - "Remove from Testimonial" (featured) = white ghost na may gray border
+   !important — para hindi dapuan ng blanket rules ng admin_light_mode.css */
+[data-theme="light"] .btn-toggle.not-featured {
+    background: #111827 !important;
+    color: #ffffff !important;
+    border-color: #111827 !important;
+}
+
+[data-theme="light"] .btn-toggle.not-featured:hover {
+    background: #1f2937 !important;
+}
+
+[data-theme="light"] .btn-toggle.featured {
+    background: #ffffff !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .btn-toggle.featured:hover {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #9ca3af !important;
+}
+
+/* ── Responsive: detail page ── */
+@media (max-width: 1024px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-side {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .detail-wrap {
+        padding-top: 0;
+    }
+
+    .glass-box,
+    .profile-card {
+        padding: 1.15rem;
+    }
+
+    .comment-container {
+        padding: 2rem 1.25rem 1.25rem;
+    }
+
+    .quote-icon-dev {
+        left: 1.1rem;
+        font-size: 1.1rem;
+    }
+
+    .image-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 0.65rem;
+    }
+
+    .reply-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .reply-note {
+        text-align: center;
+    }
+
+    .btn-post-reply,
+    .btn-toggle {
+        width: 100%;
+    }
 }

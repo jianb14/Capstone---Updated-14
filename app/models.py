@@ -13,7 +13,10 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    email_verified = models.BooleanField(default=True)
+    email_verified = models.BooleanField(
+        default=False,
+        help_text="New accounts must verify their email before logging in.",
+    )
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -95,6 +98,16 @@ class BookingStatusLog(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Booking Status Log'
         verbose_name_plural = 'Booking Status Logs'
+
+    @property
+    def new_status_label(self):
+        """Human-readable new status (e.g. 'pending_payment' -> 'Pending Payment')."""
+        return (self.new_status or "").replace("_", " ").title()
+
+    @property
+    def old_status_label(self):
+        """Human-readable old status (e.g. 'pending_payment' -> 'Pending Payment')."""
+        return (self.old_status or "").replace("_", " ").title()
 
     def __str__(self):
         return f"Booking #{self.booking_id}: {self.old_status or '—'} → {self.new_status}"
@@ -395,6 +408,32 @@ class MessageReaction(models.Model):
 
     class Meta:
         unique_together = ("message", "user", "emoji")
+
+
+class AiImageFeedback(models.Model):
+    """Like/dislike feedback on AI-generated design images from the chat."""
+
+    RATING_CHOICES = (
+        (1, "Like"),
+        (-1, "Dislike"),
+    )
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="ai_image_feedback"
+    )
+    image_url = models.CharField(max_length=500)
+    prompt = models.TextField(blank=True, default="")
+    rating = models.SmallIntegerField(choices=RATING_CHOICES, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "image_url")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        feeling = "liked" if self.rating > 0 else "disliked"
+        return f"{self.user.username} {feeling} {self.image_url[:40]}"
 
     def __str__(self):
         return f"{self.user.username} reacted {self.emoji}"

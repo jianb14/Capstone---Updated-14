@@ -1,31 +1,140 @@
-﻿.reviews-page {
+/* ==========================================================
+   MY REVIEWS PAGE — Redesign
+   - Theme-aware: CSS variables (dark default + light overrides)
+   - Responsive: 1024px tablet / 640px mobile
+   - Preserved JS contracts: .review-card, .like-btn[data-id],
+     .review-uploaded-img, .review-dropdown.show, .modal-overlay.show,
+     lahat ng modal/form IDs
+   ========================================================== */
+
+/* ---------- Theme tokens (document scope — para umabot sa modals) ---------- */
+:root {
+    --mr-dot: rgba(255, 255, 255, 0.12);
+    --mr-ghost: rgba(255, 255, 255, 0.14);
+    --mr-badge-bg: rgba(255, 255, 255, 0.08);
+    --mr-card: #111111;
+    --mr-card-2: #161616;
+    --mr-border: rgba(255, 255, 255, 0.10);
+    --mr-border-strong: rgba(255, 255, 255, 0.22);
+    --mr-text: #ffffff;
+    --mr-text-sec: #9ca3af;
+    --mr-text-mut: #6b7280;
+    --mr-btn-bg: #ffffff;
+    --mr-btn-text: #000000;
+    --mr-btn-hover: rgba(255, 255, 255, 0.85);
+    --mr-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    --mr-input-bg: #0a0a0a;
+    --mr-overlay: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] {
+    --mr-dot: rgba(0, 0, 0, 0.12);
+    --mr-ghost: rgba(17, 24, 39, 0.12);
+    --mr-badge-bg: rgba(17, 24, 39, 0.06);
+    --mr-card: #ffffff;
+    --mr-card-2: #f9fafb;
+    --mr-border: rgba(17, 24, 39, 0.10);
+    --mr-border-strong: rgba(17, 24, 39, 0.25);
+    --mr-text: #111827;
+    --mr-text-sec: #4b5563;
+    --mr-text-mut: #6b7280;
+    --mr-btn-bg: #111827;
+    --mr-btn-text: #ffffff;
+    --mr-btn-hover: #000000;
+    --mr-shadow: 0 3px 10px rgba(17, 24, 39, 0.08);
+    --mr-input-bg: #f9fafb;
+    --mr-overlay: rgba(17, 24, 39, 0.45);
+}
+
+/* ---------- Page shell ---------- */
+.reviews-page {
     min-height: 80vh;
-    padding: 6rem 1rem 4rem 1rem;
-    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
-    background-size: 25px 25px;
-    color: var(--white);
+    padding: 5rem 1rem 4rem;
+    background-image: radial-gradient(circle, var(--mr-dot) 1.01px, transparent 1px);
+    background-size: 18px 18px;
+    color: var(--mr-text);
     display: flex;
     flex-direction: column;
     align-items: center;
     font-family: 'Roboto', 'Montserrat', Arial, sans-serif;
-    animation: fadeInPage 0.5s ease forwards;
 }
 
-.reviews-list {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+/* Light mode: puti ang bg, dark-gray dots (kapareho ng light hero sa base.css) */
+[data-theme="light"] .reviews-page {
+    background-color: #ffffff;
+}
+
+.my-reviews-container {
     width: 100%;
     max-width: 1100px;
-    background-color: black;
-    padding: 2rem 3rem;
+    margin: 0 auto;
+    padding: 0 1rem;
 }
 
+/* ---------- Page header + stats ---------- */
+.mr-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+}
+
+.my-reviews-title {
+    color: var(--mr-text);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin: 0 0 0.4rem 0;
+}
+
+.my-reviews-subtitle {
+    margin: 0;
+    color: var(--mr-text-sec);
+    font-size: 0.95rem;
+}
+
+/* Borderless stats: number + label, hiwalay ng thin vertical dividers */
+.mr-stats {
+    display: flex;
+    align-items: center;
+}
+
+.mr-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 24px;
+    border-left: 1px solid var(--mr-border);
+}
+
+.mr-stat:first-child {
+    border-left: none;
+    padding-left: 0;
+}
+
+.mr-stat-num {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--mr-text);
+    line-height: 1.2;
+}
+
+.mr-stat-label {
+    font-size: 0.68rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--mr-text-mut);
+    font-weight: 600;
+}
+
+/* ---------- Section headings ---------- */
 .pending-reviews-section {
     width: 100%;
-    margin-bottom: 2rem;
-    background-color: black;
-    padding: 0 3rem 0.5rem 3rem;
+    margin-bottom: 2.5rem;
 }
 
 .pending-reviews-heading {
@@ -33,398 +142,489 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-    margin-bottom: 0.5rem;
-}
-
-.pending-reviews-title {
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-    color: #fff;
-    font-size: 1.5rem;
-}
-
-.pending-reviews-desc {
-    color: #aaa;
     margin-bottom: 1rem;
-    font-size: 0.95rem;
 }
 
-.pending-review-count {
-    background: white;
-    color: #0d0d0d;
-    font-size: 0.72rem;
-    letter-spacing: 0.8px;
+/* Section labels: maliit, uppercase, letter-spaced — standard dashboard pattern */
+.mr-section-label {
+    font-size: 0.8rem;
     font-weight: 700;
-    padding: 3.5px 12px;
-    border-radius: 999px;
-    white-space: nowrap;
-}
-
-.pending-reviews-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.pending-review-card {
-    background: #111;
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.pending-review-card .pending-info h4 {
-    color: #fff;
-    font-size: 1.1rem;
-    margin: 0 0 0.2rem 0;
-}
-
-.pending-selection {
-    display: block;
-    color: #b3b3b3;
-    font-size: 0.86rem;
-    margin-bottom: 0.2rem;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-.pending-review-card .pending-info .pending-date {
-    color: #888;
-    font-size: 0.85rem;
-}
-
-.pending-review-card .btn-leave-review {
-    background: white;
-    color: black;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    font-family: 'Montserrat', sans-serif;
-    gap: 8px;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.pending-review-card .btn-leave-review:hover {
-    background: rgba(255, 255, 255, 0.8);
-
-}
-
-.reviews-filter-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 2rem;
-    width: 100%;
-    max-width: 1100px;
-    justify-content: flex-end;
-}
-
-.filter-select {
-    display: none;
-}
-
-.custom-filter-dropdown {
-    position: relative;
-    user-select: none;
-    font-family: 'Montserrat', sans-serif;
-}
-
-.custom-filter-dropdown .dropdown-trigger {
-    padding: 0.5rem 1rem;
-    border: 1px solid #444;
-    background: #111;
-    color: #fff;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 170px;
-}
-
-.custom-filter-dropdown .dropdown-trigger i {
-    transition: transform 0.3s ease;
-}
-
-.custom-filter-dropdown.open .dropdown-trigger {
-    border-color: rgba(255, 255, 255, 0.5);
-}
-
-.custom-filter-dropdown.open .dropdown-trigger i {
-    transform: rotate(180deg);
-}
-
-.custom-filter-dropdown .dropdown-options {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: 0;
-    background: #151515;
-    border: 1px solid #333;
-    border-radius: 8px;
-    list-style: none;
-    z-index: 100;
-    max-height: 250px;
-    overflow-y: auto;
-    display: none;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--mr-text-sec);
     margin: 0;
 }
 
-.custom-filter-dropdown .dropdown-options::-webkit-scrollbar {
-    width: 6px;
+/* Malaking ghost index number ("01", "02"...) sa kaliwa ng pending card */
+.pending-index {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--mr-ghost);
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    min-width: 44px;
+    user-select: none;
 }
 
-.custom-filter-dropdown .dropdown-options::-webkit-scrollbar-track {
-    background: #111;
-    border-radius: 4px;
+/* Walang divider — spacing mula sa pending section; heading margin lang ang natira */
+.published-heading {
+    margin: 0 0 1rem;
 }
 
-.custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 4px;
+/* ---------- Pending review cards ---------- */
+.pending-reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.custom-filter-dropdown .dropdown-options::-webkit-scrollbar-thumb:hover {
-    background: #555;
+.pending-review-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--mr-card);
+    border: 1px solid var(--mr-border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.custom-filter-dropdown.open .dropdown-options {
-    display: block;
-    animation: slideDownFade 0.2s ease forwards;
-    transform-origin: top center;
+.pending-review-card:hover {
+    border-color: var(--mr-border-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--mr-shadow);
 }
 
-@keyframes slideDownFade {
-    from {
-        opacity: 0;
-        transform: scaleY(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: scaleY(1);
-    }
+.pending-review-card .pending-info {
+    flex-grow: 1;
+    min-width: 160px;
 }
 
-.custom-filter-dropdown .dropdown-options li {
-    padding: 8px 15px;
+.pending-review-card .pending-info h4 {
+    color: var(--mr-text);
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+}
+
+.pending-meta {
+    margin: 0;
+    color: var(--mr-text-mut);
     font-size: 0.85rem;
-    color: #ccc;
+}
+
+.btn-leave-review {
+    background: var(--mr-btn-bg);
+    color: var(--mr-btn-text);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Montserrat', sans-serif;
+    white-space: nowrap;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.custom-filter-dropdown .dropdown-options li:hover {
-    background: #222;
-    color: #fff;
+.btn-leave-review:hover {
+    background: var(--mr-btn-hover);
+    box-shadow: var(--mr-shadow);
 }
 
-.custom-filter-dropdown .dropdown-options li.selected {
-    color: #fff;
+/* Arrow indicator sa "Leave a Review" — gumagalaw pakanan sa hover */
+.btn-leave-review .btn-arrow-icon {
+    font-size: 0.78rem;
+    transition: transform 0.2s ease;
 }
 
+.btn-leave-review:hover .btn-arrow-icon {
+    transform: translateX(3px);
+}
+
+.btn-leave-review:focus-visible {
+    outline: 2px solid var(--mr-border-strong);
+    outline-offset: 2px;
+}
+
+/* ---------- Published review cards ---------- */
+.reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+/* Walang bg/border ang published review cards — typography-driven,
+   divider lang ng actions row ang nagbibigay ng istruktura */
 .review-card {
     background: transparent;
-    padding: 10px 0;
+    border: none;
+    padding: 0;
     display: flex;
     flex-direction: column;
 }
 
-.review-card:last-child {
-    border-bottom: none;
+/* Override ng [data-theme="light"] .review-card rule sa notifications.css
+   (globally loaded) na nagdadagdag ng white bg + box-shadow sa light mode.
+   Dapat walang box ang published reviews, sa light man o dark. */
+[data-theme="light"] .reviews-page .review-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--mr-text) !important;
 }
 
 .review-card-header {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     margin-bottom: 12px;
+    position: relative;
+    width: 100%;
+    flex-wrap: wrap;
 }
 
 .review-avatar {
-    width: 55px;
-    height: 55px;
-    background-color: white;
+    width: 44px;
+    height: 44px;
+    background-color: var(--mr-btn-bg);
+    color: var(--mr-btn-text);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 1.4rem;
     font-weight: 600;
-    color: black;
     flex-shrink: 0;
     font-family: Poppins, sans-serif;
 }
 
 .review-meta {
+    flex-grow: 1;
+    min-width: 120px;
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
 
 .review-author {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #ffffff;
-    /* White text */
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--mr-text);
     line-height: 1.2;
     margin-bottom: 2px;
 }
 
-.review-details {
-    font-size: 0.8rem;
-    color: #888;
-    /* Gray secondary text */
+.review-card-sub {
+    font-size: 0.78rem;
+    color: var(--mr-text-mut);
 }
 
-/* Rating Row */
+/* Ghost badge: walang border, subtle bg, icon at label na pantay.
+   Compact height + optical centering (padding 2px sa taas) para pantay ang tingnan */
+.your-review-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 2px 12px 0;
+    line-height: 1;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--mr-text-sec);
+    background: var(--mr-badge-bg);
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.your-review-badge i {
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
+/* Rating row: stars + petsa */
 .review-rating-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 25px;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 2px 0 10px;
 }
 
+/* Monochrome stars: white kapag filled, gray kapag empty */
 .review-stars {
     display: flex;
     align-items: center;
-    color: #444;
-    /* Empty star color on dark theme */
-    font-size: 1.1rem;
-    letter-spacing: 1px;
+    color: var(--mr-border-strong);
+    font-size: 1rem;
+    letter-spacing: 2px;
 }
 
+/* Amber stars (kapareho ng public reviews page) */
 .review-stars .star.filled {
     color: #fbbf24;
-    /* Yellow star */
+}
+
+[data-theme="light"] .review-stars .star.filled {
+    color: #f59e0b;
 }
 
 .review-date {
-    font-size: 0.85rem;
-    color: #888;
+    font-size: 0.82rem;
+    color: var(--mr-text-mut);
 }
 
-/* Content */
+/* Meta line: plain text na may dot separator (hindi na chips) */
+.review-meta-line {
+    margin: 0 0 14px;
+    color: var(--mr-text-mut);
+    font-size: 0.85rem;
+}
+
+/* Nilalaman */
 .review-content {
     font-size: 0.95rem;
-    color: #ccc;
-    /* Light gray text for readability on dark */
-    line-height: 1.5;
-    margin-bottom: 16px;
+    color: var(--mr-text-sec);
+    line-height: 1.6;
+    margin-bottom: 4px;
     flex-grow: 1;
     overflow-wrap: break-word;
     word-wrap: break-word;
     word-break: break-word;
 }
 
+/* Mga larawan */
 .review-images-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    margin-top: -0.5rem;
+    margin: 10px 0 14px;
 }
 
 .review-uploaded-img {
-    width: 150px;
-    height: 150px;
+    width: 110px;
+    height: 110px;
     object-fit: cover;
-    border-radius: 6px;
-    border: 1px solid #333;
+    border-radius: 8px;
+    border: 1px solid var(--mr-border);
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
 .review-uploaded-img:hover {
-    transform: scale(1.05);
+    box-shadow: var(--mr-shadow);
+    opacity: 0.92;
 }
 
-/* Actions Row at bottom */
+/* Actions row */
 .review-actions {
     display: flex;
     align-items: center;
-    gap: 24px;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #2a2a2a;
-    /* Dark separator */
+    gap: 16px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--mr-border);
 }
 
 .review-action-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #888;
-    /* Default unliked color */
+    line-height: 1;
+    color: var(--mr-text-mut);
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
     background: none;
     border: none;
     padding: 6px 8px;
-    border-radius: 4px;
+    border-radius: 6px;
     transition: background-color 0.2s, color 0.2s;
 }
 
 .review-action-btn:hover:not(:disabled) {
-    background-color: #222;
-    color: #fff;
+    background-color: var(--mr-card-2);
+    color: var(--mr-text);
 }
 
 .review-action-btn:disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: 0.6;
 }
 
-/* Active Liked State - White as requested */
 .review-action-btn.liked {
-    color: #ffffff;
+    color: var(--mr-text);
 }
 
 .action-icon {
+    display: block;
+    flex-shrink: 0;
     width: 16px;
     height: 16px;
 }
 
-/* No Reviews State */
-.no-reviews,
-.no-reviews-filter {
-    text-align: center;
-    padding: 10rem 3rem;
-    background: #111;
-    border-radius: 8px;
-    border: 1px dashed #333;
-    color: #888;
+/* ---------- 3-dot options menu ---------- */
+.review-options {
+    position: relative;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.options-btn {
+    background: none;
+    border: none;
+    color: var(--mr-text-mut);
+    padding: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.options-btn:hover {
+    color: var(--mr-text);
+    background: var(--mr-card-2);
+}
+
+.review-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--mr-card);
+    border: 1px solid var(--mr-border-strong);
+    border-radius: 10px;
+    box-shadow: var(--mr-shadow);
+    display: none;
+    flex-direction: column;
+    z-index: 100;
+    min-width: 140px;
+    overflow: hidden;
+}
+
+.review-dropdown.show {
+    display: flex;
+}
+
+.review-dropdown button {
+    background: none;
+    border: none;
+    color: var(--mr-text-sec);
+    padding: 10px 16px;
+    text-align: left;
     font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.review-dropdown button:hover {
+    background: var(--mr-card-2);
+    color: var(--mr-text);
+}
+
+.review-dropdown button.delete-opt {
+    color: #ef4444;
+}
+
+.review-dropdown button.delete-opt:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* ---------- Empty state ---------- */
+.no-reviews-custom {
+    background: var(--mr-card);
+    border: 1px dashed var(--mr-border-strong);
+    padding: 4.5rem 2rem;
+    text-align: center;
+    border-radius: 12px;
+    color: var(--mr-text-sec);
     width: 100%;
+    margin: 0 auto;
 }
 
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.no-reviews-custom .nr-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    border: 1px solid var(--mr-border-strong);
+    color: var(--mr-text-mut);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
 }
 
-/* --- IMAGE EXPAND MODAL --- */
+.no-reviews-custom h4 {
+    color: var(--mr-text);
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 0.4rem 0;
+}
+
+.no-reviews-custom p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* ---------- Pagination ---------- */
+.pagination-container {
+    width: 100%;
+    margin: 2rem 0;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--mr-card);
+    border: 1px solid var(--mr-border);
+    color: var(--mr-text-sec);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.pagination-btn:hover:not(.disabled) {
+    background: var(--mr-card-2);
+    color: var(--mr-text);
+    border-color: var(--mr-border-strong);
+}
+
+.pagination-btn.active {
+    background: var(--mr-btn-bg);
+    color: var(--mr-btn-text);
+    border-color: var(--mr-btn-bg);
+    font-weight: 600;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---------- Image lightbox ---------- */
 .image-modal-overlay {
     display: none;
     position: fixed;
@@ -478,98 +678,14 @@
     cursor: pointer;
 }
 
-/* --- REVIEW OPTIONS (3-DOT MENU) --- */
-.review-card-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 12px;
-    position: relative;
-    width: 100%;
-}
-
-.review-meta {
-    flex-grow: 1;
-    /* This pushes the options to the right */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.review-options {
-    position: relative;
-    /* Change to relative or keep absolute if it works better */
-    margin-left: auto;
-}
-
-.options-btn {
-    background: none;
-    border: none;
-    color: #666;
-    padding: 8px;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: color 0.2s;
-}
-
-.options-btn:hover {
-    color: #fff;
-}
-
-.review-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    display: none;
-    flex-direction: column;
-    z-index: 100;
-    min-width: 120px;
-    overflow: hidden;
-}
-
-.review-dropdown.show {
-    display: flex;
-}
-
-.review-dropdown button {
-    background: none;
-    border: none;
-    color: #ccc;
-    padding: 10px 16px;
-    text-align: left;
-    font-size: 0.9rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: background 0.2s, color 0.2s;
-}
-
-.review-dropdown button:hover {
-    background: #222;
-    color: #fff;
-}
-
-.review-dropdown button.delete-opt {
-    color: #ef4444;
-}
-
-.review-dropdown button.delete-opt:hover {
-    background: rgba(239, 68, 68, 0.1);
-}
-
-/* --- EDIT MODAL STYLES --- */
+/* ---------- Review / Edit modals (theme-aware) ---------- */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--mr-overlay);
     backdrop-filter: blur(3px);
     z-index: 2000;
     display: none;
@@ -587,21 +703,22 @@
 }
 
 .modal-card {
-    background: #111111;
-    border: 1px solid #333333;
-    border-radius: 8px;
+    background: var(--mr-card);
+    border: 1px solid var(--mr-border);
+    border-radius: 12px;
     padding: 1.5rem 2rem;
     width: 90%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     position: relative;
     transform: translateY(20px);
     transition: transform 0.3s ease;
     margin: auto;
+    color: var(--mr-text);
     scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
+    scrollbar-color: var(--mr-border-strong) transparent;
 }
 
 .modal-card::-webkit-scrollbar {
@@ -613,12 +730,8 @@
 }
 
 .modal-card::-webkit-scrollbar-thumb {
-    background: #333;
+    background: var(--mr-border-strong);
     border-radius: 3px;
-}
-
-.modal-card::-webkit-scrollbar-thumb:hover {
-    background: #555;
 }
 
 .modal-overlay.show .modal-card {
@@ -635,26 +748,27 @@
     font-size: 1.5rem;
     letter-spacing: -0.5px;
     margin: 0;
-    color: #fff;
+    color: var(--mr-text);
 }
 
 .modal-close {
     position: absolute;
-    top: 1.6rem;
-    right: 1.5rem;
+    top: 1.35rem;
+    right: 1.15rem;
     background: transparent;
     border: none;
-    color: #666;
-    font-size: 1.5rem;
+    color: var(--mr-text-mut);
+    font-size: 2rem;
     cursor: pointer;
     transition: color 0.2s;
     line-height: 1;
 }
 
 .modal-close:hover {
-    color: #fff;
+    color: var(--mr-text);
 }
 
+/* Star rating (radio) */
 .star-rating {
     display: flex;
     flex-direction: row-reverse;
@@ -671,78 +785,84 @@
 .star-rating label {
     font-size: 2rem !important;
     line-height: 1;
-    color: #444;
+    color: var(--mr-border-strong);
     cursor: pointer;
     transition: color 0.1s;
 }
 
+/* Amber stars sa modal (hover at selected) */
 .star-rating label:hover,
 .star-rating label:hover~label,
 .star-rating input:checked~label {
-    color: #f59e0b;
+    color: #fbbf24;
 }
 
 .star-rating label.active {
+    color: #fbbf24;
+}
+
+[data-theme="light"] .star-rating label:hover,
+[data-theme="light"] .star-rating label:hover~label,
+[data-theme="light"] .star-rating input:checked~label,
+[data-theme="light"] .star-rating label.active {
     color: #f59e0b;
 }
 
-.file-input {
-    background: #0a0a0a;
-    border: 1px dashed #555 !important;
-    border-radius: 6px;
-    padding: 8px 10px !important;
-    color: #ccc;
-    font-size: 0.85rem;
-    width: 100%;
-    box-sizing: border-box;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
-    height: auto !important;
-    min-height: unset !important;
-    line-height: normal;
+/* Description sa ilalim ng stars — override ng inline style para theme-aware */
+#star-description,
+#edit-star-description {
+    color: var(--mr-text-mut) !important;
 }
 
-.file-input::-webkit-file-upload-button {
-    background: #222;
-    border: 1px solid #444;
-    color: #fff;
-    padding: 6px 14px !important;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 1rem;
-    font-weight: 500;
-    font-size: 0.85rem;
-}
-
+/* Form */
 .form-group label {
     font-weight: 600;
     font-size: 0.7rem;
-    color: #999;
+    color: var(--mr-text-sec);
     text-transform: uppercase;
     display: block;
 }
 
+.image-preview-grid {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+/* Kapag walang na-upload na images, tanggalin ang gap na idudulot ng grid */
+.image-preview-grid:empty {
+    display: none;
+}
+
+/* Walang border ang mga uploaded image previews sa modal
+   (ina-override ang inline `border: 1px solid #444` mula sa JS) */
+.image-preview-grid img {
+    border: none !important;
+}
 
 #reviewForm textarea,
 #editReviewForm textarea {
-    background: #0a0a0a;
-    border: 1px solid #333;
+    background: var(--mr-input-bg);
+    border: 1px solid var(--mr-border);
     border-radius: 8px;
     padding: 0.75rem 1rem;
     font-size: 0.95rem;
-    color: #fff;
-    transition: all 0.2s ease;
+    color: var(--mr-text);
+    transition: border-color 0.2s ease;
     width: 100%;
     min-height: 120px;
     resize: vertical;
+    margin-bottom: 0.6rem;
 }
 
 #reviewForm textarea:focus,
 #editReviewForm textarea:focus {
-    border-color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-color: var(--mr-border-strong);
     outline: none;
+    /* I-override ang base.css focus (translateY + hard offset shadow) */
     transform: none;
+    box-shadow: none;
 }
 
 #reviewForm .review-field-error,
@@ -768,224 +888,239 @@
     border-color: #ef4444 !important;
 }
 
+/* File upload shell (dating inline styles) */
+.file-input-shell {
+    background: var(--mr-input-bg);
+    border: 1px dashed var(--mr-border-strong);
+    border-radius: 8px;
+    padding: 0.45rem 0.6rem;
+    color: var(--mr-text-sec);
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.file-choose-btn {
+    background: var(--mr-card-2);
+    color: var(--mr-text);
+    border: 1px solid var(--mr-border-strong);
+    padding: 0.45rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    line-height: 1;
+    margin: 0 10px 0 0;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+/* Critical: ang .form-group label ng base.css ay may margin-bottom: 0.5rem
+   na tumatama rin dito (label element) — dahil margin-box ang cinCenter ng
+   flex align-items: center, kaya lumalaki ang bottom space ng shell */
+.file-input-shell .file-choose-btn {
+    margin-bottom: 0;
+}
+
+.file-choose-btn:hover {
+    background: var(--mr-border);
+}
+
+.file-status {
+    font-size: 0.9rem;
+    font-family: 'Montserrat', sans-serif;
+    line-height: 1;
+}
+
+.file-hint {
+    color: var(--mr-text-mut);
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 2px;
+    line-height: 1.2;
+    margin-bottom: 0;
+}
+
+.file-input {
+    background: var(--mr-input-bg);
+    border: 1px dashed var(--mr-border-strong) !important;
+    border-radius: 6px;
+    padding: 8px 10px !important;
+    color: var(--mr-text-sec);
+    font-size: 0.85rem;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    height: auto !important;
+    min-height: unset !important;
+    line-height: normal;
+}
+
+.file-input::-webkit-file-upload-button {
+    background: var(--mr-card-2);
+    border: 1px solid var(--mr-border-strong);
+    color: var(--mr-text);
+    padding: 6px 14px !important;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 1rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
 .btn-submit-review {
     margin-top: 0.5rem;
     padding: 0.8rem;
     font-size: 0.9rem;
-    border-radius: 6px;
-    background: #fff;
-    color: #000;
+    border-radius: 8px;
+    background: var(--mr-btn-bg);
+    color: var(--mr-btn-text);
     font-weight: 700;
     width: 100%;
     border: none;
     cursor: pointer;
     font-family: Montserrat, sans-serif;
+    transition: background 0.2s ease;
 }
 
 .btn-submit-review:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--mr-btn-hover);
 }
 
-/* Custom Styles for My Reviews Page */
-.my-reviews-container {
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 1rem;
+/* ---------- Animations (staggered card reveal) ---------- */
+@keyframes mrRise {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.my-reviews-title {
-    color: white;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 2rem;
-    margin-bottom: 2rem;
+/* "backwards" imbes na "both": para gumana ang hover lift pagkatapos ng animation */
+.pending-review-card,
+.review-card {
+    animation: mrRise 0.45s ease backwards;
 }
 
-.no-reviews-custom {
-    background: rgba(30, 30, 30, 0.8);
-    border: 1px solid #333;
-    padding: 10rem 3rem;
-    text-align: center;
-    border-radius: 12px;
-    color: #a3a3a3;
-    width: 100%;
-    margin: 0 auto;
+.pending-reviews-list .pending-review-card:nth-child(1),
+.reviews-list .review-card:nth-child(1) { animation-delay: 0.04s; }
+.pending-reviews-list .pending-review-card:nth-child(2),
+.reviews-list .review-card:nth-child(2) { animation-delay: 0.08s; }
+.pending-reviews-list .pending-review-card:nth-child(3),
+.reviews-list .review-card:nth-child(3) { animation-delay: 0.12s; }
+.pending-reviews-list .pending-review-card:nth-child(4),
+.reviews-list .review-card:nth-child(4) { animation-delay: 0.16s; }
+.pending-reviews-list .pending-review-card:nth-child(5),
+.reviews-list .review-card:nth-child(5) { animation-delay: 0.20s; }
+
+/* ---------- Responsive: Tablet (≤1024px) ---------- */
+@media (max-width: 1024px) {
+    .mr-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .mr-stats {
+        width: 100%;
+    }
+
+    .mr-stat {
+        flex: 1;
+        min-width: 0;
+    }
 }
 
-/* Pagination Styles */
-.pagination-container {
-    width: 100%;
-    margin: 2rem 0;
+/* ---------- Responsive: Mobile (≤640px) ---------- */
+@media (max-width: 640px) {
+    .reviews-page {
+        padding: 3.5rem 0.75rem 3rem;
+    }
+
+    .my-reviews-container {
+        padding: 0 0.25rem;
+    }
+
+    .my-reviews-title {
+        font-size: 1.7rem;
+    }
+
+    .mr-stats {
+        flex-wrap: wrap;
+        row-gap: 12px;
+    }
+
+    .mr-stat {
+        padding: 0 14px;
+    }
+
+    .mr-stat-num {
+        font-size: 1.05rem;
+    }
+
+    .pending-reviews-heading {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    /* Ghost index: itago sa mobile para may espasyo */
+    .pending-index {
+        display: none;
+    }
+
+    /* Pending card: stack + full-width CTA (mas malaking touch target) */
+    .pending-review-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+    }
+
+    .pending-review-card .btn-leave-review {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .review-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 1.3rem;
+    }
+
+    .review-uploaded-img {
+        width: 96px;
+        height: 96px;
+    }
+
+    .no-reviews-custom {
+        padding: 3rem 1.25rem;
+    }
 }
 
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-}
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .pending-review-card,
+    .review-card {
+        animation: none !important;
+    }
 
-.pagination-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 36px;
-    height: 36px;
-    padding: 0 10px;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    color: #ccc;
-    text-decoration: none;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-.pagination-btn:hover:not(.disabled) {
-    background: #444;
-    color: #fff;
-    border-color: #444;
-}
-
-.pagination-btn.active {
-    background: #dfdfdf;
-    color: #000;
-    border-color: #dfdfdf;
-    font-weight: 600;
-}
-
-.pagination-btn.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background: #111;
+    .review-card,
+    .pending-review-card,
+    .btn-leave-review,
+    .pagination-btn {
+        transition: none !important;
+    }
 }
 
 
 
-/* ========================================================
-   LIGHT THEME OVERRIDES
-   ======================================================== */
-[data-theme="light"] {
-    --card-bg: #ffffff;
-    --card-bg-s: #f9fafb;
-    --card-bdr: rgba(0, 0, 0, 0.1);
-    --card-bdr-h: rgba(0, 0, 0, 0.2);
-    --t1: #111827;
-    --t2: #4b5563;
-    --t3: #6b7280;
-    --t4: #9ca3af;
-}
 
-[data-theme="light"] .container,
-[data-theme="light"] .wrapper,
-[data-theme="light"] .card,
-[data-theme="light"] .box,
-[data-theme="light"] .panel,
-[data-theme="light"] .modal-content,
-[data-theme="light"] .auth-container,
-[data-theme="light"] .profile-card,
-[data-theme="light"] .booking-card,
-[data-theme="light"] .review-card,
-[data-theme="light"] .stat-card,
-[data-theme="light"] .dashboard-card,
-[data-theme="light"] .table-container {
-    background-color: #ffffff !important;
-    border-color: #e5e7eb !important;
-    color: #111827 !important;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
-}
 
-[data-theme="light"] .table th,
-[data-theme="light"] table th,
-[data-theme="light"] .data-table th {
-    background-color: #f3f4f6 !important;
-    color: #4b5563 !important;
-    border-color: #e5e7eb !important;
-}
-
-[data-theme="light"] .table td,
-[data-theme="light"] table td,
-[data-theme="light"] .data-table td {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border-color: #e5e7eb !important;
-}
-
-[data-theme="light"] tr:hover td {
-    background-color: #f9fafb !important;
-}
-
-[data-theme="light"] input[type="text"],
-[data-theme="light"] input[type="email"],
-[data-theme="light"] input[type="password"],
-[data-theme="light"] input[type="number"],
-[data-theme="light"] input[type="date"],
-[data-theme="light"] input[type="time"],
-[data-theme="light"] select,
-[data-theme="light"] textarea {
-    background-color: #f9fafb !important;
-    color: #111827 !important;
-    border: 1px solid #d1d5db !important;
-}
-
-[data-theme="light"] input:focus,
-[data-theme="light"] select:focus,
-[data-theme="light"] textarea:focus {
-    background-color: #f9fafb !important;
-    border-color: #9ca3af !important;
-    box-shadow: none !important;
-}
-
-[data-theme="light"] .text-muted,
-[data-theme="light"] .help-text,
-[data-theme="light"] .sub-text,
-[data-theme="light"] small {
-    color: #6b7280 !important;
-}
-
-[data-theme="light"] h1,
-[data-theme="light"] h2,
-[data-theme="light"] h3,
-[data-theme="light"] h4,
-[data-theme="light"] h5,
-[data-theme="light"] h6 {
-    color: #111827 !important;
-}
-
-[data-theme="light"] .btn-outline {
-    border-color: #d1d5db !important;
-    color: #374151 !important;
-}
-[data-theme="light"] .btn-outline:hover {
-    background-color: #f3f4f6 !important;
-}
-
-[data-theme="light"] .notification-dropdown,
-[data-theme="light"] .notif-header,
-[data-theme="light"] .notif-item {
-    background-color: #ffffff !important;
-    border-color: #e5e7eb !important;
-    color: #111827 !important;
-}
-
-[data-theme="light"] .notif-item:hover {
-    background-color: #f9fafb !important;
-}
-
-[data-theme="light"] .notif-date-header {
-    background-color: #f3f4f6 !important;
-    color: #4b5563 !important;
-    border-color: #e5e7eb !important;
-}
-
-[data-theme="light"] .notif-content p {
-    color: #111827 !important;
-}
-
-[data-theme="light"] .notif-empty {
-    color: #6b7280 !important;
-}
-
-[data-theme="light"] .canvas-container {
-    background-color: #f3f4f6 !important;
-}

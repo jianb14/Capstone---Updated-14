@@ -15,9 +15,7 @@
 }
 
 .reviews-container {
-    background-color: black;
-    padding: 1rem;
-    border-radius: 10px;
+    padding: 0;
     width: 100%;
     max-width: 1100px;
 }
@@ -25,7 +23,7 @@
 .reviews-list {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
     width: 100%;
     max-width: 1100px;
 }
@@ -144,7 +142,7 @@
 
 .review-card {
     background: transparent;
-    padding: 10px 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
 }
@@ -161,14 +159,14 @@
 }
 
 .review-avatar {
-    width: 55px;
-    height: 55px;
+    width: 44px;
+    height: 44px;
     background-color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 1.4rem;
     font-weight: 600;
     color: black;
     flex-shrink: 0;
@@ -182,12 +180,18 @@
 }
 
 .review-author {
-    font-size: 1.2rem;
-    font-weight: 600;
+    font-size: 1.02rem;
+    font-weight: 700;
     color: #ffffff;
     /* White text */
     line-height: 1.2;
     margin-bottom: 2px;
+}
+
+/* "Posted x ago" sa ilalim ng pangalan (kapareho ng My Reviews) */
+.review-card-sub {
+    font-size: 0.78rem;
+    color: #888;
 }
 
 .review-details {
@@ -200,8 +204,8 @@
 .review-rating-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 25px;
+    gap: 12px;
+    margin: 2px 0 10px;
 }
 
 .review-stars {
@@ -209,8 +213,8 @@
     align-items: center;
     color: #444;
     /* Empty star color on dark theme */
-    font-size: 1.1rem;
-    letter-spacing: 1px;
+    font-size: 1rem;
+    letter-spacing: 2px;
 }
 
 .review-stars .star.filled {
@@ -219,8 +223,15 @@
 }
 
 .review-date {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #888;
+}
+
+/* Meta line: event · package — plain text (kapareho ng My Reviews) */
+.review-meta-line {
+    margin: 0 0 14px;
+    color: #888;
+    font-size: 0.85rem;
 }
 
 /* Content */
@@ -240,15 +251,14 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    margin-top: -0.5rem;
+    margin: 10px 0 14px;
 }
 
 .review-uploaded-img {
-    width: 150px;
-    height: 150px;
+    width: 110px;
+    height: 110px;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #333;
     cursor: pointer;
     transition: transform 0.2s;
@@ -262,9 +272,9 @@
 .review-actions {
     display: flex;
     align-items: center;
-    gap: 24px;
-    margin-top: 16px;
-    padding-top: 16px;
+    gap: 16px;
+    margin-top: 14px;
+    padding-top: 14px;
     border-top: 1px solid #2a2a2a;
     /* Dark separator */
 }
@@ -301,8 +311,33 @@
 }
 
 .action-icon {
+    display: block;
+    flex-shrink: 0;
     width: 16px;
     height: 16px;
+}
+
+/* "Your Review" badge — ghost pill (kapareho ng My Reviews) */
+.your-review-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 2px 12px 0;
+    line-height: 1;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.your-review-badge i {
+    font-size: 0.78rem;
+    line-height: 1;
 }
 
 /* No Reviews State */
@@ -535,9 +570,10 @@
 
 .modal-card {
     background: #111111;
-    border: 1px solid #333333;
-    border-radius: 8px;
-    padding: 2.5rem 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    color: #ffffff;
     width: 90%;
     max-width: 500px;
     max-height: 90vh;
@@ -574,6 +610,7 @@
 
 .modal-header {
     text-align: left;
+    margin-bottom: 0.5rem;
     padding-bottom: 10px;
 }
 
@@ -586,12 +623,12 @@
 
 .modal-close {
     position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
+    top: 1.35rem;
+    right: 1.15rem;
     background: transparent;
     border: none;
-    color: #666;
-    font-size: 1.5rem;
+    color: #9ca3af;
+    font-size: 2rem;
     cursor: pointer;
     transition: color 0.2s;
     line-height: 1;
@@ -617,69 +654,111 @@
 .star-rating label {
     font-size: 2rem !important;
     line-height: 1;
-    color: #444;
+    color: rgba(255, 255, 255, 0.22);
     cursor: pointer;
     transition: color 0.1s;
 }
 
+/* Amber stars (hover at selected) — kapareho ng My Reviews modal */
 .star-rating label:hover,
 .star-rating label:hover~label,
 .star-rating input:checked~label {
-    color: #f59e0b;
+    color: #fbbf24;
 }
 
 .star-rating label.active {
+    color: #fbbf24;
+}
+
+[data-theme="light"] .star-rating label:hover,
+[data-theme="light"] .star-rating label:hover~label,
+[data-theme="light"] .star-rating input:checked~label,
+[data-theme="light"] .star-rating label.active {
     color: #f59e0b;
 }
 
 .file-input {
     background: #0a0a0a;
-    border: 1px dashed #444;
-    border-radius: 8px;
-    padding: 0.5rem;
-    color: #ccc;
+    border: 1px dashed rgba(255, 255, 255, 0.22) !important;
+    border-radius: 6px;
+    padding: 8px 10px !important;
+    color: #9ca3af;
+    font-size: 0.85rem;
     width: 100%;
     box-sizing: border-box;
     cursor: pointer;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.5rem;
+    height: auto !important;
+    min-height: unset !important;
+    line-height: normal;
 }
 
 .file-input::-webkit-file-upload-button {
-    background: #222;
-    border: 1px solid #444;
-    color: #fff;
-    padding: 0.4rem 0.8rem;
+    background: #161616;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    padding: 6px 14px !important;
     border-radius: 4px;
     cursor: pointer;
     margin-right: 1rem;
     font-weight: 500;
+    font-size: 0.85rem;
 }
 
 .form-group label {
     display: block;
-    font-size: 0.9rem;
-    color: #888;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #9ca3af;
     margin-bottom: 8px;
+}
+
+/* Description sa ilalim ng stars */
+#edit-star-description {
+    color: #6b7280;
+}
+
+/* Image previews sa modal */
+.image-preview-grid {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+/* Kapag walang na-upload na images, tanggalin ang gap na idudulot ng grid */
+.image-preview-grid:empty {
+    display: none;
+}
+
+/* Walang border ang mga uploaded image previews
+   (ina-override ang inline `border: 1px solid #444` mula sa JS) */
+.image-preview-grid img {
+    border: none !important;
 }
 
 
 #editReviewForm textarea {
     background: #0a0a0a;
-    border: 1px solid #333;
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
     padding: 0.75rem 1rem;
     font-size: 0.95rem;
     color: #fff;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease;
     width: 100%;
     min-height: 120px;
     resize: vertical;
+    margin-bottom: 0.6rem;
 }
 
 #editReviewForm textarea:focus {
-    border-color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.22);
     outline: none;
+    /* I-override ang base.css focus (translateY + hard offset shadow) */
+    transform: none;
+    box-shadow: none;
 }
 
 #editReviewForm .review-field-error {
@@ -701,18 +780,80 @@
     border-color: #ef4444 !important;
 }
 
+/* File upload shell (kapareho ng My Reviews modal) */
+.file-input-shell {
+    background: #0a0a0a;
+    border: 1px dashed rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    padding: 0.45rem 0.6rem;
+    color: #9ca3af;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.file-choose-btn {
+    background: #161616;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    padding: 0.45rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    line-height: 1;
+    margin: 0 10px 0 0;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+/* Ang .form-group label ng base.css ay may margin-bottom: 0.5rem na
+   tumatama rin dito (label element) — lumalaki ang bottom space ng shell */
+.file-input-shell .file-choose-btn {
+    margin-bottom: 0;
+}
+
+/* Hover: background lang — walang border color change */
+.file-choose-btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+}
+
+.file-status {
+    font-size: 0.9rem;
+    font-family: 'Montserrat', sans-serif;
+    line-height: 1;
+}
+
+.file-hint {
+    color: #6b7280;
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 2px;
+    line-height: 1.2;
+    margin-bottom: 0;
+}
+
 .btn-submit-review {
     margin-top: 0.5rem;
-    padding: 0.9rem;
+    padding: 0.8rem;
     font-size: 0.9rem;
     border-radius: 8px;
-    background: #fff;
-    color: #000;
+    background: #ffffff;
+    color: #000000;
     font-weight: 700;
     width: 100%;
     border: none;
     cursor: pointer;
     font-family: Montserrat, sans-serif;
+    transition: background 0.2s ease;
+}
+
+.btn-submit-review:hover {
+    background: rgba(255, 255, 255, 0.85);
 }
 
 .btn-save:hover {
@@ -883,14 +1024,23 @@
     border-radius: 8px;
     text-decoration: none;
     white-space: nowrap;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+    transition: box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .btn-write-review:hover {
     background: #eee;
     color: #000;
-    transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Icon ng CTA — huwag bold */
+.btn-write-review i {
+    font-weight: 400;
+}
+
+/* Ihiwalay ang CTA sa subtitle text ng empty state */
+.no-reviews .btn-write-review {
+    margin-top: 1.25rem;
 }
 
 /* --- Package / Event chips sa card header --- */
@@ -963,10 +1113,12 @@
     color: #111827;
 }
 
+/* Walang box ang container — diretsong sa dot background nakalagay ang cards
+   (kapareho ng My Reviews page) */
 [data-theme="light"] .reviews-container {
-    background-color: #ffffff;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 /* Kapag walang reviews: alisin ang border/shadow ng container —
@@ -1032,8 +1184,28 @@
 }
 
 /* --- Review card texts --- */
+/* Override ng [data-theme="light"] .review-card rule sa notifications.css
+   (globally loaded) — dapat walang box ang mga cards, sa light man o dark */
+[data-theme="light"] .reviews-page .review-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+}
+
 [data-theme="light"] .review-author {
     color: #111827;
+}
+
+[data-theme="light"] .review-card-sub,
+[data-theme="light"] .review-meta-line {
+    color: #6b7280;
+}
+
+/* Ghost badge sa light mode (kapareho ng My Reviews) */
+[data-theme="light"] .your-review-badge {
+    color: #4b5563;
+    background: rgba(17, 24, 39, 0.06);
 }
 
 [data-theme="light"] .review-details {
@@ -1162,12 +1334,38 @@
 
 [data-theme="light"] #editReviewForm textarea:focus {
     border-color: #111827;
-    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
+    transform: none;
+    box-shadow: none;
 }
 
 [data-theme="light"] .btn-submit-review {
     background: #111827;
     color: #ffffff;
+}
+
+[data-theme="light"] .btn-submit-review:hover {
+    background: #000000;
+}
+
+/* File shell (light) */
+[data-theme="light"] .file-input-shell {
+    background: #f9fafb;
+    border: 1px dashed rgba(17, 24, 39, 0.25);
+    color: #4b5563;
+}
+
+[data-theme="light"] .file-choose-btn {
+    background: #f3f4f6;
+    color: #111827;
+    border: 1px solid rgba(17, 24, 39, 0.25);
+}
+
+[data-theme="light"] .file-choose-btn:hover {
+    background: rgba(17, 24, 39, 0.08);
+}
+
+[data-theme="light"] .file-hint {
+    color: #6b7280;
 }
 
 /* --- New components (light variants) --- */
@@ -1273,5 +1471,37 @@
     .no-reviews,
     .no-reviews-filter {
         padding: 3rem 1.25rem;
+    }
+
+    /* Edit modal sa mobile */
+    .modal-card {
+        padding: 1.25rem 1.25rem;
+        width: 95%;
+    }
+
+    .modal-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .modal-close {
+        top: 1rem;
+        right: 0.9rem;
+        font-size: 1.7rem;
+    }
+}
+
+/* ---------- Responsive: Extra small (≤400px) ---------- */
+@media (max-width: 400px) {
+    .modal-card {
+        padding: 1.1rem 1rem;
+    }
+
+    .star-rating label {
+        font-size: 1.7rem !important;
+    }
+
+    .image-preview-grid img {
+        width: 72px !important;
+        height: 72px !important;
     }
 }

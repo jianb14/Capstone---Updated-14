@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260914b">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260921g">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
 <link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20260919d">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -275,78 +275,59 @@
                 });
             }
 
-            // Testimonials marquee: build a true seamless loop for Home/About.
-            const marqueeWrappers = document.querySelectorAll(".marquee-wrapper");
-            if (marqueeWrappers.length) {
-                const MARQUEE_SPEED_PX_PER_SEC = 55;
-                const resizeTimers = new WeakMap();
+            // Testimonial carousel: auto-swipe (Home/About). Kung 1 lang ang review, static.
+            const testimonialCarousel = document.querySelector("[data-carousel]");
+            if (testimonialCarousel) {
+                const carouselTrack = testimonialCarousel.querySelector(".carousel-track");
+                const carouselDotsWrap = testimonialCarousel.querySelector(".carousel-dots");
+                const carouselSlides = carouselTrack ? Array.from(carouselTrack.children) : [];
 
-                const getGapPx = (track) => {
-                    const styles = window.getComputedStyle(track);
-                    const rawGap = styles.columnGap && styles.columnGap !== "normal"
-                        ? styles.columnGap
-                        : styles.gap;
-                    const parsed = parseFloat(rawGap);
-                    return Number.isFinite(parsed) ? parsed : 0;
-                };
+                if (carouselTrack && carouselSlides.length && carouselDotsWrap) {
+                    let carouselIndex = 0;
+                    let carouselTimer = null;
+                    const CAROUSEL_INTERVAL_MS = 5000;
 
-                const buildMarquee = (wrapper) => {
-                    const track = wrapper.querySelector(".marquee-track");
-                    if (!track) return;
+                    const goToSlide = (idx) => {
+                        carouselIndex = (idx + carouselSlides.length) % carouselSlides.length;
+                        carouselTrack.style.transform = `translateX(-${carouselIndex * 100}%)`;
+                        carouselDots.forEach((dot, i) => dot.classList.toggle("active", i === carouselIndex));
+                    };
 
-                    if (!track.dataset.sourceMarkup) {
-                        const explicitSource = Array.from(track.children).filter(
-                            el => el.getAttribute("aria-hidden") !== "true"
-                        );
-                        const sourceNodes = explicitSource.length ? explicitSource : Array.from(track.children);
-                        track.dataset.sourceMarkup = sourceNodes.map(el => el.outerHTML).join("");
-                    }
+                    const carouselDots = carouselSlides.map((_, idx) => {
+                        const dot = document.createElement("button");
+                        dot.type = "button";
+                        dot.className = "carousel-dot";
+                        dot.setAttribute("aria-label", "Go to testimonial " + (idx + 1));
+                        dot.addEventListener("click", function () {
+                            goToSlide(idx);
+                            startCarouselAutoplay(); // i-restart ang timer pagkatapos ng manual nav
+                        });
+                        carouselDotsWrap.appendChild(dot);
+                        return dot;
+                    });
 
-                    if (!track.dataset.sourceMarkup) return;
-
-                    track.innerHTML = track.dataset.sourceMarkup;
-                    const gap = getGapPx(track);
-                    const sourceWidth = track.scrollWidth;
-                    if (!sourceWidth) return;
-
-                    const distance = sourceWidth + gap;
-                    const wrapperWidth = wrapper.clientWidth || 1;
-                    const totalSets = Math.max(2, Math.ceil(wrapperWidth / distance) + 1);
-
-                    const sourceMarkup = track.dataset.sourceMarkup;
-                    for (let i = 1; i < totalSets; i += 1) {
-                        track.insertAdjacentHTML("beforeend", sourceMarkup);
-                    }
-
-                    track.querySelectorAll(".testimonial-card").forEach((card, idx) => {
-                        if (idx >= (track.dataset.sourceCount ? Number(track.dataset.sourceCount) : 0)) {
-                            card.setAttribute("aria-hidden", "true");
+                    const stopCarouselAutoplay = () => {
+                        if (carouselTimer) {
+                            clearInterval(carouselTimer);
+                            carouselTimer = null;
                         }
-                    });
+                    };
 
-                    track.style.setProperty("--marquee-distance", `${distance}px`);
-                    const durationSec = Math.max(18, distance / MARQUEE_SPEED_PX_PER_SEC);
-                    track.style.setProperty("--marquee-duration", `${durationSec}s`);
-                };
+                    const startCarouselAutoplay = () => {
+                        stopCarouselAutoplay();
+                        carouselTimer = setInterval(() => goToSlide(carouselIndex + 1), CAROUSEL_INTERVAL_MS);
+                    };
 
-                marqueeWrappers.forEach((wrapper) => {
-                    const track = wrapper.querySelector(".marquee-track");
-                    if (track && !track.dataset.sourceCount) {
-                        const visibleCount = Array.from(track.children).filter(
-                            el => el.getAttribute("aria-hidden") !== "true"
-                        ).length;
-                        track.dataset.sourceCount = String(visibleCount || track.children.length || 0);
+                    // I-pause ang autoplay kapag nakatutok ang cursor sa carousel
+                    testimonialCarousel.addEventListener("mouseenter", stopCarouselAutoplay);
+                    testimonialCarousel.addEventListener("mouseleave", startCarouselAutoplay);
+
+                    goToSlide(0);
+                    // Auto-swipe lang kapag 2+ ang reviews; kapag isa, static card na may dot
+                    if (carouselSlides.length > 1) {
+                        startCarouselAutoplay();
                     }
-
-                    buildMarquee(wrapper);
-
-                    window.addEventListener("resize", function () {
-                        const existing = resizeTimers.get(wrapper);
-                        if (existing) clearTimeout(existing);
-                        const timer = setTimeout(() => buildMarquee(wrapper), 150);
-                        resizeTimers.set(wrapper, timer);
-                    });
-                });
+                }
             }
         });
 
@@ -768,6 +749,57 @@
             background: rgba(17, 17, 17, 0.92);
         }
 
+        .ai-image-book-btn {
+            margin-top: 8px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 9px 14px;
+            border-radius: 6px;
+            border: none;
+            background: #ffffff;
+            color: #000000;
+            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            line-height: 1;
+            text-align: center;
+            cursor: pointer;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .ai-image-book-btn:hover {
+            opacity: 0.85;
+        }
+
+        .ai-image-book-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Icon at text: pantay na pahalang at patayo (center-aligned) */
+        .ai-image-book-btn span {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+        }
+
+        .ai-image-book-btn svg {
+            display: block;
+            flex: 0 0 auto;
+            width: 13px;
+            height: 13px;
+        }
+
+        /* Dark mode (default): white bg + black text. */
+        /* Light mode: black bg + white text. */
+        [data-theme="light"] .ai-image-book-btn {
+            background: #000000;
+            color: #ffffff;
+        }
+
         .ai-image-download svg {
             display: block;
         }
@@ -941,6 +973,193 @@
             color: #9ca3af;
             cursor: not-allowed;
             transform: none;
+        }
+
+        #ai-widget-mic,
+        #ai-widget-photo {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            border: none;
+            border-radius: 50%;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #ai-widget-mic:hover,
+        #ai-widget-photo:hover {
+            background-color: #3f3f46;
+        }
+
+        #ai-widget-mic svg,
+        #ai-widget-photo svg {
+            width: 17px;
+            height: 17px;
+        }
+
+        #ai-widget-mic.listening {
+            background-color: #dc2626;
+            animation: ai-mic-pulse 1.2s infinite;
+        }
+
+        @keyframes ai-mic-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+            50% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+        }
+
+        .ai-stream-cursor {
+            display: inline-block;
+            margin-left: 2px;
+            animation: ai-cursor-blink 0.9s infinite;
+            color: #f4f4f5;
+        }
+
+        @keyframes ai-cursor-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .ai-feedback-row {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 10px;
+        }
+
+        .ai-fb-btn {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid #3f3f46;
+            border-radius: 50%;
+            background: transparent;
+            color: #d4d4d8;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .ai-fb-btn svg {
+            width: 15px;
+            height: 15px;
+            display: block;
+        }
+
+        .ai-fb-btn.ai-fb-like.ai-fb-active {
+            color: #22c55e;
+            border-color: #22c55e;
+        }
+
+        .ai-fb-btn.ai-fb-dislike.ai-fb-active {
+            color: #ef4444;
+            border-color: #ef4444;
+        }
+
+        .ai-fb-btn:hover:not(:disabled) {
+            background: #27272a;
+            color: #ffffff;
+        }
+
+        .ai-fb-btn:disabled {
+            opacity: 0.65;
+            cursor: default;
+        }
+
+        [data-theme="light"] #ai-widget-mic,
+        [data-theme="light"] #ai-widget-photo {
+            background-color: #ffffff;
+            color: #111111;
+            border: 1px solid #d4d4d8;
+        }
+
+        [data-theme="light"] #ai-widget-mic:hover,
+        [data-theme="light"] #ai-widget-photo:hover {
+            background-color: #f4f4f5;
+        }
+
+        /* Mic must stay visibly red while listening in BOTH themes */
+        #ai-widget-mic.listening,
+        [data-theme="light"] #ai-widget-mic.listening {
+            background-color: #dc2626 !important;
+            border-color: #dc2626 !important;
+            color: #ffffff !important;
+            animation: ai-mic-pulse 1.2s infinite;
+        }
+
+        [data-theme="light"] .ai-fb-btn {
+            border-color: #9ca3af;
+            color: #3f3f46;
+        }
+
+        [data-theme="light"] .ai-fb-btn:hover:not(:disabled) {
+            background: #f4f4f5;
+        }
+
+        /* Attached inspiration photo chip (with real photo preview) */
+        .ai-pending-photo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 16px 8px;
+            padding: 6px 10px;
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            background: #27272a;
+            color: #e4e4e7;
+            font-size: 12px;
+        }
+
+        .ai-pending-photo-thumb {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .ai-pending-photo-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .ai-pending-photo-remove {
+            border: none;
+            background: transparent;
+            color: #a1a1aa;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+
+        .ai-pending-photo-remove:hover {
+            color: #ef4444;
+        }
+
+        [data-theme="light"] .ai-pending-photo {
+            background: #f4f4f5;
+            border-color: #d4d4d8;
+            color: #18181b;
+        }
+
+        /* Photo thumbnail inside a sent user bubble (inspiration upload) */
+        .ai-user-photo-thumb {
+            display: block;
+            width: 160px;
+            max-width: 100%;
+            border-radius: 10px;
+            margin-bottom: 6px;
         }
 
         .ai-typing {
@@ -1682,7 +1901,22 @@
             </div>
 
             <div class="ai-input-area">
+                <button id="ai-widget-photo" aria-label="Upload inspiration photo" title="Upload an inspiration photo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                </button>
+                <input type="file" id="ai-widget-photo-input" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" style="display:none;">
                 <textarea id="ai-widget-input" placeholder="Type an idea or question..." rows="1"></textarea>
+                <button id="ai-widget-mic" aria-label="Voice input" title="Speak your message">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
                 <button id="ai-widget-send" aria-label="Send message">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <line x1="12" y1="19" x2="12" y2="5"></line>
@@ -1765,7 +1999,7 @@
                     chip.textContent = text;
                     chip.addEventListener('click', () => {
                         // Send message immediately
-                        sendAiMessage(text);
+                        handleAiSend(text);
                         // Do NOT hide chips anymore
                     });
                     suggestionContainer.appendChild(chip);
@@ -1798,9 +2032,11 @@
                 const hasRequest = requestTerms.some(term => text.includes(term));
                 const hasVisual = visualTerms.some(term => text.includes(term));
                 
-                // Catch "generate ka pa", "gawa kapa", etc.
-                const isFollowupAction = ['pa', 'more', 'ulit', 'another'].some(suffix => text.includes(suffix)) && 
-                                       ['generate', 'gawa', 'create', 'make'].some(verb => text.includes(verb));
+                // Catch "generate ka pa", "gawa ka pa", etc. — word-boundary matching
+                // para hindi mag-trigger ang 'pa' na nasa loob ng 'package'/'payment'
+                const isFollowupAction = ['pa', 'more', 'ulit', 'another'].some(suffix =>
+                    new RegExp('\\b' + suffix + '\\b').test(text)
+                ) && ['generate', 'gawa', 'create', 'make'].some(verb => text.includes(verb));
 
                 if (hasRequest && hasVisual) return true;
                 if (isFollowupAction) return true;
@@ -1949,9 +2185,70 @@
                 });
             }
 
+            // ---- HTML escaping (XSS protection) ----
+            // Lahat ng text (AI replies, echoed user input) ay ina-escape muna,
+            // tapos lang muling pinapayagan ang trusted server-generated markup.
+            function escapeAiHtml(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            // Trusted AI image tag na galing mismo sa server (src ay dapat /media/ai_generated/)
+            const AI_TRUSTED_IMG_RE = /<img\s+src="(\/media\/ai_generated\/[^"]*)"\s+alt="Balloorina Design Concept"\s+data-ai-prompt="([^"]*)"\s+style="[^"]*">/g;
+
+            // Trusted moderation templates (ban/warning) — eksaktong server output lang
+            const AI_TRUSTED_MODERATION_RES = [
+                /^<div><strong>Warning: Respectful language is required\.<\/strong><br><br>Please avoid offensive or abusive wording\. This is your first violation\.<\/div>$/,
+                /^<div><strong>Final warning issued\.<\/strong><br><br>This is your second violation\. One more violation will result in a temporary 10-minute ban\.<\/div>$/,
+                /^<div><strong>You are temporarily banned due to repeated violations\.<\/strong><br><br>You can chat again in [^<>]+<br>Time remaining: <span class='ai-ban-countdown' data-ban-seconds='\d+'>\d{2}:\d{2}:\d{2}<\/span><\/div>$/
+            ];
+
             // ---- Markdown-to-HTML Formatter ----
             function formatMarkdown(text) {
-                let html = text;
+                text = String(text == null ? '' : text);
+
+                // Decode HTML entities that may arrive pre-escaped from the
+                // server (legacy stored replies) so they don't show as
+                // literal "&#x27;" — everything is re-escaped below anyway.
+                for (let unescapePass = 0; unescapePass < 2; unescapePass++) {
+                    if (!/&(#x27|#x22|#x3c|#x3e|apos|lt|gt|quot|amp);/i.test(text)) break;
+                    text = text
+                        .replace(/&lt;/gi, '<')
+                        .replace(/&gt;/gi, '>')
+                        .replace(/&quot;/gi, '"')
+                        .replace(/&#x27;|&#39;|&apos;/gi, "'")
+                        .replace(/&amp;/gi, '&');
+                }
+
+                // Whitelist exact moderation templates verbatim (server-generated only)
+                const isTrustedModeration = AI_TRUSTED_MODERATION_RES.some(re => re.test(text));
+
+                // Extract trusted AI image tags into placeholders
+                const trustedImages = [];
+                text = text.replace(AI_TRUSTED_IMG_RE, function (match, src, prompt) {
+                    trustedImages.push({ src: src, prompt: prompt });
+                    return '\u0000AIIMG' + (trustedImages.length - 1) + '\u0000';
+                });
+
+                // Escape ALL remaining HTML — kahit i-echo ng AI ang user HTML,
+                // hindi ito mag-e-execute (stored XSS protection)
+                if (!isTrustedModeration) {
+                    text = escapeAiHtml(text);
+                    // I-restore ang server-generated line breaks (dating <br>) na na-escape
+                    // ng XSS guard — luma man o bagong message, safe ang <br> (walang attributes)
+                    text = text.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+                }
+
+                // Restore whitelisted image tags (rebuilt with escaped attributes)
+                let html = text.replace(/\u0000AIIMG(\d+)\u0000/g, function (match, idx) {
+                    const tag = trustedImages[Number(idx)];
+                    if (!tag) return '';
+                    return '<img src="' + escapeAiHtml(tag.src) + '" alt="Balloorina Design Concept" data-ai-prompt="' + escapeAiHtml(tag.prompt) + '" style="max-width:100%; border-radius:8px; margin-top:6px;">';
+                });
 
                 // Simple check if it's already complex HTML (like an image response)
                 if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>âš ï¸')) {
@@ -1965,7 +2262,11 @@
                             '<img src="' + safeSrc + '" alt="Balloorina Design Concept" data-ai-generated-image="1"' + cleanRest + '>' +
                             '<a href="' + safeSrc + '" download="balloorina_design" class="ai-image-download" target="_blank" aria-label="Download image" title="Download image">' +
                             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
-                            '</a></div>';
+                            '</a>' +
+                            '<button type="button" class="ai-image-book-btn" onclick="bookAiDesignFromChat(this)" aria-label="Book this design">' +
+                            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>' +
+                            '<span>Book This Design</span>' +
+                            '</button></div>';
                     });
 
                     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -2067,6 +2368,8 @@
                 // Remove the button div itself
                 const btnDiv = clone.querySelector('div[style*="text-align: right"]');
                 if (btnDiv) btnDiv.remove();
+                // Huwag isama ang 'Book This Design' button sa copied text
+                clone.querySelectorAll('.ai-image-book-btn').forEach(function (b) { b.remove(); });
 
                 // Convert <br> back to newlines for clipboard
                 let text = clone.innerHTML.replace(/<br\s*[\/]?>/gi, "\n");
@@ -2083,6 +2386,18 @@
                     }, 2000);
                 });
             }
+
+            // ---- Book This Design: AI image -> booking reference ----
+            window.bookAiDesignFromChat = function (btn) {
+                const wrap = btn.closest('.ai-image-wrap');
+                const img = wrap ? wrap.querySelector('img[data-ai-generated-image="1"]') : null;
+                const src = (img && img.getAttribute('src')) || btn.getAttribute('data-image-src') || '';
+                if (!src) return;
+                try {
+                    sessionStorage.setItem('balloorina_ai_booking_image', src);
+                } catch (err) { /* storage unavailable */ }
+                window.location.href = '{% url 'booking_page' %}';
+            };
 
             // ---- Load Chat Sessions (Sidebar) ----
             async function loadSessions() {
@@ -2240,6 +2555,7 @@
                                 div.className = 'ai-message-bubble ai-bot-msg ai-history-msg';
                                 div.innerHTML = formatMarkdown(msg.content);
                                 bindGeneratedImageFallbacks(div);
+                                attachAiFeedback(div, msg.content);
                                 bindBanCountdowns(div);
                             }
                             chatBox.insertBefore(div, typingIndicator);
@@ -2286,6 +2602,467 @@
             closeBtn.addEventListener('click', toggleWidget);
 
             // Send Message
+            // ---- Streaming send (SSE) with graceful fallback ----
+            async function streamAiMessage(message) {
+                if (isGenerating) return true;
+                const activeBanSeconds = getBanRemainingSeconds();
+                if (activeBanSeconds > 0) {
+                    applyBanUiState(true, activeBanSeconds);
+                    return true;
+                }
+
+                typingIndicator.style.display = 'none';
+                const userDiv = document.createElement('div');
+                userDiv.className = 'ai-message-bubble ai-user-msg';
+                userDiv.textContent = message;
+                chatBox.insertBefore(userDiv, typingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                isGenerating = true;
+                setSendButtonDisabled(true);
+
+                const showImageStatus = isLikelyImageMessage(message);
+                const imageStatus = showImageStatus ? startImageGenerationStatus() : null;
+
+                // The reply bubble is created lazily on the first streamed
+                // text, so image requests only show the "Creating your
+                // image..." status — never an empty typing bubble beside it.
+                let botDiv = null;
+                let streamSpan = null;
+                let streamedText = '';
+
+                function ensureBotDiv() {
+                    if (!botDiv) {
+                        botDiv = document.createElement('div');
+                        botDiv.className = 'ai-message-bubble ai-bot-msg';
+                        streamSpan = document.createElement('span');
+                        botDiv.appendChild(streamSpan);
+                        chatBox.insertBefore(botDiv, typingIndicator);
+                    }
+                    return botDiv;
+                }
+
+                // Re-render the accumulated text through the markdown
+                // formatter on every delta so headings, bold text and lists
+                // look right WHILE typing. No blinking cursor — the text
+                // itself visibly grows, which already reads as "typing".
+                function isScrolledUp() {
+                    return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight > 80;
+                }
+                function renderStreamedText() {
+                    ensureBotDiv();
+                    const wasAtBottom = !isScrolledUp();
+                    streamSpan.innerHTML = formatMarkdown(streamedText);
+                    // Only follow the text while the user is at the bottom —
+                    // scrolling up to read earlier messages must stick.
+                    if (wasAtBottom) {
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }
+
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                let receivedAny = false;
+                try {
+                    const payload = { message: message };
+                    if (currentSessionId) payload.session_id = currentSessionId;
+
+                    const response = await fetch('/api/chat/stream/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok || !response.body) {
+                        throw new Error('Stream unavailable');
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let finalData = null;
+                    let streamError = null;
+
+                    while (true) {
+                        const chunk = await reader.read();
+                        if (chunk.done) break;
+                        buffer += decoder.decode(chunk.value, { stream: true });
+                        const frames = buffer.split('\n\n');
+                        buffer = frames.pop();
+                        for (const frame of frames) {
+                            const line = frame.trim();
+                            if (!line.startsWith('data:')) continue;
+                            let evt;
+                            try { evt = JSON.parse(line.slice(5).trim()); } catch (err) { continue; }
+                            if (evt.type === 'delta') {
+                                receivedAny = true;
+                                streamedText += evt.text;
+                                renderStreamedText();
+                            } else if (evt.type === 'status') {
+                                receivedAny = true;
+                                streamedText = evt.message || '';
+                                renderStreamedText();
+                            } else if (evt.type === 'final') {
+                                finalData = evt.data;
+                            } else if (evt.type === 'error') {
+                                streamError = evt.message;
+                            }
+                        }
+                    }
+
+                    if (finalData) {
+                        ensureBotDiv();
+                        finalizeStreamedMessage(botDiv, finalData);
+                        receivedAny = true;
+                    } else if (streamError) {
+                        ensureBotDiv();
+                        botDiv.innerHTML = formatMarkdown('⚠️ ' + streamError);
+                        receivedAny = true;
+                    } else if (!receivedAny) {
+                        // Nothing streamed — caller falls back to the classic endpoint
+                        if (botDiv) botDiv.remove();
+                        return false;
+                    }
+                    return true;
+                } catch (e) {
+                    if (receivedAny) {
+                        // Mid-stream failure: keep what we have, no resend
+                        renderStreamedText();
+                        botDiv.insertAdjacentHTML(
+                            'beforeend',
+                            '<div style="color:#ef4444; font-size:12px; margin-top:4px;">(connection interrupted)</div>'
+                        );
+                        return true;
+                    }
+                    if (botDiv) botDiv.remove();
+                    return false; // fall back to classic send
+                } finally {
+                    isGenerating = false;
+                    if (imageStatus) stopImageGenerationStatus(imageStatus);
+                    if (getBanRemainingSeconds() > 0) {
+                        applyBanUiState(true, getBanRemainingSeconds());
+                    } else {
+                        setSendButtonDisabled(false);
+                    }
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            }
+
+            function finalizeStreamedMessage(botDiv, data) {
+                typingIndicator.style.display = 'none';
+                if (data.session_id) {
+                    if (data.is_new_session || !currentSessionId) {
+                        currentSessionId = data.session_id;
+                        storeSessionId(currentSessionId);
+                        loadSessions();
+                    }
+                }
+                botDiv.innerHTML = formatMarkdown(data.response);
+                bindGeneratedImageFallbacks(botDiv);
+                if (data.is_warning) botDiv.classList.add('ai-warning-msg');
+                if (data.is_banned) {
+                    applyBanUiState(true, data.ban_remaining_seconds || 0);
+                } else if (getBanRemainingSeconds() <= 0) {
+                    applyBanUiState(false, 0);
+                }
+                attachAiFeedback(botDiv, data.response);
+                bindBanCountdowns(botDiv);
+                if (data.suggestions && data.suggestions.length) {
+                    renderSuggestionChips(data.suggestions);
+                }
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            async function handleAiSend(forcedMessage) {
+                const message = (typeof forcedMessage === 'string' ? forcedMessage : chatInput.value).trim();
+                // An attached inspiration photo is sent together with whatever
+                // the user typed (or alone if the note is empty) — never instantly.
+                if (pendingPhotoFile && !isGenerating) {
+                    const photoFile = pendingPhotoFile;
+                    const noteText = message;
+                    clearPendingPhoto();
+                    if (!forcedMessage) {
+                        chatInput.value = '';
+                        chatInput.style.height = 'auto';
+                        chatInput.classList.remove('has-scroll');
+                    }
+                    await analyzePhotoAndReply(photoFile, noteText);
+                    return;
+                }
+                if (!message) return;
+                if (!forcedMessage) {
+                    chatInput.value = '';
+                    chatInput.style.height = 'auto';
+                    chatInput.classList.remove('has-scroll');
+                }
+                const streamed = await streamAiMessage(message);
+                if (!streamed) {
+                    if (!chatInput.value.trim()) chatInput.value = message;
+                    await sendAiMessage();
+                }
+            }
+
+            // ---- Feedback buttons under generated images ----
+            function attachAiFeedback(botDiv, rawText) {
+                const hasImage = botDiv.querySelector('img[data-ai-generated-image="1"]');
+                if (!hasImage || botDiv.querySelector('.ai-feedback-row')) return;
+                const srcMatch = (rawText || '').match(/<img src="([^"]+)"/);
+                const promptMatch = (rawText || '').match(/data-ai-prompt="([^"]*)"/);
+                const imageUrl = srcMatch ? srcMatch[1] : (hasImage.getAttribute('src') || '');
+                const prompt = promptMatch ? promptMatch[1] : (hasImage.getAttribute('data-ai-prompt') || '');
+                if (!imageUrl) return;
+
+                const row = document.createElement('div');
+                row.className = 'ai-feedback-row';
+                row.innerHTML =
+                    '<button type="button" class="ai-fb-btn ai-fb-like" aria-label="Like this design" title="I like this design">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"></path></svg>' +
+                    '</button>' +
+                    '<button type="button" class="ai-fb-btn ai-fb-dislike" aria-label="Dislike this design" title="Not what I wanted">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg);"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"></path></svg>' +
+                    '</button>';
+                botDiv.appendChild(row);
+
+                const csrfToken = '{{ csrf_token }}';
+                const postJson = (url, body) => fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify(body)
+                }).then(r => r.json());
+
+                row.querySelector('.ai-fb-like').addEventListener('click', async function () {
+                    this.classList.add('ai-fb-active');
+                    this.disabled = true;
+                    row.querySelector('.ai-fb-dislike').disabled = true;
+                    try { await postJson('/api/chat/image-feedback/', { image_url: imageUrl, prompt: prompt, rating: 1 }); } catch (e) {}
+                });
+                row.querySelector('.ai-fb-dislike').addEventListener('click', async function () {
+                    this.classList.add('ai-fb-active');
+                    this.disabled = true;
+                    row.querySelector('.ai-fb-like').disabled = true;
+                    try { await postJson('/api/chat/image-feedback/', { image_url: imageUrl, prompt: prompt, rating: -1 }); } catch (e) {}
+                });
+            }
+
+            // ---- Voice input (Web Speech API) ----
+            const micBtn = document.getElementById('ai-widget-mic');
+            if (micBtn) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    micBtn.style.display = 'none';
+                } else {
+                    let recognition = null;
+                    let listening = false;
+                    let micLang = 'fil-PH'; // fallback to en-US if this isn't supported
+
+                    function showVoiceError(message) {
+                        const errDiv = document.createElement('div');
+                        errDiv.className = 'ai-message-bubble ai-bot-msg';
+                        errDiv.style.color = '#ef4444';
+                        errDiv.textContent = message;
+                        chatBox.insertBefore(errDiv, typingIndicator);
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+
+                    function stopMicUi() {
+                        listening = false;
+                        micBtn.classList.remove('listening');
+                        chatInput.placeholder = 'Type an idea or question...';
+                    }
+
+                    micBtn.addEventListener('click', function () {
+                        if (listening) { try { recognition.stop(); } catch (e) {} return; }
+                        startRecognition(micLang);
+                    });
+
+                    function startRecognition(lang) {
+                        recognition = new SpeechRecognition();
+                        recognition.lang = lang;
+                        recognition.continuous = false;
+                        recognition.interimResults = true; // show words WHILE speaking
+                        recognition.maxAlternatives = 1;
+
+                            recognition.onstart = function () {
+                                listening = true;
+                                micBtn.classList.add('listening');
+                                chatInput.placeholder = 'Listening... speak now';
+                            };
+                            recognition.onresult = function (event) {
+                                let interim = '';
+                                let finalText = '';
+                                for (let i = event.resultIndex; i < event.results.length; i++) {
+                                    const result = event.results[i];
+                                    if (result.isFinal) {
+                                        finalText += result[0].transcript;
+                                    } else {
+                                        interim += result[0].transcript;
+                                    }
+                                }
+                                const text = (finalText || interim).trim();
+                                if (text) {
+                                    // Fill the input (do NOT auto-send) so the user
+                                    // can review or add more details before sending.
+                                    chatInput.value = text;
+                                    chatInput.dispatchEvent(new Event('input'));
+                                    chatInput.focus();
+                                }
+                            };
+                            recognition.onerror = function (event) {
+                                const reason = event && event.error;
+                                if (reason === 'language-not-supported' && lang !== 'en-US') {
+                                    // Filipino isn't supported on this browser —
+                                    // retry once with English, which every
+                                    // Chrome build supports.
+                                    stopMicUi();
+                                    startRecognition('en-US');
+                                    return;
+                                }
+                                if (reason === 'not-allowed' || reason === 'service-not-allowed') {
+                                    showVoiceError('🎤 Microphone access is blocked. Click the lock/mic icon in your browser address bar, set Microphone to "Allow", then tap the mic again.');
+                                } else if (reason === 'network') {
+                                    showVoiceError('🎤 Voice input needs an internet connection (the speech service runs online). Check your connection and try again.');
+                                } else if (reason === 'audio-capture') {
+                                    showVoiceError('🎤 No microphone was found on this device.');
+                                } else if (reason === 'no-speech') {
+                                    showVoiceError("🎤 I didn't catch that — tap the mic again and speak a little louder.");
+                                }
+                            };
+                            recognition.onend = function () {
+                                stopMicUi();
+                                chatInput.focus();
+                            };
+                            try {
+                                recognition.start();
+                            } catch (e) {
+                                stopMicUi();
+                            }
+                    }
+                }
+            }
+
+            // ---- Inspiration photo upload → attach to input, send with note ----
+            const photoBtn = document.getElementById('ai-widget-photo');
+            const photoInput = document.getElementById('ai-widget-photo-input');
+            const inputArea = document.querySelector('.ai-input-area');
+            let pendingPhotoFile = null;
+
+            function clearPendingPhoto() {
+                pendingPhotoFile = null;
+                if (photoInput) photoInput.value = '';
+                const chip = document.getElementById('ai-pending-photo-chip');
+                if (chip) {
+                    const thumb = chip.querySelector('.ai-pending-photo-thumb');
+                    if (thumb && thumb.dataset.objectUrl) {
+                        try { URL.revokeObjectURL(thumb.dataset.objectUrl); } catch (e) {}
+                    }
+                    chip.remove();
+                }
+            }
+
+            function showPendingPhotoChip(file) {
+                let chip = document.getElementById('ai-pending-photo-chip');
+                if (!chip) {
+                    chip = document.createElement('div');
+                    chip.id = 'ai-pending-photo-chip';
+                    chip.className = 'ai-pending-photo';
+                    chip.innerHTML = '<img class="ai-pending-photo-thumb" alt="Attached inspiration photo">' +
+                        '<span class="ai-pending-photo-name"></span>' +
+                        '<button type="button" class="ai-pending-photo-remove" aria-label="Remove attached photo">&times;</button>';
+                    chip.querySelector('.ai-pending-photo-remove').addEventListener('click', clearPendingPhoto);
+                    if (inputArea) inputArea.parentNode.insertBefore(chip, inputArea);
+                }
+                // Show the actual photo (like modern chat apps), not a filename.
+                const thumb = chip.querySelector('.ai-pending-photo-thumb');
+                if (thumb) {
+                    if (thumb.dataset.objectUrl) {
+                        try { URL.revokeObjectURL(thumb.dataset.objectUrl); } catch (e) {}
+                    }
+                    const url = URL.createObjectURL(file);
+                    thumb.src = url;
+                    thumb.dataset.objectUrl = url;
+                }
+                chip.querySelector('.ai-pending-photo-name').textContent = file.name;
+            }
+
+            async function analyzePhotoAndReply(file, noteText) {
+                if (isGenerating) return;
+                isGenerating = true;
+                setSendButtonDisabled(true);
+                const userDiv = document.createElement('div');
+                userDiv.className = 'ai-message-bubble ai-user-msg';
+                // Show the actual photo in the sent bubble (not a filename),
+                // with the typed note underneath it.
+                const photoImg = document.createElement('img');
+                photoImg.className = 'ai-user-photo-thumb';
+                photoImg.alt = 'Inspiration photo';
+                photoImg.src = URL.createObjectURL(file);
+                userDiv.appendChild(photoImg);
+                if (noteText) {
+                    const noteSpan = document.createElement('span');
+                    noteSpan.textContent = noteText;
+                    userDiv.appendChild(noteSpan);
+                }
+                chatBox.insertBefore(userDiv, typingIndicator);
+                const botDiv = document.createElement('div');
+                botDiv.className = 'ai-message-bubble ai-bot-msg';
+                botDiv.textContent = 'Analyzing your photo...';
+                chatBox.insertBefore(botDiv, typingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                try {
+                    const fd = new FormData();
+                    fd.append('image', file);
+                    fd.append('note', noteText || 'Please analyze this event design inspiration and turn it into a Balloorina design.');
+                    const response = await fetch('/api/chat/analyze-image/', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: fd
+                    });
+                    const data = await response.json();
+                    if (data.error) {
+                        botDiv.style.color = '#ef4444';
+                        botDiv.textContent = 'Error: ' + data.error;
+                    } else {
+                        botDiv.innerHTML = formatMarkdown(data.response);
+                        bindGeneratedImageFallbacks(botDiv);
+                        attachAiFeedback(botDiv, data.response);
+                        if (data.suggestions && data.suggestions.length) {
+                            renderSuggestionChips(data.suggestions);
+                        }
+                    }
+                } catch (e) {
+                    botDiv.textContent = 'Connection error. Please try again.';
+                }
+                isGenerating = false;
+                setSendButtonDisabled(false);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            if (photoBtn && photoInput && inputArea) {
+                photoBtn.addEventListener('click', function () { photoInput.click(); });
+                photoInput.addEventListener('change', function () {
+                    const file = photoInput.files && photoInput.files[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                        photoInput.value = '';
+                        const warn = document.createElement('div');
+                        warn.className = 'ai-message-bubble ai-bot-msg';
+                        warn.style.color = '#ef4444';
+                        warn.textContent = 'That photo is too large (max 5MB). Please choose a smaller one.';
+                        chatBox.insertBefore(warn, typingIndicator);
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                        return;
+                    }
+                    // Attach to the input instead of sending right away so the
+                    // user can still type what they want changed.
+                    pendingPhotoFile = file;
+                    showPendingPhotoChip(file);
+                    chatInput.focus();
+                });
+            }
+
             async function sendAiMessage(forcedMessage) {
                 const hasForcedMessage = typeof forcedMessage === 'string';
                 const message = (hasForcedMessage ? forcedMessage : chatInput.value).trim();
@@ -2376,8 +3153,13 @@
                         }
                     }
 
+                    attachAiFeedback(botDiv, data.response || '');
                     bindBanCountdowns(botDiv);
                     chatBox.insertBefore(botDiv, typingIndicator);
+
+                    if (data.suggestions && data.suggestions.length) {
+                        renderSuggestionChips(data.suggestions);
+                    }
 
                     // If widget was closed during generation, auto-scroll when it reopens
                     if (!widget.classList.contains('active')) {
@@ -2405,11 +3187,11 @@
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
 
-            sendBtn.addEventListener('click', sendAiMessage);
+            sendBtn.addEventListener('click', handleAiSend);
             chatInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    sendAiMessage();
+                    handleAiSend();
                 }
             });
 
@@ -2431,6 +3213,7 @@
             function startNewChat() {
                 currentSessionId = null;
                 storeSessionId(null);
+                if (typeof clearPendingPhoto === 'function') clearPendingPhoto();
 
                 // Clear active state in sidebar
                 document.querySelectorAll('.ai-recent-chat-item').forEach(el => el.classList.remove('active'));

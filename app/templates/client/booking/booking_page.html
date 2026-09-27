@@ -1578,6 +1578,9 @@
         // --- Build Order Summary Breakdown ---
         updateOrderSummary();
         showStep(2);
+
+        // Auto-attach ang AI-generated design (galing sa chat 'Book This Design')
+        attachAiBookingImage();
     });
 
     // =============================================
@@ -1681,6 +1684,79 @@
         });
 
         updateBookingImageSummary();
+    }
+
+    // =============================================
+    // AI-GENERATED DESIGN -> AUTOMATIC BOOKING REFERENCE
+    // (galing sa chat: Book This Design button)
+    // =============================================
+    const AI_BOOKING_IMAGE_KEY = 'balloorina_ai_booking_image';
+
+    function readAiBookingImageSrc() {
+        try { return sessionStorage.getItem(AI_BOOKING_IMAGE_KEY); } catch (err) { return null; }
+    }
+
+    function clearAiBookingImageSrc() {
+        try { sessionStorage.removeItem(AI_BOOKING_IMAGE_KEY); } catch (err) { /* ignore */ }
+    }
+
+    async function attachAiBookingImage() {
+        if (!bookingUiFilesInput || !bookingFilesInput || !bookingPreviewGrid) return;
+        const src = readAiBookingImageSrc();
+        if (!src) return;
+
+        // Kunsumohin agad para hindi ma-apply ulit sa susunod na pagpasok sa Step 2
+        clearAiBookingImageSrc();
+
+        if (bookingAccumulatedFiles.items.length >= 4) {
+            bookingLimitError.style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch(src, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Image fetch failed (' + response.status + ')');
+            const blob = await response.blob();
+            if (blob.type && !blob.type.startsWith('image/')) throw new Error('Not a valid image file');
+
+            const extSource = blob.type || 'image/png';
+            const extMatch = (extSource.split('/')[1] || 'png').toLowerCase().match(/[a-z0-9]+/);
+            const ext = extMatch ? extMatch[0] : 'png';
+            const file = new File([blob], 'ai_generated_design_' + Date.now() + '.' + ext, { type: extSource });
+
+            const merged = new DataTransfer();
+            Array.from(bookingAccumulatedFiles.files).forEach(function (f) { merged.items.add(f); });
+            merged.items.add(file);
+            bookingAccumulatedFiles = merged;
+            bookingFilesInput.files = bookingAccumulatedFiles.files;
+            renderBookingImagePreviews();
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'AI-generated design added as reference picture.',
+                showConfirmButton: false,
+                timer: 3500,
+                timerProgressBar: true,
+                background: '#1a1a1a',
+                color: '#fff',
+                iconColor: '#22c55e'
+            });
+        } catch (err) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Could not attach the AI design image. Please upload it manually.',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                background: '#1a1a1a',
+                color: '#fff',
+                iconColor: '#ef4444'
+            });
+        }
     }
 
     btnPrevStep.addEventListener('click', function () {

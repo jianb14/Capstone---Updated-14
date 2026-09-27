@@ -2,31 +2,50 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_reviews.css' %}">
+<link rel="stylesheet" href="{% static 'css/my_reviews.css' %}?v=20260921f">
 
-<div class="reviews-page" style="animation: fadeInPage 0.5s ease forwards;">
+<div class="reviews-page">
     <div class="my-reviews-container">
-        <h2 class="my-reviews-title">My Reviews</h2>
+
+        <!-- Page header + stats -->
+        <div class="mr-page-header">
+            <div class="mr-header-text">
+                <h2 class="my-reviews-title">My Reviews</h2>
+                <p class="my-reviews-subtitle">Your feedback helps us style better celebrations.</p>
+            </div>
+            <div class="mr-stats">
+                <div class="mr-stat">
+                    <span class="mr-stat-num">{{ pending_page_obj.paginator.count }}</span>
+                    <span class="mr-stat-label">Pending</span>
+                </div>
+                <div class="mr-stat">
+                    <span class="mr-stat-num">{{ published_count }}</span>
+                    <span class="mr-stat-label">Published</span>
+                </div>
+                {% if published_count %}
+                <div class="mr-stat">
+                    <span class="mr-stat-num">{{ avg_rating|floatformat:1 }}</span>
+                    <span class="mr-stat-label">Avg Rating</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
 
         {% if pending_reviews %}
         <div class="pending-reviews-section">
             <div class="pending-reviews-heading">
-                <div>
-                    <h3 class="pending-reviews-title">Awaiting Your Review</h3>
-                    <p class="pending-reviews-desc">These events have been completed. Please share your experience!</p>
-                </div>
-                <span class="pending-review-count">{{ pending_page_obj.paginator.count }} Pending</span>
+                <h3 class="mr-section-label">Awaiting Your Review</h3>
             </div>
             <div class="pending-reviews-list">
                 {% for b in pending_reviews %}
                 <div class="pending-review-card">
+                    <span class="pending-index">{{ forloop.counter|stringformat:"02d" }}</span>
                     <div class="pending-info">
                         <h4>{{ b.event_type|default:'Event' }}</h4>
-                        <span class="pending-selection">{{ b.package_type|default:'Custom Booking' }}</span>
-                        <span class="pending-date">{{ b.event_date|date:"F d, Y" }}</span>
+                        <p class="pending-meta">{{ b.package_type|default:'Custom Booking' }} &middot; {{ b.event_date|date:"F d, Y" }}</p>
                     </div>
                     <button class="btn-leave-review" onclick="openReviewModal('{{ b.id }}')">
-                        <i class="far fa-star"></i> Leave a Review
+                        Leave a Review <i class="fas fa-arrow-right btn-arrow-icon"></i>
                     </button>
                 </div>
                 {% endfor %}
@@ -73,8 +92,10 @@
         </div>
         {% endif %}
         
+        <div class="published-heading">
+            <h3 class="mr-section-label">Published Reviews</h3>
+        </div>
         <div class="reviews-list">
-            <h3 class="my-reviews-title" style="margin-top: 0; color: #fff; font-size: 1.5rem;">Published Reviews</h3>
             {% if reviews %}
             {% for review in reviews %}
             <div class="review-card" data-rating="{{ review.rating }}"
@@ -92,13 +113,9 @@
                             {{ review.user.username }}
                             {% endif %}
                         </span>
-                        <span class="review-details">
-                            Event Type: {{ review.booking.event_type }}
-                        </span>
-                        <span class="review-details">
-                            Package Type: {{ review.booking.package_type|default:'Custom Booking' }}
-                        </span>
+                        <span class="review-card-sub">Posted {{ review.created_at|timesince }} ago</span>
                     </div>
+                    <span class="your-review-badge"><i class="fa-regular fa-circle-check"></i> Your Review</span>
 
                     <div class="review-options">
                         <button class="options-btn" type="button" onclick="toggleReviewDropdown(event, {{ review.id }})">
@@ -125,8 +142,10 @@
                             {% endif %}
                             {% endfor %}
                     </div>
-                    <span class="review-date">{{ review.created_at|timesince }} ago</span>
+                    <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
                 </div>
+
+                <p class="review-meta-line">{{ review.booking.event_type }} &middot; {{ review.booking.package_type|default:'Custom Booking' }}</p>
 
                 {% if review.images.all %}
                 <div class="review-images-row">
@@ -196,7 +215,9 @@
 
             {% else %}
             <div class="no-reviews-custom">
-                <p>You haven't submitted any reviews yet.</p>
+                <div class="nr-icon"><i class="fa-regular fa-comment-dots"></i></div>
+                <h4>No Published Reviews Yet</h4>
+                <p>You haven't submitted any reviews. Share your experience after your event!</p>
             </div>
             {% endif %}
         </div>
@@ -248,17 +269,13 @@
             <div class="form-group reviews-group" style="margin-bottom: 0.5rem;">
                 <label>Upload Pictures (Optional)</label>
                 
-                <div id="create-unified-images-preview" class="image-preview-grid"
-                    style="display: flex; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
-                </div>
+                <div id="create-unified-images-preview" class="image-preview-grid"></div>
 
-                <div style="background: #0a0a0a; border: 1px dashed #444; border-radius: 8px; padding: 0.4rem 0.6rem; color: #ccc; width: 100%; box-sizing: border-box; margin-bottom: 2px; display: flex; align-items: center; line-height: 1; margin-top: -0.5rem;">
-                    <label for="review_images_ui" style="background: #222; color: #fff; border: 1px solid #444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; margin: 0 10px 0 0; text-transform: capitalize; display: inline-block; vertical-align: middle; line-height: normal;">
-                        Choose Files
-                    </label>
-                    <span id="createReviewImagesStatus" style="font-size: 0.9rem; font-family: 'Montserrat', sans-serif; vertical-align: middle; line-height: normal; display: inline-block; margin: 0; padding: 0;">No file chosen</span>
+                <div class="file-input-shell">
+                    <label for="review_images_ui" class="file-choose-btn">Choose Files</label>
+                    <span id="createReviewImagesStatus" class="file-status">No file chosen</span>
                 </div>
-                <small style="color: #666; font-size: 0.75rem; display: block; margin-top: 2px; line-height: 1.2; margin-bottom: 0;">You can select up to 4 images.</small>
+                <small class="file-hint">You can select up to 4 images.</small>
 
                 <div id="createImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
                     You can only have a maximum of 4 images total.
@@ -324,18 +341,15 @@
             <!-- Unified Review Images -->
             <div class="form-group reviews-group" style="margin-bottom: 0.5rem;">
                 <label>Review Pictures (Max 4 total)</label>
-                <div id="edit-unified-images-preview" class="image-preview-grid"
-                    style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                <div id="edit-unified-images-preview" class="image-preview-grid">
                     <!-- Populated via JS -->
                 </div>
-                
-                <div style="background: #0a0a0a; border: 1px dashed #444; border-radius: 8px; padding: 0.4rem 0.6rem; color: #ccc; width: 100%; box-sizing: border-box; margin-bottom: 2px; display: flex; align-items: center; line-height: 1;">
-                    <label for="edit_images_ui" style="background: #222; color: #fff; border: 1px solid #444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; margin: 0 10px 0 0; text-transform: capitalize; display: inline-block; vertical-align: middle; line-height: normal;">
-                        Choose Files
-                    </label>
-                    <span id="editImagesStatus" style="font-size: 0.9rem; font-family: 'Montserrat', sans-serif; vertical-align: middle; line-height: normal; display: inline-block; margin: 0; padding: 0;">No file chosen</span>
+
+                <div class="file-input-shell">
+                    <label for="edit_images_ui" class="file-choose-btn">Choose Files</label>
+                    <span id="editImagesStatus" class="file-status">No file chosen</span>
                 </div>
-                <small style="color: #666; font-size: 0.75rem; display: block; margin-top: 2px; line-height: 1.2; margin-bottom: 0;">You can select up to 4 images.</small>
+                <small class="file-hint">You can select up to 4 images.</small>
 
                 <div id="editImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
                     You can only have a maximum of 4 images total.

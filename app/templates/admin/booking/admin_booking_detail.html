@@ -1,8 +1,8 @@
-{% extends 'admin/admin_base.html' %}
+﻿{% extends 'admin/admin_base.html' %}
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_booking.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_booking.css' %}?v=20260921e">
 
 <div class="page-header detail-page-header">
     <div>
@@ -13,7 +13,7 @@
             <span>#{{ booking.id }}</span>
         </div>
     </div>
-    <a href="{% url 'admin_booking_list' %}" class="btn-top-back"><i class="fas fa-arrow-left"></i> Back to List</a>
+    <a href="{% url 'admin_booking_list' %}" class="btn-top-back"><svg class="ic" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>Back to List</span></a>
 </div>
 
 <div class="detail-container">
@@ -21,107 +21,48 @@
     <div class="detail-header">
         <div class="detail-status">
             <span>Current Status:</span>
-            {% if booking.status == 'confirmed' or booking.status == 'completed' %}
             <span class="status-badge {{ booking.status }}">{{ booking.get_status_display }}</span>
-            {% elif booking.status == 'expired' %}
-            <span class="status-badge expired">{{ booking.get_status_display }}</span>
-            {% elif booking.status == 'cancelled' or booking.status == 'denied' %}
-            <span class="status-badge inactive">{{ booking.get_status_display }}</span>
-            {% elif booking.status == 'pending' %}
-            <span class="status-badge pending">{{ booking.get_status_display }}</span>
-            {% else %}
-            <span class="status-badge">{{ booking.get_status_display }}</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="detail-actions">
+            {% if booking.status == 'pending' %}
+            <a href="{% url 'admin_booking_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Booking', 'Are you sure you want to approve this booking?', 'Yes, Approve')" class="btn-action primary"><svg class="ic" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Approve Booking</span></a>
+            <a href="javascript:void(0)" onclick="openDetailDenyPrompt('{{ booking.id }}')" class="btn-action danger"><svg class="ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span>Deny Booking</span></a>
+
+            {% elif booking.status == 'confirmed' %}
+            <a href="{% url 'admin_booking_action' booking.id 'complete' %}" onclick="return confirmAdminDetailAction(this, 'Mark as Completed', 'Are you sure you want to mark this booking as completed?', 'Yes, Complete')" class="btn-action primary"><svg class="ic" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>Mark as Completed</span></a>
             {% endif %}
         </div>
     </div>
 
     <div class="detail-grid">
+        <div class="detail-col">
         <!-- Customer Info -->
         <div class="detail-card">
-            <h3>Customer Information</h3>
-            <div class="info-row">
-                <span class="label">Username</span>
-                <span class="value">{{ booking.user.username }}</span>
+            <h3><svg class="ic" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Customer Information</h3>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>Username</div>
+                <div class="info-field-value">{{ booking.user.username }}</div>
             </div>
-            <div class="info-row">
-                <span class="label">Full Name</span>
-                <span class="value">{{ booking.user.first_name }} {{ booking.user.last_name }}</span>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Full Name</div>
+                <div class="info-field-value">{{ booking.user.first_name }} {{ booking.user.last_name }}</div>
             </div>
-            <div class="info-row">
-                <span class="label">Email</span>
-                <span class="value">{{ booking.user.email }}</span>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email</div>
+                <div class="info-field-value">{{ booking.user.email }}</div>
             </div>
-            <div class="info-row">
-                <span class="label">Phone</span>
-                <span class="value">{{ booking.user.phone_number|default:"-" }}</span>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Phone</div>
+                <div class="info-field-value">{{ booking.user.phone_number|default:"-" }}</div>
             </div>
-        </div>
-
-        <!-- Booking Info -->
-        <div class="detail-card">
-            <h3>Event Details</h3>
-            <div class="info-row">
-                <span class="label">Event Type</span>
-                <span class="value">{{ booking.event_type }}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Date</span>
-                <span class="value">{{ booking.event_date }}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Time</span>
-                <span class="value">{{ booking.time_range_display|default:"-" }}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Location (Venue Address)</span>
-                <span class="value">{{ booking.event_location }}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Package</span>
-                <span class="value">{{ booking.package_type|default:"-" }}</span>
-            </div>
-            {% if price_breakdown.items %}
-            <div class="price-breakdown-block">
-                <h4 class="price-breakdown-title">Price Breakdown</h4>
-                <div class="breakdown-list">
-                    {% for item in price_breakdown.items %}
-                    <div class="breakdown-item">
-                        <span class="breakdown-item-label">{{ item.label }}</span>
-                        <span class="breakdown-item-amount">&#8369;{{ item.amount|floatformat:"-2"|intcomma }}</span>
-                    </div>
-                    {% endfor %}
-                    {% if price_breakdown.service_charge > 0 %}
-                    <div class="breakdown-item breakdown-item-service">
-                        <span class="breakdown-item-label">Service & Logistics Fee</span>
-                        <span class="breakdown-item-amount">&#8369;{{ price_breakdown.service_charge|floatformat:"-2"|intcomma }}</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="info-row total-price">
-                <span class="label">Total Price</span>
-                <span class="value">&#8369;{{ booking.total_price|intcomma }}</span>
-            </div>
-            {% endif %}
-            {% if booking.admin_denial_reason %}
-            <div class="info-row">
-                <span class="label">Denial Reason</span>
-                <span class="value">{{ booking.admin_denial_reason }}</span>
-            </div>
-            {% endif %}
-            {% if booking.reference_image %}
-            <div class="info-row">
-                <span class="label">Reference Picture</span>
-                <span class="value"><a href="{{ booking.reference_image.url }}" target="_blank"
-                        style="color: #3b82f6;">View Picture</a></span>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Reference Pictures & Custom Designs -->
         {% if booking.images.all or booking.reference_image or booking.designs.all %}
-        <div class="detail-card full-width">
-            <h3>Reference Pictures & Custom Designs</h3>
+        <div class="detail-card">
+            <h3><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Reference Pictures &amp; Custom Designs</h3>
             <div class="booking-images-row">
                 {% if booking.designs.all %}
                     {% for design in booking.designs.all %}
@@ -154,62 +95,124 @@
                 {% endif %}
             </div>
         </div>
+        {% else %}
+        <div class="detail-card">
+            <h3><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Reference Pictures &amp; Custom Designs</h3>
+            <div class="no-reference-placeholder">
+                <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><line x1="21" y1="15" x2="16" y2="10"/><line x1="9" y1="10" x2="9.01" y2="10"/><line x1="21" y1="15" x2="3" y2="21"/></svg>
+                <p>No reference images uploaded</p>
+                <span>The customer did not attach any reference pictures or custom designs for this booking.</span>
+            </div>
+        </div>
         {% endif %}
+
+        </div>
+
+        <!-- Booking Info -->
+        <div class="detail-card">
+            <h3><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Event Details</h3>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Event Type</div>
+                <div class="info-field-value">{{ booking.event_type }}</div>
+            </div>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Date</div>
+                <div class="info-field-value">{{ booking.event_date }}</div>
+            </div>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Time</div>
+                <div class="info-field-value">{{ booking.time_range_display|default:"-" }}</div>
+            </div>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Location (Venue Address)</div>
+                <div class="info-field-value">{{ booking.event_location }}</div>
+            </div>
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Package</div>
+                <div class="info-field-value">{{ booking.package_type|default:"-" }}</div>
+            </div>
+            {% if price_breakdown.items %}
+            <div class="price-breakdown-block">
+                <h4 class="price-breakdown-title">Price Breakdown</h4>
+                <div class="breakdown-list">
+                    {% for item in price_breakdown.items %}
+                    <div class="breakdown-item">
+                        <span class="breakdown-item-label">{{ item.label }}</span>
+                        <span class="breakdown-item-amount">&#8369;{{ item.amount|floatformat:"-2"|intcomma }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if price_breakdown.service_charge > 0 %}
+                    <div class="breakdown-item breakdown-item-service">
+                        <span class="breakdown-item-label">Service & Logistics Fee</span>
+                        <span class="breakdown-item-amount">&#8369;{{ price_breakdown.service_charge|floatformat:"-2"|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="info-field info-field--total">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Total Price</div>
+                <div class="info-field-value">&#8369;{{ booking.total_price|intcomma }}</div>
+            </div>
+            {% endif %}
+            {% if booking.admin_denial_reason %}
+            <div class="info-field info-field--danger">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16.01"/></svg>Denial Reason</div>
+                <div class="info-field-value">{{ booking.admin_denial_reason }}</div>
+            </div>
+            {% endif %}
+            {% if booking.reference_image %}
+            <div class="info-field">
+                <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Reference Picture</div>
+                <div class="info-field-value"><a href="{{ booking.reference_image.url }}" target="_blank"
+                        class="info-field-link">View Picture</a></div>
+            </div>
+            {% endif %}
+        </div>
 
         <!-- Special Requests -->
         {% if cleaned_requests %}
         <div class="detail-card full-width">
-            <h3>Special Requests</h3>
+            <h3><svg class="ic" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Special Requests</h3>
             <div class="special-request-box">{{ cleaned_requests|linebreaksbr }}</div>
         </div>
         {% endif %}
 
         <!-- Status History Timeline -->
         <div class="detail-card full-width">
-            <h3>Status History</h3>
+            <h3><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Status History</h3>
             {% if status_logs %}
             <div class="status-timeline">
                 {% for log in status_logs %}
-                <div class="timeline-item" style="display: flex; gap: 0.9rem; padding: 0.65rem 0; {% if not forloop.last %}border-bottom: 1px solid #262626;{% endif %}">
-                    <div style="flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: {% if log.new_status == 'completed' %}#22c55e{% elif log.new_status == 'confirmed' %}#3b82f6{% elif log.new_status == 'pending_payment' %}#f59e0b{% elif log.new_status == 'cancelled' or log.new_status == 'expired' %}#ef4444{% else %}#d97706{% endif %}; margin-top: 0.4rem;"></div>
-                    <div style="flex: 1;">
-                        <div style="font-size: 0.88rem; color: #fff; font-weight: 500;">
+                <div class="timeline-item {% if forloop.first %}timeline-item--current{% endif %}">
+                    <div class="timeline-dot {% if log.new_status == 'completed' %}timeline-dot--completed{% elif log.new_status == 'confirmed' %}timeline-dot--confirmed{% elif log.new_status == 'pending_payment' %}timeline-dot--pending-payment{% elif log.new_status == 'cancelled' or log.new_status == 'expired' %}timeline-dot--danger{% else %}timeline-dot--pending{% endif %}"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">
                             {% if log.old_status %}
-                            {{ log.old_status|title }} &rarr; {{ log.new_status|title }}
+                            {{ log.old_status_label }} <svg class="ic" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> {{ log.new_status_label }}
                             {% else %}
-                            {{ log.new_status|title }}
+                            {{ log.new_status_label }}
                             {% endif %}
                         </div>
                         {% if log.notes %}
-                        <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.15rem;">{{ log.notes }}</div>
+                        <div class="timeline-notes">{{ log.notes }}</div>
                         {% endif %}
-                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.15rem;">
-                            {{ log.created_at|date:"M d, Y g:i A" }}
-                            {% if log.changed_by %} &middot; by {{ log.changed_by.get_full_name|default:log.changed_by.username }}{% else %} &middot; by Customer{% endif %}
+                        <div class="timeline-meta">
+                            <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <div class="timeline-meta-text">{{ log.created_at|date:"M d, Y g:i A" }}{% if log.changed_by %} &middot; by {{ log.changed_by.get_full_name|default:log.changed_by.username }}{% else %} &middot; by Customer{% endif %}</div>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p style="color: #9ca3af; font-size: 0.85rem;">No status changes recorded yet.</p>
+            <p class="timeline-empty">No status changes recorded yet.</p>
             {% endif %}
         </div>
     </div>
 
-    <!-- Actions -->
-    <div class="detail-actions">
-        {% if booking.status == 'pending' %}
-        <a href="{% url 'admin_booking_action' booking.id 'approve' %}" onclick="return confirmAdminDetailAction(this, 'Approve Booking', 'Are you sure you want to approve this booking?', 'Yes, Approve')" class="btn-action primary"><i class="fas fa-check"></i> Approve Booking</a>
-        <a href="javascript:void(0)" onclick="openDetailDenyPrompt('{{ booking.id }}')" class="btn-action danger"><i class="fas fa-times"></i> Deny Booking</a>
-
-        {% elif booking.status == 'confirmed' %}
-        <a href="{% url 'admin_booking_action' booking.id 'complete' %}" onclick="return confirmAdminDetailAction(this, 'Mark as Completed', 'Are you sure you want to mark this booking as completed?', 'Yes, Complete')" class="btn-action primary"><i class="fas fa-check-circle"></i> Mark as Completed</a>
-        {% endif %}
     </div>
-</div>
 
-<form id="detailDenyBookingForm" method="POST" action="{% url 'admin_booking_action' 0 'deny' %}" style="display:none;">
+    <form id="detailDenyBookingForm" method="POST" action="{% url 'admin_booking_action' 0 'deny' %}" style="display:none;">
     {% csrf_token %}
     <input type="hidden" name="deny_reason" id="detailDenyReasonInput">
 </form>
