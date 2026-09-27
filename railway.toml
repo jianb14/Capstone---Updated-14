@@ -1,0 +1,21 @@
+# Railway deployment config (config-as-code).
+# Railway resolves settings in this order:
+#   environment config in code > base config in code > service settings
+# so these values also supersede any stale values left in the dashboard
+# (Settings -> Deploy -> Pre-deploy Command / Custom Start Command).
+# Docs: https://docs.railway.com/reference/config-as-code
+
+[deploy]
+# Apply database migrations after the build and before the new deploy goes live.
+# (A leftover dashboard Pre-deploy command such as "npm run migrate" is ignored.)
+preDeployCommand = "python manage.py migrate --no-input"
+
+# Start the web server on Railway's $PORT:
+#   1. migrate again (idempotent no-op safety net in case pre-deploy is skipped)
+#   2. collect static files for WhiteNoise (DEBUG=False in production)
+#   3. gunicorn; --timeout 120 because AI calls can take up to 90s
+startCommand = "python manage.py migrate --no-input && python manage.py collectstatic --no-input && gunicorn Project.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
+
+# Restart the container if the process crashes (e.g. database unreachable).
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
