@@ -205,7 +205,15 @@ if os.getenv('CLOUDINARY_CLOUD_NAME'):
             "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+            # Plain (uncompressed) storage on purpose. django-cloudinary-storage
+            # overrides the collectstatic command with a copy_file no-op, so
+            # nothing is ever written into STATIC_ROOT. WhiteNoise's
+            # CompressedStaticFilesStorage.post_process then crashed the Railway
+            # deploy with FileNotFoundError while trying to open those missing
+            # files to compress them (e.g. images/canvas/premium/frames/
+            # round_arch.svg). Static assets are served straight from the
+            # finders via WHITENOISE_USE_FINDERS instead.
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
 else:
@@ -217,6 +225,11 @@ else:
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
+
+# Silence models.W042 ("Auto-created primary key used when not defining a
+# primary key type...") warnings that flooded the Railway deploy logs for every
+# model without an explicitly configured primary key type.
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'app.User'
 LOGIN_URL = '/login/'
