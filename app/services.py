@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import io
 import logging
 import os
 import random
@@ -16,6 +17,8 @@ from contextlib import contextmanager
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Avg, Count, Sum
 from django.utils import timezone
@@ -1653,29 +1656,29 @@ def _extract_image_prompt_block(reply_text):
 
 
 def _save_generated_image(generated_image):
-    ai_img_dir = os.path.join(settings.MEDIA_ROOT, "ai_generated")
-    os.makedirs(ai_img_dir, exist_ok=True)
+    """Persist a generated image through Django's storage and return its URL.
 
+    On production MediaCloudinaryStorage uploads the file to Cloudinary at
+    save time, so the returned URL works on the deployed site (a plain
+    "/media/..." path 404s there because no /media/ route is mounted when
+    Cloudinary is configured). Locally FileSystemStorage keeps writing into
+    MEDIA_ROOT/ai_generated/, whose /media/ URL the DEBUG route serves.
+    """
     filename = f"design_{timezone.now().strftime('%Y%m%d%H%M%S%f')}_{uuid.uuid4().hex[:12]}.png"
-    filepath = os.path.join(ai_img_dir, filename)
 
     if isinstance(generated_image, (bytes, bytearray)):
-        with open(filepath, "wb") as image_file:
-            image_file.write(generated_image)
+        content = ContentFile(bytes(generated_image), name=filename)
     else:
-        generated_image.save(filepath, format="PNG")
+        # PIL Image (InferenceClient.text_to_image) -- serialize to PNG
+        # bytes in memory instead of touching the local filesystem.
+        buffer = io.BytesIO()
+        generated_image.save(buffer, format="PNG")
+        content = ContentFile(buffer.getvalue(), name=filename)
 
-    if not os.path.exists(filepath) or os.path.getsize(filepath) <= 0:
-        raise ValueError("Generated image file was not saved correctly.")
-
-    img_url = f"{settings.MEDIA_URL.rstrip('/')}/ai_generated/{filename}"
-    expected_path = os.path.join(
-        settings.MEDIA_ROOT,
-        img_url.replace(settings.MEDIA_URL, "", 1).lstrip("/\\"),
-    )
-    if os.path.abspath(expected_path) != os.path.abspath(filepath):
-        raise ValueError("Generated image URL does not match the saved file path.")
-
+    saved_name = default_storage.save(f"ai_generated/{filename}", content)
+    img_url = default_storage.url(saved_name)
+    if not img_url:
+        raise ValueError("Generated image could not be resolved to a URL.")
     return img_url
 
 
