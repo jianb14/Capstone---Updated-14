@@ -2615,6 +2615,23 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
     #booking-calendar .fc .fc-daygrid-day-frame { min-height: 56px !important; }
     #booking-calendar .fc .fc-daygrid-day-number { font-size: 0.95rem; padding: 4px 6px; display: inline-block; }
     #booking-calendar .fc .fc-col-header-cell-cushion { font-size: 0.72rem; }
+    /* "UNAVAILABLE" label fix (kapareho ng admin calendar): lumiit ang font
+       (naka-clamp sa viewport width), humihipo ang letter-spacing, at
+       naka-overflow:hidden + word-break sa loob ng cell — hindi na umaapaw
+       sa katabing dates kapag responsive. */
+    #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+        font-size: clamp(0.42rem, 2.6vw, 0.58rem);
+        letter-spacing: 0.02em;
+        padding-top: 1.15rem;
+        padding-left: 2px;
+        padding-right: 2px;
+        overflow: hidden;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
+        font-size: 0.78rem;
+    }
     .booking-modal-box { width: 100%; max-width: min(700px, 94vw); padding: 1.25rem 1rem; }
     /* Mobile: mas mababa pa ang stepper (1.1rem → 2rem) + itaas nang onti ang X
        (top: 0 → -8px) para siguradong hindi na magdikit */
@@ -2657,6 +2674,12 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
     #booking-calendar .fc .fc-scrollgrid { width: 100% !important; }
     #booking-calendar .fc .fc-daygrid-day-number { font-size: 0.88rem; padding: 3px 5px; }
     #booking-calendar .fc .fc-col-header-cell-cushion { font-size: 0.65rem; letter-spacing: 0; padding: 5px 2px; }
+    /* "UNAVAILABLE" label: mas higpit pa sa pinakamaliit na screens
+       (kapareho ng admin calendar) */
+    #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+        font-size: clamp(0.38rem, 2.6vw, 0.5rem);
+        padding-top: 1rem;
+    }
     /* Today badge: higpitan ang laki sa pinakamaliit na screens */
     #booking-calendar .fc .fc-day-today .fc-daygrid-day-number {
         font-size: 0.82rem;

@@ -158,6 +158,7 @@ from .views import (
     register,
     rename_user_design,
     report_concern,
+    resend_verification,
     reviews_page,
     save_user_design,
     select_design_type,
@@ -195,6 +196,7 @@ urlpatterns = [
     path("register/", register, name="register"),
     path("verify-email/<uidb64>/<token>/", verify_email, name="verify_email"),
     path("login/", user_login, name="login"),
+    path("resend-verification/", resend_verification, name="resend_verification"),
     path("forgot-password/", forgot_password_request, name="forgot_password"),
     path(
         "reset-password/<uidb64>/<token>/",

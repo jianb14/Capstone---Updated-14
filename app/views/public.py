@@ -95,10 +95,12 @@ class ServicesPageView(TemplateView):
         # Interactive widgets: instant price estimator + comparison table data
         active_packages = Package.objects.filter(is_active=True)
         active_addons = AddOn.objects.filter(is_active=True)
+        active_additionals = AdditionalOnly.objects.filter(is_active=True)
         service_charge_config = get_service_charge_config()
 
         context["packages"] = active_packages
         context["active_addons"] = active_addons
+        context["active_additionals"] = active_additionals
         context["global_service_charge"] = service_charge_config.amount
         context["global_service_charge_note"] = service_charge_config.notes
 
@@ -123,9 +125,18 @@ class ServicesPageView(TemplateView):
             }
             for addon in active_addons
         ]
+        estimator_additionals = [
+            {
+                "id": additional.id,
+                "name": additional.name,
+                "price": str(additional.price),
+            }
+            for additional in active_additionals
+        ]
         context["services_widget_data"] = {
             "packages": estimator_packages,
             "addons": estimator_addons,
+            "additionals": estimator_additionals,
             "serviceCharge": str(service_charge_config.amount or 0),
         }
         return context
@@ -154,7 +165,6 @@ def theme_quiz_api(request):
 
     event_type = str(data.get("event_type") or "").strip()
     vibe = str(data.get("vibe") or "").strip()
-    budget = str(data.get("budget") or "").strip()
     colors = str(data.get("colors") or "").strip()
 
     if not event_type or not vibe:
@@ -181,7 +191,6 @@ def theme_quiz_api(request):
         "A customer answered a short style quiz with these details:\n"
         f"- Event type: {event_type}\n"
         f"- Preferred vibe: {vibe}\n"
-        f"- Budget range: {budget or 'Not specified'}\n"
         f"- Preferred colors: {colors or 'No preference'}\n\n"
         f"Our services include: {service_hint}.\n\n"
         "Recommend ONE balloon theme concept. Reply in Taglish (casual but professional), "

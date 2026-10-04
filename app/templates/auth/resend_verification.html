@@ -1,5 +1,4 @@
-﻿{% load static %}
-
+{% load static %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/auth.css' %}">
@@ -8,104 +7,44 @@
 
 <div class="body">
     <div class="auth-container">
-        <!-- Logo -->
         <div class="logo-container">
             <img src="{% static 'images/BalloorinaLogo1.png' %}" alt="Balloorina Logo">
         </div>
 
-        <!-- Heading -->
+        <p class="info-text">Enter your account email and we'll send you a new verification link.</p>
 
-        <!-- Persistent verification banner (unverified login / expired link) -->
-        {% if unverified_email %}
-        <div class="verify-banner" role="alert">
-            <p>{{ verify_message|default:"Please confirm your email address before logging in." }}</p>
-            <form method="post" action="{% url 'resend_verification' %}">
-                {% csrf_token %}
-                <input type="hidden" name="email" value="{{ unverified_email }}">
-                <button type="submit" class="resend-link">Resend verification email</button>
-            </form>
-        </div>
-        {% endif %}
-
-
-        <!-- Login Form -->
-        <form method="post" id="loginForm" novalidate>
+        <form method="post" id="resendVerificationForm" novalidate>
             {% csrf_token %}
-            
-            <!-- Email Input -->
             <div class="field-group">
-                <label class="input-label" for="email">Email Address</label>
-                <input type="email" name="email" id="email" value="{{ unverified_email|default:'' }}" placeholder="Enter your registered email address" data-label="Email Address" required>
+                <label class="input-label" for="email">Email Address <span style="color: red;">*</span></label>
+                <input type="email" id="email" name="email" value="{{ email|default:'' }}" placeholder="Enter your registered email address" data-label="Email Address" required>
                 <small class="field-error"></small>
             </div>
-            
-            <!-- Password Input with Show/Hide Toggle -->
-            <div class="field-group">
-                <label class="input-label" for="password">Password</label>
-                <div class="password-container">
-                    <input type="password" class="pass-input" id="password" name="password" placeholder="Enter your account password" data-label="Password" required>
-                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
-                        <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
-                    </button>
-                </div>
-                <small class="field-error"></small>
-            </div>
-
-            <!-- Remember Me & Forgot Password -->
-            <div class="remember-container">
-                <label>
-                    <input type="checkbox" name="remember_me">
-                    Remember me
-                </label>
-                <a href="{% url 'forgot_password' %}" class="forgot-link">Forgot Password?</a>
-            </div>
-
-            <!-- Login Button -->
-            <button type="submit">Login</button>
+            <button type="submit">Send Verification Email</button>
         </form>
 
-        <!-- Register Link -->
         <p class="bottom-text">
-            Don't have an account? <a href="{% url 'register' %}">Register here</a>
+            Already verified? <a href="{% url 'login' %}">Back to Login</a>
         </p>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- Password Toggle Script and SweetAlert2 -->
 <script>
-function togglePassword(fieldId) {
-    const passwordField = document.getElementById(fieldId);
-    const toggleButton = passwordField.nextElementSibling;
-    const icon = toggleButton.querySelector('img');
-    
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        icon.src = "{% static 'images/eye-hide.png' %}";
-    } else {
-        passwordField.type = 'password';
-        icon.src = "{% static 'images/eye-view.png' %}";
-    }
-}
-
 document.addEventListener("DOMContentLoaded", function() {
     const Toast = Swal.mixin({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 3200,
         timerProgressBar: true,
         background: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#1a1a1a',
-        color: document.documentElement.getAttribute('data-theme') === 'light' ? '#111827' : '#fff',
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
+        color: document.documentElement.getAttribute('data-theme') === 'light' ? '#111827' : '#fff'
     });
 
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        const requiredInputs = Array.from(loginForm.querySelectorAll('input[required]'));
+    const resendVerificationForm = document.getElementById('resendVerificationForm');
+    if (resendVerificationForm) {
+        const requiredInputs = Array.from(resendVerificationForm.querySelectorAll('input[required]'));
         let submitAttempted = false;
 
         const getFieldGroup = (input) => input.closest('.field-group');
@@ -151,7 +90,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         resetValidationUI();
 
-        loginForm.addEventListener('submit', function(e) {
+        resendVerificationForm.addEventListener('submit', function(e) {
             submitAttempted = true;
             let isFormValid = true;
             let firstInvalidInput = null;
@@ -187,13 +126,6 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    {% if error %}
-    Toast.fire({
-        icon: 'error',
-        title: '{{ error|escapejs }}'
-    });
-    {% endif %}
-
     {% if messages %}
         {% for message in messages %}
             Toast.fire({
@@ -205,4 +137,3 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 {% endblock %}
-

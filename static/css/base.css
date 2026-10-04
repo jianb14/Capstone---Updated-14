@@ -89,10 +89,24 @@ nav.scrolled {
     align-items: center;
 }
 
+/* Desktop logo: 46px -> 40px (bahagyang mas maliit, pero mas malaki pa
+   sa 36px ng mobile). Ligtas kasi ang navbar height ay driven ng padding
+   (0.65rem) + content, hindi ng mismong logo. */
 .logo {
-    height: 46px;
+    height: 40px;
     margin-top: 3px;
     width: auto;
+}
+
+/* Logo anchor: gawing flex box para ang <img> mismo ang ini-center ng navbar
+ * — hindi na umaasa sa inline baseline. Dati kasing may zero-width space
+ * (&#8203;) sa loob ng <a> na gumagawa ng phantom line box, kaya kapag
+ * block-level na ang <img> (mobile), lumulutang pataas ang logo at hindi
+ * pantay sa hamburger at Login button. */
+.nav-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 .nav-links {
@@ -341,10 +355,16 @@ nav.scrolled {
     gap: 5px;
     width: 40px;
     height: 40px;
-    background: transparent;   
+    background: transparent;
     flex-shrink: 0;
     cursor: pointer;
     border-radius: 10px;
+    /* Button resets — ang .mobile-menu ay <button> na (keyboard/AT accessible),
+     * kaya tanggalin ang default border/padding/appearance ng browser. */
+    border: none;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
     transition: background 0.2s ease, transform 0.2s ease;
 }
 
@@ -1513,6 +1533,20 @@ nav.scrolled {
 
 [data-theme="light"] .service-image-placeholder::before {
     color: rgba(0, 0, 0, 0.3);
+}
+
+/* Kapag walang naka-attach na image, placeholder lang ang laman ng box —
+   1) Maliit na shadow lang (hindi yung malaki na para sa tunay na larawan)
+   2) Parehong bg/border sa package card sa light mode (#f9f9fa / #e8e8ea) —
+      ang dating #eef0f3 ay masyadong gray at nakakasakit sa mata. */
+.service-image:has(.service-image-placeholder) {
+    box-shadow: none;
+}
+
+[data-theme="light"] .service-image:has(.service-image-placeholder) {
+    background: #f9f9fa;
+    border-color: #e8e8ea;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* Packages Page */
@@ -2876,7 +2910,7 @@ nav.scrolled {
 
 /* Testimonial Carousel — centered card na may auto-swipe */
 .testimonial-carousel {
-    width: min(100%, 720px);
+    width: min(100%, 640px);
     margin: 0 auto;
     padding: 0 1rem;
     box-sizing: border-box;
@@ -2884,12 +2918,25 @@ nav.scrolled {
 
 .carousel-viewport {
     overflow: hidden;
+    /* Ang horizontal swipe ay para sa carousel, hindi sa page scroll */
+    touch-action: pan-y;
 }
 
 .carousel-track {
     display: flex;
     transition: transform 0.5s ease;
     will-change: transform;
+}
+
+/* Neutralize ang gap/padding na nanggaling sa global .carousel-track rule ng
+   Packages page (class-name leak): ang 16px gap ay nag-iiwan ng sliver sa
+   pagitan ng slides, at ang 16px padding-bottom ang nagpapakita ng clipped
+   shadow band sa ilalim ng card (mukhang "nahahati" lalo sa light mode).
+   Ang 12px ay sinasadya — sapat na pampakita ng minimal na card shadow
+   bago ito i-clip ng overflow:hidden, nang walang hard-edged na band. */
+.testimonial-carousel .carousel-track {
+    gap: 0;
+    padding-bottom: 12px;
 }
 
 /* Testimonial Card — avatar na naka-overlap sa itaas, quote icon, centered */
@@ -2899,82 +2946,82 @@ nav.scrolled {
     position: relative;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    padding: 3.6rem 2.5rem 2.5rem;
-    margin-top: 44px; /* espasyo para sa avatar na naka-overlap sa itaas */
+    border-radius: 24px;
+    padding: 5rem 2.75rem 2.75rem;
+    margin-top: 100px; /* espasyo para sa avatar na naka-overlap sa itaas */
     text-align: center;
     backdrop-filter: blur(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .tcarousel-avatar {
     position: absolute;
-    top: -44px;
+    top: -70px;
     left: 50%;
     transform: translateX(-50%);
-    width: 88px;
-    height: 88px;
+    width: 132px;
+    height: 132px;
     border-radius: 50%;
+    border: 6px solid var(--black);
     background: #ffffff;
     color: #000000;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
-    font-size: 2rem;
-    font-family: 'Montserrat', sans-serif;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    font-weight: 600;
+    font-size: 4rem;
+    font-family: 'Poppins', sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .tcarousel-quote {
     position: absolute;
-    top: 1.2rem;
-    left: 1.6rem;
-    font-size: 2.4rem;
-    font-weight: 800;
+    top: 1.9rem;
+    left: 2.4rem;
+    font-size: 1.75rem;
     line-height: 1;
-    font-family: Georgia, serif;
+    /* Ghost color (kapareho ng --mr-ghost) — hindi na gold */
     color: rgba(255, 255, 255, 0.14);
     pointer-events: none;
 }
 
 .tcarousel-name {
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: var(--white);
-    margin: 0 0 0.2rem;
+    margin: 0 0 0.35rem;
 }
 
 .tcarousel-role {
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     color: rgba(255, 255, 255, 0.5);
-    margin: 0 0 0.8rem;
+    margin: 0 0 0.9rem;
 }
 
 .tcarousel-stars {
     color: #fbbf24;
-    font-size: 1rem;
-    letter-spacing: 3px;
-    margin-bottom: 1.1rem;
+    font-size: 0.95rem;
+    letter-spacing: 2px;
+    margin-bottom: 1.6rem;
 }
 
 .tcarousel-text {
-    font-size: 0.95rem;
-    line-height: 1.7;
+    font-size: 1.02rem;
+    line-height: 1.8;
     font-style: italic;
     color: rgba(255, 255, 255, 0.75);
-    max-width: 55ch;
     margin: 0 auto;
     word-break: break-word;
     overflow-wrap: break-word;
 }
 
-/* Dots — counter sa baba (active = gold pill) */
+/* Dots — counter sa baba (active = neutral/ghost pill) */
 .carousel-dots {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
-    margin-top: 1.6rem;
+    gap: 10px;
+    margin-top: 2.25rem;
 }
 
 .carousel-dot {
@@ -2983,18 +3030,19 @@ nav.scrolled {
     border-radius: 999px;
     border: none;
     padding: 0;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.18);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .carousel-dot:hover {
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .carousel-dot.active {
-    width: 30px;
-    background: #fbbf24;
+    width: 40px;
+    /* Ghost/neutral active pill — walang gold */
+    background: rgba(255, 255, 255, 0.4);
 }
 
 /* Mobile adjustments */
@@ -3004,34 +3052,34 @@ nav.scrolled {
     }
 
     .tcarousel-card {
-        padding: 3rem 1.25rem 1.75rem;
-        margin-top: 36px;
-        border-radius: 12px;
+        padding: 4.25rem 1.5rem 2rem;
+        margin-top: 72px;
+        border-radius: 20px;
     }
 
     .tcarousel-avatar {
-        top: -36px;
-        width: 72px;
-        height: 72px;
-        font-size: 1.6rem;
+        top: -52px;
+        width: 104px;
+        height: 104px;
+        font-size: 2.2rem;
     }
 
     .tcarousel-quote {
-        top: 0.9rem;
-        left: 1rem;
-        font-size: 2rem;
+        top: 1.25rem;
+        left: 1.5rem;
+        font-size: 1.4rem;
     }
 
     .tcarousel-name {
-        font-size: 1.05rem;
+        font-size: 1.15rem;
     }
 
     .tcarousel-text {
-        font-size: 0.88rem;
+        font-size: 0.92rem;
     }
 
     .carousel-dots {
-        margin-top: 1.25rem;
+        margin-top: 1.5rem;
     }
 }
 
@@ -3279,6 +3327,22 @@ nav.scrolled {
 
 /* Mobile Responsive */
 @media (max-width: 968px) {
+    :root {
+        /* Taas ng mobile navbar: 40px hamburger + 2 × 0.65rem vertical padding.
+           Isang source of truth ito para sa drawer, overlay at page offset —
+           dating hardcoded na 53px na hindi na tugma sa totoong taas, kaya
+           nag-o-overlap ang drawer sa ilalim ng navbar bago pa tumakbo ang JS.
+           Sinusukatan at ino-override ito ng JS (syncDrawerOffset) para eksakto
+           sa aktwal na render per device. */
+        --nav-h: 61px;
+    }
+
+    /* Page offset: sumusunod sa totoong taas ng navbar (dati fixed 65px).
+     * +4px na breathing room para hindi dumikit ang content sa navbar. */
+    .page {
+        padding-top: calc(var(--nav-h) + 4px);
+    }
+
     .mobile-menu {
         display: flex;
     }
@@ -3300,15 +3364,15 @@ nav.scrolled {
         display: none;
     }
 
-    /* Mobile logo: vertically centered, same height as the 40px hamburger
-     * (para hindi magalaw ang navbar height at manatiling tama yung 53px drawer offset).
-     * display:block — kung hindi, ang <img> ay inline at naka-align sa text baseline
-     * (may descender gap sa baba), kaya lumulutang pataas yung logo ("naka-angat"). */
+    /* Mobile logo: display:block para walang descender gap sa ilalim ng <img>
+     * (inline baseline issue). Ang vertical centering ay gawa na ng .nav-logo
+     * flex box, kaya pantay ito sa 40px hamburger at sa Login button.
+     * (Tinanggal ang align-self: center — hindi ito umeepekto dahil ang flex
+     * item ay ang <a>, hindi ang <img>.) */
     .logo {
         display: block;
         height: 36px;
         margin-top: 0;
-        align-self: center;
     }
 
     /* Mobile login button: same box style as .btn-primary (hindi pill),
@@ -3415,11 +3479,11 @@ nav.scrolled {
     /* ── Mobile drawer (admin-sidebar style): slide-in panel galing kaliwa ── */
     .nav-links {
         position: fixed;
-        top: 53px;
+        top: var(--nav-h);
         left: 0;
         width: min(300px, 82vw);
-        height: calc(100vh - 53px);
-        height: calc(100dvh - 53px);
+        height: calc(100vh - var(--nav-h));
+        height: calc(100dvh - var(--nav-h));
         margin-left: 0;
         background: #000; /* same as hero/navbar bg para uniform */
         border-right: 1px solid #2a2a2a;
@@ -3439,11 +3503,11 @@ nav.scrolled {
     /* Dimmed backdrop sa likod ng drawer */
     .nav-overlay {
         position: fixed;
-        top: 53px;
+        top: var(--nav-h);
         left: 0;
         width: 100vw;
-        height: calc(100vh - 53px);
-        height: calc(100dvh - 53px);
+        height: calc(100vh - var(--nav-h));
+        height: calc(100dvh - var(--nav-h));
         background: rgba(0, 0, 0, 0.6);
         z-index: 1100;
         opacity: 0;
@@ -4973,17 +5037,18 @@ nav.scrolled {
 [data-theme="light"] .tcarousel-card {
     background: #ffffff;
     border-color: #e5e7eb;
-    box-shadow: 0 4px 16px rgba(17, 24, 39, 0.08);
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.07);
 }
 
 [data-theme="light"] .tcarousel-avatar {
     background: #111827;
     color: #ffffff;
-    box-shadow: 0 6px 18px rgba(17, 24, 39, 0.2);
+    border-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
 }
 
 [data-theme="light"] .tcarousel-quote {
-    color: rgba(0, 0, 0, 0.08);
+    color: rgba(17, 24, 39, 0.12);
 }
 
 [data-theme="light"] .tcarousel-name {
@@ -5003,15 +5068,15 @@ nav.scrolled {
 }
 
 [data-theme="light"] .carousel-dot {
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(17, 24, 39, 0.15);
 }
 
 [data-theme="light"] .carousel-dot:hover {
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(17, 24, 39, 0.28);
 }
 
 [data-theme="light"] .carousel-dot.active {
-    background: #f59e0b;
+    background: rgba(17, 24, 39, 0.35);
 }
 
 /* CTA banner light mode — light gray card (#f6f6f6), dark text/buttons */
@@ -5378,8 +5443,9 @@ nav.scrolled {
 /* ============================== */
 /* Services Page — Interactive Tools */
 /* ============================== */
+/* Pareho na ng ibang section sa page (hal. .services-detailed: 8rem 5%) */
 .services-tools {
-    padding: 2rem 5% 6rem;
+    padding: 8rem 5%;
 }
 
 .services-tools-inner {
@@ -5392,9 +5458,9 @@ nav.scrolled {
 }
 
 .tool-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--light-gray);
-    border-radius: 20px;
+    background: var(--pkg-card);
+    border: 1px solid var(--pkg-border);
+    border-radius: 18px;
     padding: 2rem 1.75rem;
     backdrop-filter: blur(10px);
     transition: transform 0.3s ease, border-color 0.3s ease;
@@ -5418,23 +5484,14 @@ nav.scrolled {
     margin-bottom: 1.5rem;
 }
 
+/* Label lang — walang icon, border, o background pill */
 .tool-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
+    display: block;
     font-size: 0.72rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding: 0.35rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid var(--light-gray);
     color: var(--dark-gray);
-}
-
-.tool-badge i {
-    font-size: 0.8rem;
-    opacity: 0.9;
 }
 
 .tool-form {
@@ -5443,7 +5500,11 @@ nav.scrolled {
     gap: 1rem;
 }
 
-.tool-field label {
+/* Caption ng field. Ang :not(.addon-check) ay kinakailangan — kung
+   plain `label` lang, mas mataas ang specificity (0,2,1) kaysa
+   .addon-check (0,1,0) kaya display:block nanalo at na-stack ang radio
+   at label ng bawat option ng estimator. */
+.tool-field label:not(.addon-check) {
     display: block;
     font-size: 0.82rem;
     font-weight: 700;
@@ -5490,8 +5551,13 @@ nav.scrolled {
 .tool-field select:focus,
 .tool-field input:focus {
     outline: none;
-    border-color: #facc15;
-    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+    border-color: var(--dark-gray);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.tool-field .custom-select-container.open .custom-select-trigger {
+    border-color: var(--dark-gray);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
 }
 
 /* Light mode: walang makapal na focus ring sa select/input (minimal lang) */
@@ -5510,6 +5576,122 @@ nav.scrolled {
 [data-theme="light"] .tool-field select option {
     background: #ffffff;
     color: #1a1a1a;
+}
+
+/* Custom select — same look & feel as the booking page dropdowns */
+.tool-field .custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.tool-field .custom-select-trigger {
+    width: 100%;
+    padding: 0.7rem 0.95rem;
+    border-radius: 10px;
+    border: 1px solid var(--light-gray);
+    background: var(--gray);
+    color: var(--white);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tool-field .custom-select-trigger:hover {
+    border-color: var(--dark-gray);
+}
+
+.tool-field .custom-select-trigger span {
+    color: var(--dark-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tool-field .custom-select-trigger span.has-value {
+    color: var(--white);
+}
+
+.tool-field .custom-select-trigger i {
+    color: var(--dark-gray);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+
+.tool-field .custom-select-container.open .custom-select-trigger i {
+    transform: rotate(180deg);
+}
+
+.tool-field .custom-select-options {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    width: 100%;
+    margin: 0;
+    list-style: none;
+    background: var(--gray);
+    border: 1px solid var(--light-gray);
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+    z-index: 30;
+    max-height: 240px;
+    overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.tool-field .custom-select-container.open .custom-select-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.tool-field .custom-select-options li {
+    padding: 0.55rem 0.95rem;
+    color: var(--white);
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.tool-field .custom-select-options li:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .tool-field .custom-select-options {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .tool-field .custom-select-options li:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Pantay na height ng input, date at custom-select fields
+   (dating magkakaiba ang line-height ng <input> vs ng <select>) */
+.tool-field select,
+.tool-field input[type="text"],
+.tool-field input[type="date"],
+.tool-field .custom-select-trigger {
+    height: 44px;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 1;
+}
+
+/* Lahat ng button sa Services tools: pare-parehong sukat */
+.services-tools .btn {
+    width: 100%;
+    height: 40px;
+    padding: 0 1.4rem;
+    font-size: 0.9rem;
+    line-height: 1;
 }
 
 .tool-muted {
@@ -5556,7 +5738,11 @@ nav.scrolled {
 }
 
 .quiz-result-success {
-    border-color: rgba(250, 204, 21, 0.4);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme="light"] .quiz-result-success {
+    border-color: rgba(0, 0, 0, 0.16);
 }
 
 .quiz-result-head {
@@ -5577,20 +5763,25 @@ nav.scrolled {
 .estimator-addons {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.15rem;
     max-height: 170px;
     overflow-y: auto;
     padding-right: 0.25rem;
 }
 
+/* Row ng estimator option: radio at label naka-isang linya, magkasalubong
+   sa gitna. Ito ang nanalo laban sa .tool-field label:not(.addon-check). */
 .addon-check {
     display: flex;
     align-items: center;
     gap: 0.55rem;
+    width: 100%;
+    margin: 0;
     font-size: 0.86rem;
+    line-height: 1.4;
     color: var(--dark-gray);
     cursor: pointer;
-    padding: 0.45rem 0.6rem;
+    padding: 0.4rem 0.6rem;
     border-radius: 10px;
     border: 1px solid transparent;
     transition: border-color 0.2s ease, background 0.2s ease;
@@ -5602,10 +5793,38 @@ nav.scrolled {
 }
 
 .addon-check input {
-    accent-color: #facc15;
+    accent-color: var(--dark-gray);
+    display: block;
+    align-self: center;
     width: 15px;
     height: 15px;
-    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+/* Pill ng radio at label: eksaktong magkasalubong ang baseline */
+.addon-check > span {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.4;
+}
+
+.addon-check.selected,
+.addon-check:has(input:checked) {
+    border-color: var(--dark-gray);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.addon-check.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.addon-check.is-disabled input {
+    cursor: not-allowed;
 }
 
 .estimator-total {
@@ -5642,7 +5861,11 @@ nav.scrolled {
 }
 
 .availability-open {
-    border-color: rgba(74, 222, 128, 0.5);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme="light"] .availability-open {
+    border-color: rgba(0, 0, 0, 0.16);
 }
 
 .availability-taken {
@@ -5788,10 +6011,12 @@ nav.scrolled {
 
 /* Light theme adjustments */
 [data-theme="light"] .tool-card {
-    background: rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.12);
+    background: #f9f9fa;
+    border-color: #e8e8ea;
 }
 
+/* Plain text na lang ang badge, kaya walang background/border override
+   — var(--dark-gray) na ang nagfi-flip sa light mode. */
 [data-theme="light"] .tool-card:hover {
     border-color: rgba(0, 0, 0, 0.3);
 }

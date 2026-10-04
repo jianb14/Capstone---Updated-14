@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_concerns.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_concerns.css' %}?v=20261004f">
 {% endblock %}
 
 {% block content %}
@@ -160,7 +160,7 @@
                         </td>
                         <td>{{ item.created_at|date:"M d, Y g:i A" }}</td>
                         <td>
-                            <button type="button" class="btn-view-concern"
+                            <button type="button" class="btn-view-concern" aria-label="View concern" title="View concern"
                                 data-ticket-id="{{ item.id }}"
                                 data-status-raw="{{ item.status }}"
                                 data-ticket="#CON-{{ item.id }}"
@@ -172,7 +172,7 @@
                                 data-updated="{{ item.updated_at|date:'M d, Y g:i A' }}"
                                 data-images="{% for img in item.images.all %}{{ img.image.url }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                 data-update-url="{% url 'admin_concern_update' item.id %}">
-                                <i class="far fa-eye"></i> View
+                                <i class="far fa-eye" aria-hidden="true"></i>
                             </button>
                             <div class="concern-hidden-texts" hidden>
                                 <p class="full-subject">{{ item.subject }}</p>
@@ -222,31 +222,31 @@
             </div>
             <div class="concern-modal-body">
                 <div class="detail-grid">
-                    <div class="detail-row"><span>User</span><strong id="modalUser">-</strong></div>
-                    <div class="detail-row"><span>Email</span><strong id="modalEmail">-</strong></div>
-                    <div class="detail-row"><span>Category</span><strong id="modalCategory">-</strong></div>
-                    <div class="detail-row"><span>Status</span><strong id="modalStatus" class="admin-modal-status">-</strong></div>
-                    <div class="detail-row"><span>Created</span><strong id="modalCreated">-</strong></div>
-                    <div class="detail-row"><span>Updated</span><strong id="modalUpdated">-</strong></div>
+                    <div class="detail-row"><span><i class="fa-regular fa-user" aria-hidden="true"></i>User</span><strong id="modalUser">-</strong></div>
+                    <div class="detail-row"><span><i class="fa-regular fa-envelope" aria-hidden="true"></i>Email</span><strong id="modalEmail">-</strong></div>
+                    <div class="detail-row"><span><i class="fa-solid fa-tag" aria-hidden="true"></i>Category</span><strong id="modalCategory">-</strong></div>
+                    <div class="detail-row"><span><i class="fa-regular fa-circle-dot" aria-hidden="true"></i>Status</span><strong id="modalStatus" class="admin-modal-status">-</strong></div>
+                    <div class="detail-row"><span><i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>Created</span><strong id="modalCreated">-</strong></div>
+                    <div class="detail-row"><span><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Updated</span><strong id="modalUpdated">-</strong></div>
                 </div>
 
                 <div class="detail-block">
-                    <h4>Subject</h4>
+                    <h4><i class="fa-regular fa-bookmark" aria-hidden="true"></i>Subject</h4>
                     <p id="modalSubject">-</p>
                 </div>
 
                 <div class="detail-block">
-                    <h4>Message</h4>
+                    <h4><i class="fa-regular fa-comment-dots" aria-hidden="true"></i>Message</h4>
                     <p id="modalMessage">-</p>
                 </div>
 
                 <div class="detail-block" id="modalImagesBlock" style="display: none;">
-                    <h4>Attached Images</h4>
+                    <h4><i class="fa-regular fa-images" aria-hidden="true"></i>Attached Images</h4>
                     <div id="modalImages" class="concern-images-grid"></div>
                 </div>
 
                 <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
-                    <h4>Admin Notes</h4>
+                    <h4><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Admin Notes</h4>
                     <p id="modalAdminNotes">-</p>
                 </div>
 
@@ -276,15 +276,20 @@
                     </div>
 
                     <div id="updateAdminNotesBlock">
-                        <label for="modalAdminNotesInput">Update Admin Notes</label>
+                        <label for="modalAdminNotesInput"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i> Update Admin Notes</label>
                         <textarea id="modalAdminNotesInput" name="admin_notes" rows="4"
                             placeholder="Add internal notes for this concern..."></textarea>
                     </div>
 
-                    <button type="submit" class="btn-save-concern"><i class="far fa-save"></i> Save Changes</button>
+                    <button type="submit" class="btn-save-concern">Save Changes</button>
                 </form>
             </div>
         </div>
+    </div>
+
+    <div class="concern-image-lightbox" id="concernImageLightbox" aria-hidden="true" role="dialog" aria-label="Attached image preview">
+        <button type="button" class="concern-lightbox-close" id="concernLightboxClose" aria-label="Close image">&times;</button>
+        <img id="concernLightboxImg" src="" alt="Attached image preview">
     </div>
 
     <section class="panel">
@@ -337,6 +342,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const concernQueueTableWrap = document.getElementById('concernQueueTableWrap');
     const concernQueueTableBody = document.getElementById('concernQueueTableBody');
     const concernsQueuePagination = document.getElementById('concernsQueuePagination');
+    const imageLightbox = document.getElementById('concernImageLightbox');
+    const lightboxImg = document.getElementById('concernLightboxImg');
+    const lightboxCloseBtn = document.getElementById('concernLightboxClose');
 
     const modalFields = {
         ticket: document.getElementById('modalTicket'),
@@ -416,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const img = document.createElement('img');
                 img.src = url.trim();
                 img.className = 'concern-modal-img';
-                img.onclick = () => window.open(url, '_blank');
+                img.onclick = () => openImageLightbox(url.trim());
                 modalFields.images.appendChild(img);
             });
             imagesBlock.style.display = 'block';
@@ -437,16 +445,32 @@ document.addEventListener('DOMContentLoaded', function () {
         clearStatusError();
         toggleUpdateAdminNotesField(statusRaw);
 
+        closeImageLightbox();
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
     }
 
     function closeModal() {
+        closeImageLightbox();
         modal.classList.remove('show');
         modal.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
         if (statusDropdown) statusDropdown.classList.remove('open');
+    }
+
+    function openImageLightbox(url) {
+        if (!url || !imageLightbox || !lightboxImg) return;
+        lightboxImg.src = url;
+        imageLightbox.classList.add('show');
+        imageLightbox.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeImageLightbox() {
+        if (!imageLightbox) return;
+        imageLightbox.classList.remove('show');
+        imageLightbox.setAttribute('aria-hidden', 'true');
+        if (lightboxImg) lightboxImg.src = '';
     }
 
     function fetchConcernQueue(url) {
@@ -576,6 +600,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.target === modal) closeModal();
     });
 
+    if (lightboxCloseBtn) lightboxCloseBtn.addEventListener('click', closeImageLightbox);
+    if (imageLightbox) {
+        imageLightbox.addEventListener('click', function (event) {
+            if (event.target === imageLightbox) closeImageLightbox();
+        });
+    }
+
     document.addEventListener('click', function (event) {
         if (statusDropdown && !statusDropdown.contains(event.target)) {
             statusDropdown.classList.remove('open');
@@ -586,6 +617,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && imageLightbox && imageLightbox.classList.contains('show')) {
+            closeImageLightbox();
+            return;
+        }
         if (event.key === 'Escape' && modal.classList.contains('show')) {
             closeModal();
         }

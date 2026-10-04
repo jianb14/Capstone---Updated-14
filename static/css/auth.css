@@ -379,6 +379,57 @@ button[type="submit"]:active {
     margin-bottom: 16px;
 }
 
+/* Email Verification Banner (login page — unverified login / expired link) */
+.verify-banner {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid #ff5252;
+    border-radius: 5px;
+    padding: 12px 14px;
+    color: #ff5252;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.verify-banner p {
+    margin: 0 0 8px 0;
+    line-height: 1.45;
+}
+
+.verify-banner form {
+    display: block;
+}
+
+/* Resend link — mas mataas ang specificity kaysa sa button[type="submit"] at
+   [data-theme="light"] button[type="submit"] para hindi ito maging itim na
+   button na walang nababasang text */
+.verify-banner button[type="submit"].resend-link {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: #ffffff;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    transform: none;
+}
+
+.verify-banner button[type="submit"].resend-link:hover {
+    color: #ffffff;
+    background: none;
+}
+
+.verify-banner button[type="submit"].resend-link:active {
+    transform: none;
+}
+
+
 /* Responsive */
 @media (max-width: 768px) {
     .auth-container {
@@ -926,3 +977,21 @@ html[data-theme="light"] {
     border: none !important;
     box-shadow: none !important;
 }
+
+/* Email verification banner — light theme */
+[data-theme="light"] .verify-banner {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+[data-theme="light"] .verify-banner button[type="submit"].resend-link {
+    color: #b91c1c;
+    background: none;
+}
+
+[data-theme="light"] .verify-banner button[type="submit"].resend-link:hover {
+    color: #991b1b;
+    background: none;
+}
+

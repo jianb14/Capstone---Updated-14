@@ -367,19 +367,7 @@
 </div>
 
 <script>
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000, // Reduced to 2 seconds for quicker reload
-        timerProgressBar: true,
-        background: '#1a1a1a',
-        color: '#ffffff',
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-    });
+    const Toast = AppToast.mixin({ timer: 2000 }); // 2s para mabilis ma-reload
 
     document.addEventListener('DOMContentLoaded', () => {
         const reviewFormObj = document.getElementById('reviewForm');
@@ -706,7 +694,9 @@
                         body: formData
                     });
 
-                    const data = await response.json();
+                    // Maaaring HTML ang error body (hal. 404/500) — huwag mag-throw
+                    // sa unang parse, kundi mapupunta sa catch.
+                    const data = await response.json().catch(() => ({}));
                     if (response.ok) {
                         closeEditModal(); // Close immediately on success
                         Toast.fire({
@@ -745,6 +735,8 @@
                             }
                         });
                     } else {
+                        // Maaaring HTML ang error body — huwag mag-throw.
+                        const data = await response.json().catch(() => ({}));
                         Toast.fire({
                             icon: 'error',
                             title: data.message || 'Update failed'
@@ -906,17 +898,12 @@
     }
 
     async function deleteReview(id) {
-        Swal.fire({
+        AppToast.confirm({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
-            icon: 'warning',
-            background: '#1a1a1a',
-            color: '#ffffff',
-            showCancelButton: true,
-            confirmButtonColor: '#6e6e6e',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!',
-            scrollbarPadding: false
+            confirmText: 'Yes, delete it!',
+            confirmButtonColor: '#dc2626',
+            danger: true
         }).then(async (result) => {
             if (result.isConfirmed) {
                 const csrfToken = '{{ csrf_token }}';
@@ -928,15 +915,9 @@
 
                     if (response.ok) {
                         const data = await response.json().catch(() => ({}));
-                        Swal.fire({
-                            title: 'Deleted!',
-                            text: data.message || 'Your review has been deleted.',
+                        AppToast.fire({
                             icon: 'success',
-                            background: '#1a1a1a',
-                            color: '#ffffff',
-                            showConfirmButton: false,
-                            scrollbarPadding: false,
-                            timer: 1500
+                            title: data.message || 'Your review has been deleted.'
                         }).then(() => {
                             const currentCard = document.querySelector(`.like-btn[data-id="${id}"]`)?.closest('.review-card');
                             if (currentCard) {
@@ -955,7 +936,10 @@
                             }
                         });
                     } else {
-                        const data = await response.json();
+                        // Maaaring HTML ang error body (hal. 404/500), kaya
+                        // huwag mag-throw — para hindi ma-trigger ang catch
+                        // at hindi mag-double-fire ang toast.
+                        const data = await response.json().catch(() => ({}));
                         Toast.fire({
                             icon: 'error',
                             title: data.message || 'Delete failed'

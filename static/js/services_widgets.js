@@ -29,6 +29,66 @@
         });
     }
 
+    /* ═══════════════ 0. Custom Select Dropdowns ═══════════════ */
+    function closeAllCustomSelects() {
+        var open = document.querySelectorAll(".tool-field .custom-select-container.open");
+        for (var i = 0; i < open.length; i++) {
+            open[i].classList.remove("open");
+        }
+    }
+
+    function setupCustomSelect(container) {
+        var trigger = container.querySelector(".custom-select-trigger");
+        var triggerLabel = trigger ? trigger.querySelector("span") : null;
+        var options = container.querySelectorAll(".custom-select-options li");
+        var hiddenInput = container.querySelector("input[type=hidden]");
+        if (!trigger || !hiddenInput) return;
+
+        trigger.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (container.classList.contains("open")) {
+                container.classList.remove("open");
+            } else {
+                closeAllCustomSelects();
+                container.classList.add("open");
+            }
+        });
+
+        trigger.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                trigger.click();
+            } else if (e.key === "Escape") {
+                container.classList.remove("open");
+            }
+        });
+
+        for (var i = 0; i < options.length; i++) {
+            options[i].addEventListener("click", function (e) {
+                e.stopPropagation();
+                var value = this.getAttribute("data-value") || "";
+                hiddenInput.value = value;
+                if (triggerLabel) {
+                    triggerLabel.textContent = this.textContent;
+                    if (value) {
+                        triggerLabel.classList.add("has-value");
+                    } else {
+                        triggerLabel.classList.remove("has-value");
+                    }
+                }
+                container.classList.remove("open");
+                hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+        }
+    }
+
+    var customSelectContainers = document.querySelectorAll(".tool-field .custom-select-container");
+    for (var cs = 0; cs < customSelectContainers.length; cs++) {
+        setupCustomSelect(customSelectContainers[cs]);
+    }
+
+    document.addEventListener("click", closeAllCustomSelects);
+
     /* ═══════════════ 1. AI Style Quiz ═══════════════ */
     var quizForm = document.getElementById("quizForm");
     var quizResult = document.getElementById("quizResult");
@@ -69,7 +129,6 @@
                 body: JSON.stringify({
                     event_type: eventType.value,
                     vibe: vibe.value,
-                    budget: (document.getElementById("quizBudget") || {}).value || "",
                     colors: (document.getElementById("quizColors") || {}).value || "",
                 }),
             })
@@ -83,7 +142,7 @@
                         quizResult.hidden = false;
                         quizResult.className = "quiz-result quiz-result-success";
                         quizResult.innerHTML =
-                            '<div class="quiz-result-head"><i class="fa-solid fa-wand-magic-sparkles"></i> Your AI Theme Suggestion</div>' +
+                            '<div class="quiz-result-head"><i class="fa-regular fa-lightbulb"></i> Your AI Theme Suggestion</div>' +
                             '<div class="quiz-result-body">' + result.data.response + "</div>" +
                             '<a href="/booking/" class="btn btn-primary btn-sm"><span>Book This Style</span></a>';
                     } else {
@@ -106,6 +165,7 @@
     var widgetDataEl = document.getElementById("services-widget-data");
     var estimatorPackage = document.getElementById("estimatorPackage");
     var estimatorAddons = document.getElementById("estimatorAddons");
+    var estimatorAdditionals = document.getElementById("estimatorAdditionals");
     var estimatorTotal = document.getElementById("estimatorTotal");
     var estimatorSubtotal = document.getElementById("estimatorSubtotal");
     var estimatorServiceCharge = document.getElementById("estimatorServiceCharge");
@@ -115,36 +175,110 @@
         var widgetData = JSON.parse(widgetDataEl.textContent || "{}");
         var packages = widgetData.packages || [];
         var addons = widgetData.addons || [];
+        var additionals = widgetData.additionals || [];
         var globalServiceCharge = parseFloat(widgetData.serviceCharge || 0) || 0;
 
+        function findItemById(list, id) {
+            for (var i = 0; i < list.length; i++) {
+                if (String(list[i].id) === String(id)) return list[i];
+            }
+            return null;
+        }
+
+        function getSelectedPackage() {
+            return findItemById(packages, estimatorPackage.value);
+        }
+
+        function getSelectedAddon() {
+            var checked = estimatorAddons.querySelector("input[name=estimatorAddon]:checked");
+            return checked ? findItemById(addons, checked.value) : null;
+        }
+
+        function getSelectedAdditional() {
+            if (!estimatorAdditionals) return null;
+            var checked = estimatorAdditionals.querySelector("input[name=estimatorAdditional]:checked");
+            return checked ? findItemById(additionals, checked.value) : null;
+        }
+
+        // Mirror the booking flow: with a package the add-on shows its
+        // discounted price; without one it falls back to the solo price and
+        // add-ons that have no solo price are locked until a package is chosen.
+        function updateAddonStates() {
+            var hasPackage = !!getSelectedPackage();
+            var labels = estimatorAddons.querySelectorAll(".addon-check");
+            for (var i = 0; i < labels.length; i++) {
+                var el = labels[i];
+                var addon = findItemById(addons, el.getAttribute("data-id"));
+                if (!addon) continue;
+                var labelEl = el.querySelector(".addon-label");
+                var input = el.querySelector("input");
+                var soloPrice = parseFloat(addon.solo_price);
+                if (hasPackage) {
+                    if (labelEl) labelEl.textContent = addon.name + " (+" + formatPeso(addon.price) + ")";
+                    el.classList.remove("is-disabled");
+                    input.disabled = false;
+                } else if (!isNaN(soloPrice) && soloPrice > 0) {
+                    if (labelEl) labelEl.textContent = addon.name + " (Solo " + formatPeso(soloPrice) + ")";
+                    el.classList.remove("is-disabled");
+                    input.disabled = false;
+                } else {
+                    if (labelEl) labelEl.textContent = addon.name + " (+" + formatPeso(addon.price) + " w/ package)";
+                    el.classList.add("is-disabled");
+                    input.disabled = true;
+                    input.checked = false;
+                }
+            }
+        }
+
+        // Welcome stand items only become selectable once a package or a solo
+        // add-on is chosen (same rule as the booking page).
+        function updateAdditionalStates() {
+            if (!estimatorAdditionals) return;
+            var hasBase = !!getSelectedPackage() || !!getSelectedAddon();
+            var labels = estimatorAdditionals.querySelectorAll(".addon-check");
+            for (var i = 0; i < labels.length; i++) {
+                var el = labels[i];
+                var input = el.querySelector("input");
+                if (hasBase) {
+                    el.classList.remove("is-disabled");
+                    input.disabled = false;
+                } else {
+                    el.classList.add("is-disabled");
+                    input.disabled = true;
+                    input.checked = false;
+                }
+            }
+        }
+
         function recalcEstimate() {
-            var selectedPackage = null;
-            var packageId = estimatorPackage.value;
-            for (var i = 0; i < packages.length; i++) {
-                if (String(packages[i].id) === String(packageId)) {
-                    selectedPackage = packages[i];
-                    break;
-                }
+            updateAddonStates();
+            updateAdditionalStates();
+
+            var pkg = getSelectedPackage();
+            var addon = getSelectedAddon();
+            var additional = getSelectedAdditional();
+
+            var baseTotal = 0;
+            if (pkg) {
+                baseTotal = parseFloat(pkg.price || 0) || 0;
+            } else if (addon) {
+                baseTotal = parseFloat(addon.solo_price || 0) || 0;
             }
 
-            var addonsTotal = 0;
-            var checked = estimatorAddons.querySelectorAll("input[type=checkbox]:checked");
-            for (var j = 0; j < checked.length; j++) {
-                for (var k = 0; k < addons.length; k++) {
-                    if (String(addons[k].id) === String(checked[j].value)) {
-                        addonsTotal += parseFloat(addons[k].price || 0) || 0;
-                        break;
-                    }
-                }
+            var addonTotal = 0;
+            if (pkg && addon) {
+                addonTotal = parseFloat(addon.price || 0) || 0;
             }
 
-            if (!selectedPackage && addonsTotal === 0) {
+            var additionalTotal = additional ? (parseFloat(additional.price || 0) || 0) : 0;
+
+            var hasBaseSelection = !!pkg || !!addon;
+            if (!hasBaseSelection) {
                 estimatorTotal.hidden = true;
                 return;
             }
 
-            var packagePrice = selectedPackage ? parseFloat(selectedPackage.price || 0) || 0 : 0;
-            var subtotal = packagePrice + addonsTotal;
+            var subtotal = baseTotal + addonTotal + additionalTotal;
             var grandTotal = subtotal + globalServiceCharge;
 
             estimatorSubtotal.textContent = formatPeso(subtotal);
@@ -155,6 +289,11 @@
 
         estimatorPackage.addEventListener("change", recalcEstimate);
         estimatorAddons.addEventListener("change", recalcEstimate);
+        if (estimatorAdditionals) {
+            estimatorAdditionals.addEventListener("change", recalcEstimate);
+        }
+
+        recalcEstimate();
     }
 
     /* ═══════════════ 3. Date Availability Quick-Check ═══════════════ */

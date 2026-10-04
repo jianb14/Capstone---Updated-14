@@ -12,14 +12,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260921g">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261003h">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
-<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20260919d">
+<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261004b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="{% static 'js/theme-toggle.js' %}"></script>
     {% block extra_css %}{% endblock %}
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Shared Toast helper: iisang pinagmumulan ng toasts + dedupe guard -->
+    <script src="{% static 'js/toast_helper.js' %}?v=20261003a"></script>
 </head>
 
 <body>
@@ -44,32 +46,26 @@
             const navLinks = document.querySelector(".nav-links");
             const navOverlay = document.querySelector(".nav-overlay");
 
-            // Sukatin ang AKTUAL na navbar height bago i-position ang drawer at
-            // overlay. Hardcoded na "53px" sa CSS ang dating offset, pero
-            // mag-iiba-iba ang totoong taas ng navbar per device (font rendering,
-            // hamburger size, atbp.) â€” kapag hindi tugma, nag-o-overlap ang
-            // drawer sa ibabang bahagi ng navbar (mukhang "dalawang navbar").
+            // Sukatin ang AKTUAL na navbar height at i-publish bilang --nav-h.
+            // Ito ang isang source of truth na binabasa ng drawer (.nav-links),
+            // overlay, at page offset sa CSS. Dati kasing hardcoded na "53px" sa
+            // CSS ang offset, pero nag-iiba-iba ang totoong taas ng navbar per
+            // device (font rendering, hamburger size, atbp.) — kapag hindi tugma,
+            // nag-o-overlap ang drawer sa ilalim ng navbar ("dalawang navbar").
             const navEl = document.querySelector("nav");
             const mobileMQ = window.matchMedia("(max-width: 968px)");
             const syncDrawerOffset = function () {
                 if (!navEl) return;
-                // Desktop: walang fixed drawer â€” tanggalin ang inline styles
-                // para hindi mapahaba ang .nav-links (nagiging ~100vh ito at
-                // natutulak pababa ang buong page kapag hindi tinanggal)
+                // Desktop: walang fixed drawer — tanggalin ang inline value para
+                // hindi mag-leak ang mobile offset sa desktop layout.
                 if (!mobileMQ.matches) {
-                    if (navLinks) { navLinks.style.top = ""; navLinks.style.height = ""; }
-                    if (navOverlay) { navOverlay.style.top = ""; navOverlay.style.height = ""; }
+                    document.documentElement.style.removeProperty("--nav-h");
                     return;
                 }
-                const navH = navEl.offsetHeight;
-                if (navLinks) {
-                    navLinks.style.top = navH + "px";
-                    navLinks.style.height = "calc(100dvh - " + navH + "px)";
-                }
-                if (navOverlay) {
-                    navOverlay.style.top = navH + "px";
-                    navOverlay.style.height = "calc(100dvh - " + navH + "px)";
-                }
+                // Isang source of truth na lang: --nav-h. Ito na ang binabasa ng
+                // drawer (.nav-links), overlay, at page offset sa CSS — dati kasing
+                // inline top/height sa dalawang elemento + hardcoded 53px sa CSS.
+                document.documentElement.style.setProperty("--nav-h", navEl.offsetHeight + "px");
             };
             syncDrawerOffset();
             window.addEventListener("resize", syncDrawerOffset);
@@ -78,7 +74,10 @@
             // Close the mobile drawer (admin-sidebar style)
             const closeMobileNav = function () {
                 if (navLinks) navLinks.classList.remove("nav-active");
-                if (mobileMenu) mobileMenu.classList.remove("active");
+                if (mobileMenu) {
+                    mobileMenu.classList.remove("active");
+                    mobileMenu.setAttribute("aria-expanded", "false");
+                }
                 if (navOverlay) navOverlay.classList.remove("show");
                 document.body.classList.remove("nav-open");
             };
@@ -88,6 +87,7 @@
                     syncDrawerOffset(); // laging fresh ang offset bago mag-slide in
                     const isOpen = navLinks.classList.toggle("nav-active");
                     mobileMenu.classList.toggle("active", isOpen);
+                    mobileMenu.setAttribute("aria-expanded", isOpen ? "true" : "false");
                     if (navOverlay) navOverlay.classList.toggle("show", isOpen);
                     document.body.classList.toggle("nav-open", isOpen);
                 });
@@ -322,6 +322,48 @@
                     testimonialCarousel.addEventListener("mouseenter", stopCarouselAutoplay);
                     testimonialCarousel.addEventListener("mouseleave", startCarouselAutoplay);
 
+                    // Swipe support (touch at mouse drag) — kaliwa/kanan para ma-slide
+                    // ang review. Pointer events ang ginamit para isang handler lang
+                    // sa touch at mouse; naka-capture ang pointer habang nasa drag
+                    // kaya kahit lumabas ang cursor sa viewport, marerelease pa rin.
+                    const carouselViewport = testimonialCarousel.querySelector(".carousel-viewport");
+                    if (carouselViewport) {
+                        const SWIPE_THRESHOLD = 48; // px bago mag-slide
+                        let swipeX = null;
+                        let swipeY = null;
+
+                        carouselViewport.addEventListener("pointerdown", function (e) {
+                            if (e.pointerType === "mouse" && e.button !== 0) return;
+                            // Pigilan ang text selection habang nagdra-drag (mouse lang;
+                            // hindi kailangan sa touch — doon ay scroll/select ang default)
+                            if (e.pointerType === "mouse") e.preventDefault();
+                            try { carouselViewport.setPointerCapture(e.pointerId); } catch (err) { /* optional */ }
+                            swipeX = e.clientX;
+                            swipeY = e.clientY;
+                            stopCarouselAutoplay();
+                        });
+
+                        carouselViewport.addEventListener("pointerup", function (e) {
+                            if (swipeX === null) return;
+                            const dx = e.clientX - swipeX;
+                            const dy = e.clientY - swipeY;
+                            swipeX = null;
+                            swipeY = null;
+                            // Pahalang lang ang bilangin — patayin ang vertical scroll distance
+                            if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+                                goToSlide(carouselIndex + (dx < 0 ? 1 : -1));
+                            }
+                            // I-restart lang ang autoplay kung talagang may 2+ slides
+                            if (carouselSlides.length > 1) startCarouselAutoplay();
+                        });
+
+                        carouselViewport.addEventListener("pointercancel", function () {
+                            swipeX = null;
+                            swipeY = null;
+                            if (carouselSlides.length > 1) startCarouselAutoplay();
+                        });
+                    }
+
                     goToSlide(0);
                     // Auto-swipe lang kapag 2+ ang reviews; kapag isa, static card na may dot
                     if (carouselSlides.length > 1) {
@@ -365,7 +407,13 @@
             backdrop-filter: blur(10px);
             color: var(--white);
             padding: 8px 14px;
-            min-width: 160px;
+            /* line-height: normal — pantay ang top/bottom sa admin tooltip.
+               Ang .ai-fab ay <div> kaya minamana ang body line-height (1.6);
+               ang admin toggle ay <button> na "normal" — kaya kung walang
+               explicit na normal dito, +~5px ang taas ng AI tooltip. */
+            line-height: normal;
+            /* Walang min-width — hug-content (pareho ng admin tooltip:
+               8px 14px lang ang padding, hindi lumalaki ang left/right) */
             text-align: center;
             border-radius: 8px;
             font-family: 'Montserrat', sans-serif;
@@ -1078,7 +1126,9 @@
         [data-theme="light"] #ai-widget-photo {
             background-color: #ffffff;
             color: #111111;
-            border: 1px solid #d4d4d8;
+            /* Walang border sa light mode (dating 1px #d4d4d8 na parang
+               naka-outline ang camera/mic icons) — ghost lang, tulad ng dark */
+            border: none;
         }
 
         [data-theme="light"] #ai-widget-mic:hover,
@@ -1650,44 +1700,50 @@
         }
 
         /* ==========================================
-           SweetAlert TOASTS + POPUPS — unified design
-           sa light & dark mode, responsive sa mobile.
-           Ang JS mixin ay nagse-set ng inline dark bg,
-           kaya !important ang kailangan sa overrides.
-           BUTTONS: iisa ang color scheme — brand blue
-           (#0d6efd) ang confirm sa both modes, outline
-           ang cancel na sumasabay sa theme.
-           ICONS: consistent palette (green/red/blue/amber)
-           na bagay sa puti at itim na background.
+           SweetAlert2 — TOASTS at DIALOGS, na-pareho sa
+           admin design (SweetAlert2 defaults + inline
+           params lang ang gumagawa ng kulay, gaya ng
+           admin_base.html).
+           IMPORTANTE: sa SweetAlert2 v11, ang TOAST ay may
+           klaseng `swal2-popup swal2-toast` — kaya ang
+           `.swal2-popup { }` ay NATATAMA rin ang toast.
+           Doon nanggawa ang DALAWANG border at malaking
+           border-radius sa toast. Kaya ang tamang saklaw:
+             • `.swal2-toast`                  → toast lang
+             • `.swal2-popup:not(.swal2-toast)` → dialog lang
+           BUTTONS: ang kulay ng dialog ay galing sa `.app-dialog-*`
+           tokens (PUTI/gray/red), parareho sa admin na gumagamit ng
+           `customClass` + `buttonsStyling:false`. WALANG
+           `background-color: #0d6efd !important` sa `.swal2-confirm`
+           ngayon — ito ang nanalo sa laban sa per-call na
+           `confirmButtonColor`, kaya dati nagiging BLUE ang delete.
            ========================================== */
 
          /* --- DARK MODE (default) --- */
+         /* --- TOAST: default na itsura ng SweetAlert2, gaya ng admin.
+            Ang inline na background/color ng AppToast mixin (#1a1a1a/#fff)
+            ang gumagawa ng dark card — hindi na natin pinipilit ang
+            border/shadow/bold-font, para pantay sa admin toast (pic 2). */
          .swal2-toast {
              background: #1a1a1a !important;
              color: #ffffff !important;
-             border: 1px solid rgba(255, 255, 255, 0.12) !important;
-             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important;
-             padding: 10px 14px !important;
          }
          .swal2-toast .swal2-title {
              color: #ffffff !important;
-             font-size: 0.88rem !important;
-             font-weight: 600 !important;
-             margin: 0 !important;
          }
          .swal2-toast .swal2-timer-progress-bar {
              background: rgba(255, 255, 255, 0.25) !important;
          }
-         .swal2-popup {
+         .swal2-popup:not(.swal2-toast) {
              background: #1a1a1a !important;
              color: #ffffff !important;
              border: 1px solid rgba(255, 255, 255, 0.12) !important;
              border-radius: 14px !important;
          }
-         .swal2-popup .swal2-title {
+         .swal2-popup:not(.swal2-toast) .swal2-title {
              color: #ffffff !important;
          }
-         .swal2-popup .swal2-html-container {
+         .swal2-popup:not(.swal2-toast) .swal2-html-container {
              color: #d4d4d8 !important;
          }
 
@@ -1695,8 +1751,6 @@
          [data-theme="light"] .swal2-toast {
              background: #ffffff !important;
              color: #111111 !important;
-             border: 1px solid #e5e7eb !important;
-             box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14) !important;
          }
          [data-theme="light"] .swal2-toast .swal2-title {
              color: #111111 !important;
@@ -1704,53 +1758,138 @@
          [data-theme="light"] .swal2-toast .swal2-timer-progress-bar {
              background: rgba(17, 17, 17, 0.25) !important;
          }
-         [data-theme="light"] .swal2-popup {
+         [data-theme="light"] .swal2-popup:not(.swal2-toast) {
              background: #ffffff !important;
              color: #111111 !important;
              border: 1px solid #e5e7eb !important;
          }
-         [data-theme="light"] .swal2-popup .swal2-title {
+         [data-theme="light"] .swal2-popup:not(.swal2-toast) .swal2-title {
              color: #111111 !important;
          }
-         [data-theme="light"] .swal2-popup .swal2-html-container {
+         [data-theme="light"] .swal2-popup:not(.swal2-toast) .swal2-html-container {
              color: #52525b !important;
          }
+         /* --- DIALOG design tokens: KAPAREHO ng admin ---
+            Admin: `customClass` + `buttonsStyling:false` (tingnan ang
+            admin_base.css `.booking-request-*` / admin_payment_list.html):
+              • popup   → bg #111111, border #2a2a2a, radius 8px
+              • title   → #f5f7fb, 2rem, weight 700
+              • confirm → PUTI (#f0f0f0) na may dark text
+              • cancel  → dark gray (#242424 / #d6d6d6)
+            Ang `danger: true` ng AppToast.confirm() ang nagdadagdag ng
+            `.app-dialog-confirm--danger` para RED (#dc2626) pa rin ang
+            destructive confirm — gaya ng admin delete flow.
+            NOTE: ginagamit ang `.swal2-popup.app-dialog-popup:not(.swal2-toast)` na
+            selector para pantayan (at malampasan sa order) ang
+            generic na `.swal2-popup:not(.swal2-toast)` sa itaas. */
+         .swal2-popup.app-dialog-popup:not(.swal2-toast) {
+             background: #111111 !important;
+             border: 1px solid #2a2a2a !important;
+             border-radius: 8px !important;
+             width: min(92vw, 560px) !important;
+             padding: 0.2rem 1.2rem 1rem !important;
+         }
+         .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-title {
+             color: #f5f7fb !important;
+             font-size: 2rem !important;
+             font-weight: 700 !important;
+             letter-spacing: -0.02em !important;
+             line-height: 1.15 !important;
+             margin: 0 0 0.7rem !important;
+         }
+         .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-html-container {
+             color: #d4d4d8 !important;
+             font-size: 0.95rem !important;
+             margin: 0 !important;
+         }
+         .app-dialog-actions {
+             gap: 0.6rem !important;
+             margin-top: 1rem !important;
+             margin-bottom: 1rem !important;
+         }
+         .app-dialog-confirm,
+         .app-dialog-cancel {
+             min-width: 104px !important;
+             border: 1px solid transparent !important;
+             border-radius: 8px !important;
+             padding: 0.55rem 1.05rem !important;
+             font-size: 0.95rem !important;
+             font-weight: 600 !important;
+             box-shadow: none !important;
+         }
+         .app-dialog-confirm {
+             background: #f0f0f0 !important;
+             color: #111111 !important;
+             border-color: #f0f0f0 !important;
+         }
+         .app-dialog-confirm:hover {
+             background: #dcdcdc !important;
+             border-color: #dcdcdc !important;
+         }
+         .app-dialog-cancel {
+             background: #242424 !important;
+             color: #d6d6d6 !important;
+             border-color: #3a3a3a !important;
+         }
+         .app-dialog-cancel:hover {
+             background: #2f2f2f !important;
+         }
+         /* Destructive confirm — RED, gaya ng admin delete flow. */
+         .app-dialog-confirm--danger {
+             background: #dc2626 !important;
+             color: #ffffff !important;
+             border-color: #dc2626 !important;
+         }
+         .app-dialog-confirm--danger:hover {
+             background: #b91c1c !important;
+             border-color: #b91c1c !important;
+         }
 
-         /* --- BUTTONS: iisang color scheme sa light & dark --- */
-         .swal2-popup .swal2-confirm {
-             background-color: #0d6efd !important;
+         /* --- LIGHT MODE dialogs --- */
+         [data-theme="light"] .swal2-popup.app-dialog-popup:not(.swal2-toast) {
+             background: #ffffff !important;
+             border: 1px solid #e5e7eb !important;
+         }
+         [data-theme="light"] .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-title {
+             color: #111827 !important;
+         }
+         [data-theme="light"] .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-html-container {
+             color: #4b5563 !important;
+         }
+         [data-theme="light"] .app-dialog-confirm {
+             background: #111827 !important;
              color: #ffffff !important;
-             border: 1px solid #0d6efd !important;
+             border-color: #111827 !important;
+         }
+         [data-theme="light"] .app-dialog-confirm:hover {
+             background: #1f2937 !important;
+             border-color: #1f2937 !important;
+         }
+         [data-theme="light"] .app-dialog-cancel {
+             background: #f3f4f6 !important;
+             color: #4b5563 !important;
+             border-color: #d1d5db !important;
+         }
+         [data-theme="light"] .app-dialog-confirm--danger {
+             background: #dc2626 !important;
+             color: #ffffff !important;
+             border-color: #dc2626 !important;
+         }
+
+         /* --- BUTTONS (generic fallback): shape/size lang, WALANG color.
+            Ang mga dialog na gumagamit ng AppToast.confirm() ay may
+            sariling `.app-dialog-*` tokens sa itaas. Ang fallback na
+            ito ang humahawak sa mga makalumang dialog na hindi pa
+            naka-customClass. WALANG `background-color !important` dito
+            — dati may `#0d6efd !important` na nanalo laban sa inline
+            na `confirmButtonColor`, kaya nagiging BLUE ang delete. */
+         .swal2-popup:not(.swal2-toast) .swal2-confirm {
              border-radius: 8px !important;
              font-weight: 600 !important;
          }
-         .swal2-popup .swal2-confirm:hover,
-         .swal2-popup .swal2-confirm:focus {
-             background-color: #0b5ed7 !important;
-             border-color: #0b5ed7 !important;
-             color: #ffffff !important;
-         }
-         .swal2-popup .swal2-cancel {
-             background-color: transparent !important;
-             color: #ffffff !important;
-             border: 1px solid rgba(255, 255, 255, 0.28) !important;
+         .swal2-popup:not(.swal2-toast) .swal2-cancel {
              border-radius: 8px !important;
              font-weight: 600 !important;
-         }
-         .swal2-popup .swal2-cancel:hover,
-         .swal2-popup .swal2-cancel:focus {
-             background-color: rgba(255, 255, 255, 0.08) !important;
-             color: #ffffff !important;
-         }
-         [data-theme="light"] .swal2-popup .swal2-cancel {
-             background-color: #ffffff !important;
-             color: #111111 !important;
-             border: 1px solid #d4d4d8 !important;
-         }
-         [data-theme="light"] .swal2-popup .swal2-cancel:hover,
-         [data-theme="light"] .swal2-popup .swal2-cancel:focus {
-             background-color: #f4f4f5 !important;
-             color: #111111 !important;
          }
 
          /* --- ICONS: consistent, bagay sa both themes --- */
@@ -1779,7 +1918,21 @@
              color: #eab308 !important;
          }
 
-         /* --- RESPONSIVE: compact toasts sa mobile --- */
+         /* --- RESPONSIVE: compact toasts + dialogs sa tablet/mobile --- */
+         /* TABLET (≤1024px): bahagyang mas maliit na dialog at toast */
+         @media (max-width: 1024px) {
+             .swal2-toast {
+                 max-width: min(420px, calc(100vw - 32px)) !important;
+             }
+             .swal2-popup:not(.swal2-toast) {
+                 max-width: calc(100vw - 32px) !important;
+                 padding: 1.3rem 1.1rem !important;
+             }
+             .swal2-popup:not(.swal2-toast) .swal2-title {
+                 font-size: 1.15rem !important;
+             }
+         }
+         /* MOBILE (≤768px): compact toast, may safe-area padding */
          @media (max-width: 768px) {
              .swal2-toast {
                  max-width: calc(100vw - 24px) !important;
@@ -1801,27 +1954,30 @@
                  height: 3px !important;
              }
          }
+         /* SMALL MOBILE (≤480px): maliit na screen, laging
+            umaandar ang max-width calc para hindi lumabas
+            ang toast sa labas ng viewport. */
          @media (max-width: 480px) {
-             .swal2-popup {
+             .swal2-popup:not(.swal2-toast) {
                  width: calc(100vw - 24px) !important;
                  max-width: calc(100vw - 24px) !important;
                  padding: 1.1rem 0.9rem !important;
              }
-             .swal2-popup .swal2-icon {
+             .swal2-popup:not(.swal2-toast) .swal2-icon {
                  width: 3.2rem !important;
                  height: 3.2rem !important;
              }
-             .swal2-popup .swal2-icon .swal2-icon-content {
+             .swal2-popup:not(.swal2-toast) .swal2-icon .swal2-icon-content {
                  font-size: 1.6rem !important;
              }
-             .swal2-popup .swal2-title {
+             .swal2-popup:not(.swal2-toast) .swal2-title {
                  font-size: 1.05rem !important;
              }
-             .swal2-popup .swal2-html-container {
+             .swal2-popup:not(.swal2-toast) .swal2-html-container {
                  font-size: 0.85rem !important;
              }
-             .swal2-popup .swal2-confirm,
-             .swal2-popup .swal2-cancel {
+             .swal2-popup:not(.swal2-toast) .swal2-confirm,
+             .swal2-popup:not(.swal2-toast) .swal2-cancel {
                  font-size: 0.85rem !important;
                  padding: 0.5rem 1.1rem !important;
              }
@@ -2440,16 +2596,11 @@
                             delBtn.style.fontSize = '1.1rem';
                             delBtn.onclick = async (e) => {
                                 e.stopPropagation();
-                                Swal.fire({
+                                AppToast.confirm({
                                     title: 'Are you sure?',
                                     text: "You won't be able to revert this!",
-                                    icon: 'warning',
-                                    showCancelButton: true,
-                                    confirmButtonColor: '#6c757d',
-                                    cancelButtonColor: '#d33',
-                                    confirmButtonText: 'Yes, delete it!',
-                                    background: '#1e1e1e',
-                                    color: '#fff'
+                                    confirmText: 'Yes, delete it!',
+                                    danger: true
                                 }).then(async (result) => {
                                     if (result.isConfirmed) {
                                         const deletedId = session.id;
@@ -2469,14 +2620,9 @@
                                         // Always reload the list to update sidebar UI
                                         await loadSessions();
 
-                                        Swal.fire({
-                                            title: 'Deleted!',
-                                            text: 'Your chat has been deleted.',
+                                        AppToast.fire({
                                             icon: 'success',
-                                            background: '#1e1e1e',
-                                            color: '#fff',
-                                            timer: 1500,
-                                            showConfirmButton: false
+                                            title: 'Your chat has been deleted.'
                                         });
                                     }
                                 });
@@ -3237,26 +3383,12 @@
     <!-- Global SweetAlert Django Messages Handler -->
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 4000,
-                timerProgressBar: true,
-                background: '#1a1a1a',
-                color: '#fff',
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer)
-                    toast.addEventListener('mouseleave', Swal.resumeTimer)
-                }
-            });
-
             {% if messages %}
                 {% for message in messages %}
                     const messageType = '{{ message.tags|escapejs }}' === 'error' ? 'error' : ('{{ message.tags|escapejs }}' === 'success' ? 'success' : 'info');
                     const messageText = '{{ message|escapejs }}';
                     const isLoginSuccess = messageType === 'success' && messageText.toLowerCase().includes('login successful');
-                    Toast.fire({
+                    AppToast.fire({
                         icon: messageType,
                         title: messageText,
                         timer: isLoginSuccess ? 1500 : 4000

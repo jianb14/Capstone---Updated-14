@@ -231,6 +231,65 @@ def _is_reset_request_rate_limited(request, email):
     return False, ""
 
 
+def _is_verification_resend_rate_limited(request, email):
+    client_ip = _get_client_ip(request)
+    normalized_email = (email or "").strip().lower()
+    email_hash = hashlib.sha256(normalized_email.encode("utf-8")).hexdigest()
+    now = int(time.time())
+
+    cooldown_seconds = getattr(settings, "VERIFICATION_RESEND_COOLDOWN_SECONDS", 60)
+    window_seconds = getattr(
+        settings, "VERIFICATION_RESEND_RATE_LIMIT_WINDOW_SECONDS", 3600
+    )
+    ip_limit = getattr(settings, "VERIFICATION_RESEND_RATE_LIMIT_PER_IP", 5)
+    email_limit = getattr(settings, "VERIFICATION_RESEND_RATE_LIMIT_PER_EMAIL", 3)
+
+    cooldown_key = f"verify-resend:cooldown:ip:{client_ip}"
+    cooldown_until_key = f"{cooldown_key}:until"
+    ip_count_key = f"verify-resend:count:ip:{client_ip}"
+    ip_window_until_key = f"{ip_count_key}:until"
+    email_count_key = f"verify-resend:count:email:{email_hash}"
+    email_window_until_key = f"{email_count_key}:until"
+
+    if cache.get(cooldown_key):
+        cooldown_until = cache.get(cooldown_until_key) or (now + cooldown_seconds)
+        wait_seconds = max(1, int(cooldown_until) - now)
+        return (
+            True,
+            f"Please wait {_format_wait_time(wait_seconds)} before requesting another verification email.",
+        )
+
+    current_ip_count = cache.get(ip_count_key, 0)
+    current_email_count = cache.get(email_count_key, 0)
+    if current_ip_count >= ip_limit or current_email_count >= email_limit:
+        ip_wait_seconds = 0
+        email_wait_seconds = 0
+
+        if current_ip_count >= ip_limit:
+            ip_window_until = cache.get(ip_window_until_key) or (now + window_seconds)
+            ip_wait_seconds = max(1, int(ip_window_until) - now)
+
+        if current_email_count >= email_limit:
+            email_window_until = cache.get(email_window_until_key) or (
+                now + window_seconds
+            )
+            email_wait_seconds = max(1, int(email_window_until) - now)
+
+        wait_seconds = max(ip_wait_seconds, email_wait_seconds, 1)
+        return (
+            True,
+            f"Too many verification email requests. Please try again in {_format_wait_time(wait_seconds)}.",
+        )
+
+    cache.set(cooldown_key, 1, timeout=cooldown_seconds)
+    cache.set(cooldown_until_key, now + cooldown_seconds, timeout=cooldown_seconds)
+    cache.add(ip_window_until_key, now + window_seconds, timeout=window_seconds)
+    cache.add(email_window_until_key, now + window_seconds, timeout=window_seconds)
+    _increase_rate_limit_counter(ip_count_key, window_seconds)
+    _increase_rate_limit_counter(email_count_key, window_seconds)
+    return False, ""
+
+
 def log_action(user, action):
     """Helper function to create an audit log entry."""
     AuditLog.objects.create(user=user, action=action)

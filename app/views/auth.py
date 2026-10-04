@@ -1,12 +1,65 @@
 """Authentication: register, verify, login, password reset, logout. (split from app/views.py)"""
 
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.crypto import constant_time_compare
+from django.utils.http import base36_to_int
+
 from .common import *  # noqa: F401,F403
-from .common import _is_reset_request_rate_limited  # noqa: F401
+from .common import (  # noqa: F401
+    _is_reset_request_rate_limited,
+    _is_verification_resend_rate_limited,
+)
+
+
+class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
+    """Token generator para sa account email verification.
+
+    May sariling ``key_salt`` (hindi interchangeable sa password-reset
+    tokens) at mas mahabang expiry (``EMAIL_VERIFICATION_TIMEOUT``, 24 oras
+    by default) kaysa sa 30-minute na reset tokens.
+    """
+
+    key_salt = "app.views.auth.EmailVerificationTokenGenerator"
+
+    def check_token(self, user, token):
+        """Check that a verification token is correct for the given user."""
+        if not (user and token):
+            return False
+        # Parse the token
+        try:
+            ts_b36, _ = token.split("-")
+        except ValueError:
+            return False
+
+        try:
+            ts = base36_to_int(ts_b36)
+        except ValueError:
+            return False
+
+        # Check that the timestamp/uid has not been tampered with
+        for secret in [self.secret, *self.secret_fallbacks]:
+            if constant_time_compare(
+                self._make_token_with_timestamp(user, ts, secret),
+                token,
+            ):
+                break
+        else:
+            return False
+
+        # Check the timestamp is within the verification window
+        timeout = getattr(settings, "EMAIL_VERIFICATION_TIMEOUT", 86400)
+        if (self._num_seconds(self._now()) - ts) > timeout:
+            return False
+
+        return True
+
+
+email_verification_token_generator = EmailVerificationTokenGenerator()
 
 
 def _send_account_verification_email(request, user):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
+    token = email_verification_token_generator.make_token(user)
     verify_url = request.build_absolute_uri(
         reverse("verify_email", kwargs={"uidb64": uid, "token": token})
     )
@@ -63,9 +116,17 @@ def register(request):
         if not phone:
             errors.append("Phone number is required.")
 
-        # Email unique
-        if User.objects.filter(email=email).exists():
+        # Email unique. If the account exists but is still unverified, point
+        # the user to the resend flow instead of the old "Email already
+        # exists." dead end.
+        existing_user = User.objects.filter(email=email).first()
+        if existing_user and existing_user.email_verified:
             errors.append("Email already exists.")
+        elif existing_user:
+            errors.append(
+                "This email is already registered but not yet verified. "
+                "Please log in and use \"Resend verification email\" to get a new link."
+            )
 
         # Username unique
         if User.objects.filter(username=username).exists():
@@ -150,12 +211,12 @@ def verify_email(request, uidb64, token):
         messages.success(request, "Your email is already verified. You can log in.")
         return redirect("login")
 
-    if not default_token_generator.check_token(user, token):
-        messages.error(
-            request,
-            "This verification link is invalid or expired. Please register again.",
-        )
-        return redirect("register")
+    if not email_verification_token_generator.check_token(user, token):
+        # Dead-end fix: huwag nang ipabalik sa register (doon ay "Email
+        # already exists" lang ang lalabas).  I-redirect sa login kung saan
+        # may "Resend verification email" button at naka-prefill ang email.
+        request.session["unverified_email"] = user.email
+        return redirect("login")
 
     user.email_verified = True
     user.save(update_fields=["email_verified"])
@@ -168,6 +229,10 @@ User = get_user_model()
 
 
 def user_login(request):
+    # Email na naka-stash mula sa invalid/expired verification link —
+    # para may persistent na banner at prefill sa login page.
+    stashed_email = request.session.pop("unverified_email", "")
+
     if request.method == "POST":
         email = (request.POST.get("email") or "").strip().lower()
         password = request.POST.get("password")
@@ -185,11 +250,17 @@ def user_login(request):
 
         if user is not None:
             if not user.is_superuser and not getattr(user, "email_verified", True):
+                # Persistent inline banner imbes na lilipas na toast — dito
+                # naka-prefill ang email at may "Resend verification email".
                 return render(
                     request,
                     "auth/login.html",
                     {
-                        "error": "Please verify your Gmail first. Check your inbox for the verification link."
+                        "unverified_email": email,
+                        "verify_message": (
+                            "Please confirm your email address before logging in. "
+                            "Check your inbox for the confirmation link, or request a new one below."
+                        ),
                     },
                 )
 
@@ -212,7 +283,51 @@ def user_login(request):
                 request, "auth/login.html", {"error": "Invalid email or password."}
             )
 
-    return render(request, "auth/login.html")
+    context = {}
+    if stashed_email:
+        context["unverified_email"] = stashed_email
+        context["verify_message"] = (
+            "This verification link is invalid or expired. "
+            "Click the button below to receive a new verification email."
+        )
+    return render(request, "auth/login.html", context)
+
+
+def resend_verification(request):
+    generic_message = (
+        "If your account still needs verification, a new verification link has "
+        "been sent. Please check your inbox and spam folder."
+    )
+
+    if request.method == "POST":
+        email = (request.POST.get("email") or "").strip().lower()
+
+        if not email:
+            messages.error(request, "Please enter your account email.")
+            return render(request, "auth/resend_verification.html")
+
+        is_limited, rate_limit_message = _is_verification_resend_rate_limited(
+            request, email
+        )
+        if is_limited:
+            messages.error(request, rate_limit_message)
+            return render(request, "auth/resend_verification.html", {"email": email})
+
+        try:
+            user = User.objects.get(email__iexact=email)
+            if not user.is_superuser and not getattr(user, "email_verified", True):
+                _send_account_verification_email(request, user)
+                log_action(user, "Verification email resent.")
+        except User.DoesNotExist:
+            # Generic response — para hindi ma-enumerate ang accounts.
+            pass
+        except Exception:
+            logger.exception("Failed to resend account verification email.")
+
+        messages.success(request, generic_message)
+        return redirect("login")
+
+    return render(request, "auth/resend_verification.html")
 
 
 def forgot_password_request(request):

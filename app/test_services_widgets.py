@@ -4,7 +4,7 @@ from pathlib import Path
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Service, User
+from .models import AdditionalOnly, AddOn, Package, Service, User
 
 
 class ServicesPageWidgetsTests(TestCase):
@@ -117,6 +117,163 @@ class ServicesPageWidgetsTests(TestCase):
         response = self.client.get("/services/")
         # json_script wraps data in a <script id="services-widget-data"> tag
         self.assertContains(response, 'id="services-widget-data"')
+
+    def test_quiz_budget_field_removed(self):
+        # The AI quiz no longer asks for a budget range.
+        response = self.client.get("/services/")
+        body = response.content.decode("utf-8")
+        self.assertNotIn("Budget Range", body)
+        self.assertNotIn("quizBudget", body)
+
+    def test_estimator_uses_custom_select_dropdowns(self):
+        # The pretty native selects were replaced with the booking page's
+        # custom-select dropdown design.
+        Package.objects.create(name="Package A", features="Arch", price=10000)
+        response = self.client.get("/services/")
+        body = response.content.decode("utf-8")
+        self.assertIn("custom-select-container", body)
+        self.assertIn('id="estimatorPackage"', body)
+
+    def test_estimator_addons_single_select_and_welcome_stand_present(self):
+        Package.objects.create(name="Package A", features="Arch", price=10000)
+        AddOn.objects.create(
+            name="Entrance A", features="Arch", price=3499, solo_price=4999
+        )
+        AdditionalOnly.objects.create(
+            name="Welcome Stand", features="Stand", price=1500
+        )
+        response = self.client.get("/services/")
+        body = response.content.decode("utf-8")
+        # Single-select add-on (radio) instead of multiple checkboxes.
+        self.assertIn('name="estimatorAddon"', body)
+        self.assertIn('type="radio"', body)
+        # Welcome Stand section is now part of the estimator.
+        self.assertIn('id="estimatorAdditionals"', body)
+        self.assertIn('name="estimatorAdditional"', body)
+        self.assertIn("Welcome Stand", body)
+
+    def test_widget_data_exposes_additionals(self):
+        Package.objects.create(name="Package A", features="Arch", price=10000)
+        AdditionalOnly.objects.create(
+            name="Welcome Stand", features="Stand", price=1500
+        )
+        response = self.client.get("/services/")
+        data = response.context["services_widget_data"]
+        self.assertEqual(len(data["additionals"]), 1)
+        self.assertEqual(data["additionals"][0]["name"], "Welcome Stand")
+        self.assertEqual(data["additionals"][0]["price"], "1500.00")
+
+    def test_tool_badges_are_label_only(self):
+        # Badge = plain text na lang: walang icon, border, o background.
+        response = self.client.get("/services/")
+        body = response.content.decode("utf-8")
+        for label in ("AI-Powered", "Instant Estimate", "Live Availability"):
+            self.assertIn(label, body)
+
+        self.assertNotIn("fa-regular fa-lightbulb\"></i>AI-Powered", body)
+        self.assertNotIn("fa-regular fa-credit-card\"></i>Instant Estimate", body)
+        self.assertNotIn("fa-regular fa-calendar\"></i>Live Availability", body)
+
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        badge_block = css.split(".tool-badge {")[1].split("}")[0]
+        self.assertNotIn("border", badge_block)
+        self.assertNotIn("background", badge_block)
+        self.assertNotIn("<i", badge_block)
+        # Walang na ring icon rule para sa badge.
+        self.assertNotIn(".tool-badge i {", css)
+
+        # Generated "Your AI Theme Suggestion" heading still uses a regular icon.
+        js_path = Path(__file__).resolve().parent.parent / "static" / "js" / "services_widgets.js"
+        js = js_path.read_text(encoding="utf-8")
+        self.assertNotIn("fa-solid fa-wand-magic-sparkles", js)
+        self.assertIn("fa-regular fa-lightbulb", js)
+
+    def test_tool_cards_match_package_card_background(self):
+        # Cards should use the same bg as the Packages page cards.
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        self.assertIn("background: var(--pkg-card)", css)
+        self.assertIn("[data-theme=\"light\"] .tool-card {\n    background: #f9f9fa;", css)
+
+    def test_uniform_field_and_button_heights(self):
+        # Inputs and the custom select must share one height, and all tool
+        # buttons must be the same size.
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        self.assertIn(".tool-field .custom-select-trigger {\n    height: 44px;", css)
+        self.assertIn(".services-tools .btn {\n    width: 100%;\n    height: 40px;", css)
+
+    def test_widget_polish_no_heavy_shadows_or_white_borders(self):
+        # Minimal dropdown shadow and subtle success borders (not near-white in
+        # dark mode).
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        self.assertIn("box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);", css)
+        self.assertNotIn("box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);", css)
+        self.assertIn(
+            ".availability-open {\n    border-color: rgba(255, 255, 255, 0.16);", css
+        )
+        self.assertIn(".quiz-result-success {\n    border-color: rgba(255, 255, 255, 0.16);", css)
+
+    def test_addon_radio_and_label_are_center_aligned(self):
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        # Regression: `.tool-field label { display: block }` (0,1,1) ay
+        # nanalo sa `.addon-check { display: flex }` (0,1,0) kaya na-stack
+        # ang radio at label. Excluded na ang addon-check sa field caption.
+        self.assertIn(".tool-field label:not(.addon-check) {", css)
+        self.assertNotIn("\n.tool-field label {", css)
+        row_block = css.split(".addon-check {")[1].split("}")[0]
+        self.assertIn("display: flex;", row_block)
+        self.assertIn("align-items: center;", row_block)
+        # Radio: walang default margin ng browser, pinwerso sa gitna ng row.
+        self.assertIn(".addon-check input {", css)
+        radio_block = css.split(".addon-check input {")[1].split("}")[0]
+        self.assertIn("align-self: center;", radio_block)
+        self.assertIn("margin: 0;", radio_block)
+        # Label: line-height pinareho sa row para eksaktong magkasalubong.
+        label_block = css.split(".addon-check > span {")[1].split("}")[0]
+        self.assertIn("align-items: center;", label_block)
+        self.assertIn("line-height: 1.4;", label_block)
+
+    def test_tools_section_padding_matches_other_sections(self):
+        # Pareho ang padding ng .services-tools sa .services-detailed (8rem 5%).
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        tools_block = css.split(".services-tools {")[1].split("}")[0]
+        self.assertIn("padding: 8rem 5%;", tools_block)
+        detailed_block = css.split(".services-detailed {")[1].split("}")[0]
+        self.assertIn("padding: 8rem 5%;", detailed_block)
+
+    def test_service_image_placeholder_uses_minimal_shadow(self):
+        # Kapag walang naka-attach na image, dapat minimal na shadow lang
+        # (hindi yung malaking shadow na para sa tunay na larawan).
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        self.assertIn(".service-image:has(.service-image-placeholder) {", css)
+        dark_block = css.split(".service-image:has(.service-image-placeholder) {")[1].split("}")[0]
+        self.assertIn("box-shadow: none;", dark_block)
+
+        self.assertIn(
+            '[data-theme="light"] .service-image:has(.service-image-placeholder) {', css
+        )
+        light_block = css.split(
+            '[data-theme="light"] .service-image:has(.service-image-placeholder) {'
+        )[1].split("}")[0]
+        self.assertIn("box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);", light_block)
+        # Hindi na dapat kasama ang dating malaking shadow sa placeholder.
+        self.assertNotIn("0 12px 32px rgba(0, 0, 0, 0.1);", light_block)
+        # Parehong bg/border sa package card sa light mode (#f9f9fa / #e8e8ea)
+        # — ang dating #eef0f3 ay masyadong gray.
+        self.assertIn("background: #f9f9fa;", light_block)
+        self.assertIn("border-color: #e8e8ea;", light_block)
+        self.assertNotIn("#eef0f3", light_block)
+
+        # Kapareho ng aktuwal na package card sa light mode.
+        pkg_block = css.split('[data-theme="light"] .package-card {')[1].split("}")[0]
+        self.assertIn("background: #f9f9fa;", pkg_block)
+        self.assertIn("border: 1px solid #e8e8ea;", pkg_block)
 
 
 class DateAvailabilityApiTests(TestCase):

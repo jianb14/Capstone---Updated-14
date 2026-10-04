@@ -2,7 +2,7 @@
 {% load static tz %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20260913e">
+<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20261004e">
 
 <div class="concern-page">
     <div class="concern-wrap">
@@ -143,33 +143,38 @@
         </div>
         <div class="concern-modal-body">
             <div class="detail-grid">
-                <div class="detail-row"><span>Category</span><strong id="modalCategory">-</strong></div>
-                <div class="detail-row"><span>Status</span><strong id="modalStatus" class="client-modal-status">-</strong></div>
-                <div class="detail-row"><span>Created</span><strong id="modalCreated">-</strong></div>
-                <div class="detail-row"><span>Updated</span><strong id="modalUpdated">-</strong></div>
+                <div class="detail-row"><span><i class="fa-solid fa-tag" aria-hidden="true"></i>Category</span><strong id="modalCategory">-</strong></div>
+                <div class="detail-row"><span><i class="fa-regular fa-circle-dot" aria-hidden="true"></i>Status</span><strong id="modalStatus" class="client-modal-status">-</strong></div>
+                <div class="detail-row"><span><i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>Created</span><strong id="modalCreated">-</strong></div>
+                <div class="detail-row"><span><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Updated</span><strong id="modalUpdated">-</strong></div>
             </div>
 
             <div class="detail-block">
-                <h4>Subject</h4>
+                <h4><i class="fa-regular fa-bookmark" aria-hidden="true"></i>Subject</h4>
                 <p id="modalSubject">-</p>
             </div>
 
             <div class="detail-block">
-                <h4>Message</h4>
+                <h4><i class="fa-regular fa-comment-dots" aria-hidden="true"></i>Message</h4>
                 <p id="modalMessage">-</p>
             </div>
 
             <div class="detail-block" id="modalImagesBlock" style="display: none;">
-                <h4>Attached Images</h4>
+                <h4><i class="fa-regular fa-images" aria-hidden="true"></i>Attached Images</h4>
                 <div id="modalImages" class="concern-images-grid"></div>
             </div>
 
             <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
-                <h4>Admin Notes</h4>
+                <h4><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Admin Notes</h4>
                 <p id="modalAdminNotes" class="client-modal-admin-notes">-</p>
             </div>
         </div>
     </div>
+</div>
+
+<div class="concern-image-lightbox" id="concernImageLightbox" aria-hidden="true" role="dialog" aria-label="Attached image preview">
+    <button type="button" class="concern-lightbox-close" id="concernLightboxClose" aria-label="Close image">&times;</button>
+    <img id="concernLightboxImg" src="" alt="Attached image preview">
 </div>
 
 {{ form_error_toasts|json_script:"concern-form-errors" }}
@@ -190,6 +195,9 @@
         const modal = document.getElementById('concernDetailModal');
         const closeBtn = document.getElementById('concernModalClose');
         const viewButtons = document.querySelectorAll('.btn-view-concern');
+        const imageLightbox = document.getElementById('concernImageLightbox');
+        const lightboxImg = document.getElementById('concernLightboxImg');
+        const lightboxCloseBtn = document.getElementById('concernLightboxClose');
 
         const modalFields = {
             ticket: document.getElementById('modalTicket'),
@@ -214,12 +222,10 @@
                 const newFiles = Array.from(this.files);
                 
                 if (concernFiles.items.length + newFiles.length > 4) {
-                    Swal.fire({
+                    AppToast.fire({
                         icon: 'error',
                         title: 'Too many files',
-                        text: 'You can only upload a maximum of 4 images.',
-                        background: '#1a1a1a',
-                        color: '#fff'
+                        text: 'You can only upload a maximum of 4 images.'
                     });
                     this.value = ''; // Reset the actual input
                     return;
@@ -493,7 +499,7 @@
                     const img = document.createElement('img');
                     img.src = url.trim();
                     img.className = 'concern-modal-img';
-                    img.onclick = () => window.open(url, '_blank');
+                    img.onclick = () => openImageLightbox(url.trim());
                     modalFields.images.appendChild(img);
                 });
                 imagesBlock.style.display = 'block';
@@ -501,15 +507,31 @@
                 imagesBlock.style.display = 'none';
             }
 
+            closeImageLightbox();
             modal.classList.add('show');
             modal.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden';
         }
 
         function closeModal() {
+            closeImageLightbox();
             modal.classList.remove('show');
             modal.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+        }
+
+        function openImageLightbox(url) {
+            if (!url || !imageLightbox || !lightboxImg) return;
+            lightboxImg.src = url;
+            imageLightbox.classList.add('show');
+            imageLightbox.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeImageLightbox() {
+            if (!imageLightbox) return;
+            imageLightbox.classList.remove('show');
+            imageLightbox.setAttribute('aria-hidden', 'true');
+            if (lightboxImg) lightboxImg.src = '';
         }
 
         viewButtons.forEach((button) => {
@@ -523,7 +545,18 @@
             });
         }
 
+        if (lightboxCloseBtn) lightboxCloseBtn.addEventListener('click', closeImageLightbox);
+        if (imageLightbox) {
+            imageLightbox.addEventListener('click', function (event) {
+                if (event.target === imageLightbox) closeImageLightbox();
+            });
+        }
+
         document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && imageLightbox && imageLightbox.classList.contains('show')) {
+                closeImageLightbox();
+                return;
+            }
             if (event.key === 'Escape' && modal && modal.classList.contains('show')) {
                 closeModal();
             }
@@ -539,19 +572,7 @@
             }
 
             if (Array.isArray(formErrors) && formErrors.length) {
-                const Toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3800,
-                    timerProgressBar: true,
-                    background: '#1a1a1a',
-                    color: '#fff',
-                    didOpen: (toast) => {
-                        toast.addEventListener('mouseenter', Swal.stopTimer);
-                        toast.addEventListener('mouseleave', Swal.resumeTimer);
-                    }
-                });
+                const Toast = AppToast.mixin({ timer: 3800 });
 
                 formErrors.forEach((msg, index) => {
                     setTimeout(() => {

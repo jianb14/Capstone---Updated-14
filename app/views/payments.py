@@ -416,21 +416,41 @@ def download_payment_receipt_pdf(request, payment_id):
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'BalloorinaBlack.png')
         
     if os.path.exists(logo_path):
-        # Position logo at top right
-        p.drawImage(logo_path, width - 180, height - 85, width=130, preserveAspectRatio=True, mask='auto')
+        # Position the logo at the top LEFT of the header.
+        # NOTE: reportlab's drawImage anchors on the image *centre* by default
+        # and treats a missing `height` as the image's pixel height. With only
+        # `width` supplied (and a 956x261 source) the vertical centring shifted
+        # the logo ~113pt upwards, landing it fully above the A4 page -- so the
+        # receipt rendered without a visible logo. Always pass the real,
+        # aspect-correct width/height and pin the bottom-left corner instead.
+        from reportlab.lib.utils import ImageReader
 
-    # Title
-    p.setFont("Helvetica-Bold", 22)
-    p.drawString(50, height - 55, "Payment Receipt")
+        logo = ImageReader(logo_path)
+        logo_w = 130
+        logo_h = logo_w * logo.getSize()[1] / logo.getSize()[0]
+        p.drawImage(
+            logo,
+            50,
+            height - 45 - logo_h,
+            width=logo_w,
+            height=logo_h,
+            anchor='sw',
+            mask='auto',
+        )
+
+    # Header stack, all left-aligned under the top-left logo:
+    # logo -> "Payment Receipt" -> billing statement line -> divider.
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, height - 100, "Payment Receipt")
     p.setFont("Helvetica", 10)
-    p.setStrokeColorRGB(0.4, 0.4, 0.4)
-    p.drawString(50, height - 72, "Balloorina.ph – Official Billing Statement")
+    p.drawString(50, height - 117, "Balloorina.ph – Official Billing Statement")
 
-    # Divider
+    # Divider (light gray so it reads as a subtle separator).
+    p.setStrokeColorRGB(0.85, 0.85, 0.85)
     p.setLineWidth(1)
-    p.line(50, height - 90, width - 50, height - 90)
+    p.line(50, height - 135, width - 50, height - 135)
 
-    y = height - 120
+    y = height - 165
     line_height = 22
 
     def draw_row(label, value):

@@ -117,46 +117,48 @@
                 <!-- AI Style Quiz -->
                 <div class="tool-card" id="style-quiz">
                     <div class="tool-card-head">
-                        <span class="tool-badge tool-badge-ai"><i class="fa-solid fa-wand-magic-sparkles"></i>AI-Powered</span>
+                        <span class="tool-badge tool-badge-ai">AI-Powered</span>
                         <h2>Find Your Perfect Style</h2>
-                        <p>Answer 4 quick questions and our AI stylist will recommend a balloon theme made for your event.</p>
+                        <p>Answer 3 quick questions and our AI stylist will recommend a balloon theme made for your event.</p>
                     </div>
                     {% if user.is_authenticated %}
                         <form id="quizForm" class="tool-form" novalidate>
                             <div class="tool-field">
-                                <label for="quizEventType">Event Type</label>
-                                <select id="quizEventType" required>
-                                    <option value="">Select event type</option>
-                                    <option value="Birthday">Birthday</option>
-                                    <option value="Wedding">Wedding</option>
-                                    <option value="Corporate Event">Corporate Event</option>
-                                    <option value="Baby Shower">Baby Shower</option>
-                                    <option value="Debut">Debut</option>
-                                    <option value="Anniversary">Anniversary</option>
-                                    <option value="Kids Party">Kids Party</option>
-                                    <option value="Other Celebration">Other Celebration</option>
-                                </select>
+                                <label>Event Type</label>
+                                <div class="custom-select-container">
+                                    <div class="custom-select-trigger" tabindex="0" role="button" aria-haspopup="listbox">
+                                        <span>Select event type</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </div>
+                                    <ul class="custom-select-options" role="listbox">
+                                        <li data-value="Birthday">Birthday</li>
+                                        <li data-value="Wedding">Wedding</li>
+                                        <li data-value="Corporate Event">Corporate Event</li>
+                                        <li data-value="Baby Shower">Baby Shower</li>
+                                        <li data-value="Debut">Debut</li>
+                                        <li data-value="Anniversary">Anniversary</li>
+                                        <li data-value="Kids Party">Kids Party</li>
+                                        <li data-value="Other Celebration">Other Celebration</li>
+                                    </ul>
+                                    <input type="hidden" id="quizEventType" value="">
+                                </div>
                             </div>
                             <div class="tool-field">
-                                <label for="quizVibe">Preferred Vibe</label>
-                                <select id="quizVibe" required>
-                                    <option value="">Select a vibe</option>
-                                    <option value="Elegant and classy">Elegant and classy</option>
-                                    <option value="Fun and playful">Fun and playful</option>
-                                    <option value="Minimalist and modern">Minimalist and modern</option>
-                                    <option value="Whimsical and dreamy">Whimsical and dreamy</option>
-                                    <option value="Bold and festive">Bold and festive</option>
-                                </select>
-                            </div>
-                            <div class="tool-field">
-                                <label for="quizBudget">Budget Range</label>
-                                <select id="quizBudget">
-                                    <option value="">Prefer not to say</option>
-                                    <option value="Below ₱5,000">Below ₱5,000</option>
-                                    <option value="₱5,000 - ₱10,000">₱5,000 - ₱10,000</option>
-                                    <option value="₱10,000 - ₱20,000">₱10,000 - ₱20,000</option>
-                                    <option value="Above ₱20,000">Above ₱20,000</option>
-                                </select>
+                                <label>Preferred Vibe</label>
+                                <div class="custom-select-container">
+                                    <div class="custom-select-trigger" tabindex="0" role="button" aria-haspopup="listbox">
+                                        <span>Select a vibe</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </div>
+                                    <ul class="custom-select-options" role="listbox">
+                                        <li data-value="Elegant and classy">Elegant and classy</li>
+                                        <li data-value="Fun and playful">Fun and playful</li>
+                                        <li data-value="Minimalist and modern">Minimalist and modern</li>
+                                        <li data-value="Whimsical and dreamy">Whimsical and dreamy</li>
+                                        <li data-value="Bold and festive">Bold and festive</li>
+                                    </ul>
+                                    <input type="hidden" id="quizVibe" value="">
+                                </div>
                             </div>
                             <div class="tool-field">
                                 <label for="quizColors">Preferred Colors</label>
@@ -176,31 +178,51 @@
                 <!-- Instant Price Estimator -->
                 <div class="tool-card" id="price-estimator">
                     <div class="tool-card-head">
-                        <span class="tool-badge tool-badge-price"><i class="fa-solid fa-calculator"></i>Instant Estimate</span>
+                        <span class="tool-badge tool-badge-price">Instant Estimate</span>
                         <h2>Estimate Your Setup</h2>
-                        <p>Mix and match a package with add-ons to see an instant price estimate before booking.</p>
+                        <p>Pick a package with an add-on to see an instant price estimate before booking.</p>
                     </div>
                     {% if packages %}
                         <div class="tool-form">
                             <div class="tool-field">
-                                <label for="estimatorPackage">Package</label>
-                                <select id="estimatorPackage">
-                                    <option value="">Choose a package</option>
-                                    {% for package in packages %}
-                                        <option value="{{ package.id }}">{{ package.name }} — ₱{{ package.price }}</option>
-                                    {% endfor %}
-                                </select>
+                                <label>Package</label>
+                                <div class="custom-select-container">
+                                    <div class="custom-select-trigger" tabindex="0" role="button" aria-haspopup="listbox">
+                                        <span>Choose a package</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </div>
+                                    <ul class="custom-select-options" role="listbox">
+                                        <li data-value="">No package (solo add-on)</li>
+                                        {% for package in packages %}
+                                            <li data-value="{{ package.id }}">{{ package.name }} — ₱{{ package.price }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                    <input type="hidden" id="estimatorPackage" value="">
+                                </div>
                             </div>
                             <div class="tool-field">
-                                <label>Add-Ons</label>
+                                <label>Add-On</label>
                                 <div class="estimator-addons" id="estimatorAddons">
                                     {% for addon in active_addons %}
-                                        <label class="addon-check">
-                                            <input type="checkbox" value="{{ addon.id }}">
-                                            <span>{{ addon.name }} (+₱{{ addon.price }})</span>
+                                        <label class="addon-check" data-id="{{ addon.id }}">
+                                            <input type="radio" name="estimatorAddon" value="{{ addon.id }}">
+                                            <span class="addon-label">{{ addon.name }} (+₱{{ addon.price }})</span>
                                         </label>
                                     {% empty %}
                                         <p class="tool-muted">No add-ons available right now.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="tool-field">
+                                <label>Welcome Stand</label>
+                                <div class="estimator-addons" id="estimatorAdditionals">
+                                    {% for additional in active_additionals %}
+                                        <label class="addon-check" data-id="{{ additional.id }}">
+                                            <input type="radio" name="estimatorAdditional" value="{{ additional.id }}">
+                                            <span class="addon-label">{{ additional.name }} (+₱{{ additional.price }})</span>
+                                        </label>
+                                    {% empty %}
+                                        <p class="tool-muted">No welcome stand items right now.</p>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -222,7 +244,7 @@
                 <!-- Date Availability Quick-Check -->
                 <div class="tool-card" id="date-check">
                     <div class="tool-card-head">
-                        <span class="tool-badge tool-badge-date"><i class="fa-solid fa-calendar-check"></i>Live Availability</span>
+                        <span class="tool-badge tool-badge-date">Live Availability</span>
                         <h2>Is Your Date Available?</h2>
                         <p>Check if your event date is still open before you book.</p>
                     </div>
@@ -242,6 +264,6 @@
 
     {{ services_widget_data|json_script:"services-widget-data" }}
 
-    <script src="{% static 'js/services_widgets.js' %}"></script>
+    <script src="{% static 'js/services_widgets.js' %}?v=20261003b"></script>
 
 {% endblock content %}

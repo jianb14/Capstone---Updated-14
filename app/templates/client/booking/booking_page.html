@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20260913r">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261004b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 
 
@@ -1122,17 +1122,9 @@
         }
 
         function showUnavailableToast() {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
+            AppToast.fire({
                 icon: 'error',
-                title: 'This date is unavailable. Please choose another date.',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-                background: '#1a1a1a',
-                color: '#fff',
-                iconColor: '#ef4444'
+                title: 'This date is unavailable. Please choose another date.'
             });
         }
 
@@ -1248,17 +1240,9 @@
         dateClick: function (info) {
             const clickedDate = info.dateStr;
             if (clickedDate < getLocalTodayStr()) {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
+                AppToast.fire({
                     icon: 'error',
-                    title: 'This date has already passed.',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true,
-                    background: '#1a1a1a',
-                    color: '#fff',
-                    iconColor: '#ef4444'
+                    title: 'This date has already passed.'
                 });
                 return;
             }
@@ -1731,30 +1715,16 @@
             bookingFilesInput.files = bookingAccumulatedFiles.files;
             renderBookingImagePreviews();
 
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
+            AppToast.fire({
                 icon: 'success',
                 title: 'AI-generated design added as reference picture.',
-                showConfirmButton: false,
-                timer: 3500,
-                timerProgressBar: true,
-                background: '#1a1a1a',
-                color: '#fff',
-                iconColor: '#22c55e'
+                timer: 3500
             });
         } catch (err) {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
+            AppToast.fire({
                 icon: 'error',
                 title: 'Could not attach the AI design image. Please upload it manually.',
-                showConfirmButton: false,
-                timer: 4000,
-                timerProgressBar: true,
-                background: '#1a1a1a',
-                color: '#fff',
-                iconColor: '#ef4444'
+                timer: 4000
             });
         }
     }
@@ -2065,16 +2035,11 @@
                         // === SUCCESS: Close modal, show check, update calendar ===
                         modalOverlay.classList.remove('show');
 
-                        Swal.fire({
+                        AppToast.fire({
                             icon: 'success',
                             title: 'Booking Submitted!',
                             text: data.message,
-                            showConfirmButton: false,
-                            timer: 2500,
-                            timerProgressBar: true,
-                            background: '#1a1a1a',
-                            color: '#fff',
-                            iconColor: '#22c55e'
+                            timer: 2500
                         }).then(() => {
                             // Add new event to calendar dynamically (yellow bar)
                             if (data.event_data) {
@@ -2123,17 +2088,12 @@
         };
 
         const reminderMessage = 'Once this booking is confirmed, it can no longer be edited or canceled. Continue submitting?';
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'warning',
+        if (typeof AppToast !== 'undefined') {
+            AppToast.confirm({
                 title: 'Submit booking now?',
                 text: reminderMessage,
-                showCancelButton: true,
-                confirmButtonText: 'Yes, Submit',
-                cancelButtonText: 'Review Again',
-                confirmButtonColor: '#2563eb',
-                background: '#111',
-                color: '#fff'
+                confirmText: 'Yes, Submit',
+                cancelText: 'Review Again'
             }).then((result) => {
                 if (result.isConfirmed) {
                     executeBookingSubmit();
