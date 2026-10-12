@@ -117,7 +117,7 @@
                 '.stats-card > .stat-item',
                 '.features-grid > .feature-card',
                 '.hiw-grid > .hiw-step',
-                '.carousel-track .tcarousel-card',
+                '.testimonial-carousel',
                 '.faq-list > .faq-item',
                 '.cta-banner > *',
                 '.service-item .service-content > *',

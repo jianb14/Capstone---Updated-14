@@ -123,7 +123,7 @@
                             <a class="notif-item {% if not notif.is_read %}unread{% endif %}"
                                 data-id="{{ notif.id }}"
                                 data-created-at="{{ notif.created_at|date:'c' }}"
-                                href="{% url 'customer_profile' %}?search={{ notif.booking.id }}&booking_id={{ notif.booking.id }}&from_notif=1">
+                                href="{{ notif.target_url|default:'#' }}">
                                 <div class="notif-content">
                                     <p>{{ notif.message }}</p>
                                     <small>{{ notif.created_at|timesince }} ago</small>

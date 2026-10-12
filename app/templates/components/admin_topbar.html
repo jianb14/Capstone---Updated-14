@@ -60,7 +60,7 @@
                     <div class="notif-section-title">Today</div>
                     {% for notif in notif_today %}
                     <div class="notif-item-wrapper {% if not notif.is_read %}unread{% endif %}">
-                        <a href="{% if notif.booking %}{% url 'admin_booking_detail' notif.booking.id %}{% else %}#{% endif %}"
+                        <a href="{{ notif.target_url|default:'#' }}"
                             class="notif-item">
                             <div class="notif-avatar">
                                 {{ notif.user.first_name|default:notif.user.username|slice:":1"|upper }}
@@ -104,7 +104,7 @@
                     <div class="notif-section-title">Earlier</div>
                     {% for notif in notif_earlier %}
                     <div class="notif-item-wrapper {% if not notif.is_read %}unread{% endif %}">
-                        <a href="{% if notif.booking %}{% url 'admin_booking_detail' notif.booking.id %}{% else %}#{% endif %}"
+                        <a href="{{ notif.target_url|default:'#' }}"
                             class="notif-item">
                             <div class="notif-avatar">
                                 {{ notif.user.first_name|default:notif.user.username|slice:":1"|upper }}

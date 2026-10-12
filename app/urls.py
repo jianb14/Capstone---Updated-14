@@ -78,6 +78,7 @@ from .views import (
     admin_payment_list,
     admin_send_payment_reminder,
     admin_profile,
+    admin_review_delete_reply,
     admin_review_detail,
     admin_review_reply,
     admin_review_toggle_testimonial,
@@ -274,6 +275,11 @@ urlpatterns = [
         "staff/reviews/<int:id>/reply/",
         admin_review_reply,
         name="admin_review_reply",
+    ),
+    path(
+        "staff/reviews/<int:id>/reply/delete/",
+        admin_review_delete_reply,
+        name="admin_review_delete_reply",
     ),
     path(
         "staff/reviews/<int:id>/testimonial-toggle/",

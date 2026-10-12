@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+﻿document.addEventListener('DOMContentLoaded', function() {
     const byId = (id) => document.getElementById(id);
 
     const dropZone = byId('canvasDropZone');
@@ -1039,7 +1039,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 '_isColorableSVG',
                 '_isLocked',
                 '_packageCategory',
-                '_isBgImage'
+                '_isBgImage',
+                '_currentColor',
+                '_outlineShapeIndexes'
             ])
         );
     }
@@ -1551,6 +1553,62 @@ document.addEventListener('DOMContentLoaded', function() {
         if (elemHeightInput) elemHeightInput.value = Math.round(active.getScaledHeight());
     }
 
+    // Reads the color that is currently applied to an object so the sidebar
+    // Custom picker, the preset swatches and the selection toolbar color
+    // picker all reflect the same value.
+    function resolveObjectColorHex(obj) {
+        if (!obj) return '';
+        if (obj._currentColor) return toHexColor(obj._currentColor, '#111111');
+        if (obj.type === 'path') return toHexColor(obj.stroke || obj.fill || '#111111', '#111111');
+        if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox' || obj.type === 'rect') {
+            return toHexColor(obj.fill || '#111111', '#111111');
+        }
+        if (obj._isColorableSVG) {
+            const shapes = obj._objects ? obj._objects : [obj];
+            // Same outline rule as applyColorToObject(): the frozen import flag
+            // when present, otherwise the one-time legacy heal rule (read-only).
+            const outlineSet = Array.isArray(obj._outlineShapeIndexes)
+                ? new Set(obj._outlineShapeIndexes)
+                : new Set(
+                      shapes.reduce((indexes, shape, index) => {
+                          if (shape.fill && isOutlineColor(shape.fill) && !shape.stroke) {
+                              indexes.push(index);
+                          }
+                          return indexes;
+                      }, [])
+                  );
+            let foundColor = '#111111';
+            for (let index = 0; index < shapes.length; index++) {
+                const shape = shapes[index];
+                if (shape.fill && !outlineSet.has(index) && shape.fill !== 'none') {
+                    try {
+                        const hex = new fabric.Color(shape.fill).toHex();
+                        if (hex) foundColor = `#${hex}`;
+                    } catch (error) {
+                        foundColor = '#111111';
+                    }
+                    break;
+                }
+            }
+            return foundColor;
+        }
+        return '';
+    }
+
+    // Keeps the sidebar Custom input and the preset swatch highlight in sync
+    // with the color that is actually applied (selected object, or the artboard
+    // when nothing is selected). A custom color that matches no preset clears
+    // every swatch highlight.
+    function syncSidebarColorUI(hex) {
+        const normalized = hex ? toHexColor(hex, '').toLowerCase() : '';
+        if (!normalized) return;
+        if (customCanvasColor) customCanvasColor.value = normalized;
+        document.querySelectorAll('.color-swatch').forEach((node) => {
+            const swatchColor = toHexColor(node.dataset.color, '').toLowerCase();
+            node.classList.toggle('active', swatchColor === normalized);
+        });
+    }
+
     function updateControlsState() {
         const activeObjs = getSelectableActiveObjects();
         const hasSelection = activeObjs.length > 0;
@@ -1612,30 +1670,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (itemColorPicker) {
             itemColorPicker.disabled = !hasSelection;
-            if (singleObj) {
-                if (singleObj._currentColor) {
-                    itemColorPicker.value = toHexColor(singleObj._currentColor, '#111111');
-                } else if (singleObj.type === 'path') {
-                    itemColorPicker.value = toHexColor(singleObj.stroke || singleObj.fill || '#111111', '#111111');
-                } else if (singleObj.type === 'i-text' || singleObj.type === 'text' || singleObj.type === 'textbox' || singleObj.type === 'rect') {
-                    itemColorPicker.value = toHexColor(singleObj.fill || '#111111', '#111111');
-                } else if (singleObj._isColorableSVG) {
-                    const shapes = singleObj._objects ? singleObj._objects : [singleObj];
-                    let foundColor = '#111111';
-                    for (const shape of shapes) {
-                        if (shape.fill && !isOutlineColor(shape.fill) && shape.fill !== 'none') {
-                            try {
-                                const hex = new fabric.Color(shape.fill).toHex();
-                                if (hex) foundColor = `#${hex}`;
-                            } catch (error) {
-                                foundColor = '#111111';
-                            }
-                            break;
-                        }
-                    }
-                    itemColorPicker.value = foundColor;
-                }
-            }
+        }
+        let activeColorHex = '';
+        if (singleObj) {
+            activeColorHex = resolveObjectColorHex(singleObj);
+        } else if (!hasSelection && artboard) {
+            activeColorHex = toHexColor(artboard.fill, '#ffffff');
+        }
+        syncSidebarColorUI(activeColorHex);
+        if (itemColorPicker && activeColorHex) {
+            itemColorPicker.value = activeColorHex;
         }
 
         updateElementSizeInputs();
@@ -1667,6 +1711,31 @@ document.addEventListener('DOMContentLoaded', function() {
         return 'custom';
     }
 
+    // Raster images are tinted with a multiply blend (source x color / 255),
+    // so picking pure black scales every pixel to zero and flattens the photo
+    // (shadows and highlights disappear). Colors darker than this luminance
+    // floor are mixed toward white just enough to reach it so image detail
+    // stays visible. Mid/light colors (blue, red, green, ...) pass through
+    // untouched and render exactly as before.
+    function imageBlendColor(color) {
+        let source;
+        try {
+            source = new fabric.Color(color).getSource();
+        } catch (error) {
+            return color;
+        }
+        const luminance = (0.2126 * source[0] + 0.7152 * source[1] + 0.0722 * source[2]) / 255;
+        const minLuminance = 0.3;
+        if (luminance >= minLuminance) return color;
+        const mix = (minLuminance - luminance) / (1 - luminance);
+        const lifted = [source[0], source[1], source[2]].map((channel) =>
+            Math.round(channel + (255 - channel) * mix)
+                .toString(16)
+                .padStart(2, '0')
+        );
+        return '#' + lifted.join('');
+    }
+
     function applyColorToObject(obj, color) {
         if (!obj || !color) return;
 
@@ -1693,8 +1762,21 @@ document.addEventListener('DOMContentLoaded', function() {
             obj.set('fill', color);
         } else if (obj._isColorableSVG) {
             const shapes = obj._objects ? obj._objects : [obj];
-            shapes.forEach((shape) => {
-                if (shape.fill && !isOutlineColor(shape.fill)) {
+            // Outline membership is frozen at import (_outlineShapeIndexes).
+            // Legacy objects (saved before the flag existed) are healed here
+            // once: body shapes carry a dark stroke, so only strokeless dark
+            // fills count as outlines — black-painted bodies recolor again.
+            if (!Array.isArray(obj._outlineShapeIndexes)) {
+                obj._outlineShapeIndexes = [];
+                shapes.forEach((shape, index) => {
+                    if (shape.fill && isOutlineColor(shape.fill) && !shape.stroke) {
+                        obj._outlineShapeIndexes.push(index);
+                    }
+                });
+            }
+            const outlineSet = new Set(obj._outlineShapeIndexes);
+            shapes.forEach((shape, index) => {
+                if (shape.fill && !outlineSet.has(index)) {
                     shape.set('fill', color);
                 }
             });
@@ -1703,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Apply color filter to raster images
             obj.filters = [
                 new fabric.Image.filters.BlendColor({
-                    color: color,
+                    color: imageBlendColor(color),
                     mode: 'multiply',
                     alpha: 1
                 })
@@ -1802,6 +1884,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             grouped._isColorableSVG = true;
             grouped._packageCategory = data.category || 'custom';
+            // Freeze which shapes count as outlines using the ORIGINAL fills,
+            // before any user recolor. Recoloring must never mistake a black
+            // body fill (user picked black) for an outline — see isOutlineColor().
+            const svgShapes = grouped._objects || [grouped];
+            const outlineShapeIndexes = [];
+            svgShapes.forEach((shape, index) => {
+                if (shape.fill && isOutlineColor(shape.fill)) {
+                    outlineShapeIndexes.push(index);
+                }
+            });
+            grouped._outlineShapeIndexes = outlineShapeIndexes;
             if (data.fill) {
                 applyColorToObject(grouped, data.fill);
             }
@@ -2223,21 +2316,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!checkQuota(activeObj._packageCategory || 'custom')) return;
 
-        activeObj.clone((cloned) => {
-            saveState();
-            canvas.discardActiveObject();
-            cloned.set({
-                left: activeObj.left + 22,
-                top: activeObj.top + 22,
-                evented: true
-            });
-            canvas.add(cloned);
-            canvas.setActiveObject(cloned);
-            canvas.renderAll();
-            updateHintVisibility();
-            updateVisualCart();
-            updateControlsState();
-        });
+        // Fabric's clone() only copies standard props, so the custom color
+        // flags must be listed explicitly or a duplicated SVG loses them
+        // (uncolorable duplicate, and the outline index map goes missing).
+        // _isArtboard/_isBgImage are deliberately excluded — neither can be
+        // selected or duplicated anyway (selectable: false).
+        activeObj.clone(
+            (cloned) => {
+                saveState();
+                canvas.discardActiveObject();
+                cloned.set({
+                    left: activeObj.left + 22,
+                    top: activeObj.top + 22,
+                    evented: true
+                });
+                canvas.add(cloned);
+                canvas.setActiveObject(cloned);
+                canvas.renderAll();
+                updateHintVisibility();
+                updateVisualCart();
+                updateControlsState();
+            },
+            [
+                '_isColorableSVG',
+                '_packageCategory',
+                '_isLocked',
+                '_currentColor',
+                '_outlineShapeIndexes'
+            ]
+        );
     }
 
     function toggleLockSelection() {
@@ -2490,6 +2597,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!selected.length) return;
             selected.forEach((obj) => applyColorToObject(obj, event.target.value));
             canvas.renderAll();
+            updateControlsState();
         });
         itemColorPicker.addEventListener('change', () => saveState());
     }
@@ -2497,9 +2605,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.color-swatch').forEach((swatch) => {
         swatch.addEventListener('click', () => {
             const color = swatch.dataset.color;
-            document.querySelectorAll('.color-swatch').forEach((node) => node.classList.remove('active'));
-            swatch.classList.add('active');
-
             const selected = getSelectableActiveObjects();
             if (selected.length) {
                 selected.forEach((obj) => applyColorToObject(obj, color));
@@ -2508,6 +2613,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
+            updateControlsState();
             saveState();
         });
     });
@@ -2523,6 +2629,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
+            updateControlsState();
         });
         customCanvasColor.addEventListener('change', () => saveState());
     }

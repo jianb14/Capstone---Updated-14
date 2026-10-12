@@ -137,6 +137,31 @@ class ToastCssScopeTests(TestCase):
                 "100vw", value, f"Ang max-width ng toast ({value}) ay walang 100vw guard."
             )
 
+    def test_mobile_toast_uses_default_icon_and_title(self):
+        """Kagaya ng admin: default SweetAlert2 sizing ang toast sa mobile.
+
+        Ang admin (`admin_base.html` + `admin_base.css`) ay WALANG kahit anong
+        `.swal2-toast` rule — purong SweetAlert2 defaults ang gamit (icon
+        32x32, title 16px). Ang client dati ay may sariling override na
+        `width/height: 1.05rem` sa `.swal2-icon`; dahil flex item ito,
+        `min-width: auto` = 32px (min-content ng panloob na graphic) ang
+        mananalo sa lapad habang ang height ay nagiging 16.8px — kaya OVAL
+        ang bilog at lumalabas ang checkmark. Dapat default na rin ang
+        icon/title sizing ng client sa mobile.
+        """
+        css = self._css_block()
+        self.assertNotRegex(
+            css,
+            r"\.swal2-toast\s+\.swal2-icon\s*\{",
+            "May custom sizing sa toast icon — hindi na katulad ng admin "
+            "at nagiging oval ito sa mobile.",
+        )
+        self.assertNotRegex(
+            css,
+            r"\.swal2-toast\s+\.swal2-title\s*\{[^}]*font-size",
+            "May custom font-size sa toast title — dapat default tulad ng admin.",
+        )
+
 
 class SharedToastHelperTests(TestCase):
     """Iisang pinagmumulan ng toast + dedupe guard."""

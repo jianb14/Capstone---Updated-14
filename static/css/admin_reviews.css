@@ -589,10 +589,12 @@ tr:last-child td {
     font-size: 0.85rem;
 }
 
-/* Meta icons keep their own brand color in both themes */
-.meta-icon i.fa-calendar-alt { color: #3b82f6; }
-.meta-icon i.fa-glass-cheers { color: #f59e0b; }
-.meta-icon i.fa-clock { color: #8b5cf6; }
+/* Meta icons — monochrome (sumusunod sa .meta-icon, walang asul/amber/purple na wala sa theme) */
+.meta-icon i.fa-calendar-alt,
+.meta-icon i.fa-glass-cheers,
+.meta-icon i.fa-clock {
+    color: inherit;
+}
 
 .meta-content {
     display: flex;
@@ -713,8 +715,8 @@ tr:last-child td {
     top: 1rem;
     left: 1.5rem;
     font-size: 1.3rem;
-    color: #f59e0b;
-    opacity: 0.9;
+    color: #6b7280;
+    opacity: 0.45;
 }
 
 .comment-text {
@@ -753,6 +755,48 @@ tr:last-child td {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* Empty state kapag walang attached photos — compact box para hindi
+   malaki ang blankong espasyo sa left column */
+.photos-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.35rem;
+    padding: 2rem 1.5rem;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.photos-empty-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-bottom: 0.35rem;
+}
+
+.photos-empty-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ddd;
+}
+
+.photos-empty-sub {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
 }
 
 /* Modal Styling */
@@ -1159,8 +1203,25 @@ tr:last-child td {
 
 [data-theme="light"] .box-title,
 [data-theme="light"] .profile-info h2,
-[data-theme="light"] .rating-number-badge {
+[data-theme="light"] .rating-number-badge,
+[data-theme="light"] .photos-empty-title {
     color: #111827 !important;
+}
+
+/* Photos empty state sa light: puting dashed box na may light gray border */
+[data-theme="light"] .photos-empty {
+    background: #f9fafb !important;
+    border-color: #e5e7eb !important;
+}
+
+[data-theme="light"] .photos-empty-icon {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #9ca3af !important;
+}
+
+[data-theme="light"] .photos-empty-sub {
+    color: #6b7280 !important;
 }
 
 [data-theme="light"] .comment-text,
@@ -1177,6 +1238,12 @@ tr:last-child td {
 [data-theme="light"] .meta-icon {
     background: #f3f4f6 !important;
     border: 1px solid #e5e7eb !important;
+    color: #4b5563 !important;
+}
+
+/* Divider sa loob ng profile card — ang --border (#222) ay sobrang itim sa puting card */
+[data-theme="light"] .meta-list {
+    border-top-color: #e5e7eb !important;
 }
 
 [data-theme="light"] .star-empty {
@@ -1355,6 +1422,35 @@ tr:last-child td {
     background: rgba(255, 255, 255, 0.85);
 }
 
+/* Reply actions group (Remove + Update/Post, magkatabi sa kanan) */
+.reply-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* Remove Reply — ghost button, monochrome (tulad ng "Remove from Testimonial") */
+.btn-remove-reply {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+    padding: 0.55rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.btn-remove-reply:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
 /* ── Light mode: detail page ── */
 
 /* Framed quote box + photo tiles: #222 borders sobrang dilim sa puti */
@@ -1374,7 +1470,8 @@ tr:last-child td {
 }
 
 [data-theme="light"] .quote-icon-dev {
-    color: #f59e0b;
+    color: #9ca3af;
+    opacity: 0.6;
 }
 
 [data-theme="light"] .comment-text {
@@ -1407,6 +1504,19 @@ tr:last-child td {
 
 [data-theme="light"] .btn-post-reply:hover {
     background: #1f2937 !important;
+}
+
+/* Remove Reply sa light mode: white ghost na may gray border (monochrome) */
+[data-theme="light"] .btn-remove-reply {
+    background: #ffffff !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+[data-theme="light"] .btn-remove-reply:hover {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border-color: #dc2626 !important;
 }
 
 /* Toggle states sa light mode:
@@ -1479,7 +1589,14 @@ tr:last-child td {
         text-align: center;
     }
 
+    .reply-actions {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
     .btn-post-reply,
+    .btn-remove-reply,
     .btn-toggle {
         width: 100%;
     }

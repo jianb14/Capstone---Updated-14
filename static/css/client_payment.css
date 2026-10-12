@@ -2375,6 +2375,16 @@
     border-color: var(--pu-border-strong);
     transform: translateY(-2px);
     box-shadow: var(--pu-shadow);
+    /* Ang tooltip ng action buttons (View / Download Receipt) ay nasa loob ng
+       card. Kapag naka-hover ang card, ang transform ay gumagawa ng stacking
+       context kaya napupunta sa ilalim ang tooltip pag lumabas ito sa gilid ng
+       card at may katabing card sa grid. Dapat nasa itaas ang card habang
+       naka-hover o naka-focus para hindi natatabunan ang tooltip ng katabi. */
+    z-index: 30;
+}
+
+.mp-card:focus-within {
+    z-index: 30;
 }
 
 .mp-card-head {

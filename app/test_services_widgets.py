@@ -246,6 +246,46 @@ class ServicesPageWidgetsTests(TestCase):
         detailed_block = css.split(".services-detailed {")[1].split("}")[0]
         self.assertIn("padding: 8rem 5%;", detailed_block)
 
+    def test_tools_and_comparison_have_dark_mode_dot_pattern(self):
+        # Regression: sa dark mode nawawala ang dot bg ng .services-tools
+        # at .services-comparison — sila lang ang walang dark-mode
+        # background-image, habang ang .services-detailed ay mayroon.
+        # Dapat pareho sila ng dot pattern gaya ng ibang sections.
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        dot = "radial-gradient(circle, rgba(255, 255, 255, 0.12)"
+        for selector in (".services-tools {", ".services-comparison {"):
+            block = css.split(selector)[1].split("}")[0]
+            self.assertIn(dot, block)
+            self.assertIn("background-size: 18px 18px;", block)
+        # Hindi dapat masira ang light-mode rule (maitim na dots sa puti)
+        self.assertIn('[data-theme="light"] .services-tools,', css)
+        self.assertIn('[data-theme="light"] .services-comparison,', css)
+
+    def test_comparison_table_is_solid_in_dark_mode(self):
+        # Regression: translucent ang table sa dark mode kaya kita ang dot
+        # pattern sa loob — dapat solid card bg (var(--pkg-card) = #111111)
+        # at solid header (var(--gray) = #1a1a1a) tulad ng package cards.
+        # Sa light mode may sariling rules pa rin (hindi dapat masira).
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        wrap_block = css.split(".comparison-table-wrap {")[1].split("}")[0]
+        self.assertIn("background: var(--pkg-card);", wrap_block)
+        self.assertNotIn("rgba(255, 255, 255, 0.03)", wrap_block)
+        head_block = css.split(".comparison-table thead th {")[1].split("}")[0]
+        self.assertIn("background: var(--gray);", head_block)
+        self.assertNotIn("rgba(255, 255, 255, 0.04)", head_block)
+        self.assertIn("[data-theme=\"light\"] .comparison-table-wrap {", css)
+        self.assertIn("[data-theme=\"light\"] .comparison-table thead th {", css)
+
+    def test_book_button_is_compact(self):
+        # Ang Book button sa comparison table ay .btn-sm — dapat compact
+        # ang top/bottom padding (0.35rem, hindi 0.5rem).
+        css_path = Path(__file__).resolve().parent.parent / "static" / "css" / "base.css"
+        css = css_path.read_text(encoding="utf-8")
+        btn_block = css.split(".btn-sm {")[1].split("}")[0]
+        self.assertIn("padding: 0.35rem 1.1rem;", btn_block)
+
     def test_service_image_placeholder_uses_minimal_shadow(self):
         # Kapag walang naka-attach na image, dapat minimal na shadow lang
         # (hindi yung malaking shadow na para sa tunay na larawan).

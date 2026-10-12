@@ -12,11 +12,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261003h">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261012i">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
 <link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261004b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="{% static 'js/theme-toggle.js' %}"></script>
+    <script src="{% static 'js/theme-toggle.js' %}?v=20261012a"></script>
     {% block extra_css %}{% endblock %}
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -252,7 +252,8 @@
                 });
             }
 
-            // Mark individual notification as read, then open booking detail.
+            // Mark individual notification as read, then follow its deep link
+            // (payment -> My Payments, review -> My Reviews, booking -> profile).
             notifItems.forEach(item => {
                 item.addEventListener("click", function (e) {
                     const notifId = this.dataset.id;
@@ -1921,9 +1922,6 @@
          /* --- RESPONSIVE: compact toasts + dialogs sa tablet/mobile --- */
          /* TABLET (≤1024px): bahagyang mas maliit na dialog at toast */
          @media (max-width: 1024px) {
-             .swal2-toast {
-                 max-width: min(420px, calc(100vw - 32px)) !important;
-             }
              .swal2-popup:not(.swal2-toast) {
                  max-width: calc(100vw - 32px) !important;
                  padding: 1.3rem 1.1rem !important;
@@ -1932,26 +1930,17 @@
                  font-size: 1.15rem !important;
              }
          }
-         /* MOBILE (≤768px): compact toast, may safe-area padding */
+         /* MOBILE (≤768px): KAGAYA NG ADMIN — SweetAlert2 defaults lang
+            sa toast (icon 32×32, title 16px, default padding). Ang dating
+            `width/height: 1.05rem` sa `.swal2-icon` ay naiipit ng
+            `min-width: auto` (32px min-content ng panloob na graphic) kaya
+            32 × 16.8px ang lumalabas na box — OVAL ang bilog at
+            nananambulat ang checkmark/x-mark. Ang max-width guard lang ang
+            natitira (≈ katumbas ng default na max-width:100% ng SweetAlert2)
+            para hindi lumabas ang toast sa viewport. */
          @media (max-width: 768px) {
              .swal2-toast {
                  max-width: calc(100vw - 24px) !important;
-                 padding: 8px 12px !important;
-             }
-             .swal2-toast .swal2-icon {
-                 width: 1.05rem !important;
-                 height: 1.05rem !important;
-                 margin: 0 8px 0 0 !important;
-             }
-             .swal2-toast .swal2-icon .swal2-icon-content {
-                 font-size: 0.7rem !important;
-             }
-             .swal2-toast .swal2-title {
-                 font-size: 0.78rem !important;
-                 line-height: 1.35 !important;
-             }
-             .swal2-toast .swal2-timer-progress-bar {
-                 height: 3px !important;
              }
          }
          /* SMALL MOBILE (≤480px): maliit na screen, laging

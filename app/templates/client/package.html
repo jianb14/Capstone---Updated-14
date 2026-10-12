@@ -3,6 +3,13 @@
 
 {% block content %}
 
+<!-- Thin outline info icon (manipis, hindi bold — hindi umaasa sa FA regular font) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+    </symbol>
+</svg>
+
 <!-- PACKAGES PAGE -->
 <div id="packages" class="page">
     <section class="packages-hero">
@@ -57,7 +64,7 @@
                         {% endif %}
 
                         {% if package.notes %}
-                        <p class="package-notes"><i class="fas fa-circle-info" aria-hidden="true"></i>{{ package.notes }}</p>
+                        <p class="package-notes"><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>{{ package.notes }}</p>
                         {% endif %}
 
                         <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
@@ -72,7 +79,7 @@
         </div>
 
         <div class="service-charge-note-box">
-            <p><i class="fas fa-circle-info" aria-hidden="true"></i>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
+            <p><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
         </div>
 
 
@@ -122,7 +129,7 @@
         </div>
 
         <div class="service-charge-note-box">
-            <p><i class="fas fa-circle-info" aria-hidden="true"></i>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
+            <p><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
         </div>
 
 
@@ -157,7 +164,7 @@
                             {% endif %}
 
                             {% if additional.notes %}
-                            <p class="additional-notes"><i class="fas fa-circle-info" aria-hidden="true"></i>{{ additional.notes }}</p>
+                            <p class="additional-notes"><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>{{ additional.notes }}</p>
                             {% endif %}
 
                             <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
@@ -175,7 +182,7 @@
         </div>
 
         <div class="service-charge-note-box">
-            <p><i class="fas fa-circle-info" aria-hidden="true"></i>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
+            <p><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
         </div>
 
     </section>

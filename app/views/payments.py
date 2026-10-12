@@ -993,15 +993,37 @@ def admin_payment_list(request):
         "booking", "booking__user", "verified_by"
     ).order_by("-created_at")
 
+    # ---- Action queue: pending payments awaiting verification ----
+    # (Inilagay dito sa taas para ma-filter din ng booking: search sa baba.)
+    pending_qs = (
+        Payment.objects.filter(payment_status="pending")
+        .exclude(_abandoned_paymongo_payment_query())
+        .select_related("booking", "booking__user", "verified_by")
+        .order_by("-created_at")
+    )
+
     if search_query:
-        history_qs = history_qs.filter(
-            Q(transaction_ref__icontains=search_query)
-            | Q(gcash_reference_number__icontains=search_query)
-            | Q(gcash_sender_name__icontains=search_query)
-            | Q(booking__user__first_name__icontains=search_query)
-            | Q(booking__user__last_name__icontains=search_query)
-            | Q(booking__user__username__icontains=search_query)
-        )
+        # Notif deep-link format: ?search=booking:<id> — direktang i-filter sa
+        # booking na yun (bukod sa existing text search sa ref/sender/name).
+        booking_id_match = None
+        lowered_search = search_query.lower()
+        if lowered_search.startswith("booking:"):
+            try:
+                booking_id_match = int(lowered_search.split("booking:", 1)[1].strip())
+            except (ValueError, IndexError):
+                booking_id_match = None
+        if booking_id_match is not None:
+            history_qs = history_qs.filter(booking__id=booking_id_match)
+            pending_qs = pending_qs.filter(booking__id=booking_id_match)
+        else:
+            history_qs = history_qs.filter(
+                Q(transaction_ref__icontains=search_query)
+                | Q(gcash_reference_number__icontains=search_query)
+                | Q(gcash_sender_name__icontains=search_query)
+                | Q(booking__user__first_name__icontains=search_query)
+                | Q(booking__user__last_name__icontains=search_query)
+                | Q(booking__user__username__icontains=search_query)
+            )
 
     if status_filter:
         history_qs = history_qs.filter(payment_status=status_filter)
@@ -1011,13 +1033,6 @@ def admin_payment_list(request):
 
     history_count = history_qs.count()
 
-    # ---- Action queue: pending payments awaiting verification ----
-    pending_qs = (
-        Payment.objects.filter(payment_status="pending")
-        .exclude(_abandoned_paymongo_payment_query())
-        .select_related("booking", "booking__user", "verified_by")
-        .order_by("-created_at")
-    )
     pending_count = pending_qs.count()
 
     # Build booking lists: unpaid / partial (remaining balance) / fully paid
@@ -1032,6 +1047,21 @@ def admin_payment_list(request):
         .prefetch_related("payments")
         .order_by("-id")
     )
+    # Kapag galing sa notif deep-link (?search=booking:<id>), i-filter din ang
+    # booking summary sections para yung target booking lang ang makita.
+    if search_query:
+        lowered_search = search_query.lower()
+        if lowered_search.startswith("booking:"):
+            try:
+                deep_link_booking_id = int(
+                    lowered_search.split("booking:", 1)[1].strip()
+                )
+            except (ValueError, IndexError):
+                deep_link_booking_id = None
+            if deep_link_booking_id is not None:
+                all_active_bookings = all_active_bookings.filter(
+                    id=deep_link_booking_id
+                )
 
     unpaid_bookings = []
     balance_bookings = []

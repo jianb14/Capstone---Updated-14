@@ -4,7 +4,7 @@
 {% block title %}Review Details - Balloorina{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_reviews.css' %}?v=20260921c">
+<link rel="stylesheet" href="{% static 'css/admin_reviews.css' %}?v=20261012c">
 {% endblock %}
 
 {% block content %}
@@ -45,10 +45,10 @@
                 </div>
             </div>
 
-            <!-- Image Attachments -->
-            {% if review.images.exists %}
+            <!-- Image Attachments (laging visible para balanse ang left column) -->
             <div class="glass-box">
-                <span class="box-title box-title-block">Attached Photos ({{ review.images.count }})</span>
+                <span class="box-title box-title-block">Attached Photos{% if review.images.exists %} ({{ review.images.count }}){% else %} (0){% endif %}</span>
+                {% if review.images.exists %}
                 <div class="image-grid">
                     {% for img in review.images.all %}
                     <div class="image-item" onclick="openModal('{{ img.image.url }}')">
@@ -56,8 +56,14 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                <div class="photos-empty">
+                    <div class="photos-empty-icon"><i class="far fa-images"></i></div>
+                    <p class="photos-empty-title">No photos attached</p>
+                    <p class="photos-empty-sub">This review was submitted without images.</p>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
 
         </div>
 
@@ -110,9 +116,20 @@
                         {% else %}
                         <span class="reply-note">This reply will appear on the public Reviews page.</span>
                         {% endif %}
-                        <button type="submit" class="btn-post-reply">
-                            {% if reply %}Update Reply{% else %}Post Reply{% endif %}
-                        </button>
+                        <div class="reply-actions">
+                            {% if reply %}
+                            <button type="submit"
+                                formaction="{% url 'admin_review_delete_reply' review.id %}"
+                                formnovalidate
+                                class="btn-remove-reply"
+                                onclick="return confirm('Remove this admin reply? This cannot be undone.');">
+                                Remove Reply
+                            </button>
+                            {% endif %}
+                            <button type="submit" class="btn-post-reply">
+                                {% if reply %}Update Reply{% else %}Post Reply{% endif %}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

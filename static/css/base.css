@@ -236,8 +236,8 @@ nav.scrolled {
     bottom: -1px;
     width: 12px;
     height: 12px;
-    background: #ffffff;
-    border: 1px solid #0f0f0f;
+    background: #0f0f0f;
+    border: 1px solid #ffffff;
     border-radius: 50%;
 }
 
@@ -248,10 +248,20 @@ nav.scrolled {
     bottom: 4.5px;
     width: 5px;
     height: 5px;
-    border-right: 1.5px solid #1a1a1a;
-    border-bottom: 1.5px solid #1a1a1a;
+    border-right: 1.5px solid #ffffff;
+    border-bottom: 1.5px solid #ffffff;
     transform: rotate(45deg);
     z-index: 1;
+}
+
+[data-theme="light"] .profile-avatar-btn .nav-avatar::after {
+    background: #ffffff;
+    border-color: #0f0f0f;
+}
+
+[data-theme="light"] .profile-avatar-btn .nav-avatar::before {
+    border-right-color: #1a1a1a;
+    border-bottom-color: #1a1a1a;
 }
 
 .dropdown-menu {
@@ -511,6 +521,36 @@ nav.scrolled {
     align-items: center;
 }
 
+/* Inner-page heroes (about / services / packages / gallery):
+   parehong staggered entrance gaya ng home hero —
+   label (0.05s) -> title (0.25s) -> subtitle (0.45s) -> scroll cue (0.65s).
+   Dati sabay-sabay ang lahat dahil buong .page lang ang nagfa-fade. */
+.about-tagline {
+    animation: fadeInUp 0.7s ease-out 0.05s both;
+}
+
+.about-hero h1,
+.packages-hero h1,
+.gallery-hero h1 {
+    animation: fadeInUp 0.7s ease-out 0.25s both;
+}
+
+.about-hero > p,
+.packages-hero > p,
+.gallery-hero > p {
+    animation: fadeInUp 0.7s ease-out 0.45s both;
+}
+
+/* Scroll cue: opacity-only fade (hindi fadeInUp) para hindi mabura ang
+   translateX(-50%) centering nito — ang fadeInUp ay nagse-set ng
+   transform: translateY(0) na sisira sa gitnang posisyon.
+   "backwards" (hindi "both") ang fill para pagkatapos ng entrance ay
+   gumana pa rin ang .is-hidden hide-on-scroll ni theme-toggle.js. */
+.about-hero .scroll-down,
+.packages-hero .scroll-down {
+    animation: fadeIn 0.7s ease-out 0.65s backwards;
+}
+
 /* Accessibility: huwag i-animate ang hero text kung naka-on ang
    prefers-reduced-motion (agad-agad na nakikita ang lahat) */
 @media (prefers-reduced-motion: reduce) {
@@ -518,7 +558,16 @@ nav.scrolled {
     .hero-eyebrow,
     .hero-text h1,
     .hero-subheadline,
-    .cta-buttons {
+    .cta-buttons,
+    .about-tagline,
+    .about-hero h1,
+    .packages-hero h1,
+    .gallery-hero h1,
+    .about-hero > p,
+    .packages-hero > p,
+    .gallery-hero > p,
+    .about-hero .scroll-down,
+    .packages-hero .scroll-down {
         animation: none;
     }
 }
@@ -2553,10 +2602,23 @@ nav.scrolled {
     color: #000000;
 }
 
-/* Info icon sa notes sa ilalim ng cards */
-.package-notes i,
-.additional-notes i {
-    margin-right: 0.45rem;
+/* Info icons sa package notes — manipis na inline SVG outline (hindi bold).
+   Hindi gumamit ng fa-regular kasi hindi naglo-load ang regular font
+   (☒ missing glyph), kaya sariling #ic-info sprite na gaya ng home icons. */
+.package-notes .note-icon,
+.additional-notes .note-icon,
+.service-charge-note-box .note-icon {
+    width: 1.1em;
+    height: 1.1em;
+    flex-shrink: 0;
+    vertical-align: -0.15em;
+}
+
+/* Gap sa pagitan ng icon at text */
+.package-notes .note-icon,
+.additional-notes .note-icon,
+.service-charge-note-box .note-icon {
+    margin-right: 0.35rem;
     color: inherit;
 }
 
@@ -2920,6 +2982,15 @@ nav.scrolled {
     overflow: hidden;
     /* Ang horizontal swipe ay para sa carousel, hindi sa page scroll */
     touch-action: pan-y;
+    /* Pang-swipe na cursor: kita agad na nadda-drag ang reviews (mouse lang;
+       hindi nakakaapekto sa touch) */
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.carousel-viewport:active {
+    cursor: grabbing;
 }
 
 .carousel-track {
@@ -5443,9 +5514,13 @@ nav.scrolled {
 /* ============================== */
 /* Services Page — Interactive Tools */
 /* ============================== */
-/* Pareho na ng ibang section sa page (hal. .services-detailed: 8rem 5%) */
+/* Pareho na ng ibang section sa page (hal. .services-detailed: 8rem 5%).
+   May dark-mode dot pattern tulad ng ibang sections; ang light-mode
+   override ay nasa baba pa rin. */
 .services-tools {
     padding: 8rem 5%;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
+    background-size: 18px 18px;
 }
 
 .services-tools-inner {
@@ -5907,9 +5982,12 @@ nav.scrolled {
     display: inline-flex;
 }
 
-/* Comparison table */
+/* Comparison table — may dark-mode dot pattern tulad ng ibang sections
+   (hal. .services-detailed). Ang light-mode override ay nasa baba pa rin. */
 .services-comparison {
     padding: 0 5% 7rem;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.01px, transparent 1px);
+    background-size: 18px 18px;
 }
 
 .comparison-title {
@@ -5933,7 +6011,10 @@ nav.scrolled {
     border: 1px solid var(--light-gray);
     border-radius: 20px;
     overflow-x: auto;
-    background: rgba(255, 255, 255, 0.03);
+    /* Solid card bg (hindi translucent) — kung translucent, kita ang dot
+       pattern ng section sa loob ng table at mukhang marumi sa dark mode.
+       Sa light mode may sariling rule pa rin sa baba. */
+    background: var(--pkg-card);
 }
 
 .comparison-table {
@@ -5957,7 +6038,8 @@ nav.scrolled {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--dark-gray);
-    background: rgba(255, 255, 255, 0.04);
+    /* Solid header bg — kung translucent, kita ang dots sa header row */
+    background: var(--gray);
 }
 
 .comparison-table tbody tr:last-child td {
@@ -5993,7 +6075,9 @@ nav.scrolled {
 }
 
 .btn-sm {
-    padding: 0.5rem 1.1rem;
+    /* Compact: mas manipis ang top/bottom (0.5rem → 0.35rem) para hindi
+       mataba ang Book button sa comparison table */
+    padding: 0.35rem 1.1rem;
     font-size: 0.82rem;
 }
 

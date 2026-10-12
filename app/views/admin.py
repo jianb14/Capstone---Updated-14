@@ -1,4 +1,4 @@
-"""Admin: dashboard, content mgmt, users, analytics, gallery, reviews. (split from app/views.py)"""
+﻿"""Admin: dashboard, content mgmt, users, analytics, gallery, reviews. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
 from .common import _cleanup_legacy_booking_request_states, _pdf_link_callback  # noqa: F401
@@ -3199,6 +3199,29 @@ def admin_review_reply(request, id):
 # =============================================================================
 # ADMIN CONCERNS
 # =============================================================================
+
+@login_required
+@require_POST
+def admin_review_delete_reply(request, id):
+    """Remove the official admin reply from a review."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    review = get_object_or_404(Review, id=id)
+    try:
+        reply = review.reply
+    except ReviewReply.DoesNotExist:
+        messages.error(request, "No admin reply to remove.")
+        return redirect("admin_review_detail", id=review.id)
+
+    reply.delete()
+    log_action(
+        request.user,
+        f"Removed admin reply from review #{review.id}.",
+    )
+    messages.success(request, "Reply removed successfully.")
+    return redirect("admin_review_detail", id=review.id)
+
 
 @login_required
 def admin_review_toggle_testimonial(request, id):
