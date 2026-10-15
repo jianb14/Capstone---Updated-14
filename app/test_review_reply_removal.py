@@ -172,8 +172,10 @@ class ReviewReplyRemovalTests(TestCase):
         self.assertIn("Post Reply", body)
 
     def test_template_cache_buster_bumped(self):
+        # Aabutin lang ang tamang bersyon — dapat i-match ang kasalukuyang
+        # cache-bust sa detail template (huling bump: 20261012c).
         self.assertIn(
-            "css/admin_reviews.css' %}?v=20261012a", self._template()
+            "css/admin_reviews.css' %}?v=20261012c", self._template()
         )
 
     def _css(self):
