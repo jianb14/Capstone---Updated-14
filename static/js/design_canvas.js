@@ -1990,10 +1990,10 @@
         if (quotaKey) {
             let limit = window.packageQuotas[quotaKey];
             const normalizedQuota = normalizeCategoryName(quotaKey);
-            const isUnlimited = limit >= 999 || normalizedQuota.includes('styrofoam');
+            const isUnlimited = limit >= 999 || (limit === -1 && normalizedQuota.includes('styrofoam'));
             
             // Treat -1 (Included) as a strict limit of 1, EXCEPT for styrofoam
-            if (limit === -1 && !normalizedQuota.includes('styrofoam')) limit = 1;
+            if (limit === -1) limit = isUnlimited ? 999 : 1;
 
             if (isUnlimited) return true;
 
@@ -3031,12 +3031,12 @@
                     const normalizedQuota = normalizeCategoryName(quotaKey);
                     const isThemeDecorQuota = normalizedQuota.includes('theme') && normalizedQuota.includes('decor');
                     const isStyroQuota = normalizedQuota.includes('styrofoam');
-                    const isChecked = isThemeDecorQuota ? used > 0 : (limit === -1 || isStyroQuota || used >= limit);
+                    const isChecked = isThemeDecorQuota ? used > 0 : (used >= (limit === -1 ? (isStyroQuota ? 999 : 1) : limit));
                     
                     let statusHtml = '';
                     if (isThemeDecorQuota && limit === -1) {
                         statusHtml = `${Math.min(used, 1)} / 1`;
-                    } else if (isStyroQuota || limit >= 999) {
+                    } else if ((limit === -1 && isStyroQuota) || limit >= 999) {
                         statusHtml = `${used} / Unlimited`;
                     } else if (limit === -1) {
                         statusHtml = `${Math.min(used, 1)} / 1`;
