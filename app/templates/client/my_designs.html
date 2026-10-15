@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_designs.css' %}?v=20261012b">
+<link rel="stylesheet" href="{% static 'css/my_designs.css' %}?v=20261013c">
 
 <!-- Thin outline icon sprite (same stroke style as the home/about icons) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
@@ -248,9 +248,9 @@
                         <i class="fas fa-list"></i> View Inclusions
                     </button>
                 </div>
-                <a href="{% url 'design_canvas' %}?package_id={{ package.id }}&fresh=1" class="pkg-modal-btn">
+                <button type="button" onclick="openModal('featureModal{{ package.id }}'); closeModal('selectPackageModal');" class="pkg-modal-btn">
                     Select Design
-                </a>
+                </button>
             </div>
             {% endfor %}
         </div>
@@ -273,7 +273,11 @@
             </li>
             {% endfor %}
         </ul>
-        <a href="{% url 'design_canvas' %}?package_id={{ package.id }}&fresh=1" class="feature-modal-btn">Start with this Package</a>
+        <p class="feature-confirm-note">Kindly review what's included first — this package will be your design's starting point, and you can still customize it inside the canvas.</p>
+        <div class="feature-modal-actions">
+            <button type="button" onclick="closeModal('featureModal{{ package.id }}'); openModal('selectPackageModal');" class="feature-modal-back"><i class="fas fa-arrow-left"></i> Back</button>
+            <a href="{% url 'design_canvas' %}?package_id={{ package.id }}&fresh=1" class="feature-modal-btn">Continue to Design</a>
+        </div>
     </div>
 </div>
 {% endfor %}

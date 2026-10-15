@@ -672,9 +672,11 @@
     padding: 0.5rem;
     border-radius: 6px;
     display: block;
+    width: 100%;
     text-align: center;
     text-decoration: none;
     font-size: 0.85rem;
+    font-family: 'Montserrat', sans-serif;
     margin-top: 1.5rem;
     transition: background 0.2s ease;
     border: none;
@@ -806,6 +808,61 @@
 
 .feature-modal-btn:hover {
     background: #d4d4d4;
+}
+
+/* Soft-confirm: reminder note + Back/Continue row sa inclusions modal */
+.feature-confirm-note {
+    font-size: 0.82rem;
+    color: #999;
+    line-height: 1.6;
+    margin: 0 0 1rem 0;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #333;
+    border-radius: 6px;
+}
+
+.feature-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    /* Pantay ang height ng Back at Continue: i-stretch pareho tapos
+     * i-center ang content sa loob ng bawat button */
+    align-items: stretch;
+}
+
+.feature-modal-actions .feature-modal-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feature-modal-back {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.7rem 1.1rem;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid #555;
+    color: #ccc;
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.feature-modal-back i {
+    margin-right: 6px;
+    font-size: 0.75rem;
+}
+
+.feature-modal-back:hover {
+    background: #222;
+    color: #fff;
 }
 
 /* Responsive - Package Modal
@@ -1039,9 +1096,12 @@
     border: 1px solid #111111;
 }
 
+/* Primary hover: kaunting gray lang (#333333) mas maputla kaysa sa
+ * itim na base (#111111) — dapat kitang-kita pero hindi washed-out
+ * gaya ng dating #6b7280/#3f3f46, at hindi invisible na #000000 */
 [data-theme="light"] .overlay-btn.book-btn:hover {
-    background: #3f3f46;
-    border-color: #3f3f46;
+    background: #333333;
+    border-color: #333333;
 }
 
 [data-theme="light"] .overlay-btn.edit-btn {
@@ -1191,8 +1251,8 @@
 }
 
 [data-theme="light"] .pkg-modal-btn:hover {
-    background: #3f3f46;
-    border-color: #3f3f46;
+    background: #333333;
+    border-color: #333333;
 }
 
 /* "Start with this Package" button (light): white-on-white din dati —
@@ -1204,8 +1264,8 @@
 }
 
 [data-theme="light"] .feature-modal-btn:hover {
-    background: #3f3f46;
-    border-color: #3f3f46;
+    background: #333333;
+    border-color: #333333;
 }
 
 [data-theme="light"] .feature-list li span {
@@ -1213,6 +1273,24 @@
 }
 
 [data-theme="light"] .feature-list li i {
+    color: #111111;
+}
+
+/* Soft-confirm note + Back button sa light mode */
+[data-theme="light"] .feature-confirm-note {
+    color: #6b7280;
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .feature-modal-back {
+    border-color: #d4d4d8;
+    color: #3f3f46;
+    background: transparent;
+}
+
+[data-theme="light"] .feature-modal-back:hover {
+    background: #f4f4f5;
     color: #111111;
 }
 
@@ -1229,15 +1307,25 @@
     box-shadow: none !important;
 }
 
-/* Create New Design button: solid black na may soft dark hover
- * (hindi na medium-gray na galing sa remap na --dark-gray: #6b7280) */
+/* Create New Design button: solid black, hover ay bahagyang mas
+ * maputlang gray (#333333) — kitang-kita pero hindi invisible (#000)
+ * at hindi washed-out gray (#6b7280) gaya ng dating #3f3f46 */
 [data-theme="light"] .create-new-btn {
     background: #111111;
     color: #ffffff;
 }
 
 [data-theme="light"] .create-new-btn:hover {
-    background: #3f3f46;
+    background: #333333;
+}
+
+/* Save Name / empty-state create button: sa light mode ang base nito ay
+ * itim (#1a1a1a) pero ang base hover ay var(--dark-gray) = #6b7280
+ * (sobrang putla) — kaya may light override na bahagyang mas maputlang
+ * gray lang (#333333), para may makitang hover pero hindi mukhang disabled. */
+[data-theme="light"] .btn-save:hover,
+[data-theme="light"] .empty-create-btn:hover {
+    background: #333333;
 }
 
 /* Pagination: ibinalik ang box (white bg + border) na kapareho ng dating itsura,
