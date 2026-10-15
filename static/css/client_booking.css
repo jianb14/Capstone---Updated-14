@@ -507,13 +507,13 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
 
 /* ========================================================
    ADMIN-BLOCKED DATES (Unavailable)
-   SOLID red sa mismong cell — TRANSPARENT lahat ng children
-   para walang banding/hati na shades. May "Unavailable" text
-   sa gitna ng cell (inie-inject sa JS).
+   LIGHT GRAY sa mismong cell (hindi na aggressive na pula) —
+   TRANSPARENT lahat ng children para walang banding. May
+   "Unavailable" + blocked icon sa gitna (inie-inject sa JS).
    ======================================================== */
 #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
     position: relative;
-    background-color: #991b1b !important;
+    background-color: #2a2a2a !important;
     cursor: not-allowed !important;
 }
 
@@ -540,6 +540,7 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     padding-top: 0.75rem;
     font-size: 0.7rem;
     font-weight: 700;
@@ -567,13 +568,13 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
     cursor: not-allowed !important;
 }
 
-/* Patayin ang generic hover highlight sa blocked dates */
+/* Walang nagbabago sa hover — manatiling light gray, cursor not-allowed */
 html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #991b1b !important;
+    background-color: #2a2a2a !important;
 }
 
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
-    background-color: #b91c1c !important;
+    background-color: #e5e7eb !important;
     cursor: not-allowed !important;
 }
 
@@ -586,12 +587,17 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
 }
 
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
-    color: #ffffff !important;
+    color: #9ca3af !important;
     font-weight: 700;
 }
 
+/* Basahin ang "Unavailable" label sa light gray na cell (dati: puti sa puti) */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+    color: #6b7280;
+}
+
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #b91c1c !important;
+    background-color: #e5e7eb !important;
 }
 
 /* Modal Time Inputs Layout */
@@ -889,6 +895,178 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
 .form-group input[type="time"] {
     color-scheme: dark;
 }
+
+/* Custom date picker popover */
+.booking-picker-pop {
+    position: absolute;
+    /* Masikip na agwat sa input (4px) — hindi malaki ang spacing sa taas */
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 1200;
+    width: 280px;
+    padding: 8px;
+    /* Radius ay kapareho ng input fields (4px) */
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: #141414;
+    /* Minimal lang na shadow ng dropdown */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.20);
+    color: #fff;
+}
+/* Dapat laging manalo ang [hidden] attribute kaysa sa display:flex ng
+   .booking-picker-time (author CSS > UA stylesheet) — kung hindi, parang
+   "nakabukas agad" na time dropdown ang nakikita sa Step 2 kahit hindi pa napipindot. */
+.booking-picker-pop[hidden] {
+    display: none !important;
+}
+.booking-picker-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.booking-picker-title { font-size: 0.85rem; }
+.booking-picker-nav {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+}
+.booking-picker-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+.booking-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.booking-picker-dow {
+    font-size: 0.65rem;
+    text-align: center;
+    opacity: 0.55;
+}
+.booking-picker-blank { min-height: 30px; }
+.booking-picker-day {
+    min-height: 30px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+.booking-picker-day:hover { border-color: rgba(255,255,255,0.35); }
+/* Aktibong/selected = neutral gray lang (hindi asul o pula) */
+.booking-picker-day.is-selected { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.4); color: #fff; }
+.booking-picker-day.is-disabled { cursor: not-allowed; opacity: 0.55; }
+.booking-picker-day.is-blocked { background: rgba(185,28,28,0.55); }
+.booking-picker-day.is-full { background: rgba(245,158,11,0.35); }
+.booking-picker-day.is-past { background: rgba(255,255,255,0.03); opacity: 0.35; }
+.booking-picker-foot { margin-top: 8px; font-size: 0.68rem; opacity: 0.65; }
+/* Legend sa ilalim ng date dropdown: kulay ng cells —
+   pula = unavailable (blocked), dilaw = fully booked. */
+.booking-picker-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.booking-picker-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.booking-picker-legend .lp-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.booking-picker-legend .lp-blocked { background: #b91c1c; }
+.booking-picker-legend .lp-full { background: #f59e0b; }
+.booking-picker-time {
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 #000;
+}
+/* Scrollbar ng time dropdown — dark (default) at light mode,
+   kapareho ng .custom-select-options pattern sa itaas. */
+.booking-picker-time::-webkit-scrollbar { width: 6px; }
+.booking-picker-time::-webkit-scrollbar-track { background: #000; }
+.booking-picker-time::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+[data-theme="light"] .booking-picker-time { scrollbar-color: #d1d5db #f9fafb; }
+[data-theme="light"] .booking-picker-time::-webkit-scrollbar-track { background: #f9fafb; }
+[data-theme="light"] .booking-picker-time::-webkit-scrollbar-thumb { background: #d1d5db; }
+.booking-picker-timeopt {
+    text-align: left;
+    padding: 7px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,0.06);
+    color: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+.booking-picker-timeopt:hover { border-color: rgba(255,255,255,0.35); }
+.booking-picker-timeopt.is-selected { background: rgba(255,255,255,0.16); color: #fff; }
+/* Hint sa ilalim ng Start/End kapag hindi pa pwedeng buksan ang dropdown
+   (walang date, unavailable, o walang start para sa End). */
+.booking-picker-timehint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.68rem;
+    opacity: 0.6;
+}
+input[data-custom-picker="date"] { cursor: pointer; background-image: none; }
+input[data-custom-picker^="time-"] { cursor: pointer; }
+/* Relative holder sa paligid ng input — dito nakakabit ang click icon sa
+   kanang gilid (calendar sa Event Date, clock sa Start/End). */
+.booking-input-holder {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+.booking-input-holder input {
+    display: block;
+    width: 100%;
+    /* !important para manalo pa rin sa mobile padding shorthand
+       (.booking-modal-box .form-group input { padding: ... }) at hindi
+       maipit ang text sa ilalim ng icon. */
+    padding-right: 36px !important;
+    box-sizing: border-box;
+}
+/* Itago ang native calendar indicator ng Chrome/Edge para ang custom
+   icon lang ang makikita at mapipindot sa kanang gilid ng date input. */
+input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+}
+.booking-picker-icon {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 10px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.booking-picker-icon:hover { color: #fff; }
+.booking-picker-icon i { font-size: 0.85rem; pointer-events: none; }
+[data-theme="light"] .booking-picker-icon { color: #6b7280; }
+[data-theme="light"] .booking-picker-icon:hover { color: #111827; }
+[data-theme="light"] .booking-picker-pop {
+    background: #fff;
+    color: #111;
+    border-color: rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+[data-theme="light"] .booking-picker-day { background: rgba(0,0,0,0.05); color: #111; }
+[data-theme="light"] .booking-picker-day:hover { border-color: rgba(0,0,0,0.18); }
+[data-theme="light"] .booking-picker-day.is-selected { background: #e5e7eb; border-color: #d1d5db; color: #111; }
+/* Light mode: ibalik ang kulay ng unavailable (pula) at fully-booked (dilaw)
+   — binubura ng [data-theme="light"] .booking-picker-day rule ang mga ito. */
+[data-theme="light"] .booking-picker-day.is-blocked { background: #b91c1c; color: #fff; }
+[data-theme="light"] .booking-picker-day.is-full { background: #f59e0b; color: #111; }
+[data-theme="light"] .booking-picker-nav { color: #111; border-color: rgba(0,0,0,0.18); }
+/* Light mode: ang dark-mode na rgba(255,255,255,...) na bg/border ay hindi
+   nakikita sa puti — kaya may sariling itinakda ang bawat oras option. */
+[data-theme="light"] .booking-picker-timeopt { background: rgba(0,0,0,0.04); color: #111; }
+[data-theme="light"] .booking-picker-timeopt:hover { border-color: rgba(0,0,0,0.18); }
+[data-theme="light"] .booking-picker-timeopt.is-selected { background: #e5e7eb; color: #111; }
 
 .form-group textarea {
     min-height: 70px;
@@ -1290,6 +1468,19 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
     text-transform: none !important;
 }
 
+/* Helper hint sa ilalim ng Event Date (native picker limitation note) */
+.booking-date-hint {
+    display: block;
+    margin-top: 6px;
+    color: #9ca3af;
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+[data-theme="light"] .booking-date-hint {
+    color: #6b7280;
+}
+
 .form-group.has-error .booking-field-error,
 .time-field.has-error .booking-field-error {
     display: block !important;
@@ -1337,6 +1528,93 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
 .form-group.has-error .booking-field-error,
 .time-field.has-error .booking-field-error {
     color: #ef4444 !important;
+}
+
+/* ---------- FULLY-BOOKED DATE BANNER (inline sa ilalim ng Event Date) ---------- */
+.booking-availability-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.booking-availability-banner[hidden] {
+    display: none;
+}
+
+.booking-availability-banner > i {
+    margin-top: 2px;
+    color: #ef4444;
+}
+
+.availability-banner-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.availability-banner-title {
+    margin: 0;
+    font-weight: 600;
+    color: #ef4444;
+}
+
+.availability-banner-sub {
+    margin: 6px 0 0;
+    color: inherit;
+    opacity: 0.9;
+}
+
+.availability-banner-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.availability-date-chip {
+    border: 1px solid rgba(239, 68, 68, 0.55);
+    border-radius: 999px;
+    background: transparent;
+    color: #fca5a5;
+    padding: 4px 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.availability-date-chip:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+    color: #ffffff;
+}
+
+[data-theme="light"] .booking-availability-banner {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+
+[data-theme="light"] .availability-banner-title {
+    color: #dc2626;
+}
+
+[data-theme="light"] .availability-date-chip {
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+[data-theme="light"] .availability-date-chip:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
 }
 
 .card-top-label {
@@ -2183,12 +2461,13 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
 }
 
 /* Active day hover — pinakamagaan sa hierarchy (0.03 < 0.05 today);
-   tint sa cell LANG, uniform buong cell (walang hati) */
-[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+   tint sa cell LANG, uniform buong cell (walang hati).
+   May :not(.booking-day-blocked) — hindi nag-ho-hover ang unavailable. */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
     background-color: rgba(17, 24, 39, 0.03) !important;
 }
-[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
-[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
     background-color: transparent !important;
 }
 
@@ -2517,6 +2796,10 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
 [data-theme="light"] .form-group select.has-error,
 [data-theme="light"] .time-field input.has-error {
     background-color: #fef2f2 !important;
+    /* Manalo sa global [data-theme=light] input border (≈line 2268,
+       parehong !important at later sa file) — pulang border kapag may
+       error, kapareho ng Event Type. */
+    border-color: #ef4444 !important;
 }
 
 [data-theme="light"] .form-group.has-error .custom-select-trigger,

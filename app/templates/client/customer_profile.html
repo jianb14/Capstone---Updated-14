@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20260913z">
+<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20261013a">
 
 <div class="profile-page" style="animation: fadeInPage 0.5s ease forwards;">
     <div class="profile-shell">
@@ -493,6 +493,7 @@
                         <label><i class="far fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
                         <input type="date" id="edit_event_date" name="event_date" required>
                         <small class="review-field-error" id="edit_event_date_error"></small>
+                        <small class="edit-date-hint">Past dates can't be selected. Operating hours: 7:00 AM – 6:00 PM.</small>
                     </div>
 
                     <div class="form-group full-width">
@@ -500,12 +501,12 @@
                         <div class="time-row">
                             <div class="time-field">
                                 <small>Start</small>
-                                <input type="time" id="edit_start_time" name="start_time" required>
+                                <input type="time" id="edit_start_time" name="start_time" min="07:00" max="16:00" step="900" required>
                                 <small class="review-field-error" id="edit_start_time_error"></small>
                             </div>
                             <div class="time-field">
                                 <small>End</small>
-                                <input type="time" id="edit_end_time" name="end_time" required>
+                                <input type="time" id="edit_end_time" name="end_time" min="07:00" max="18:00" step="900" required>
                                 <small class="review-field-error" id="edit_end_time_error"></small>
                             </div>
                         </div>
@@ -829,16 +830,32 @@
             if (!editEventDateEl || !editEventDateEl.value) {
                 setEditBookingFieldError('event_date', 'Event Date is required*');
                 if (!firstInvalidField) firstInvalidField = 'event_date';
+            } else if (editEventDateEl.value < editEventDateEl.min) {
+                // Mirror ng server-side na "Cannot change to a past date."
+                setEditBookingFieldError('event_date', 'Event Date cannot be in the past.*');
+                if (!firstInvalidField) firstInvalidField = 'event_date';
             }
 
             if (!editStartTimeEl || !editStartTimeEl.value) {
                 setEditBookingFieldError('start_time', 'Start Time is required*');
                 if (!firstInvalidField) firstInvalidField = 'start_time';
+            } else {
+                const startMinutes = getEditMinutesFromTimeValue(editStartTimeEl.value);
+                if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
+                    setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.*');
+                    if (!firstInvalidField) firstInvalidField = 'start_time';
+                }
             }
 
             if (!editEndTimeEl || !editEndTimeEl.value) {
                 setEditBookingFieldError('end_time', 'End Time is required*');
                 if (!firstInvalidField) firstInvalidField = 'end_time';
+            } else {
+                const endMinutes = getEditMinutesFromTimeValue(editEndTimeEl.value);
+                if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
+                    setEditBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.*');
+                    if (!firstInvalidField) firstInvalidField = 'end_time';
+                }
             }
 
             if (!editEventLocationEl || !editEventLocationEl.value.trim()) {
@@ -1355,6 +1372,98 @@
             .forEach((fieldKey) => setEditBookingFieldError(fieldKey, ''));
     }
 
+    // --- Booking guardrails (mirror ng booking_page: 7AM–6PM + 2h minimum) ---
+    function getEditTodayIso() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function updateEditTimeConstraints() {
+        if (editEventDateEl) editEventDateEl.min = getEditTodayIso();
+        if (!editStartTimeEl || !editEndTimeEl) return;
+
+        // Start: floor 07:00, ceiling 16:00 (2 hours bago mag-6:00 PM).
+        let startMin = '07:00';
+        if (editEventDateEl && editEventDateEl.value && editEventDateEl.value === getEditTodayIso()) {
+            const now = new Date();
+            let nowMinutes = Math.ceil(((now.getHours() * 60) + now.getMinutes()) / 15) * 15;
+            const nowHours = String(Math.floor(nowMinutes / 60)).padStart(2, '0');
+            const nowMins = String(nowMinutes % 60).padStart(2, '0');
+            const nowRounded = `${nowHours}:${nowMins}`;
+            if (nowRounded > startMin) startMin = nowRounded;
+        }
+        editStartTimeEl.min = startMin;
+        editStartTimeEl.max = '16:00';
+
+        // End: >= start + 2 hours, at maximum 18:00.
+        editEndTimeEl.min = '07:00';
+        editEndTimeEl.max = '18:00';
+        const startValue = editStartTimeEl.value;
+        if (startValue && startValue.includes(':')) {
+            const startHour = parseInt(startValue.split(':')[0], 10);
+            const startMinute = parseInt(startValue.split(':')[1], 10);
+            if (!Number.isNaN(startHour) && !Number.isNaN(startMinute)) {
+                let minEnd = (startHour * 60) + startMinute + 120;
+                if (minEnd > 18 * 60) minEnd = 18 * 60;
+                const minEndHours = String(Math.floor(minEnd / 60)).padStart(2, '0');
+                const minEndMins = String(minEnd % 60).padStart(2, '0');
+                const minEndStr = `${minEndHours}:${minEndMins}`;
+                if (minEndStr > editEndTimeEl.min) editEndTimeEl.min = minEndStr;
+            }
+        }
+    }
+
+    function getEditMinutesFromTimeValue(timeValue) {
+        if (!timeValue || !timeValue.includes(':')) return null;
+        const hour = parseInt(timeValue.split(':')[0], 10);
+        const minute = parseInt(timeValue.split(':')[1], 10);
+        if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+        return (hour * 60) + minute;
+    }
+
+    /* Instant operating-hours guard (mirror ng booking_page): inline error
+       agad + disabled Next kapag nasa labas ng 7:00 AM–6:00 PM o <2h. */
+    function validateEditTimesInstant() {
+        if (!editStartTimeEl || !editEndTimeEl) return false;
+        const startMinutes = getEditMinutesFromTimeValue(editStartTimeEl.value);
+        const endMinutes = getEditMinutesFromTimeValue(editEndTimeEl.value);
+        let violated = false;
+
+        if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
+            setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.*');
+            violated = true;
+        } else {
+            setEditBookingFieldError('start_time', '');
+        }
+
+        if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
+            setEditBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.*');
+            violated = true;
+        } else if (startMinutes !== null && endMinutes !== null && (endMinutes - startMinutes) < 120) {
+            setEditBookingFieldError('end_time', 'Event duration must be at least 2 hours.*');
+            violated = true;
+        } else {
+            setEditBookingFieldError('end_time', '');
+        }
+
+        return violated;
+    }
+
+    /* Single choke point para sa edit Step-2 Next-button state. */
+    function refreshEditStepTwoNextState() {
+        if (!btnNextEditToSummary) return;
+        btnNextEditToSummary.disabled = validateEditTimesInstant();
+    }
+
+    if (editStartTimeEl) editStartTimeEl.addEventListener('change', function () { updateEditTimeConstraints(); refreshEditStepTwoNextState(); });
+    if (editEndTimeEl) editEndTimeEl.addEventListener('change', refreshEditStepTwoNextState);
+    if (editEventDateEl) editEventDateEl.addEventListener('change', function () { updateEditTimeConstraints(); refreshEditStepTwoNextState(); });
+    updateEditTimeConstraints();
+    refreshEditStepTwoNextState();
+
     function validateEditBookingForm() {
         clearEditBookingValidationErrors();
         let firstInvalidField = null;
@@ -1372,16 +1481,32 @@
         if (!editEventDateEl || !editEventDateEl.value) {
             setEditBookingFieldError('event_date', 'Event Date is required*');
             if (!firstInvalidField) firstInvalidField = 'event_date';
+        } else if (editEventDateEl.value < editEventDateEl.min) {
+            // Mirror ng server-side na "Cannot change to a past date."
+            setEditBookingFieldError('event_date', 'Event Date cannot be in the past.*');
+            if (!firstInvalidField) firstInvalidField = 'event_date';
         }
 
         if (!editStartTimeEl || !editStartTimeEl.value) {
             setEditBookingFieldError('start_time', 'Start Time is required*');
             if (!firstInvalidField) firstInvalidField = 'start_time';
+        } else {
+            const startMinutes = getEditMinutesFromTimeValue(editStartTimeEl.value);
+            if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
+                setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.*');
+                if (!firstInvalidField) firstInvalidField = 'start_time';
+            }
         }
 
         if (!editEndTimeEl || !editEndTimeEl.value) {
             setEditBookingFieldError('end_time', 'End Time is required*');
             if (!firstInvalidField) firstInvalidField = 'end_time';
+        } else {
+            const endMinutes = getEditMinutesFromTimeValue(editEndTimeEl.value);
+            if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
+                setEditBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.*');
+                if (!firstInvalidField) firstInvalidField = 'end_time';
+            }
         }
 
         if (!editEventLocationEl || !editEventLocationEl.value.trim()) {
@@ -1894,6 +2019,8 @@
         document.getElementById('edit_start_time').value = startTime;
         document.getElementById('edit_end_time').value = endTime;
         document.getElementById('edit_event_location').value = location;
+        // I-apply ang 7AM–6PM / 2h constraints sa napiling petsa at oras.
+        updateEditTimeConstraints();
         
         // Match existing package/addon string and click logically
         const pkgParts = pkgStr ? pkgStr.split(' + ').map(p => p.trim()) : [];

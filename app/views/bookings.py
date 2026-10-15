@@ -28,6 +28,7 @@ def booking_page(request):
         status__in=["pending_payment", "confirmed", "completed"]
     )
     calendar_events = []
+    booked_ranges = {}
 
     # Get active packages and optionals for the stepper
     active_packages = Package.objects.filter(is_active=True)
@@ -81,12 +82,43 @@ def booking_page(request):
             }
         )
 
+        # Server-side booked ranges para sa decoupled availability module
+        # (static/js/booking_availability.js) — mirror ng client-side na
+        # getBookedRangesForDate: iki-clip sa 07:00-18:00, walang end time ay
+        # +240 min default gaya ng server overlap check.
+        if b.event_date:
+            date_key = b.event_date.isoformat()
+            if b.event_time:
+                start_minutes = b.event_time.hour * 60 + b.event_time.minute
+                if end_time_str:
+                    try:
+                        end_parsed = datetime.strptime(end_time_str, "%H:%M").time()
+                        end_minutes = end_parsed.hour * 60 + end_parsed.minute
+                    except ValueError:
+                        end_minutes = start_minutes + 240
+                else:
+                    end_minutes = start_minutes + 240
+                clipped_start = max(start_minutes, 7 * 60)
+                clipped_end = min(end_minutes, 18 * 60)
+                if clipped_end > clipped_start:
+                    booked_ranges.setdefault(date_key, []).append(
+                        [clipped_start, clipped_end]
+                    )
+
+    availability_data = {
+        "blockedDates": blocked_dates_payload,
+        "bookedRanges": booked_ranges,
+        "todayIso": timezone.localdate().isoformat(),
+        "leadDays": SiteSettings.load().booking_lead_time_days or 0,
+    }
+
     return render(
         request,
         "client/booking/booking_page.html",
         {
             "calendar_events": calendar_events,
             "blocked_dates": blocked_dates_payload,
+            "availability_data": availability_data,
             "today_iso": timezone.localdate().isoformat(),
             "packages": active_packages,
             "active_addons": active_addons,

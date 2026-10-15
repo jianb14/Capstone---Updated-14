@@ -2,8 +2,12 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261004b">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261014f">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src="{% static 'js/booking_availability.js' %}?v=20261013a"></script>
+<script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
+<script src="{% static 'js/booking_picker_c.js' %}?v=20261014e"></script>
+{{ availability_data|json_script:"booking-availability-data" }}
 
 
 <div class="booking-page">
@@ -225,6 +229,17 @@
                             <label><i class="far fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
                             <input type="date" id="event_date" name="event_date" data-label="Event Date" required>
                             <small class="booking-field-error" id="event_date_error"></small>
+                            <small class="booking-date-hint">Unavailable dates on the calendar above can't be selected. Operating hours: 7:00 AM – 6:00 PM.</small>
+                            <!-- Inline fully-booked banner (Option A): nagbabago depende sa
+                                 napiling petsa; may nearest-open-date suggestion chips. -->
+                            <div class="booking-availability-banner" id="event_date_availability" hidden>
+                                <i class="fa-solid fa-calendar-circle-xmark"></i>
+                                <div class="availability-banner-body">
+                                    <p class="availability-banner-title">This date is fully booked (7:00 AM – 6:00 PM all taken).</p>
+                                    <p class="availability-banner-sub" id="availability_suggestions_label">Try one of the nearest open dates:</p>
+                                    <div class="availability-banner-suggestions" id="availability_suggestions"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group full-width">
@@ -232,12 +247,12 @@
                             <div class="time-row">
                                 <div class="time-field">
                                     <small>Start</small>
-                                    <input type="time" id="start_time" name="start_time" data-label="Start Time" required>
+                                    <input type="time" id="start_time" name="start_time" data-label="Start Time" min="07:00" max="16:00" step="900" required>
                                     <small class="booking-field-error" id="start_time_error"></small>
                                 </div>
                                 <div class="time-field">
                                     <small>End</small>
-                                    <input type="time" id="end_time" name="end_time" data-label="End Time" required>
+                                    <input type="time" id="end_time" name="end_time" data-label="End Time" min="07:00" max="18:00" step="900" required>
                                     <small class="booking-field-error" id="end_time_error"></small>
                                 </div>
                             </div>
@@ -498,6 +513,192 @@
 
                 return '';
             }, '');
+        }
+
+        // =============================================
+        // FULLY-BOOKED DETECTION + NEAREST OPEN DATES
+        // =============================================
+        /* Bundling ng booked ranges para sa isang petsa mula sa FullCalendar
+           events (pending_payment / confirmed / completed — pawang nasa
+           calendar_events). Bawat range ay iki-clip sa loob ng 07:00–18:00. */
+        function getBookedRangesForDate(dateStr) {
+            if (!calendar || !dateStr) return [];
+
+            const dayStartMinutes = 7 * 60;
+            const dayEndMinutes = 18 * 60;
+
+            return calendar.getEvents().reduce((ranges, event) => {
+                if (!event.start) return ranges;
+                if (getLocalDateKey(event.start) !== dateStr) return ranges;
+
+                const startMinutes = (event.start.getHours() * 60) + event.start.getMinutes();
+                let endMinutes;
+                if (event.end) {
+                    endMinutes = (event.end.getHours() * 60) + event.end.getMinutes();
+                    /* All-day / cross-midnight event → ituring na hanggang 18:00. */
+                    if (event.end.getDate() !== event.start.getDate()) {
+                        endMinutes = dayEndMinutes;
+                    }
+                } else {
+                    /* Walang end time sa data → 4-hour default duration,
+                       kagaya ng server-side na overlap check. */
+                    endMinutes = startMinutes + 240;
+                }
+
+                const clippedStart = Math.max(startMinutes, dayStartMinutes);
+                const clippedEnd = Math.min(endMinutes, dayEndMinutes);
+                if (clippedEnd > clippedStart) {
+                    ranges.push([clippedStart, clippedEnd]);
+                }
+                return ranges;
+            }, []);
+        }
+
+        /* Fully booked kapag na-union ng mga booked range ang buong
+           07:00–18:00 (walang bakante kahit isang minuto). */
+        function isFullyBookedDate(dateStr) {
+            const ranges = getBookedRangesForDate(dateStr);
+            if (!ranges.length) return false;
+
+            ranges.sort((a, b) => a[0] - b[0]);
+
+            let coveredUntil = 7 * 60;
+            const dayEndMinutes = 18 * 60;
+
+            for (const range of ranges) {
+                if (range[0] > coveredUntil) return false; // may butas
+                coveredUntil = Math.max(coveredUntil, range[1]);
+                if (coveredUntil >= dayEndMinutes) return true;
+            }
+            return coveredUntil >= dayEndMinutes;
+        }
+
+        /* Mirror ng server-side na check_date_availability: hanggang 3 na
+           mungkahi sa loob ng 60 araw mula sa napiling petsa, na iniiwasan
+           ang nakaraan, admin-blocked, at fully-booked na mga petsa. */
+        function getNearestOpenDates(fromDateStr, limit) {
+            const maxSuggestions = limit || 3;
+            const suggestions = [];
+            if (!fromDateStr) return suggestions;
+
+            const todayStr = getLocalTodayStr();
+            const cursor = parseLocalDate(fromDateStr);
+            let daysChecked = 0;
+
+            while (suggestions.length < maxSuggestions && daysChecked < 60) {
+                cursor.setDate(cursor.getDate() + 1);
+                daysChecked += 1;
+                const candidate = formatLocalDate(cursor);
+                if (candidate < todayStr) continue;
+                if (isBlockedDate(candidate)) continue;
+                if (isFullyBookedDate(candidate)) continue;
+                suggestions.push(candidate);
+            }
+            return suggestions;
+        }
+
+        function formatDateChipLabel(dateStr) {
+            return new Intl.DateTimeFormat('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
+            }).format(parseLocalDate(dateStr));
+        }
+
+        /* Decoupled availability bridge (Phase 1): kapag loaded ang
+           static/js/booking_availability.js, ang module ang source ng
+           blocked/fully-booked/time checks gamit ang server-side JSON data —
+           gumagana kahit mag-fail ang FullCalendar CDN. Kapag wala ang module,
+           fallback sa calendar-based inline functions. */
+        function readAvailabilityData() {
+            try {
+                if (window.BookingAvailability && window.BookingAvailability.readData) {
+                    return window.BookingAvailability.readData();
+                }
+            } catch (e) { /* fall through sa calendar-based data */ }
+            return null;
+        }
+
+        function moduleIsBlockedDate(dateStr) {
+            const data = readAvailabilityData();
+            if (data && window.BookingAvailability) {
+                return window.BookingAvailability.isBlockedDate(dateStr, data.blockedDates);
+            }
+            return isBlockedDate(dateStr);
+        }
+
+        function moduleIsFullyBookedDate(dateStr) {
+            const data = readAvailabilityData();
+            if (data && window.BookingAvailability) {
+                return window.BookingAvailability.isFullyBookedDate(dateStr, data.bookedRanges);
+            }
+            return isFullyBookedDate(dateStr);
+        }
+
+        function moduleNearestOpenDates(fromDateStr, limit) {
+            const data = readAvailabilityData();
+            if (data && window.BookingAvailability) {
+                try {
+                    return window.BookingAvailability.getNearestOpenDates(fromDateStr, data, limit || 3);
+                } catch (e) { /* fallback sa ibaba */ }
+            }
+            return getNearestOpenDates(fromDateStr, limit);
+        }
+
+        function moduleValidateTimes(startValue, endValue) {
+            if (window.BookingAvailability && window.BookingAvailability.validateTimes) {
+                try {
+                    return window.BookingAvailability.validateTimes(startValue, endValue);
+                } catch (e) { /* fallback sa inline validation */ }
+            }
+            return null;
+        }
+
+        /* Inline banner sa ilalim ng Event Date (banner + chips lang — HINDI
+           nagsusulat ng Next-button state; tanging refreshStepTwoNextState
+           lang ang single writer para hindi mag-overwrite). Laging tinatawag
+           kapag nagbabago ang petsa (change, dateClick, reset, suggestion chip). */
+        function updateEventDateAvailability() {
+            const banner = document.getElementById('event_date_availability');
+            const suggestionsContainer = document.getElementById('availability_suggestions');
+            const suggestionsLabel = document.getElementById('availability_suggestions_label');
+            if (!banner) return;
+
+            const selectedDate = dateInput.value;
+            const blocked = !!selectedDate && moduleIsBlockedDate(selectedDate);
+            const fullyBooked = !!selectedDate && !blocked && moduleIsFullyBookedDate(selectedDate);
+
+            banner.hidden = !fullyBooked;
+
+            if (!fullyBooked) {
+                if (suggestionsContainer) suggestionsContainer.innerHTML = '';
+                return;
+            }
+
+            const suggestions = moduleNearestOpenDates(selectedDate, 3);
+            if (suggestionsLabel) {
+                suggestionsLabel.textContent = suggestions.length
+                    ? 'Try one of the nearest open dates:'
+                    : 'No open dates found within the next 60 days.';
+                suggestionsLabel.hidden = !suggestions.length;
+            }
+            if (!suggestionsContainer) return;
+
+            suggestionsContainer.innerHTML = '';
+            suggestions.forEach((dateStr) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'availability-date-chip';
+                chip.textContent = formatDateChipLabel(dateStr);
+                chip.addEventListener('click', () => {
+                    dateInput.value = dateStr;
+                    setBookingFieldError('event_date', '');
+                    updateTimeConstraints();
+                    updateEventDateAvailability();
+                    refreshStepTwoNextState();
+                });
+                suggestionsContainer.appendChild(chip);
+            });
         }
 
         function calculateTotalPrice() {
@@ -912,6 +1113,12 @@
 
             // Apply correct visual states
             updateUIStates();
+
+            // Form reset → walang petsa pa → itago ang fully-booked banner.
+            // Single-writer rule: tanging refreshStepTwoNextState ang
+            // nagsusulat ng Next-button state (hindi direktang disabled=false).
+            updateEventDateAvailability();
+            refreshStepTwoNextState();
         }
 
         // =============================================
@@ -1173,7 +1380,8 @@
                     if (!arg.el.querySelector('.booking-day-blocked-label')) {
                         var blockedLabel = document.createElement('div');
                         blockedLabel.className = 'booking-day-blocked-label';
-                        blockedLabel.textContent = 'Unavailable';
+                        /* Blocked icon + text — naka-flex + gap ang label sa CSS */
+                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Unavailable';
                         arg.el.appendChild(blockedLabel);
                     }
                 }
@@ -1248,14 +1456,26 @@
             }
 
             /* ADMIN-BLOCKED DATE: huwag nang buksan ang booking form */
-            if (isBlockedDate(clickedDate)) {
+            if (moduleIsBlockedDate(clickedDate)) {
                 showUnavailableToast();
+                return;
+            }
+
+            /* FULLY-BOOKED DATE (decoupled module): huwag ding buksan —
+               kahit mag-fail ang calendar object, blocked pa rin ang petsa. */
+            if (moduleIsFullyBookedDate(clickedDate)) {
+                AppToast.fire({
+                    icon: 'error',
+                    title: 'This date is fully booked. Please choose another date.'
+                });
                 return;
             }
 
             resetModalSteps();
             dateInput.value = clickedDate;
             updateTimeConstraints();
+            updateEventDateAvailability();
+            refreshStepTwoNextState();
 
             modalOverlay.classList.add('show');
             setTimeout(() => {
@@ -1414,21 +1634,111 @@
     // TIME VALIDATION
     // =============================================
     function updateTimeConstraints() {
+        // Lahat ng date/time constraints ay laging nakatalaga — maging pagkatapos
+        // ng form.reset() o programmatic na pag-set ng petsa mula sa calendar.
+        dateInput.min = getLocalTodayStr();
+
         const selectedDate = dateInput.value;
         const now = new Date();
+
+        /* Operating hours: 7:00 AM – 6:00 PM. Kapag ang napiling petsa ay ngayon,
+           ang start ay hindi na pwedeng nakaraan (kundi 07:00 ang floor).
+           Ini-round-up ang "ngayon" sa susunod na 15-min mark para tumugma
+           sa step=900 at manatiling nasa hinaharap ang min. */
+        let startMinutesToday = (now.getHours() * 60) + now.getMinutes();
+        startMinutesToday = Math.ceil(startMinutesToday / 15) * 15;
+        let startMin = '07:00';
         if (selectedDate === getLocalTodayStr()) {
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            startTimeInput.min = `${hours}:${minutes}`;
-        } else {
-            startTimeInput.removeAttribute('min');
+            const startMinHours = String(Math.floor(startMinutesToday / 60)).padStart(2, '0');
+            const startMinMins = String(startMinutesToday % 60).padStart(2, '0');
+            const nowRounded = `${startMinHours}:${startMinMins}`;
+            if (nowRounded > startMin) startMin = nowRounded;
         }
+        startTimeInput.min = startMin;
+        /* 2-hour minimum duration bago mag-6:00 PM → pinakahuling start = 16:00 */
+        startTimeInput.max = '16:00';
+        startTimeInput.step = 900;
+        validateEndTime();
     }
 
     function validateEndTime() {
-        if (startTimeInput.value) {
-            endTimeInput.min = startTimeInput.value;
+        endTimeInput.min = '07:00';
+        endTimeInput.max = '18:00';
+        endTimeInput.step = 900;
+
+        /* End min = start + 2 hours (kasinghalaga ng server-side na 2h rule),
+           hindi na lalampas sa 18:00. */
+        const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
+        if (startMinutes === null) return;
+
+        let minEndMinutes = startMinutes + 120;
+        if (minEndMinutes > 18 * 60) minEndMinutes = 18 * 60;
+        const minEndHours = String(Math.floor(minEndMinutes / 60)).padStart(2, '0');
+        const minEndMins = String(minEndMinutes % 60).padStart(2, '0');
+        const minEndStr = `${minEndHours}:${minEndMins}`;
+
+        if (minEndStr > endTimeInput.min) endTimeInput.min = minEndStr;
+    }
+
+    /* Instant operating-hours guard (Option A): hindi na hinihintay ang Next
+       click. Kapag ang Start/End ay nasa labas ng 7:00 AM – 6:00 PM, o kulang
+       sa 2-hour minimum, nagse-set agad ng inline error. Return true kapag
+       may violation (para ma-disable ang Next). */
+    function validateStepTwoTimesInstant() {
+        /* Decoupled module muna (same rules); fallback sa inline kapag wala. */
+        const moduleResult = moduleValidateTimes(startTimeInput.value, endTimeInput.value);
+        if (moduleResult) {
+            setBookingFieldError('start_time', moduleResult.startError);
+            setBookingFieldError('end_time', moduleResult.endError);
+            return moduleResult.violated;
         }
+        const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
+        const endMinutes = getMinutesFromTimeValue(endTimeInput.value);
+        let violated = false;
+
+        if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
+            setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.');
+            violated = true;
+        } else {
+            setBookingFieldError('start_time', '');
+        }
+
+        if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
+            setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
+            violated = true;
+        } else if (startMinutes !== null && endMinutes !== null && (endMinutes - startMinutes) < 120) {
+            setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+            violated = true;
+        } else {
+            setBookingFieldError('end_time', '');
+        }
+
+        return violated;
+    }
+
+    /* Single choke point para sa Step-2 Next-button state: naka-disable
+       kapag blocked/fully-booked ang petsa O may instant time violation. */
+    function refreshStepTwoNextState() {
+        if (!btnNextToSummary) return;
+        btnNextToSummary.dataset.availabilityGuard = 'main';
+        /* Decoupled module ang single writer: blocked/fully-booked kahit
+           walang laman ang oras, plus instant time violation. */
+        if (window.BookingAvailability && window.BookingAvailability.computeNextDisabled) {
+            try {
+                const data = readAvailabilityData();
+                btnNextToSummary.disabled = window.BookingAvailability.computeNextDisabled(
+                    dateInput.value, startTimeInput.value, endTimeInput.value, data
+                );
+                return;
+            } catch (e) { /* fallback sa inline computation */ }
+        }
+        const selectedDate = dateInput.value;
+        const dateBlocked = !!selectedDate && (
+            moduleIsBlockedDate(selectedDate) ||
+            (!moduleIsBlockedDate(selectedDate) && moduleIsFullyBookedDate(selectedDate))
+        );
+        const timeViolated = validateStepTwoTimesInstant();
+        btnNextToSummary.disabled = dateBlocked || timeViolated;
     }
 
     function setBookingFieldError(fieldKey, message) {
@@ -1483,10 +1793,20 @@
         let firstInvalidField = null;
 
         /* ADMIN-BLOCKED DATE: hindi dapat maka-proceed kapag blocked */
-        if (dateInput.value && isBlockedDate(dateInput.value)) {
+        if (dateInput.value && moduleIsBlockedDate(dateInput.value)) {
             setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
             showUnavailableToast();
             firstInvalidField = 'event_date';
+        }
+
+        /* FULLY-BOOKED DATE: walang bakante sa 7:00 AM – 6:00 PM */
+        if (
+            dateInput.value &&
+            !moduleIsBlockedDate(dateInput.value) &&
+            moduleIsFullyBookedDate(dateInput.value)
+        ) {
+            setBookingFieldError('event_date', 'This date is fully booked (7:00 AM – 6:00 PM all taken). Please choose a different date.');
+            if (!firstInvalidField) firstInvalidField = 'event_date';
         }
 
         if (!eventTypeSelect.value) {
@@ -1507,11 +1827,25 @@
         if (!startTimeInput.value) {
             setBookingFieldError('start_time', 'Start Time is required*');
             if (!firstInvalidField) firstInvalidField = 'start_time';
+        } else {
+            /* Operating-hours guard (7:00 AM–4:00 PM start window para sa 2h minimum). */
+            const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
+            if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
+                setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.');
+                if (!firstInvalidField) firstInvalidField = 'start_time';
+            }
         }
 
         if (!endTimeInput.value) {
             setBookingFieldError('end_time', 'End Time is required*');
             if (!firstInvalidField) firstInvalidField = 'end_time';
+        } else {
+            /* Operating-hours guard (7:00 AM–6:00 PM end window). */
+            const endMinutes = getMinutesFromTimeValue(endTimeInput.value);
+            if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
+                setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
+                if (!firstInvalidField) firstInvalidField = 'end_time';
+            }
         }
 
         if (!eventLocationInput.value.trim()) {
@@ -1805,12 +2139,16 @@
     dateInput.addEventListener('change', function () {
         updateTimeConstraints();
         /* ADMIN-BLOCKED DATE: toast + inline error agad kapag blocked ang napili */
-        if (dateInput.value && isBlockedDate(dateInput.value)) {
+        if (dateInput.value && moduleIsBlockedDate(dateInput.value)) {
             setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
             showUnavailableToast();
         }
+        /* FULLY-BOOKED DATE: banner + nearest-open-date suggestions + disable Next */
+        updateEventDateAvailability();
+        refreshStepTwoNextState();
     });
-    startTimeInput.addEventListener('change', validateEndTime);
+    startTimeInput.addEventListener('change', function () { validateEndTime(); refreshStepTwoNextState(); });
+    endTimeInput.addEventListener('change', refreshStepTwoNextState);
     dateInput.addEventListener('input', () => {
         if (bookingSubmitAttempted) validateBookingStepTwoFields();
     });
@@ -1828,6 +2166,21 @@
     });
     updateTimeConstraints();
     validateEndTime();
+    updateEventDateAvailability();
+    refreshStepTwoNextState();
+
+    /* Custom pickers: blocked/past/lead/fully-booked dates disabled,
+       time selects filtered to 7AM-6PM + 2h + no-overlap. Native inputs
+       stay as fallback when JS module fails (server is source of truth). */
+    try {
+        if (window.BookingPickers && window.BookingAvailability) {
+            window.BookingPickers.init({
+                dateId: 'event_date',
+                startId: 'start_time',
+                endId: 'end_time'
+            });
+        }
+    } catch (e) { /* native inputs remain usable */ }
 
     window.toggleOtherEventType = function (value) {
         const otherInput = document.getElementById('event_type_other');
@@ -2115,6 +2468,60 @@
     modalOverlay.classList.add('show');
     {% endif %}
 
+    });
+
+</script>
+<script>
+    /* Fallback safety net (Phase 1): sariling script block + sariling
+       DOMContentLoaded listener — tumatakbo kahit mag-error o mag-fail ang
+       2000-line inline script sa taas (hal. FullCalendar CDN failure).
+       Module + server JSON lang ang gamit; walang dependency sa calendar
+       object o ibang page scripts. */
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.BookingAvailability) return;
+        var data = null;
+        try { data = window.BookingAvailability.readData(); } catch (e) { return; }
+        if (!data) return;
+
+        var dateInput = document.getElementById('event_date');
+        var startInput = document.getElementById('start_time');
+        var endInput = document.getElementById('end_time');
+        var nextBtn = document.getElementById('btnNextToSummary');
+        var startError = document.getElementById('start_time_error');
+        var endError = document.getElementById('end_time_error');
+        if (!dateInput || !nextBtn) return;
+        /* Main script na ang nagba-bridge kapag buhay ito — iwas double-write. */
+        if (nextBtn.dataset.availabilityGuard === 'main') return;
+        nextBtn.dataset.availabilityGuard = 'fallback';
+
+        function refresh() {
+            try {
+                var disabled = window.BookingAvailability.computeNextDisabled(
+                    dateInput.value,
+                    startInput ? startInput.value : '',
+                    endInput ? endInput.value : '',
+                    window.BookingAvailability.readData()
+                );
+                nextBtn.disabled = disabled;
+            } catch (e) { /* defensive: huwag sirain ang page */ }
+        }
+
+        function refreshWithErrors() {
+            refresh();
+            try {
+                var result = window.BookingAvailability.validateTimes(
+                    startInput ? startInput.value : '',
+                    endInput ? endInput.value : ''
+                );
+                if (startError) startError.textContent = result.startError || '';
+                if (endError) endError.textContent = result.endError || '';
+            } catch (e) { /* defensive */ }
+        }
+
+        dateInput.addEventListener('change', refresh);
+        if (startInput) startInput.addEventListener('change', refreshWithErrors);
+        if (endInput) endInput.addEventListener('change', refreshWithErrors);
+        refresh();
     });
 </script>
 {% endblock %}
