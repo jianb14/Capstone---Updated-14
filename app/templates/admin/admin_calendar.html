@@ -4,7 +4,7 @@
 {% block title %}Events Calendar - Admin{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20260916f">
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261014b">
 {% endblock %}
 
 {% block content %}
@@ -303,7 +303,8 @@
                     if (!info.el.querySelector('.booking-day-blocked-label')) {
                         var blockedLabel = document.createElement('div');
                         blockedLabel.className = 'booking-day-blocked-label';
-                        blockedLabel.textContent = 'Unavailable';
+                        /* Blocked icon + text — naka-flex + gap ang label sa CSS */
+                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Unavailable';
                         info.el.appendChild(blockedLabel);
                     }
                 }
