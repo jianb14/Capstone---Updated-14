@@ -2078,7 +2078,7 @@ _SERVICE_DEFAULTS = {
 
 def _seed_service_defaults(content):
     """Prefill ServiceContent fields with the same defaults the client services
-    page falls back to, and seed the 3 default services (Birthday / Wedding /
+    page falls back to, and seed the 3 default services (Birthday / Baptism /
     Corporate) so the admin table and the client page comparison table show
     real data.
 
@@ -2114,20 +2114,21 @@ def _seed_service_defaults(content):
                     display_order=1,
                 ),
                 Service(
-                    title="Wedding Balloon Installations",
+                    title="Baptism & Christening Balloon Styling",
                     description=(
-                        "We style wedding venues with elegant balloon designs that match your "
-                        "motif — soft, romantic palettes, organic garlands, and refined "
-                        "installs that elevate every corner of your celebration. We also "
-                        "coordinate closely with your other suppliers for a smooth, "
-                        "stress-free setup from ceremony to reception."
+                        "We style baptism and christening celebrations with soft, "
+                        "heartfelt balloon designs — gentle pastel palettes, "
+                        "elegant backdrops, and tasteful installs that honor your "
+                        "little one's special day. From the church entrance to the "
+                        "reception, we coordinate closely with your family and "
+                        "suppliers for a smooth, stress-free setup."
                     ),
                     features=(
-                        "Elegant entrance arches and backdrops\n"
-                        "Organic garlands and refined installs\n"
-                        "Supplier-coordinated, stress-free setup"
+                        "Styled backdrop panels with styrofoam name\n"
+                        "Balloons in your chosen color motif\n"
+                        "Cake table, celebrant chair, and souvenir rack setup"
                     ),
-                    best_for="Weddings, receptions, and proposals",
+                    best_for="Baptisms, christenings, and baby celebrations",
                     display_order=2,
                 ),
                 Service(

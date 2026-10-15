@@ -82,7 +82,10 @@
             <input type="text" name="reason" maxlength="255" class="blocked-input blocked-reason-input"
                 placeholder="Reason (optional, e.g. Holiday / Maintenance)">
             <button type="submit" class="blocked-submit-btn">Block Date</button>
+            <input type="hidden" name="confirm_conflicts" id="blockDateConfirmConflicts" value="">
         </form>
+        {{ booking_conflict_counts|json_script:"admin-booking-conflict-counts" }}
+        <div class="blocked-conflict-hint" id="blockedConflictHint" hidden></div>
         <div class="blocked-list">
             {% if blocked_dates %}
                 {% for blocked in blocked_dates %}
@@ -115,6 +118,19 @@
     </div>
     <div class="cal-popover-body" id="calPopBody"></div>
 </div>
+
+<!-- OPTION A: conflict-aware block modal -->
+<div class="cal-block-confirm" id="blockConflictModal" hidden>
+    <div class="cal-block-confirm-card" role="dialog" aria-modal="true" aria-labelledby="blockConflictTitle">
+        <div class="cal-block-confirm-title" id="blockConflictTitle">&#9888;&#65039; Date already has bookings</div>
+        <p class="cal-block-confirm-text" id="blockConflictText"></p>
+        <p class="cal-block-confirm-note">Blocking prevents <strong>new</strong> customer bookings. The existing bookings stay on this date and remain visible on the calendar.</p>
+        <div class="cal-block-confirm-actions">
+            <button type="button" class="blocked-unblock-btn" id="blockConflictCancel">Cancel</button>
+            <button type="button" class="blocked-submit-btn" id="blockConflictConfirm">Block Anyway</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -127,6 +143,81 @@
         var popBody = document.getElementById('calPopBody');
         var popDate = document.getElementById('calPopDate');
         var todayIso = '{{ today_iso }}';
+
+        /* OPTION A: conflict-aware block — per-date booking counts mula sa
+           backend para ma-warning ang admin bago mag-block. */
+        var conflictCounts = {};
+        try {
+            var conflictEl = document.getElementById('admin-booking-conflict-counts');
+            conflictCounts = conflictEl ? (JSON.parse(conflictEl.textContent || '{}') || {}) : {};
+        } catch (e) { conflictCounts = {}; }
+
+        var blockForm = document.querySelector('.blocked-form');
+        var blockDateInput = blockForm ? blockForm.querySelector('input[name="date"]') : null;
+        var blockConfirmInput = document.getElementById('blockDateConfirmConflicts');
+        var blockHint = document.getElementById('blockedConflictHint');
+        var blockModal = document.getElementById('blockConflictModal');
+        var blockModalText = document.getElementById('blockConflictText');
+        var blockModalCancel = document.getElementById('blockConflictCancel');
+        var blockModalConfirm = document.getElementById('blockConflictConfirm');
+        var blockSubmitAllowed = false;
+
+        function conflictCountFor(dateIso) {
+            var n = parseInt(conflictCounts[dateIso], 10);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function prettyDate(dateIso) {
+            try {
+                var parts = dateIso.split('-');
+                var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                return months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
+            } catch (e) { return dateIso; }
+        }
+
+        function refreshBlockHint() {
+            if (!blockHint || !blockDateInput) return;
+            var n = blockDateInput.value ? conflictCountFor(blockDateInput.value) : 0;
+            if (n > 0) {
+                blockHint.hidden = false;
+                blockHint.textContent = '⚠️ ' + prettyDate(blockDateInput.value) + ' already has ' + n + ' booking' + (n === 1 ? '' : 's') + '. Blocking prevents new bookings — existing ones stay visible.';
+            } else {
+                blockHint.hidden = true;
+                blockHint.textContent = '';
+            }
+        }
+
+        function closeBlockModal() { if (blockModal) blockModal.hidden = true; }
+        function openBlockModal(n, dateIso) {
+            if (!blockModal || !blockModalText) return;
+            blockModalText.textContent = prettyDate(dateIso) + ' already has ' + n + ' booking' + (n === 1 ? '' : 's') + '. Do you want to block this date anyway?';
+            blockModal.hidden = false;
+        }
+
+        if (blockDateInput) blockDateInput.addEventListener('change', function () {
+            if (blockConfirmInput) blockConfirmInput.value = '';
+            blockSubmitAllowed = false;
+            refreshBlockHint();
+        });
+        if (blockModalCancel) blockModalCancel.addEventListener('click', closeBlockModal);
+        if (blockModal) blockModal.addEventListener('click', function (ev) {
+            if (ev.target === blockModal) closeBlockModal();
+        });
+        if (blockModalConfirm) blockModalConfirm.addEventListener('click', function () {
+            blockSubmitAllowed = true;
+            if (blockConfirmInput) blockConfirmInput.value = '1';
+            closeBlockModal();
+            if (blockForm) blockForm.submit();
+        });
+        if (blockForm) blockForm.addEventListener('submit', function (ev) {
+            if (blockSubmitAllowed) return;
+            var dateIso = blockDateInput ? blockDateInput.value : '';
+            if (dateIso && conflictCountFor(dateIso) > 0) {
+                ev.preventDefault();
+                openBlockModal(conflictCountFor(dateIso), dateIso);
+            }
+        });
+        refreshBlockHint();
 
         // Build event data once so filtering and day-click can reuse it
         var allEvents = [
@@ -156,6 +247,13 @@
             return allEvents.filter(function (ev) {
                 return ev.extendedProps.status_raw === activeFilter;
             });
+        }
+
+        /* OPTION A: itago lang sa month view ang "Unavailable" blocked-event
+           pill mismo (may text label na sa cell) — ang mga booking pills ay
+           nananatiling nakikita kahit blocked ang date. */
+        function isBlockedFlagEvent(ev) {
+            return ev && ev.extendedProps && ev.extendedProps.status_raw === 'blocked';
         }
 
         /* ADMIN-BLOCKED DATES: buong day cell na pula + "Unavailable" text */
@@ -188,6 +286,11 @@
                 popBody.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No bookings on this date.</div>';
             } else {
                 var html = '';
+                /* OPTION A: warning banner kapag blocked ang date pero may bookings. */
+                var hasBookings = dayEvents.some(function (ev) { return !isBlockedFlagEvent(ev); });
+                if (isAdminBlockedDate(dateIso) && hasBookings) {
+                    html += '<div class="cal-pop-blocked-warning">🚫 Blocked date — ' + dayEvents.filter(function (ev) { return !isBlockedFlagEvent(ev); }).length + ' existing booking(s) remain on this date.</div>';
+                }
                 dayEvents.forEach(function (ev) {
                     var p = ev.extendedProps;
                     var statusLabel = (p.status_raw || '').charAt(0).toUpperCase() + (p.status_raw || '').slice(1).replace('_', ' ');
@@ -284,6 +387,14 @@
             /* Mobile / sikip na calendar: mas maraming event dots ang kasya kada cell */
             dayMaxEvents: calendarUsesDots() ? 3 : false,
             height: 'auto',
+            eventClassNames: function (info) {
+                /* Ang blocked-flag event ay may sariling klase para ito lang
+                   ang itago ng CSS sa month view — hindi ang booking pills. */
+                if (info.event.extendedProps && info.event.extendedProps.status_raw === 'blocked') {
+                    return ['blocked-flag-event'];
+                }
+                return [];
+            },
             dayCellClassNames: function (info) {
                 if (isAdminBlockedDate(formatIsoLocal(info.date))) {
                     return ['booking-day-blocked'];
@@ -295,16 +406,24 @@
                 if (cellDate < todayIso) {
                     info.el.classList.add('admin-past-day');
                 }
-                /* ADMIN-BLOCKED DATE: punuin ang buong cell + "Unavailable" text */
+                /* ADMIN-BLOCKED DATE: maliit na "Blocked" badge sa itaas ng cell
+                   (OPTION A: hindi na full-cell mask para kita pa rin ang bookings) */
                 var localIso = formatIsoLocal(info.date);
                 if (isAdminBlockedDate(localIso)) {
                     info.el.classList.add('booking-day-blocked');
-                    info.el.setAttribute('title', 'Unavailable — blocked date');
+                    var nConflicts = 0;
+                    try {
+                        nConflicts = allEvents.filter(function (ev) {
+                            return (ev.start || '').slice(0, 10) === localIso
+                                && ev.extendedProps && ev.extendedProps.status_raw !== 'blocked';
+                        }).length;
+                    } catch (e) { nConflicts = 0; }
+                    info.el.setAttribute('title', 'Unavailable — blocked date' + (nConflicts ? ' (' + nConflicts + ' existing booking(s) remain)' : ''));
                     if (!info.el.querySelector('.booking-day-blocked-label')) {
                         var blockedLabel = document.createElement('div');
                         blockedLabel.className = 'booking-day-blocked-label';
                         /* Blocked icon + text — naka-flex + gap ang label sa CSS */
-                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Unavailable';
+                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Blocked' + (nConflicts ? ' (' + nConflicts + ')' : '');
                         info.el.appendChild(blockedLabel);
                     }
                 }

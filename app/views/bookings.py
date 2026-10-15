@@ -220,6 +220,15 @@ def admin_calendar(request):
         "admin/admin_calendar.html",
         {
             "calendar_events": calendar_events,
+            "booking_conflict_counts": {
+                row["event_date"].isoformat(): row["total"]
+                for row in (
+                    Booking.objects.filter(event_date__gte=timezone.localdate())
+                    .exclude(status__in=["cancelled", "expired"])
+                    .values("event_date")
+                    .annotate(total=Count("id"))
+                )
+            },
             "today_iso": timezone.localdate().isoformat(),
             "blocked_dates": blocked_dates,
         },
@@ -250,12 +259,36 @@ def admin_blocked_date_create(request):
         messages.error(request, "Cannot block a date in the past.")
         return redirect("admin_calendar")
 
-    if Booking.objects.filter(
-        event_date=blocked_date, status__in=ACTIVE_BOOKING_STATUSES
-    ).exists():
-        messages.error(
+    # 🔴 OPTION A — Conflict-aware block: pinapayagan nang i-block ang date na
+    # may laman BASTA may explicit confirmation ("Block Anyway") ng admin.
+    # Hindi nagagalaw ang existing bookings — nakikita pa rin sila sa calendar
+    # (dimmed + conflict indicator); tanging bagong bookings ang haharangin.
+    existing_bookings = (
+        Booking.objects.filter(event_date=blocked_date)
+        .exclude(status__in=["cancelled", "expired"])
+        .select_related("user")
+        .order_by("event_time")
+    )
+    conflict_count = existing_bookings.count()
+    confirmed_conflicts = (request.POST.get("confirm_conflicts") or "").strip() == "1"
+
+    if conflict_count and not confirmed_conflicts:
+        conflict_summary = ", ".join(
+            f"#{b.id} {b.user.username} ({b.get_status_display()})"
+            for b in existing_bookings[:5]
+        )
+        messages.warning(
             request,
-            f"Cannot block {blocked_date.strftime('%B %d, %Y')} — there is already an active booking on this date. Cancel or complete it first.",
+            f"Cannot block {blocked_date.strftime('%B %d, %Y')} yet — this date "
+            f"already has {conflict_count} booking(s) ({conflict_summary}). "
+            "Blocking will prevent NEW bookings, but the existing bookings will "
+            "remain visible on the calendar. Click Block Date again and press "
+            '"Block Anyway" to proceed.',
+        )
+        log_action(
+            request.user,
+            f"Attempted to block {blocked_date.isoformat()} with "
+            f"{conflict_count} existing bookings (no confirmation)",
         )
         return redirect("admin_calendar")
 
@@ -268,11 +301,24 @@ def admin_blocked_date_create(request):
             request.user,
             f"Blocked date {blocked_date.isoformat()}"
             + (f" ({reason})" if reason else "")
-            + " for bookings.",
+            + " for bookings."
+            + (
+                f" {conflict_count} existing booking(s) remain on this date (confirmed)."
+                if conflict_count
+                else ""
+            ),
         )
-        messages.success(
-            request, f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for booking."
-        )
+        if conflict_count:
+            messages.success(
+                request,
+                f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for NEW "
+                f"bookings. The {conflict_count} existing booking(s) remain on "
+                "this date and are still visible on the calendar.",
+            )
+        else:
+            messages.success(
+                request, f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for booking."
+            )
     else:
         messages.info(request, "That date is already blocked.")
 
@@ -381,14 +427,23 @@ def create_booking(request):
                 return redirect("booking_page")
 
             # 2. Past Time Check (If booking is Today)
-            if booking_date == today and start_time:
-                booking_time = datetime.strptime(start_time, "%H:%M").time()
-                if booking_time < now.time():
-                    error_msg = "The selected start time has already passed. Please choose a future time."
-                    if is_ajax:
-                        return JsonResponse({"success": False, "message": error_msg})
-                    messages.error(request, error_msg)
-                    return redirect("booking_page")
+            # Manila wall-clock ang basehan (TIME_ZONE = Asia/Manila) para hindi
+            # makalusot ang tapos nang oras ngayong araw (hal. 5PM na, 1PM-3PM).
+            # Bawal ang start/end na tapos na o kasalukuyang minuto.
+            if booking_date == today and (start_time or end_time):
+                _now_dt = datetime.combine(today, now.time())
+                for _value, _past_msg in (
+                    (start_time, "The selected start time has already passed. Please choose a future time."),
+                    (end_time, "The selected end time has already passed. Please choose a future time."),
+                ):
+                    if not _value:
+                        continue
+                    _booking_time = datetime.strptime(_value, "%H:%M").time()
+                    if datetime.combine(booking_date, _booking_time) <= _now_dt:
+                        if is_ajax:
+                            return JsonResponse({"success": False, "message": _past_msg})
+                        messages.error(request, _past_msg)
+                        return redirect("booking_page")
 
             # 3. Minimum Duration Check (2 hours)
             if start_time and end_time:
@@ -719,6 +774,20 @@ def edit_booking(request, id):
         if booking_date < today:
             messages.error(request, "Cannot change to a past date.")
             return redirect("edit_booking", id=id)
+
+        # Same-day past-time guard (Manila wall-clock): bawal ang start/end na
+        # tapos na o kasalukuyang minuto ngayong araw (hal. 5PM na, 1PM-3PM).
+        if booking_date == today and (start_time or end_time):
+            _now_dt = datetime.combine(today, now.time())
+            for _value, _msg in (
+                (start_time, "The selected start time has already passed. Please choose a future time."),
+                (end_time, "The selected end time has already passed. Please choose a future time."),
+            ):
+                if not _value:
+                    continue
+                if datetime.combine(booking_date, datetime.strptime(_value, "%H:%M").time()) <= _now_dt:
+                    messages.error(request, _msg)
+                    return redirect("edit_booking", id=id)
 
         if start_time and end_time:
             new_start = datetime.combine(

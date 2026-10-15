@@ -645,10 +645,10 @@
             return getNearestOpenDates(fromDateStr, limit);
         }
 
-        function moduleValidateTimes(startValue, endValue) {
+        function moduleValidateTimes(startValue, endValue, selectedDate) {
             if (window.BookingAvailability && window.BookingAvailability.validateTimes) {
                 try {
-                    return window.BookingAvailability.validateTimes(startValue, endValue);
+                    return window.BookingAvailability.validateTimes(startValue, endValue, selectedDate);
                 } catch (e) { /* fallback sa inline validation */ }
             }
             return null;
@@ -1686,7 +1686,8 @@
        may violation (para ma-disable ang Next). */
     function validateStepTwoTimesInstant() {
         /* Decoupled module muna (same rules); fallback sa inline kapag wala. */
-        const moduleResult = moduleValidateTimes(startTimeInput.value, endTimeInput.value);
+        const _selectedDate = dateInput ? dateInput.value : '';
+        const moduleResult = moduleValidateTimes(startTimeInput.value, endTimeInput.value, _selectedDate);
         if (moduleResult) {
             setBookingFieldError('start_time', moduleResult.startError);
             setBookingFieldError('end_time', moduleResult.endError);
@@ -1699,6 +1700,11 @@
         if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
             setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.');
             violated = true;
+        } else if (_selectedDate && _selectedDate === getTodayIso() && startMinutes !== null && startMinutes <= getNowMinutes()) {
+            /* Same-day past-time guard: kapag today ang date, bawal ang start na
+               tapos na o kasalukuyang minuto (hal. 5PM na, 1PM bawal na). */
+            setBookingFieldError('start_time', 'The selected start time has already passed. Please choose a future time.');
+            violated = true;
         } else {
             setBookingFieldError('start_time', '');
         }
@@ -1708,6 +1714,10 @@
             violated = true;
         } else if (startMinutes !== null && endMinutes !== null && (endMinutes - startMinutes) < 120) {
             setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+            violated = true;
+        } else if (_selectedDate && _selectedDate === getTodayIso() && endMinutes !== null && endMinutes <= getNowMinutes()) {
+            /* Same-day past-time guard para sa end time (hal. 5PM na, 3PM bawal na). */
+            setBookingFieldError('end_time', 'The selected end time has already passed. Please choose a future time.');
             violated = true;
         } else {
             setBookingFieldError('end_time', '');

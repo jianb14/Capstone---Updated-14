@@ -18,10 +18,10 @@ class ServicesPageWidgetsTests(TestCase):
             display_order=1,
         )
         Service.objects.create(
-            title="Wedding Balloon Installations",
-            description="Elegant wedding styling.",
-            features="Ceremony arches\nDance floor canopy",
-            best_for="Weddings and receptions",
+            title="Baptism & Christening Balloon Styling",
+            description="Fun and festive baptisms.",
+            features="Backdrop panels with name\nBalloons in motif colors\nCake table styling",
+            best_for="Baptisms and christenings",
             display_order=2,
         )
 
@@ -84,8 +84,8 @@ class ServicesPageWidgetsTests(TestCase):
         comparison_pos = body.find("services-comparison")
         self.assertNotIn('class="service-features"', body)
         # Features are still visible in the comparison table
-        self.assertIn("Balloon arch", body[comparison_pos:])
-        self.assertIn("Dance floor canopy", body[comparison_pos:])
+        self.assertIn("Backdrop panels with name", body[comparison_pos:])
+        self.assertIn("Cake table styling", body[comparison_pos:])
         # Walang feature bullets sa loob ng detail sections
         self.assertNotIn("service-features", body[detail_pos:comparison_pos])
 
@@ -102,7 +102,7 @@ class ServicesPageWidgetsTests(TestCase):
         response = self.client.get("/services/")
         body = response.content.decode("utf-8")
         self.assertIn("Kids parties and milestones", body)
-        self.assertIn("Weddings and receptions", body)
+        self.assertIn("Baptisms and christenings", body)
         self.assertIn("Birthday Balloon Styling", body)
 
     def test_comparison_table_hidden_with_fewer_than_two_services(self):
