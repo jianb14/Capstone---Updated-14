@@ -2342,8 +2342,16 @@
                     .replace(/'/g, '&#39;');
             }
 
-            // Trusted AI image tag na galing mismo sa server (src ay dapat /media/ai_generated/)
-            const AI_TRUSTED_IMG_RE = /<img\s+src="(\/media\/ai_generated\/[^"]*)"\s+alt="Balloorina Design Concept"\s+data-ai-prompt="([^"]*)"\s+style="[^"]*">/g;
+            // Trusted AI image tag na galing mismo sa server.
+            // Tanggapin ang parehong anyo ng src:
+            //   - "/media/ai_generated/..." (local FileSystemStorage), at
+            //   - "https://res.cloudinary.com/<cloud>/.../media/ai_generated/..."
+            //     (production MediaCloudinaryStorage — kaya lang nakita sa Railway
+            //     bilang plain text ang image noon).
+            // Hinihigpitan pa rin ang eksaktong attribute shape
+            // (alt="Balloorina Design Concept", data-ai-prompt, style) para
+            // hindi ito magamit sa XSS.
+            const AI_TRUSTED_IMG_RE = /<img\s+src="((?:https:\/\/res\.cloudinary\.com\/[A-Za-z0-9._\/-]*)?\/media\/ai_generated\/[^"]*)"\s+alt="Balloorina Design Concept"\s+data-ai-prompt="([^"]*)"\s+style="[^"]*">/g;
 
             // Trusted moderation templates (ban/warning) — eksaktong server output lang
             const AI_TRUSTED_MODERATION_RES = [
