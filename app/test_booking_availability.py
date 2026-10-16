@@ -339,7 +339,7 @@ class BookingAvailabilityTemplateTests(TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("fa-ban", admin_tpl)
         # Admin CSS cache-bust (bagong design ng unavailable cells)
-        self.assertIn("admin_calendar.css' %}?v=20261014b", admin_tpl)
+        self.assertIn("admin_calendar.css' %}?v=20261017a", admin_tpl)
         # Regression: hindi dapat na-trap sa CSS comment ang light-mode
         # number/label rules ng blocked cells (nawawala sila sa light mode
         # kapag nasa loob ng /* ... */).

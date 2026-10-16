@@ -4,7 +4,7 @@
 {% block title %}Events Calendar - Admin{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261014b">
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261017a">
 {% endblock %}
 
 {% block content %}
@@ -15,17 +15,8 @@
         <p class="page-subtitle">An overview of all scheduled events. Click any date to see its bookings.</p>
     </div>
 
-    <div class="admin-calendar-panel">
+    <div class="admin-calendar-layout">
         <div class="calendar-wrapper">
-            <div class="calendar-legend">
-                <div class="legend-item legend-filter active" data-status="all"><span class="legend-color confirmed"></span>All</div>
-                <div class="legend-item legend-filter" data-status="confirmed"><span class="legend-color confirmed"></span>Confirmed</div>
-                <div class="legend-item legend-filter" data-status="pending"><span class="legend-color pending"></span>Pending</div>
-                <div class="legend-item legend-filter" data-status="completed"><span class="legend-color completed"></span>Completed</div>
-                <div class="legend-item legend-filter" data-status="expired"><span class="legend-color expired"></span>Expired</div>
-                <div class="legend-item legend-filter" data-status="cancelled"><span class="legend-color cancelled"></span>Cancelled</div>
-                <div class="legend-item legend-filter" data-status="blocked"><span class="legend-color" style="background: #7f1d1d;"></span>Blocked</div>
-            </div>
             <!-- Custom Calendar Toolbar (same design as client booking page) -->
             <div class="cal-toolbar">
                 <div class="cal-nav-group">
@@ -68,6 +59,15 @@
 
             <div id="admin-calendar"><div id="admin-calendar-mount"></div></div>
         </div>
+        <aside class="calendar-legend" aria-label="Booking status legend">
+            <div class="legend-title">Legends</div>
+            <div class="legend-item legend-filter" data-status="confirmed"><span class="legend-color confirmed"></span>Confirmed</div>
+            <div class="legend-item legend-filter" data-status="pending"><span class="legend-color pending"></span>Pending</div>
+            <div class="legend-item legend-filter" data-status="completed"><span class="legend-color completed"></span>Completed</div>
+            <div class="legend-item legend-filter" data-status="expired"><span class="legend-color expired"></span>Expired</div>
+            <div class="legend-item legend-filter" data-status="cancelled"><span class="legend-color cancelled"></span>Cancelled</div>
+            <p class="legend-note">Click a status to filter the calendar. Click the active one again to show all bookings.</p>
+        </aside>
     </div>
 
     <!-- Blocked Dates Management -->
@@ -96,7 +96,7 @@
                         <div class="blocked-item-reason">{{ blocked.reason }}</div>
                         {% endif %}
                     </div>
-                    <form method="POST" action="{% url 'admin_blocked_date_delete' blocked.id %}" onsubmit="return confirm('Unblock this date and allow bookings again?');">
+                    <form method="POST" action="{% url 'admin_blocked_date_delete' blocked.id %}" class="js-unblock-form" data-unblock-date="{{ blocked.date|date:'F d, Y (D)' }}">
                         {% csrf_token %}
                         <button type="submit" class="blocked-unblock-btn">Unblock</button>
                     </form>
@@ -119,18 +119,6 @@
     <div class="cal-popover-body" id="calPopBody"></div>
 </div>
 
-<!-- OPTION A: conflict-aware block modal -->
-<div class="cal-block-confirm" id="blockConflictModal" hidden>
-    <div class="cal-block-confirm-card" role="dialog" aria-modal="true" aria-labelledby="blockConflictTitle">
-        <div class="cal-block-confirm-title" id="blockConflictTitle">&#9888;&#65039; Date already has bookings</div>
-        <p class="cal-block-confirm-text" id="blockConflictText"></p>
-        <p class="cal-block-confirm-note">Blocking prevents <strong>new</strong> customer bookings. The existing bookings stay on this date and remain visible on the calendar.</p>
-        <div class="cal-block-confirm-actions">
-            <button type="button" class="blocked-unblock-btn" id="blockConflictCancel">Cancel</button>
-            <button type="button" class="blocked-submit-btn" id="blockConflictConfirm">Block Anyway</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -156,10 +144,6 @@
         var blockDateInput = blockForm ? blockForm.querySelector('input[name="date"]') : null;
         var blockConfirmInput = document.getElementById('blockDateConfirmConflicts');
         var blockHint = document.getElementById('blockedConflictHint');
-        var blockModal = document.getElementById('blockConflictModal');
-        var blockModalText = document.getElementById('blockConflictText');
-        var blockModalCancel = document.getElementById('blockConflictCancel');
-        var blockModalConfirm = document.getElementById('blockConflictConfirm');
         var blockSubmitAllowed = false;
 
         function conflictCountFor(dateIso) {
@@ -187,11 +171,31 @@
             }
         }
 
-        function closeBlockModal() { if (blockModal) blockModal.hidden = true; }
+        /* Conflict-aware block confirm — SweetAlert2 (kapareho ng Toast/Swal
+           pattern na naka-load sa admin base). */
         function openBlockModal(n, dateIso) {
-            if (!blockModal || !blockModalText) return;
-            blockModalText.textContent = prettyDate(dateIso) + ' already has ' + n + ' booking' + (n === 1 ? '' : 's') + '. Do you want to block this date anyway?';
-            blockModal.hidden = false;
+            if (typeof Swal === 'undefined') {
+                blockSubmitAllowed = true;
+                if (blockConfirmInput) blockConfirmInput.value = '1';
+                if (blockForm) blockForm.submit();
+                return;
+            }
+            Swal.fire({
+                icon: 'warning',
+                title: 'Date already has bookings',
+                html: '<strong>' + prettyDate(dateIso) + '</strong> already has ' + n + ' booking' + (n === 1 ? '' : 's') + '.<br>Blocking prevents <strong>new</strong> customer bookings — the existing bookings stay visible on the calendar.',
+                showCancelButton: true,
+                confirmButtonText: 'Block Anyway',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc2626',
+                reverseButtons: true
+            }).then(function (res) {
+                if (res.isConfirmed) {
+                    blockSubmitAllowed = true;
+                    if (blockConfirmInput) blockConfirmInput.value = '1';
+                    if (blockForm) blockForm.submit();
+                }
+            });
         }
 
         if (blockDateInput) blockDateInput.addEventListener('change', function () {
@@ -199,16 +203,7 @@
             blockSubmitAllowed = false;
             refreshBlockHint();
         });
-        if (blockModalCancel) blockModalCancel.addEventListener('click', closeBlockModal);
-        if (blockModal) blockModal.addEventListener('click', function (ev) {
-            if (ev.target === blockModal) closeBlockModal();
-        });
-        if (blockModalConfirm) blockModalConfirm.addEventListener('click', function () {
-            blockSubmitAllowed = true;
-            if (blockConfirmInput) blockConfirmInput.value = '1';
-            closeBlockModal();
-            if (blockForm) blockForm.submit();
-        });
+
         if (blockForm) blockForm.addEventListener('submit', function (ev) {
             if (blockSubmitAllowed) return;
             var dateIso = blockDateInput ? blockDateInput.value : '';
@@ -218,6 +213,36 @@
             }
         });
         refreshBlockHint();
+
+        /* Unblock confirm — SweetAlert2 dialog (kapareho ng block confirm;
+           si Swal na ang bahala sa ESC / backdrop close). */
+        document.querySelectorAll('.js-unblock-form').forEach(function (form) {
+            form.addEventListener('submit', function (ev) {
+                if (form.getAttribute('data-unblock-confirmed') === '1') return;
+                ev.preventDefault();
+                var dateText = form.getAttribute('data-unblock-date') || 'This date';
+                if (typeof Swal === 'undefined') {
+                    form.setAttribute('data-unblock-confirmed', '1');
+                    form.submit();
+                    return;
+                }
+                Swal.fire({
+                    icon: 'question',
+                    title: 'Unblock this date?',
+                    html: '<strong>' + dateText + '</strong> will be open for new bookings again. Existing bookings are not affected.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Unblock',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#dc2626',
+                    reverseButtons: true
+                }).then(function (res) {
+                    if (res.isConfirmed) {
+                        form.setAttribute('data-unblock-confirmed', '1');
+                        form.submit();
+                    }
+                });
+            });
+        });
 
         // Build event data once so filtering and day-click can reuse it
         var allEvents = [
@@ -256,7 +281,7 @@
             return ev && ev.extendedProps && ev.extendedProps.status_raw === 'blocked';
         }
 
-        /* ADMIN-BLOCKED DATES: buong day cell na pula + "Unavailable" text */
+        /* ADMIN-BLOCKED DATES: gray na buong day cell + "Blocked" badge */
         function formatIsoLocal(dateObj) {
             var y = dateObj.getFullYear();
             var m = ('0' + (dateObj.getMonth() + 1)).slice(-2);
@@ -273,6 +298,43 @@
 
         function isAdminBlockedDate(dateIso) {
             return !!blockedIsoSet[dateIso];
+        }
+
+        /* I-position ang day-details popover sa loob ng viewport: sa ilalim
+           ng na-click na cell, lumilipat PATAAS kapag hindi kasya sa ibaba,
+           at may max-height na natitirang espasyo + scrollable body para
+           hindi na napuputol ang mahabang listahan ng bookings. */
+        function positionCalPopover(anchorRect) {
+            /* I-clear muna ang dating max-height bago sukatin ang taas */
+            popover.style.maxHeight = '';
+            popover.classList.add('show');
+
+            var margin = 12;
+            var w = popover.offsetWidth;
+            var h = popover.offsetHeight;
+            var left = anchorRect ? anchorRect.left : (window.innerWidth / 2 - w / 2);
+            var top = anchorRect ? anchorRect.bottom + 6 : 120;
+
+            /* Hindi lumalampas sa kanan/kaliwang gilid ng viewport */
+            if (left + w > window.innerWidth - margin) left = window.innerWidth - w - margin;
+            if (left < margin) left = margin;
+
+            /* Kapag hindi kasya sa ibaba ng click point, ilagay sa TAAS nito */
+            if (anchorRect && top + h > window.innerHeight - margin) {
+                var above = anchorRect.top - 6 - h;
+                if (above >= margin) top = above;
+            }
+            /* Last resort: i-clamp sa loob ng viewport (ang body ang mag-scroll) */
+            if (top + h > window.innerHeight - margin) {
+                top = Math.max(margin, window.innerHeight - h - margin);
+            }
+            if (top < margin) top = margin;
+
+            popover.style.top = top + 'px';
+            popover.style.left = left + 'px';
+            /* Max height = natitirang espasyo pababa — ang .cal-popover-body
+               ang nag-i-scroll (flex column + overflow-y: auto sa CSS). */
+            popover.style.maxHeight = (window.innerHeight - top - margin) + 'px';
         }
 
         function showDayDetails(dateIso, clickRect) {
@@ -304,20 +366,7 @@
                 popBody.innerHTML = html;
             }
 
-            var top, left;
-            if (clickRect) {
-                top = clickRect.bottom + 6;
-                left = clickRect.left;
-            } else {
-                top = 120;
-                left = window.innerWidth / 2 - 130;
-            }
-            if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
-            if (top + 200 > window.innerHeight) top = Math.max(10, (clickRect ? clickRect.top : 120) - 180);
-
-            popover.style.top = top + 'px';
-            popover.style.left = left + 'px';
-            popover.classList.add('show');
+            positionCalPopover(clickRect);
         }
 
         /* =============================================
@@ -422,9 +471,20 @@
                     if (!info.el.querySelector('.booking-day-blocked-label')) {
                         var blockedLabel = document.createElement('div');
                         blockedLabel.className = 'booking-day-blocked-label';
-                        /* Blocked icon + text — naka-flex + gap ang label sa CSS */
-                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Blocked' + (nConflicts ? ' (' + nConflicts + ')' : '');
-                        info.el.appendChild(blockedLabel);
+                        /* Blocked icon + text (naka-flex + gap ang label;
+                           ang <span class="bbl-text"> ang may ellipsis sa CSS) */
+                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i><span class="bbl-text">Blocked' + (nConflicts ? ' (' + nConflicts + ')' : '') + '</span>';
+                        if (nConflicts === 0) {
+                            /* WALANG records: centered label sa gitna ng cell (kapareho ng client) */
+                            info.el.classList.add('booking-day-empty');
+                            info.el.appendChild(blockedLabel);
+                        } else {
+                            /* May records: badge sa top row, katabi ng day number —
+                               naka-flex flow kaya hindi mag-o-overlap sa numero */
+                            var topRow = info.el.querySelector('.fc-daygrid-day-top');
+                            if (topRow) topRow.appendChild(blockedLabel);
+                            else info.el.appendChild(blockedLabel);
+                        }
                     }
                 }
             },
@@ -483,20 +543,7 @@
                 + '<div class="cal-pop-detail">' + statusLabel + '</div>'
                 + '</div>';
 
-            var rect = info.el.getBoundingClientRect();
-            var top = rect.bottom + 6;
-            var left = rect.left;
-
-            if (left + 260 > window.innerWidth) {
-                left = window.innerWidth - 270;
-            }
-            if (top + 180 > window.innerHeight) {
-                top = rect.top - 160;
-            }
-
-            popover.style.top = top + 'px';
-            popover.style.left = left + 'px';
-            popover.classList.add('show');
+            positionCalPopover(info.el.getBoundingClientRect());
         }
         });
 
@@ -642,9 +689,11 @@
         document.querySelectorAll('.legend-filter').forEach(function (chip) {
             chip.style.cursor = 'pointer';
             chip.addEventListener('click', function () {
-                activeFilter = chip.getAttribute('data-status') || 'all';
+                /* Klik sa ACTIVE chip = balik sa "all" (wala nang All item sa legend). */
+                var isReset = chip.classList.contains('active');
+                activeFilter = isReset ? 'all' : (chip.getAttribute('data-status') || 'all');
                 document.querySelectorAll('.legend-filter').forEach(function (c) {
-                    c.classList.toggle('active', c === chip);
+                    c.classList.toggle('active', !isReset && c === chip);
                 });
                 calendar.removeAllEvents();
                 eventsForFilter().forEach(function (ev) { calendar.addEvent(ev); });

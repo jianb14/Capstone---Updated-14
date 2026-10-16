@@ -1,626 +1,1443 @@
-/* admin_calendar.css — Admin Calendar Page Styles */
-/* Same design as client booking calendar */
-
-.admin-calendar-page {
-    padding: 0;
-}
-
-.admin-calendar-panel {
-    max-width: 950px;
-    margin: 0 auto;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    padding: 1.5rem;
-}
-
-.admin-calendar-panel .panel-header {
-    text-align: center;
-    margin-bottom: 1.5rem;
-}
-
-.admin-calendar-panel .panel-header h2 {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0 0 0.5rem 0;
-}
-
-.admin-calendar-panel .panel-header p {
-    color: #888;
-    font-size: 0.9rem;
-    margin: 0;
-}
-
-/* ======================== */
-/* CALENDAR LEGEND           */
-/* ======================== */
-.calendar-legend {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-    color: #ffffff;
-    flex-wrap: wrap;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-}
-
-.legend-color {
-    width: 15px;
-    height: 15px;
-    border-radius: 3px;
-}
-
-.legend-color.pending {
-    background-color: #d97706;
-}
-
-.legend-color.confirmed {
-    background-color: #3b82f6;
-}
-
-.legend-color.completed {
-    background-color: #22c55e;
-}
-
-.legend-color.expired {
-    background-color: #6b7280;
-}
-
-.legend-color.cancelled {
-    background-color: #ef4444;
-}
-
-/* ======================== */
-/* FULLCALENDAR OVERRIDES    */
-/* ======================== */
-#admin-calendar {
-    --fc-border-color: #2a2a2a;
-    --fc-today-bg-color: rgba(255, 255, 255, 0.05);
-    --fc-neutral-bg-color: #000000;
-    color: #ffffff;
-    position: relative;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-#admin-calendar .fc {
-    font-family: 'Montserrat', sans-serif;
-}
-
-/* (Lumang default FullCalendar button/title styles - tinanggal; custom
-   .cal-toolbar controls na ang gamit, katulad ng client booking page) */
-
-.fc-theme-standard td,
-.fc-theme-standard th {
-    border-color: #2a2a2a;
-    background-color: #000000 !important;
-}
-
-.fc .fc-col-header-cell {
-    background-color: #000 !important;
-}
-
-.fc .fc-col-header-cell-cushion {
-    color: #888888;
-    text-decoration: none;
-    text-transform: capitalize !important;
-    font-size: 0.8rem;
-    padding: 10px 0;
-    font-weight: 600;
-}
-
-#admin-calendar .fc .fc-daygrid-day,
-#admin-calendar .fc .fc-daygrid-day-frame,
-#admin-calendar .fc .fc-daygrid-day-bg,
-#admin-calendar .fc .fc-daygrid-day-top {
-    background-color: #000000 !important;
-}
-
-#admin-calendar .fc .fc-daygrid-day-number {
-    color: #ffffff;
-    text-decoration: none;
-    font-size: 0.8rem;
-    padding: 4px 8px;
-}
-
-#admin-calendar .fc .fc-daygrid-day.fc-day-other,
-#admin-calendar .fc .fc-daygrid-day.fc-day-disabled {
-    background-color: #000000 !important;
-    cursor: default !important;
-}
-
-#admin-calendar .fc .fc-daygrid-day.fc-day-other:hover,
-#admin-calendar .fc .fc-daygrid-day.fc-day-disabled:hover {
-    background-color: #000000 !important;
-}
-
-#admin-calendar .fc .fc-day-past,
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-frame,
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-bg,
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-top {
-    background-color: #000000 !important;
-}
-
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-number {
-    color: #4f4f4f !important;
-    opacity: 0.65;
-}
-
-#admin-calendar .fc .admin-past-day,
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-frame,
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-bg,
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-top {
-    background-color: #000000 !important;
-}
-
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-number {
-    color: #4f4f4f !important;
-    opacity: 0.55;
-}
-
-#admin-calendar .fc .fc-day-past:hover,
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-frame:hover,
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-top:hover {
-    background-color: #000000 !important;
-    cursor: default !important;
-}
-
-#admin-calendar .fc .admin-past-day:hover,
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-frame:hover,
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-top:hover {
-    background-color: #000000 !important;
-    cursor: default !important;
-}
-
-#admin-calendar .fc .fc-day-today,
-#admin-calendar .fc .fc-day-today .fc-daygrid-day-frame,
-#admin-calendar .fc .fc-day-today .fc-daygrid-day-bg,
-#admin-calendar .fc .fc-day-today .fc-daygrid-day-top {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-#admin-calendar .fc .fc-daygrid-day-frame {
-    transition: background 0.2s;
-}
-
-#admin-calendar .fc .fc-daygrid-day-frame:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-}
-
-#admin-calendar .fc .fc-day-disabled .fc-daygrid-day-frame:hover,
-#admin-calendar .fc .fc-day-other .fc-daygrid-day-frame:hover,
-#admin-calendar .fc .fc-day-past .fc-daygrid-day-frame:hover,
-#admin-calendar .fc .admin-past-day .fc-daygrid-day-frame:hover {
-    background-color: #000000 !important;
-}
-
-#admin-calendar .fc-event-main {
-    color: #ffffff !important;
-    padding: 4px 6px !important;
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-align: center;
-}
-
-#admin-calendar .fc-event {
-    border: none;
-    padding: 4px 6px;
-    font-weight: 600;
-    font-size: 0.8rem;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-/* Popover Styling */
-.fc-popover {
-    background-color: #000000 !important;
-    border: 1px solid #444 !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9) !important;
-    z-index: 9999 !important;
-}
-
-.fc-popover-header {
-    background-color: #111 !important;
-    color: #ffffff !important;
-    border-bottom: 1px solid #333 !important;
-    padding: 8px 10px !important;
-}
-
-.fc-popover-body {
-    background-color: #000000 !important;
-}
-
-.fc-popover-title {
-    color: #ffffff !important;
-    font-weight: 700;
-    font-family: 'Montserrat', sans-serif;
-}
-
-.fc-popover-close-icon {
-    color: #ffffff !important;
-    opacity: 0.7;
-    background: transparent !important;
-}
-
-#admin-calendar .fc-more-link {
-    color: white !important;
-    font-size: 0.75rem;
-    text-decoration: none;
-}
-
-/* Time Axis Labels */
-.fc .fc-timegrid-slot-label-cushion,
-.fc .fc-scrollgrid-shrink-cushion,
-.fc .fc-timegrid-axis-cushion {
-    font-size: 0.65rem !important;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.6);
-    text-transform: capitalize !important;
-    text-decoration: none;
-    white-space: nowrap !important;
-}
-
-/* Custom Scrollbar */
-#admin-calendar .fc-scroller::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-#admin-calendar .fc-scroller::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-#admin-calendar .fc-scroller::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-}
-
-#admin-calendar .fc-scroller::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
-}
-
-/* Day Cell Hover Effect */
-#admin-calendar .fc .fc-daygrid-day:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-/* Blocked dates: manatiling light gray kahit naka-hover */
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #2a2a2a !important;
-}
-
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #e5e7eb !important;
-}
-
-#admin-calendar .fc .fc-day-disabled:hover,
-#admin-calendar .fc .fc-day-other:hover,
-#admin-calendar .fc .fc-day-past:hover,
-#admin-calendar .fc .admin-past-day:hover {
-    background-color: #000000 !important;
-    cursor: default !important;
-}
-
-/* (Lumang responsive block - pinalitan ng mas kumpletong responsive rules
-   sa dulo ng file na naka-align sa client booking calendar) */
-
-/* ======================== */
-/* EVENT CLICK POPOVER       */
-/* ======================== */
-.cal-popover {
-    position: fixed;
-    z-index: 9999;
-    background: #111;
-    border: 1px solid #333;
-    border-radius: 8px;
-    width: 250px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-5px);
-    transition: all 0.2s ease;
-    font-family: 'Montserrat', sans-serif;
-}
-
-.cal-popover.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.cal-popover-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.6rem 0.8rem;
-    background: #1a1a1a;
-    border-bottom: 1px solid #333;
-    border-radius: 8px 8px 0 0;
-}
-
-.cal-popover-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.cal-popover-close {
-    background: none;
-    border: none;
-    color: #666;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-    transition: color 0.2s;
-}
-
-.cal-popover-close:hover {
-    color: #fff;
-}
-
-.cal-popover-body {
-    padding: 0.5rem;
-}
-
-.cal-pop-event {
-    padding: 0.5rem 0.65rem;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.cal-pop-name {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 0.25rem;
-}
-
-.cal-pop-detail {
-    font-size: 0.75rem;
-    color: #999;
-    line-height: 1.5;
-}
-
-#admin-calendar .fc-event {
-    cursor: pointer;
-}
-
-
-/* ========================================================
-   LIGHT THEME OVERRIDES
-   ======================================================== */
-[data-theme="light"] {
-    --card-bg: #ffffff;
-    --card-bg-s: #f9fafb;
-    --card-bdr: rgba(0, 0, 0, 0.1);
-    --card-bdr-h: rgba(0, 0, 0, 0.2);
-    --t1: #111827;
-    --t2: #4b5563;
-    --t3: #6b7280;
-    --t4: #9ca3af;
-}
-
-[data-theme="light"] .container,
-[data-theme="light"] .wrapper,
-[data-theme="light"] .card,
-[data-theme="light"] .box,
-[data-theme="light"] .panel,
-[data-theme="light"] .modal-content,
-[data-theme="light"] .auth-container,
-[data-theme="light"] .profile-card,
-[data-theme="light"] .booking-card,
-[data-theme="light"] .review-card,
-[data-theme="light"] .stat-card,
-[data-theme="light"] .dashboard-card,
-[data-theme="light"] .table-container {
-    background-color: #ffffff !important;
-    border-color: #e5e7eb !important;
-    color: #111827 !important;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
-}
-
-[data-theme="light"] .table th,
-[data-theme="light"] table th,
-[data-theme="light"] .data-table th {
-    background-color: #f3f4f6 !important;
-    color: #4b5563 !important;
-    border-color: #e5e7eb !important;
-}
-
-[data-theme="light"] .table td,
-[data-theme="light"] table td,
-[data-theme="light"] .data-table td {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border-color: #e5e7eb !important;
-}
-
-[data-theme="light"] tr:hover td {
-    background-color: #f9fafb !important;
-}
-
-[data-theme="light"] input[type="text"],
-[data-theme="light"] input[type="email"],
-[data-theme="light"] input[type="password"],
-[data-theme="light"] input[type="number"],
-[data-theme="light"] input[type="date"],
-[data-theme="light"] input[type="time"],
-[data-theme="light"] select,
-[data-theme="light"] textarea {
-    background-color: #f9fafb !important;
-    color: #111827 !important;
-    border: 1px solid #d1d5db !important;
-}
-
-[data-theme="light"] input:focus,
-[data-theme="light"] select:focus,
-[data-theme="light"] textarea:focus {
-    background-color: #f9fafb !important;
-    border-color: #9ca3af !important;
-    box-shadow: none !important;
-}
-
-[data-theme="light"] .text-muted,
-[data-theme="light"] .help-text,
-[data-theme="light"] .sub-text,
-[data-theme="light"] small {
-    color: #6b7280 !important;
-}
-
-[data-theme="light"] h1,
-[data-theme="light"] h2,
-[data-theme="light"] h3,
-[data-theme="light"] h4,
-[data-theme="light"] h5,
-[data-theme="light"] h6 {
-    color: #111827 !important;
-}
-
-[data-theme="light"] .btn-outline {
-    border-color: #d1d5db !important;
-    color: #374151 !important;
-}
-[data-theme="light"] .btn-outline:hover {
-    background-color: #f3f4f6 !important;
-}
-
-[data-theme="light"] .notification-dropdown,
-[data-theme="light"] .notif-header,
-[data-theme="light"] .notif-item {
-    background-color: #ffffff !important;
-    border-color: #e5e7eb !important;
-    color: #111827 !important;
-}
-
-[data-theme="light"] .notif-item:hover {
-    background-color: #f9fafb !important;
-}
-
-[data-theme="light"] .notif-date-header {
-    background-color: #f3f4f6 !important;
-    color: #4b5563 !important;
-    border-color: #e5e7eb !important;
-}
-
-[data-theme="light"] .notif-content p {
-    color: #111827 !important;
-}
-
-[data-theme="light"] .notif-empty {
-    color: #6b7280 !important;
-}
-
-[data-theme="light"] .canvas-container {
-    background-color: #f3f4f6 !important;
-}
-
-/* ========================================================
-   ADMIN-BLOCKED DATES (Unavailable)
-   Light gray sa buong day cell — walang banding (transparent
-   ang lahat ng inner elements) + "Unavailable" text sa gitna.
-   ======================================================== */
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked {
-    position: relative;
-    background-color: #2a2a2a !important;
-    cursor: not-allowed !important;
-}
-
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame,
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top,
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-events,
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-bg {
-    background: transparent !important;
-    background-color: transparent !important;
-}
-
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
-    color: rgba(255, 255, 255, 0.92) !important;
-    font-weight: 700;
-}
-
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    right: 2px;
+/* admin_calendar.css — Admin Calendar Page Styles */
+
+/* Same design as client booking calendar */
+
+
+
+.admin-calendar-page {
+
+    padding: 0;
+
+}
+
+
+
+.admin-calendar-panel {
+
+    /* Kaliwa-kanan na pagpantay: SAGAD sa 100% ng page — kaliwa = gilid
+       ng calendar, kanan = dulo ng legend (na lumalaki kaya pumupuno ng
+       sobrang espasyo sa kanan). */
+    width: 100%;
+    max-width: none;
+
+    margin: 0;
+
+    background: rgba(0, 0, 0, 0.3);
+
+    border: 1px solid #2a2a2a;
+
+    border-radius: 8px;
+
+    padding: 1.5rem;
+
+}
+
+
+
+.admin-calendar-panel .panel-header {
+
+    text-align: center;
+
+    margin-bottom: 1.5rem;
+
+}
+
+
+
+.admin-calendar-panel .panel-header h2 {
+
+    font-size: 1.8rem;
+
+    font-weight: 800;
+
+    color: #ffffff;
+
+    margin: 0 0 0.5rem 0;
+
+}
+
+
+
+.admin-calendar-panel .panel-header p {
+
+    color: #888;
+
+    font-size: 0.9rem;
+
+    margin: 0;
+
+}
+
+
+
+/* ======================== */
+
+/* CALENDAR LEGEND           */
+
+/* ======================== */
+
+.calendar-legend {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin: 0;
+    /* Container ng legend — sa taas ng calendar (align-items: stretch sa
+       .admin-calendar-layout); kasama ang legend-note sa ibaba. */
+    box-sizing: border-box;
+    padding: 1rem 0.85rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    color: #ffffff;
+    /* Lumalaki (flex-grow) para sumalo ng natitirang espasyo sa KANAN —
+       sasagad ang dulo ng legend sa gilid ng content, kasing-liit lang
+       ang right spacing sa kaliwa. 170px pa rin ang basis pag sikip. */
+    flex: 1 1 170px;
+    max-width: none;
+}
+
+/* Label sa itaas ng legend container — UPPERCASE na parang section
+   heading; kinukuha ang kulay ng container (walang sariling color para
+   sumama sa light-mode override ng .calendar-legend). */
+.legend-title {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+
+
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.legend-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    font-weight: 700;
+}
+
+.legend-note {
+    /* nasa ibaba ng legend container (margin-top: auto sa flex column) */
+    width: 100%;
+    box-sizing: border-box;
+    margin: auto 0 0;
+    font-size: 0.7rem;
+    color: #888888;
+    line-height: 1.4;
+}
+
+
+
+
+.legend-color {
+
+    width: 15px;
+
+    height: 15px;
+
+    border-radius: 3px;
+
+}
+
+
+
+.legend-color.pending {
+
+    background-color: #d97706;
+
+}
+
+
+
+.legend-color.confirmed {
+
+    background-color: #3b82f6;
+
+}
+
+
+
+.legend-color.completed {
+
+    background-color: #22c55e;
+
+}
+
+
+
+.legend-color.expired {
+
+    background-color: #6b7280;
+
+}
+
+
+
+.legend-color.cancelled {
+    background-color: #ef4444;
+}
+
+/* ======================================================== */
+/* CALENDAR + LEGEND LAYOUT                                  */
+/* Calendar sa KALIWA — pareho pa rin ang lapad (max 950px); */
+/* legends sa KANAN sa container na kasing-taas ng calendar. */
+/* ======================================================== */
+.admin-calendar-layout {
+    display: flex;
+    /* stretch: pareho ang taas ng legend at calendar (hanggang ibaba) */
+    align-items: stretch;
+    gap: 1.5rem;
+}
+
+.admin-calendar-layout .calendar-wrapper {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 950px;
+}
+
+/* Title + description sa itaas: kapareho ng lapad ng calendar (kaliwa) */
+.admin-calendar-page .page-header {
+    max-width: 950px;
+}
+
+
+
+
+/* ======================== */
+
+/* FULLCALENDAR OVERRIDES    */
+
+/* ======================== */
+
+#admin-calendar {
+
+    --fc-border-color: #2a2a2a;
+
+    --fc-today-bg-color: rgba(255, 255, 255, 0.05);
+
+    --fc-neutral-bg-color: #000000;
+
+    color: #ffffff;
+
+    position: relative;
+
+    /* Kapareho ng lapad ng .calendar-wrapper (950px) at NAKAKALIWA —
+       kaya pantay ang toolbar, title at calendar grid sa gilid. */
+    max-width: 950px;
+
+    margin: 0;
+
+}
+
+
+
+#admin-calendar .fc {
+
+    font-family: 'Montserrat', sans-serif;
+
+}
+
+
+
+/* (Lumang default FullCalendar button/title styles - tinanggal; custom
+
+   .cal-toolbar controls na ang gamit, katulad ng client booking page) */
+
+
+
+.fc-theme-standard td,
+
+.fc-theme-standard th {
+
+    border-color: #2a2a2a;
+
+    background-color: #000000 !important;
+
+}
+
+
+
+.fc .fc-col-header-cell {
+
+    background-color: #000 !important;
+
+}
+
+
+
+.fc .fc-col-header-cell-cushion {
+
+    color: #888888;
+
+    text-decoration: none;
+
+    text-transform: capitalize !important;
+
+    font-size: 0.8rem;
+
+    padding: 10px 0;
+
+    font-weight: 600;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day,
+
+#admin-calendar .fc .fc-daygrid-day-frame,
+
+#admin-calendar .fc .fc-daygrid-day-bg,
+
+#admin-calendar .fc .fc-daygrid-day-top {
+
+    background-color: #000000 !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day-number {
+
+    color: #ffffff;
+
+    text-decoration: none;
+
+    font-size: 0.8rem;
+
+    padding: 4px 8px;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day.fc-day-other,
+
+#admin-calendar .fc .fc-daygrid-day.fc-day-disabled {
+
+    background-color: #000000 !important;
+
+    cursor: default !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day.fc-day-other:hover,
+
+#admin-calendar .fc .fc-daygrid-day.fc-day-disabled:hover {
+
+    background-color: #000000 !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-day-past,
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-frame,
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-bg,
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-top {
+
+    background-color: #000000 !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-number {
+
+    color: #4f4f4f !important;
+
+    opacity: 0.65;
+
+}
+
+
+
+#admin-calendar .fc .admin-past-day,
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-frame,
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-bg,
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-top {
+
+    background-color: #000000 !important;
+
+}
+
+
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-number {
+
+    color: #4f4f4f !important;
+
+    opacity: 0.55;
+
+}
+
+
+
+#admin-calendar .fc .fc-day-past:hover,
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-frame:hover,
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-top:hover {
+
+    background-color: #000000 !important;
+
+    cursor: default !important;
+
+}
+
+
+
+#admin-calendar .fc .admin-past-day:hover,
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-frame:hover,
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-top:hover {
+
+    background-color: #000000 !important;
+
+    cursor: default !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-day-today,
+
+#admin-calendar .fc .fc-day-today .fc-daygrid-day-frame,
+
+#admin-calendar .fc .fc-day-today .fc-daygrid-day-bg,
+
+#admin-calendar .fc .fc-day-today .fc-daygrid-day-top {
+
+    background-color: rgba(255, 255, 255, 0.15) !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day-frame {
+
+    transition: background 0.2s;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day-frame:hover {
+
+    background-color: rgba(255, 255, 255, 0.08);
+
+}
+
+
+
+#admin-calendar .fc .fc-day-disabled .fc-daygrid-day-frame:hover,
+
+#admin-calendar .fc .fc-day-other .fc-daygrid-day-frame:hover,
+
+#admin-calendar .fc .fc-day-past .fc-daygrid-day-frame:hover,
+
+#admin-calendar .fc .admin-past-day .fc-daygrid-day-frame:hover {
+
+    background-color: #000000 !important;
+
+}
+
+
+
+#admin-calendar .fc-event-main {
+
+    color: #ffffff !important;
+
+    padding: 4px 6px !important;
+
+    font-size: 0.65rem;
+
+    font-weight: 600;
+
+    text-align: center;
+
+}
+
+
+
+#admin-calendar .fc-event {
+
+    border: none;
+
+    padding: 4px 6px;
+
+    font-weight: 600;
+
+    font-size: 0.8rem;
+
+    cursor: pointer;
+
+    border-radius: 4px;
+
+}
+
+
+
+/* Popover Styling */
+
+.fc-popover {
+
+    background-color: #000000 !important;
+
+    border: 1px solid #444 !important;
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9) !important;
+
+    z-index: 9999 !important;
+
+}
+
+
+
+.fc-popover-header {
+
+    background-color: #111 !important;
+
+    color: #ffffff !important;
+
+    border-bottom: 1px solid #333 !important;
+
+    padding: 8px 10px !important;
+
+}
+
+
+
+.fc-popover-body {
+
+    background-color: #000000 !important;
+
+}
+
+
+
+.fc-popover-title {
+
+    color: #ffffff !important;
+
+    font-weight: 700;
+
+    font-family: 'Montserrat', sans-serif;
+
+}
+
+
+
+.fc-popover-close-icon {
+
+    color: #ffffff !important;
+
+    opacity: 0.7;
+
+    background: transparent !important;
+
+}
+
+
+
+#admin-calendar .fc-more-link {
+
+    color: white !important;
+
+    font-size: 0.75rem;
+
+    text-decoration: none;
+
+}
+
+
+
+/* Time Axis Labels */
+
+.fc .fc-timegrid-slot-label-cushion,
+
+.fc .fc-scrollgrid-shrink-cushion,
+
+.fc .fc-timegrid-axis-cushion {
+
+    font-size: 0.65rem !important;
+
+    font-weight: 500;
+
+    color: rgba(255, 255, 255, 0.6);
+
+    text-transform: capitalize !important;
+
+    text-decoration: none;
+
+    white-space: nowrap !important;
+
+}
+
+
+
+/* Custom Scrollbar */
+
+#admin-calendar .fc-scroller::-webkit-scrollbar {
+
+    width: 6px;
+
+    height: 6px;
+
+}
+
+
+
+#admin-calendar .fc-scroller::-webkit-scrollbar-track {
+
+    background: rgba(255, 255, 255, 0.05);
+
+}
+
+
+
+#admin-calendar .fc-scroller::-webkit-scrollbar-thumb {
+
+    background: rgba(255, 255, 255, 0.2);
+
+    border-radius: 3px;
+
+}
+
+
+
+#admin-calendar .fc-scroller::-webkit-scrollbar-thumb:hover {
+
+    background: rgba(255, 255, 255, 0.4);
+
+}
+
+
+
+/* Day Cell Hover Effect */
+
+#admin-calendar .fc .fc-daygrid-day:hover {
+
+    background-color: rgba(255, 255, 255, 0.1);
+
+    cursor: pointer;
+
+    transition: background-color 0.2s ease;
+
+}
+
+
+
+/* Blocked dates: manatiling light gray kahit naka-hover */
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
+
+    background-color: #2a2a2a !important;
+
+}
+
+
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
+
+    background-color: #e5e7eb !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-day-disabled:hover,
+
+#admin-calendar .fc .fc-day-other:hover,
+
+#admin-calendar .fc .fc-day-past:hover,
+
+#admin-calendar .fc .admin-past-day:hover {
+
+    background-color: #000000 !important;
+
+    cursor: default !important;
+
+}
+
+
+
+/* (Lumang responsive block - pinalitan ng mas kumpletong responsive rules
+
+   sa dulo ng file na naka-align sa client booking calendar) */
+
+
+
+/* ======================== */
+
+/* EVENT CLICK POPOVER       */
+
+/* ======================== */
+
+.cal-popover {
+
+    display: flex;
+
+    flex-direction: column;
+
+    overflow: hidden;
+
+    max-height: calc(100vh - 24px);
+
+    position: fixed;
+
+    z-index: 9999;
+
+    background: #111;
+
+    border: 1px solid #333;
+
+    border-radius: 8px;
+
+    width: 250px;
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+
+    opacity: 0;
+
+    visibility: hidden;
+
+    transform: translateY(-5px);
+
+    transition: all 0.2s ease;
+
+    font-family: 'Montserrat', sans-serif;
+
+}
+
+
+
+.cal-popover.show {
+
+    opacity: 1;
+
+    visibility: visible;
+
+    transform: translateY(0);
+
+}
+
+
+
+.cal-popover-header {
+
+    flex: 0 0 auto;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 0.6rem 0.8rem;
+
+    background: #1a1a1a;
+
+    border-bottom: 1px solid #333;
+
+    border-radius: 8px 8px 0 0;
+
+}
+
+
+
+.cal-popover-title {
+
+    font-size: 0.75rem;
+
+    font-weight: 700;
+
+    color: #fff;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.5px;
+
+}
+
+
+
+.cal-popover-close {
+
+    background: none;
+
+    border: none;
+
+    color: #666;
+
+    font-size: 1.2rem;
+
+    cursor: pointer;
+
+    padding: 0;
+
+    line-height: 1;
+
+    transition: color 0.2s;
+
+}
+
+
+
+.cal-popover-close:hover {
+
+    color: #fff;
+
+}
+
+
+
+.cal-popover-body {
+
+    flex: 1 1 auto;
+
+    min-height: 0;
+
+    overflow-y: auto;
+
+    overscroll-behavior: contain;
+
+    padding: 0.5rem;
+
+}
+
+
+
+.cal-popover-body::-webkit-scrollbar {
+
+    width: 6px;
+
+}
+
+
+
+.cal-popover-body::-webkit-scrollbar-track {
+
+    background: rgba(255, 255, 255, 0.05);
+
+}
+
+
+
+.cal-popover-body::-webkit-scrollbar-thumb {
+
+    background: rgba(255, 255, 255, 0.25);
+
+    border-radius: 3px;
+
+}
+
+
+
+[data-theme="light"] .cal-popover-body::-webkit-scrollbar-track {
+
+    background: #f3f4f6;
+
+}
+
+
+
+[data-theme="light"] .cal-popover-body::-webkit-scrollbar-thumb {
+
+    background: #d1d5db;
+
+}
+
+
+
+.cal-pop-event {
+
+    padding: 0.5rem 0.65rem;
+
+    border-radius: 4px;
+
+    background: rgba(255, 255, 255, 0.04);
+
+}
+
+
+
+.cal-pop-name {
+
+    font-size: 0.85rem;
+
+    font-weight: 600;
+
+    color: #fff;
+
+    margin-bottom: 0.25rem;
+
+}
+
+
+
+.cal-pop-detail {
+
+    font-size: 0.75rem;
+
+    color: #999;
+
+    line-height: 1.5;
+
+}
+
+
+
+#admin-calendar .fc-event {
+
+    cursor: pointer;
+
+}
+
+
+
+
+
+/* ========================================================
+
+   LIGHT THEME OVERRIDES
+
+   ======================================================== */
+
+[data-theme="light"] {
+
+    --card-bg: #ffffff;
+
+    --card-bg-s: #f9fafb;
+
+    --card-bdr: rgba(0, 0, 0, 0.1);
+
+    --card-bdr-h: rgba(0, 0, 0, 0.2);
+
+    --t1: #111827;
+
+    --t2: #4b5563;
+
+    --t3: #6b7280;
+
+    --t4: #9ca3af;
+
+}
+
+
+
+[data-theme="light"] .container,
+
+[data-theme="light"] .wrapper,
+
+[data-theme="light"] .card,
+
+[data-theme="light"] .box,
+
+[data-theme="light"] .panel,
+
+[data-theme="light"] .modal-content,
+
+[data-theme="light"] .auth-container,
+
+[data-theme="light"] .profile-card,
+
+[data-theme="light"] .booking-card,
+
+[data-theme="light"] .review-card,
+
+[data-theme="light"] .stat-card,
+
+[data-theme="light"] .dashboard-card,
+
+[data-theme="light"] .table-container {
+
+    background-color: #ffffff !important;
+
+    border-color: #e5e7eb !important;
+
+    color: #111827 !important;
+
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+
+}
+
+
+
+[data-theme="light"] .table th,
+
+[data-theme="light"] table th,
+
+[data-theme="light"] .data-table th {
+
+    background-color: #f3f4f6 !important;
+
+    color: #4b5563 !important;
+
+    border-color: #e5e7eb !important;
+
+}
+
+
+
+[data-theme="light"] .table td,
+
+[data-theme="light"] table td,
+
+[data-theme="light"] .data-table td {
+
+    background-color: #ffffff !important;
+
+    color: #111827 !important;
+
+    border-color: #e5e7eb !important;
+
+}
+
+
+
+[data-theme="light"] tr:hover td {
+
+    background-color: #f9fafb !important;
+
+}
+
+
+
+[data-theme="light"] input[type="text"],
+
+[data-theme="light"] input[type="email"],
+
+[data-theme="light"] input[type="password"],
+
+[data-theme="light"] input[type="number"],
+
+[data-theme="light"] input[type="date"],
+
+[data-theme="light"] input[type="time"],
+
+[data-theme="light"] select,
+
+[data-theme="light"] textarea {
+
+    background-color: #f9fafb !important;
+
+    color: #111827 !important;
+
+    border: 1px solid #d1d5db !important;
+
+}
+
+
+
+[data-theme="light"] input:focus,
+
+[data-theme="light"] select:focus,
+
+[data-theme="light"] textarea:focus {
+
+    background-color: #f9fafb !important;
+
+    border-color: #9ca3af !important;
+
+    box-shadow: none !important;
+
+}
+
+
+
+[data-theme="light"] .text-muted,
+
+[data-theme="light"] .help-text,
+
+[data-theme="light"] .sub-text,
+
+[data-theme="light"] small {
+
+    color: #6b7280 !important;
+
+}
+
+
+
+[data-theme="light"] h1,
+
+[data-theme="light"] h2,
+
+[data-theme="light"] h3,
+
+[data-theme="light"] h4,
+
+[data-theme="light"] h5,
+
+[data-theme="light"] h6 {
+
+    color: #111827 !important;
+
+}
+
+
+
+[data-theme="light"] .btn-outline {
+
+    border-color: #d1d5db !important;
+
+    color: #374151 !important;
+
+}
+
+[data-theme="light"] .btn-outline:hover {
+
+    background-color: #f3f4f6 !important;
+
+}
+
+
+
+[data-theme="light"] .notification-dropdown,
+
+[data-theme="light"] .notif-header,
+
+[data-theme="light"] .notif-item {
+
+    background-color: #ffffff !important;
+
+    border-color: #e5e7eb !important;
+
+    color: #111827 !important;
+
+}
+
+
+
+[data-theme="light"] .notif-item:hover {
+
+    background-color: #f9fafb !important;
+
+}
+
+
+
+[data-theme="light"] .notif-date-header {
+
+    background-color: #f3f4f6 !important;
+
+    color: #4b5563 !important;
+
+    border-color: #e5e7eb !important;
+
+}
+
+
+
+[data-theme="light"] .notif-content p {
+
+    color: #111827 !important;
+
+}
+
+
+
+[data-theme="light"] .notif-empty {
+
+    color: #6b7280 !important;
+
+}
+
+
+
+[data-theme="light"] .canvas-container {
+
+    background-color: #f3f4f6 !important;
+
+}
+
+
+
+/* ========================================================
+
+   ADMIN-BLOCKED DATES (gray full-cell + top badge)
+
+   Light gray sa buong day cell — walang banding (transparent
+
+   ang lahat ng inner elements) + "Unavailable" text sa gitna.
+
+   ======================================================== */
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked {
+
+    position: relative;
+
+    background-color: #2a2a2a !important;
+
+    cursor: not-allowed !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame,
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top,
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-events,
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-bg {
+
+    background: transparent !important;
+
+    background-color: transparent !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
+
+    color: rgba(255, 255, 255, 0.92) !important;
+
+    font-weight: 700;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+    position: static;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    font-size: 0.62rem;
+
+
+    max-width: 100%;
+
+    flex: 0 1 auto;
+
+    min-width: 0;
+
+    font-size: 0.58rem;
+
     font-weight: 700;
-    letter-spacing: 0.05em;
+
+    letter-spacing: 0.04em;
+
     text-transform: uppercase;
-    color: #fecaca;
-    background: rgba(127, 29, 29, 0.92);
-    border: 1px solid #ef4444;
+
+    line-height: 1.2;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    color: rgba(255, 255, 255, 0.85);
+
+    background: rgba(255, 255, 255, 0.12);
+
+    border: 1px solid rgba(255, 255, 255, 0.22);
+
     border-radius: 4px;
-    padding: 2px 4px;
+
+    padding: 2px 5px;
+
+    margin: 0;
+
     pointer-events: none;
+
     z-index: 2;
-}
-
-/* MONTH view: nakatago ang "Unavailable" event pill — may text label na sa cell.
-   Iniwan ang event para may makita pa rin sa WEEK view (timeGrid). */
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event.blocked-flag-event {
-    display: none !important;
-}
-
-/* OPTION A (layer, dont mask): BOOKING pills stay visible on blocked dates - red ring + slight dim as conflict indicator, still clickable for the popover. */
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event:not(.blocked-flag-event) {
-    box-shadow: 0 0 0 2px #ef4444 !important;
-    opacity: 0.85;
-    cursor: pointer !important;
-}
-
-[data-theme=light] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event:not(.blocked-flag-event) {
-    box-shadow: 0 0 0 2px #dc2626 !important;
-    opacity: 1;
-    cursor: pointer !important;
-}
-
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked *,
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover,
-#admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover * {
-    cursor: not-allowed !important;
-}
-
-/* LIGHT MODE variant */
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked {
-    background-color: #e5e7eb !important;
-}
-
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame,
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top,
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-events,
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-bg {
-    background: transparent !important;
-    background-color: transparent !important;
+
 }
 
-   [data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
-    color: #b91c1c !important;
-}
-
-[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
-    color: #b91c1c;
-    background: #fee2e2;
-    border-color: #dc2626;
-}
-
+
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+/* Text sa loob ng badge: dito gumagana ang ellipsis (hindi ito gumagana
+   sa inline-flex na label mismo) kapag hindi kasya sa sikip na cell —
+   nananatili ang icon at hindi na umaapaw sa katabing dates. */
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label .bbl-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+
+
+/* Badge katabi ng day number sa top row (flex-start) kapag may records —
+   naka-flex flow kaya hindi mag-o-overlap sa numero, at naka-ellipsis
+   kapag sikip ang cell. */
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
+    flex: 0 0 auto;
+}
+
+/* WALANG record: buong gray na cell + label sa gitna (kapareho ng client). */
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked.booking-day-empty .booking-day-blocked-label {
+
+    position: absolute;
+
+    inset: 0;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin: 0;
+
+    padding-top: 0.75rem;
+
+    border: none;
+
+    background: transparent;
+
+}
+
+
+
+/* MONTH view: nakatago ang "Unavailable" event pill — may text label na sa cell.
+
+   Iniwan ang event para may makita pa rin sa WEEK view (timeGrid). */
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event.blocked-flag-event {
+
+    display: none !important;
+
+}
+
+
+
+/* OPTION A (layer, dont mask): BOOKING pills stay visible on blocked dates -
+   GRAY ring (kulay ng blocked, hindi na pula) + slight dim as conflict
+   indicator, still clickable for the popover. */
+
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event:not(.blocked-flag-event) {
+
+    box-shadow: 0 0 0 2px #6b7280 !important;
+
+
+    opacity: 0.85;
+
+    cursor: pointer !important;
+
+}
+
+
+
+[data-theme=light] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame .fc-event:not(.blocked-flag-event) {
+
+    box-shadow: 0 0 0 2px #9ca3af !important;
+
+
+    opacity: 1;
+
+    cursor: pointer !important;
+
+}
+
+
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked *,
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover,
+
+#admin-calendar .fc .fc-daygrid-day.booking-day-blocked:hover * {
+
+    cursor: not-allowed !important;
+
+}
+
+
+
+/* LIGHT MODE variant */
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked {
+
+    background-color: #e5e7eb !important;
+
+}
+
+
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-frame,
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top,
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-events,
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-bg {
+
+    background: transparent !important;
+
+    background-color: transparent !important;
+
+}
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
+    color: #374151 !important;
+}
+
+
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+    color: #4b5563;
+    background: rgba(17, 24, 39, 0.06);
+    border-color: rgba(17, 24, 39, 0.25);
+}
+
+[data-theme="light"] #admin-calendar .fc .fc-daygrid-day.booking-day-blocked.booking-day-empty .booking-day-blocked-label {
+    background: transparent;
+    border-color: transparent;
+}
+
+
+
 /* ========================================================
    CUSTOM CALENDAR TOOLBAR (same design as client booking page)
    ======================================================== */
@@ -823,9 +1640,11 @@
 
 .blocked-input {
     background: #1a1a1a;
-    border: 1px solid #333;
+    /* Mas kapansin-pansing gilid — dating #333, halos hindi makita sa
+       itim na panel kaya parang "walang side". */
+    border: 1px solid #454545;
     color: #fff;
-    padding: 0.55rem 0.75rem;
+    padding: 0.65rem 0.9rem;
     border-radius: 8px;
     font-size: 0.85rem;
     font-family: 'Montserrat', sans-serif;
@@ -834,17 +1653,22 @@
 
 .blocked-input:focus {
     outline: none;
-    border-color: #555;
+    border-color: #6b6b6b;
     background: #202020;
 }
 
 .blocked-date-input {
     color-scheme: dark;
-    flex: 0 0 auto;
+    /* Fixed na normal na lapad (230px) — hindi stretched/humahaba sa
+       malapad na panel, at hindi siksik gaya ng dati. Bahagyang
+       lumiliit lang (shrink) kapag sikip ang row. */
+    flex: 0 1 230px;
+    width: 230px;
+    min-width: 150px;
 }
 
 .blocked-reason-input {
-    flex: 1;
+    flex: 1 1 220px;
     min-width: 200px;
 }
 
@@ -1065,6 +1889,16 @@
 [data-theme="light"] .calendar-legend {
     color: #111827;
 }
+
+[data-theme="light"] .legend-item.active {
+    background: rgba(17, 24, 39, 0.06);
+    border-color: rgba(17, 24, 39, 0.15);
+}
+
+[data-theme="light"] .legend-note {
+    color: #6b7280;
+}
+
 
 /* ---------- LIGHT MODE - TOOLBAR ---------- */
 [data-theme="light"] .cal-nav-btn {
@@ -1367,27 +2201,44 @@
         padding: 2px 6px;
     }
 
-    /* "Blocked" badge fix: lumiit ang font (naka-clamp sa viewport width),
-       humihipo ang letter-spacing, at naka-overflow:hidden sa loob ng cell
-       para hindi na umaapaw sa katabing dates kapag responsive */
+    /* "Blocked" badge: naka-ABSOLUTE sa GITNA ng buong cell kapag
+       responsive (kapareho ng client booking calendar) — hindi na nakaupo
+       sa tabi ng day number kaya hindi na napuputol/pumipitag ang text, at
+       pantay ang icon + text. Ang position: static sa .fc-daygrid-day-top
+       ang naglalabas sa badge sa flex row para ang maging containing block
+       na ay ang cell (td) mismo — kaya nasa gitna ito gaya ng sa client. */
+    #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-top {
+        position: static;
+    }
     #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        max-width: none;
+        margin: 0;
+        padding: 0.75rem 4px 0;
+        overflow: visible;
         font-size: clamp(0.42rem, 2.6vw, 0.58rem);
         letter-spacing: 0.02em;
-        padding-left: 2px;
-        padding-right: 2px;
-        overflow: hidden;
-        overflow-wrap: break-word;
-        word-break: break-word;
+        line-height: 1.2;
+        text-align: center;
+        word-break: normal;
+        overflow-wrap: normal;
     }
     #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .fc-daygrid-day-number {
         font-size: 0.78rem;
     }
 }
 
+
 @media (max-width: 480px) {
     #admin-calendar .fc .fc-daygrid-day-frame { min-height: 52px !important; }
     #admin-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
         font-size: clamp(0.38rem, 2.6vw, 0.5rem);
+        padding-top: 1rem;
     }
 }
 
@@ -1516,7 +2367,9 @@ html:not([data-theme="light"]) #admin-calendar .fc .fc-day-today .fc-daygrid-day
    ======================================================== */
 .admin-calendar-page .blocked-form .blocked-input,
 .admin-calendar-page .blocked-form .blocked-submit-btn {
-    height: 42px;
+    /* Mas mababa kaysa dati (46px) — request ni sir: bawasan ang taas ng
+       date field, reason input at Block Date button. */
+    height: 38px;
     box-sizing: border-box;
     vertical-align: middle;
 }
@@ -1524,7 +2377,7 @@ html:not([data-theme="light"]) #admin-calendar .fc .fc-day-today .fc-daygrid-day
 .admin-calendar-page .blocked-form .blocked-input {
     padding-top: 0;
     padding-bottom: 0;
-    line-height: 40px;
+    line-height: 36px;
 }
 
 .admin-calendar-page .blocked-form .blocked-submit-btn {
@@ -1582,49 +2435,27 @@ html:not([data-theme="light"]) #admin-calendar .fc .fc-day-today .fc-daygrid-day
 }
 
 
-/* OPTION A: conflict-aware block — hint + confirm modal */
+/* OPTION A: conflict-aware block — hint + confirm modal (My Designs delete-modal look).
+   Hint: kapantay ng form/list (1.25rem inset); ang form padding-bottom na ang
+   top gap kaya margin-top 0 at margin-bottom lang — pantay, walang sobrang
+   taas sa itaas, may spacing sa baba. */
 .blocked-conflict-hint {
-    margin-top: 0.6rem;
+    box-sizing: border-box;
+    width: auto;
+    margin: 0 1.25rem 0.75rem;
     padding: 0.6rem 0.8rem;
     border: 1px solid rgba(239, 68, 68, 0.45);
     background: rgba(239, 68, 68, 0.12);
     color: #fecaca;
     border-radius: 6px;
     font-size: 0.8rem;
-}
-
-.cal-block-confirm[hidden] { display: none !important; }
-.cal-block-confirm {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.65);
-}
-.cal-block-confirm-card {
-    width: min(420px, calc(100vw - 2rem));
-    background: #141414;
-    border: 1px solid #ef4444;
-    border-radius: 10px;
-    padding: 1.1rem 1.2rem;
-}
-.cal-block-confirm-title {
-    font-weight: 800;
-    color: #fff;
-    margin-bottom: 0.5rem;
-}
-.cal-block-confirm-text, .cal-block-confirm-note {
-    color: #d1d5db;
-    font-size: 0.85rem;
     line-height: 1.5;
 }
-.cal-block-confirm-actions {
-    display: flex;
-    gap: 0.6rem;
-    justify-content: flex-end;
-    margin-top: 1rem;
+.blocked-conflict-hint[hidden] { display: none !important; }
+[data-theme="light"] .blocked-conflict-hint {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
 }
 
 .cal-pop-blocked-warning {
@@ -1637,3 +2468,72 @@ html:not([data-theme="light"]) #admin-calendar .fc .fc-day-today .fc-daygrid-day
     font-size: 0.75rem;
     line-height: 1.4;
 }
+[data-theme="light"] .cal-pop-blocked-warning {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+@media (max-width: 768px) {
+    .blocked-conflict-hint { margin: 0 0.75rem 0.75rem; }
+}
+@media (max-width: 480px) {
+    .blocked-conflict-hint { margin: 0 0.5rem 0.65rem; }
+
+
+}
+
+
+/* ========================================================
+   RESPONSIVE LAYOUT (dulo ng file — dito manalo sa lahat)
+   Legend sa TAAS, calendar sa BABA kapag sikip na.
+   ======================================================== */
+@media (max-width: 992px) {
+    .admin-calendar-layout {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .admin-calendar-layout .calendar-wrapper {
+        width: 100%;
+        max-width: 100%;
+    }
+    .admin-calendar-layout .calendar-legend {
+        order: -1;
+        flex: 0 0 auto;
+        max-width: none;
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.9rem;
+        padding: 0.85rem;
+    }
+    .admin-calendar-layout .legend-item {
+        width: auto;
+    }
+    .admin-calendar-layout .legend-title {
+        flex: 0 0 100%;
+    }
+    .admin-calendar-layout .legend-note {
+        flex-basis: 100%;
+        margin: 0;
+    }
+}
+
+/* Blocked Dates form: date + reason input, pati button — kumpletong
+   lapad at may box-sizing sa mobile (walang overflow / siksikan). */
+@media (max-width: 768px) {
+    .admin-calendar-page .blocked-form .blocked-input,
+    .admin-calendar-page .blocked-form .blocked-submit-btn {
+        width: 100%;
+        max-width: 100%;
+    }
+    /* Column layout: ibalik sa auto ang flex-basis ng date/reason input
+       para hindi mag-apply ang 170px/220px na basis sa HEIGHT (galing sa
+       flex: 1 1 … sa desktop row). */
+    .admin-calendar-page .blocked-form .blocked-date-input,
+    .admin-calendar-page .blocked-form .blocked-reason-input {
+        flex: 0 0 auto;
+    }
+}
+
