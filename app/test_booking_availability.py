@@ -237,7 +237,7 @@ class BookingAvailabilityTemplateTests(TestCase):
 
     def test_css_cache_bust_updated(self):
         # Cache-bust versions (i-bump kapag nagbabago ang picker/CSS/JS).
-        self.assertIn("client_booking.css' %}?v=20261018d", self.template)
+        self.assertIn("client_booking.css' %}?v=20261018e", self.template)
         self.assertIn("booking_availability.js' %}?v=20261013a", self.template)
         self.assertIn("booking_picker_a.js' %}?v=20261014f", self.template)
         self.assertIn("booking_picker_c.js' %}?v=20261014e", self.template)
@@ -289,7 +289,7 @@ class BookingAvailabilityTemplateTests(TestCase):
             )
             # Unavailable sa calendar = light gray (hindi na aggressive na pula)
             self.assertNotIn("#991b1b", css, str(css_path))
-            self.assertIn("background-color: #404040 !important", css, str(css_path))
+            self.assertIn("background-color: #2e2e2e !important", css, str(css_path))
             # Hindi nag-ho-hover ang unavailable (lahat ng light hover may :not)
             self.assertGreaterEqual(
                 css.count(
@@ -350,7 +350,7 @@ class BookingAvailabilityTemplateTests(TestCase):
             self.assertIn(".booking-event-tip.tip-below::after", css, str(css_path))
             # Mas magaan na gray: unavailable + today highlight (dark at light)
             self.assertIn(
-                "background-color: #404040 !important", css, str(css_path)
+                "background-color: #2e2e2e !important", css, str(css_path)
             )
             self.assertIn(
                 "background-color: rgba(255, 255, 255, 0.06) !important",
@@ -388,6 +388,33 @@ class BookingAvailabilityTemplateTests(TestCase):
             self.assertIn(".booking-availability-banner {", css, str(css_path))
             self.assertIn(".availability-date-chip:hover {", css, str(css_path))
             self.assertIn('[data-theme="light"] .booking-availability-banner {', css, str(css_path))
+
+    def test_unavailable_custom_tooltip_and_light_faded_numbers(self):
+        # Walang default browser title sa unavailable cells — ang custom
+        # .booking-event-tip ang lumalabas sa hover (reason line lang kapag
+        # may reason, via getBlockedDateLabel).
+        self.assertNotIn(
+            "setAttribute('title', getBlockedDateLabel", self.template
+        )
+        self.assertIn("arg.el.addEventListener('mouseenter'", self.template)
+        self.assertIn(
+            "arg.el.addEventListener('mouseleave', hideBookingEventTooltip)",
+            self.template,
+        )
+        self.assertIn("showBookingEventTooltip(", self.template)
+        # Light mode: faded ang numero ng lead-time (booking-day-disabled) at
+        # past dates — opacity:1 (talo ang inline 0.45 ng JS); ang alpha ng
+        # color ang nagf-fade, gaya ng dark mode. Today: solid pa rin.
+        light_faded_number = (
+            '[data-theme="light"] #booking-calendar .fc .fc-daygrid-day'
+            ".booking-day-disabled .fc-daygrid-day-number"
+        )
+        for css_path in (BOOKING_CSS, BOOKING_CSS_MIRROR):
+            css = css_path.read_text(encoding="utf-8")
+            self.assertIn(light_faded_number, css, str(css_path))
+            self.assertIn(
+                "color: rgba(17, 24, 39, 0.4) !important", css, str(css_path)
+            )
 
 
 class EditBookingGuardrailTemplateTests(TestCase):

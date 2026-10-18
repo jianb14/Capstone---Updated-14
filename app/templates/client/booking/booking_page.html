@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261018d">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261018e">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261013a"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
@@ -1607,10 +1607,12 @@
                     }
                     return;
                 }
-                /* ADMIN-BLOCKED: gray cell + "Unavailable" + ban icon. */
+                /* ADMIN-BLOCKED: gray cell + "Unavailable" + ban icon.
+                   Custom tooltip (.booking-event-tip) sa hover — pumapalit sa
+                   default browser title attribute; reason line lang kapag may
+                   reason (getBlockedDateLabel). */
                 if (isBlockedDate(cellDate)) {
                     arg.el.classList.add('booking-day-blocked');
-                    arg.el.setAttribute('title', getBlockedDateLabel(cellDate));
                     /* "Unavailable" text sa gitna ng buong cell */
                     if (!arg.el.querySelector('.booking-day-blocked-label')) {
                         var blockedLabel = document.createElement('div');
@@ -1619,6 +1621,17 @@
                         blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Unavailable';
                         arg.el.appendChild(blockedLabel);
                     }
+                    /* Custom tooltip sa hover — date sa taas, "Unavailable —
+                       reason" (o plain unavailable) sa baba. */
+                    arg.el.addEventListener('mouseenter', function () {
+                        var dateObj = new Date(cellDate + 'T00:00:00');
+                        showBookingEventTooltip(
+                            arg.el,
+                            formatEventTooltipDate(dateObj),
+                            getBlockedDateLabel(cellDate)
+                        );
+                    });
+                    arg.el.addEventListener('mouseleave', hideBookingEventTooltip);
                     return;
                 }
                 /* LEAD-TIME: faded/malabo na gaya ng past dates — walang
