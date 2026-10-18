@@ -2,7 +2,7 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261018e">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261018f">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261013a"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
@@ -1587,10 +1587,11 @@
                     return ['booking-day-blocked'];
                 }
                 /* LEAD-TIME: faded/malabo na gaya ng past dates — hindi mukhang
-                   clickable pero may toast pag kinlick. Ang petsa NGAYON (today)
-                   ay hindi faded kahit maabutan ng lead time — mananatiling
-                   naka-highlight. */
-                if (moduleIsLeadBlockedDate(cellDate) && cellDate !== todayLocal) {
+                   clickable pero may toast pag kinlick. KASAMA ang petsa NGAYON
+                   (today) kapag natamaan ng lead time: faded ang NUMBER nito
+                   pero nananatiling naka-highlight ang cell bg (may CSS
+                   override para sa today+disabled). */
+                if (moduleIsLeadBlockedDate(cellDate)) {
                     return ['booking-day-disabled'];
                 }
                 return [];
@@ -1635,9 +1636,11 @@
                     return;
                 }
                 /* LEAD-TIME: faded/malabo na gaya ng past dates — walang
-                   "Unavailable" label. May toast pa rin pag kinlick. Ang petsa
-                   NGAYON (today) ay hindi faded kahit maabutan ng lead time. */
-                if (moduleIsLeadBlockedDate(cellDate) && cellDate !== todayLocal) {
+                   "Unavailable" label. May toast pa rin pag kinlick. KASAMA
+                   ang petsa NGAYON (today): faded ang number (gaya ng
+                   unavailable dates) sa light at dark — pero naka-highlight
+                   pa rin ang today cell bg. */
+                if (moduleIsLeadBlockedDate(cellDate)) {
                     arg.el.classList.add('booking-day-disabled');
                     const leadDayNumber = arg.el.querySelector('.fc-daygrid-day-number');
                     if (leadDayNumber) {

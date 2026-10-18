@@ -266,8 +266,16 @@
     background-color: transparent !important;
 }
 #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-number {
-    color: #ffffff !important;
+    /* Faded ang number (gaya ng ibang disabled/unavailable dates) — pero
+       nananatiling naka-highlight ang today cell bg */
+    color: rgba(255, 255, 255, 0.45) !important;
     opacity: 1 !important;
+}
+/* Today+disabled sa DARK: walang hover change — hindi ito bubugaw ng
+   generic hover-lock (#000) na para sa ibang disabled dates */
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled:hover,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-today.is-past-date:hover {
+    background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day-frame {
@@ -543,7 +551,7 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-disa
    ======================================================== */
 #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
     position: relative;
-    background-color: #2e2e2e !important;
+    background-color: #1c1c1c !important;
     cursor: not-allowed !important;
 }
 
@@ -617,9 +625,10 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-disa
     cursor: not-allowed !important;
 }
 
-/* Walang nagbabago sa hover — manatiling light gray, cursor not-allowed */
+/* Walang nagbabago sa hover — mananatiling malalim na gray (soft sa mata),
+   cursor not-allowed */
 html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #2e2e2e !important;
+    background-color: #1c1c1c !important;
 }
 
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
@@ -2614,7 +2623,14 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
     background-color: transparent !important;
 }
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-number {
+    /* Faded ang number (gaya ng ibang disabled/unavailable dates) sa LIGHT */
+    color: rgba(17, 24, 39, 0.4) !important;
     opacity: 1 !important;
+}
+/* Today+disabled sa LIGHT: mananatiling naka-highlight kahit hinover */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled:hover,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.is-past-date:hover {
+    background-color: rgba(17, 24, 39, 0.03) !important;
 }
 
 /* Today highlight — tint sa cell lang, transparent ang inner layers

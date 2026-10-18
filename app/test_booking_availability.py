@@ -237,7 +237,7 @@ class BookingAvailabilityTemplateTests(TestCase):
 
     def test_css_cache_bust_updated(self):
         # Cache-bust versions (i-bump kapag nagbabago ang picker/CSS/JS).
-        self.assertIn("client_booking.css' %}?v=20261018e", self.template)
+        self.assertIn("client_booking.css' %}?v=20261018f", self.template)
         self.assertIn("booking_availability.js' %}?v=20261013a", self.template)
         self.assertIn("booking_picker_a.js' %}?v=20261014f", self.template)
         self.assertIn("booking_picker_c.js' %}?v=20261014e", self.template)
@@ -289,7 +289,7 @@ class BookingAvailabilityTemplateTests(TestCase):
             )
             # Unavailable sa calendar = light gray (hindi na aggressive na pula)
             self.assertNotIn("#991b1b", css, str(css_path))
-            self.assertIn("background-color: #2e2e2e !important", css, str(css_path))
+            self.assertIn("background-color: #1c1c1c !important", css, str(css_path))
             # Hindi nag-ho-hover ang unavailable (lahat ng light hover may :not)
             self.assertGreaterEqual(
                 css.count(
@@ -348,9 +348,10 @@ class BookingAvailabilityTemplateTests(TestCase):
             self.assertIn("gap: 10px;", css, str(css_path))
             self.assertIn(".booking-event-tip::after", css, str(css_path))
             self.assertIn(".booking-event-tip.tip-below::after", css, str(css_path))
-            # Mas magaan na gray: unavailable + today highlight (dark at light)
+            # Mas malalim na gray (soft sa mata): unavailable bg (dark) +
+            # today highlight (dark at light)
             self.assertIn(
-                "background-color: #2e2e2e !important", css, str(css_path)
+                "background-color: #1c1c1c !important", css, str(css_path)
             )
             self.assertIn(
                 "background-color: rgba(255, 255, 255, 0.06) !important",
@@ -414,6 +415,19 @@ class BookingAvailabilityTemplateTests(TestCase):
             self.assertIn(light_faded_number, css, str(css_path))
             self.assertIn(
                 "color: rgba(17, 24, 39, 0.4) !important", css, str(css_path)
+            )
+            # Today (19) na natamaan ng lead-time: faded ang number sa DARK at
+            # LIGHT (gaya ng unavailable) pero naka-highlight pa rin ang bg —
+            # may dedicated today+disabled number rules.
+            self.assertRegex(
+                css,
+                r"\.fc-day-today\.booking-day-disabled \.fc-daygrid-day-number \{"
+                r"[^}]*rgba\(255, 255, 255, 0\.45\)",
+            )
+            self.assertRegex(
+                css,
+                r"\.fc-day-today\.booking-day-disabled \.fc-daygrid-day-number \{"
+                r"[^}]*rgba\(17, 24, 39, 0\.4\)",
             )
 
 
@@ -723,7 +737,10 @@ class BookingLeadTimeTests(TestCase):
             "if (isBlockedDate(cellDate) || moduleIsLeadBlockedDate(cellDate)) {",
             template,
         )
-        self.assertIn("if (moduleIsLeadBlockedDate(cellDate) && cellDate !== todayLocal) {", template)
+        # Lead-time (kasama ang TODAY kapag natamaan) → faded/malabo na
+        # booking-day-disabled — walang today exemption sa class hooks.
+        self.assertIn("if (moduleIsLeadBlockedDate(cellDate)) {", template)
+        self.assertNotIn("cellDate !== todayLocal", template)
         self.assertIn("return ['booking-day-disabled'];", template)
         self.assertIn("getLeadBlockedLabel(dateInput.value)", template)
         self.assertIn("booking-day-blocked-label", template)
