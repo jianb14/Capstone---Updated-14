@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20260910n">
+<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20261017t">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
@@ -11,7 +11,7 @@
     <div class="canvas-workspace-shell">
         <div class="design-layout">
             <div class="canvas-main-toolbar">
-                <a class="ctrl-btn icon-only" href="{% url 'my_designs' %}" title="Go to My Designs">
+                <a class="ctrl-btn icon-only" href="{% url 'my_designs' %}" data-tooltip="Go to My Designs" aria-label="Go to My Designs">
                     <i class="fas fa-house"></i>
                 </a>
 
@@ -21,54 +21,58 @@
                     <input type="number" id="canvasWidthInput" value="1920" min="100" max="5000" step="10">
                     <label for="canvasHeightInput">H</label>
                     <input type="number" id="canvasHeightInput" value="1080" min="100" max="5000" step="10">
-                    <button id="applySizeBtn" class="ctrl-btn icon-only" title="Apply Canvas Size">
+                    <button id="applySizeBtn" class="ctrl-btn icon-only" data-tooltip="Apply Canvas Size" aria-label="Apply Canvas Size">
                         <i class="fas fa-check"></i>
                     </button>
                 </div>
 
                 <div class="topbar-group zoom-toolbar-group">
-                    <button id="zoomOutBtn" class="ctrl-btn icon-only" title="Zoom Out (Ctrl+-)">
+                    <button id="zoomOutBtn" class="ctrl-btn icon-only" data-tooltip="Zoom Out (Ctrl+-)" aria-label="Zoom Out (Ctrl+-)">
                         <i class="fas fa-minus"></i>
                     </button>
                     <input type="range" id="zoomRange" min="15" max="150" value="100" aria-label="Zoom level">
                     <span id="zoomLabel" class="zoom-pill">100%</span>
-                    <button id="zoomInBtn" class="ctrl-btn icon-only" title="Zoom In (Ctrl++)">
+                    <button id="zoomInBtn" class="ctrl-btn icon-only" data-tooltip="Zoom In (Ctrl++)" aria-label="Zoom In (Ctrl++)">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
 
                 <div class="topbar-group">
-                    <button id="undoBtn" class="ctrl-btn icon-only" title="Undo (Ctrl+Z)" disabled>
+                    <button id="undoBtn" class="ctrl-btn icon-only" data-tooltip="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)" disabled>
                         <i class="fas fa-undo"></i>
                     </button>
-                    <button id="redoBtn" class="ctrl-btn icon-only" title="Redo (Ctrl+Y)" disabled>
+                    <button id="redoBtn" class="ctrl-btn icon-only" data-tooltip="Redo (Ctrl+Y)" aria-label="Redo (Ctrl+Y)" disabled>
                         <i class="fas fa-redo"></i>
                     </button>
-                    <button id="zoomResetBtn" class="ctrl-btn icon-only" title="Fit to View (Ctrl+0)">
+                    <button id="zoomResetBtn" class="ctrl-btn icon-only" data-tooltip="Fit to View (Ctrl+0)" aria-label="Fit to View (Ctrl+0)">
                         <i class="fas fa-expand"></i>
                     </button>
-                    <button id="clearBtn" class="ctrl-btn icon-only" title="Clear Canvas" disabled>
+                    <button id="clearBtn" class="ctrl-btn icon-only" data-tooltip="Clear Canvas" aria-label="Clear Canvas" disabled>
                         <i class="fas fa-trash-can"></i>
                     </button>
                 </div>
 
                 <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
-                    <i class="fas fa-floppy-disk"></i> Save
+                    <i class="far fa-floppy-disk"></i> Save
                 </button>
             </div>
 
             <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
-                <button type="button" class="rail-btn" data-panel-target="elementsPanel" title="Elements">
+                <button type="button" class="rail-btn" data-panel-target="elementsPanel" data-tooltip="Assets" aria-label="Assets">
                     <i class="fas fa-shapes"></i>
                     <span>Assets</span>
                 </button>
-                <button type="button" class="rail-btn" data-panel-target="textPanel" title="Text">
+                <button type="button" class="rail-btn" data-panel-target="textPanel" data-tooltip="Text" aria-label="Text">
                     <i class="fas fa-font"></i>
                     <span>Text</span>
                 </button>
-                <button type="button" class="rail-btn" data-panel-target="uploadsPanel" title="Uploads">
+                <button type="button" class="rail-btn" data-panel-target="uploadsPanel" data-tooltip="Uploads" aria-label="Uploads">
                     <i class="fas fa-cloud-upload-alt"></i>
                     <span>Uploads</span>
+                </button>
+                <button type="button" class="rail-btn" data-panel-target="layersPanel" data-tooltip="Layers" aria-label="Layers">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Layers</span>
                 </button>
             </aside>
 
@@ -87,22 +91,35 @@
                     </label>
 
                     <div class="sidebar-section compact-section">
-                        <div class="section-label"><i class="fas fa-fill-drip"></i> Canvas / Object Color</div>
+                        <div class="section-label"><i class="fas fa-fill-drip"></i> Canvas Color</div>
                         <div class="color-swatch-grid">
-                            <div class="color-swatch" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
-                            <div class="color-swatch" data-color="#000000" style="background:#000000;" title="Black"></div>
-                            <div class="color-swatch" data-color="#e74c3c" style="background:#e74c3c;" title="Red"></div>
-                            <div class="color-swatch" data-color="#3498db" style="background:#3498db;" title="Blue"></div>
-                            <div class="color-swatch" data-color="#2ecc71" style="background:#2ecc71;" title="Green"></div>
-                            <div class="color-swatch" data-color="#f1c40f" style="background:#f1c40f;" title="Yellow"></div>
-                            <div class="color-swatch" data-color="#e91e8c" style="background:#e91e8c;" title="Pink"></div>
-                            <div class="color-swatch" data-color="#9b59b6" style="background:#9b59b6;" title="Violet"></div>
-                            <div class="color-swatch" data-color="#e67e22" style="background:#e67e22;" title="Orange"></div>
-                            <div class="color-swatch" data-color="#1abc9c" style="background:#1abc9c;" title="Teal"></div>
+                            <div class="color-swatch" data-target="canvas" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
+                            <div class="color-swatch" data-target="canvas" data-color="#000000" style="background:#000000;" title="Black"></div>
+                            <div class="color-swatch" data-target="canvas" data-color="#e8e8e8" style="background:#e8e8e8;" title="Light Gray"></div>
                         </div>
                         <div class="custom-color-row">
                             <span class="custom-label">Custom</span>
-                            <input type="color" id="customCanvasColor" value="#ffffff" title="Pick custom color">
+                            <input type="color" id="customCanvasColor" class="custom-color-circle" value="#ffffff" title="Pick custom canvas color">
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section compact-section">
+                        <div class="section-label"><i class="fas fa-palette"></i> Object Color</div>
+                        <div class="color-swatch-grid">
+                            <div class="color-swatch" data-target="object" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
+                            <div class="color-swatch" data-target="object" data-color="#000000" style="background:#000000;" title="Black"></div>
+                            <div class="color-swatch" data-target="object" data-color="#e74c3c" style="background:#e74c3c;" title="Red"></div>
+                            <div class="color-swatch" data-target="object" data-color="#3498db" style="background:#3498db;" title="Blue"></div>
+                            <div class="color-swatch" data-target="object" data-color="#2ecc71" style="background:#2ecc71;" title="Green"></div>
+                            <div class="color-swatch" data-target="object" data-color="#f1c40f" style="background:#f1c40f;" title="Yellow"></div>
+                            <div class="color-swatch" data-target="object" data-color="#e91e8c" style="background:#e91e8c;" title="Pink"></div>
+                            <div class="color-swatch" data-target="object" data-color="#9b59b6" style="background:#9b59b6;" title="Violet"></div>
+                            <div class="color-swatch" data-target="object" data-color="#e67e22" style="background:#e67e22;" title="Orange"></div>
+                            <div class="color-swatch" data-target="object" data-color="#1abc9c" style="background:#1abc9c;" title="Teal"></div>
+                        </div>
+                        <div class="custom-color-row">
+                            <span class="custom-label">Custom</span>
+                            <input type="color" id="customObjectColor" class="custom-color-circle" value="#ffffff" title="Pick custom object color">
                         </div>
                     </div>
 
@@ -166,6 +183,18 @@
                     </div>
 
                     <div class="sidebar-section compact-section">
+                        <div class="bg-fit-group">
+                            <span class="bg-fit-label" id="bgFitLabel">Image fit</span>
+                            <div class="bg-fit-toggle" role="group" aria-labelledby="bgFitLabel">
+                                <button type="button" class="bg-fit-btn active" data-bg-fit="cover" aria-pressed="true">
+                                    <i class="fas fa-expand"></i> Fill
+                                </button>
+                                <button type="button" class="bg-fit-btn" data-bg-fit="contain" aria-pressed="false">
+                                    <i class="fas fa-compress"></i> Fit
+                                </button>
+                            </div>
+                            <p class="bg-fit-hint" id="bgFitHint">Fill covers the whole canvas; mismatched edges are cropped (centered).</p>
+                        </div>
                         <div class="bg-image-actions">
                             <label class="bg-upload-btn">
                                 <i class="fas fa-upload"></i> Upload Background
@@ -192,6 +221,26 @@
                     </label>
 
                     <div id="userUploadsGrid" class="user-uploads-grid"></div>
+                </div>
+
+                <div class="sidebar-panel" id="layersPanel">
+                    <div class="sidebar-panel-header">
+                        <div>
+                            <span class="panel-eyebrow">Stacking order</span>
+                            <h4>Layers</h4>
+                            <p>Drag to reorder. Top is front.</p>
+                        </div>
+                        <span class="panel-badge" id="layersCountBadge">0</span>
+                    </div>
+
+                    <div class="layers-filter-row" role="group" aria-label="Layers filter">
+                        <button type="button" class="layers-filter-btn active" data-layers-filter="all">All</button>
+                        <button type="button" class="layers-filter-btn" data-layers-filter="overlapping">Overlapping</button>
+                    </div>
+                    <p class="layers-filter-hint" id="layersFilterHint" hidden>Select an object to see its overlaps.</p>
+
+                    <ul class="layers-list" id="layersList" aria-label="Canvas layers"></ul>
+                    <p class="layers-empty" id="layersEmpty">No objects yet. Add assets or text to see layers here.</p>
                 </div>
 
                 <div class="sidebar-panel" id="textPanel">
@@ -258,7 +307,7 @@
                              draggable="true"
                              data-type="i-text"
                              data-text="Happy Birthday!"
-                             data-font-family="Poppins"
+                             data-font-family="Great Vibes"
                              data-color="#111111"
                              title="Happy Birthday text">
                             <div class="icon-label">
@@ -302,25 +351,42 @@
                 <div id="canvasDropZone">
                     <div class="selection-toolbar" id="selectionToolbar" aria-hidden="true">
                         <div class="toolbar-group" data-toolbar-group="text">
-                            <select id="fontFamilySelect" title="Font Family">
-                                <option value="">Font</option>
-                                <option value="Montserrat">Montserrat</option>
-                                <option value="Poppins">Poppins</option>
-                                <option value="Satisfy">Satisfy</option>
-                                <option value="Bebas Neue">Bebas Neue</option>
-                                <option value="Playfair Display">Playfair Display</option>
-                            </select>
-                            <input type="number" id="fontSizeInput" value="42" min="8" max="300" step="1" title="Font Size">
-                            <button type="button" class="ctrl-btn icon-only" id="textBoldBtn" title="Bold"><i class="fas fa-bold"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textItalicBtn" title="Italic"><i class="fas fa-italic"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textUnderlineBtn" title="Underline"><i class="fas fa-underline"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" title="Align Left"><i class="fas fa-align-left"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" title="Align Center"><i class="fas fa-align-center"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" title="Align Right"><i class="fas fa-align-right"></i></button>
+                            <div class="custom-filter-dropdown font-family-dropdown" id="fontFamilyDropdown">
+                                <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Font Family" aria-label="Font Family">
+                                    <span id="fontFamilyDropdownText">Font</span>
+                                    <span class="dropdown-caret" aria-hidden="true"></span>
+                                </div>
+                                <ul class="dropdown-options" id="fontFamilyOptions"></ul>
+                                <select id="fontFamilySelect" class="filter-select" data-tooltip="Font Family" aria-label="Font Family">
+                                    <option value="">Font</option>
+                                    <option value="Montserrat">Montserrat</option>
+                                    <option value="Poppins">Poppins</option>
+                                    <option value="Bebas Neue">Bebas Neue</option>
+                                    <option value="Anton">Anton</option>
+                                    <option value="Oswald">Oswald</option>
+                                    <option value="Playfair Display">Playfair Display</option>
+                                    <option value="Cinzel">Cinzel</option>
+                                    <option value="Satisfy">Satisfy</option>
+                                    <option value="Great Vibes">Great Vibes</option>
+                                    <option value="Dancing Script">Dancing Script</option>
+                                    <option value="Pacifico">Pacifico</option>
+                                    <option value="Lobster">Lobster</option>
+                                    <option value="Sacramento">Sacramento</option>
+                                    <option value="Luckiest Guy">Luckiest Guy</option>
+                                    <option value="Caveat">Caveat</option>
+                                </select>
+                            </div>
+                            <input type="number" id="fontSizeInput" value="42" min="8" max="300" step="1" data-tooltip="Font Size" aria-label="Font Size">
+                            <button type="button" class="ctrl-btn icon-only" id="textBoldBtn" data-tooltip="Bold" aria-label="Bold"><i class="fas fa-bold"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textItalicBtn" data-tooltip="Italic" aria-label="Italic"><i class="fas fa-italic"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textUnderlineBtn" data-tooltip="Underline" aria-label="Underline"><i class="fas fa-underline"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" data-tooltip="Align Left" aria-label="Align Left"><i class="fas fa-align-left"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" data-tooltip="Align Center" aria-label="Align Center"><i class="fas fa-align-center"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" data-tooltip="Align Right" aria-label="Align Right"><i class="fas fa-align-right"></i></button>
                         </div>
 
                         <div class="toolbar-group" data-toolbar-group="appearance">
-                            <input type="color" id="itemColorPicker" value="#ffffff" disabled title="Color">
+                            <input type="color" id="itemColorPicker" value="#ffffff" disabled data-tooltip="Color" aria-label="Color">
                             <label for="elemWidthInput">W</label>
                             <input type="number" id="elemWidthInput" value="0" min="1" max="5000" step="1">
                             <label for="elemHeightInput">H</label>
@@ -328,17 +394,17 @@
                         </div>
 
                         <div class="toolbar-group" data-toolbar-group="arrange">
-                            <button id="layerUpBtn" class="ctrl-btn icon-only" title="Forward" disabled><i class="fas fa-arrow-up"></i></button>
-                            <button id="layerDownBtn" class="ctrl-btn icon-only" title="Backward" disabled><i class="fas fa-arrow-down"></i></button>
-                            <button id="toFrontBtn" class="ctrl-btn icon-only" title="Bring to Front" disabled><i class="fas fa-angles-up"></i></button>
-                            <button id="toBackBtn" class="ctrl-btn icon-only" title="Send to Back" disabled><i class="fas fa-angles-down"></i></button>
+                            <button id="layerForwardBtn" class="ctrl-btn icon-only" data-tooltip="Bring Forward" aria-label="Bring Forward" disabled><i class="fas fa-chevron-up"></i></button>
+                            <button id="layerBackwardBtn" class="ctrl-btn icon-only" data-tooltip="Send Backward" aria-label="Send Backward" disabled><i class="fas fa-chevron-down"></i></button>
+                            <button id="toFrontBtn" class="ctrl-btn icon-only" data-tooltip="Bring to Front" aria-label="Bring to Front" disabled><i class="fas fa-angles-up"></i></button>
+                            <button id="toBackBtn" class="ctrl-btn icon-only" data-tooltip="Send to Back" aria-label="Send to Back" disabled><i class="fas fa-angles-down"></i></button>
                         </div>
 
                         <div class="toolbar-group" data-toolbar-group="transform">
-                            <button id="flipXBtn" class="ctrl-btn icon-only" title="Flip Horizontal" disabled><i class="fas fa-left-right"></i></button>
-                            <button id="flipYBtn" class="ctrl-btn icon-only" title="Flip Vertical" disabled><i class="fas fa-up-down"></i></button>
-                            <button id="skewLeftBtn" class="ctrl-btn icon-only" title="Skew Left" disabled><i class="fas fa-caret-left"></i></button>
-                            <button id="skewRightBtn" class="ctrl-btn icon-only" title="Skew Right" disabled><i class="fas fa-caret-right"></i></button>
+                            <button id="flipXBtn" class="ctrl-btn icon-only" data-tooltip="Flip Horizontal" aria-label="Flip Horizontal" disabled><i class="fas fa-left-right"></i></button>
+                            <button id="flipYBtn" class="ctrl-btn icon-only" data-tooltip="Flip Vertical" aria-label="Flip Vertical" disabled><i class="fas fa-up-down"></i></button>
+                            <button id="skewLeftBtn" class="ctrl-btn icon-only" data-tooltip="Skew Left" aria-label="Skew Left" disabled><i class="fas fa-caret-left"></i></button>
+                            <button id="skewRightBtn" class="ctrl-btn icon-only" data-tooltip="Skew Right" aria-label="Skew Right" disabled><i class="fas fa-caret-right"></i></button>
                         </div>
                     </div>
 
@@ -349,37 +415,37 @@
                     </div>
 
                     <div class="object-context-toolbar" id="objectContextToolbar" aria-hidden="true">
-                        <button type="button" class="ctx-btn" id="contextLockBtn" title="Lock / Unlock">
+                        <button type="button" class="ctx-btn" id="contextLockBtn" data-tooltip="Lock / Unlock" aria-label="Lock / Unlock">
                             <i class="fas fa-lock-open"></i>
                         </button>
-                        <button type="button" class="ctx-btn" id="contextMoveUpBtn" title="Move Up">
+                        <button type="button" class="ctx-btn" id="contextMoveUpBtn" data-tooltip="Move Up" aria-label="Move Up">
                             <i class="fas fa-arrow-up"></i>
                         </button>
-                        <button type="button" class="ctx-btn" id="contextMoveDownBtn" title="Move Down">
+                        <button type="button" class="ctx-btn" id="contextMoveDownBtn" data-tooltip="Move Down" aria-label="Move Down">
                             <i class="fas fa-arrow-down"></i>
                         </button>
-                        <button type="button" class="ctx-btn" id="contextMoveLeftBtn" title="Move Left">
+                        <button type="button" class="ctx-btn" id="contextMoveLeftBtn" data-tooltip="Move Left" aria-label="Move Left">
                             <i class="fas fa-arrow-left"></i>
                         </button>
-                        <button type="button" class="ctx-btn" id="contextMoveRightBtn" title="Move Right">
+                        <button type="button" class="ctx-btn" id="contextMoveRightBtn" data-tooltip="Move Right" aria-label="Move Right">
                             <i class="fas fa-arrow-right"></i>
                         </button>
-                        <button type="button" class="ctx-btn" id="contextDuplicateBtn" title="Duplicate">
+                        <button type="button" class="ctx-btn" id="contextDuplicateBtn" data-tooltip="Duplicate" aria-label="Duplicate">
                             <i class="far fa-copy"></i>
                         </button>
-                        <button type="button" class="ctx-btn danger" id="contextDeleteBtn" title="Delete">
+                        <button type="button" class="ctx-btn danger" id="contextDeleteBtn" data-tooltip="Delete" aria-label="Delete">
                             <i class="far fa-trash-alt"></i>
                         </button>
                     </div>
                 </div>
             </main>
 
-            <button type="button" class="summary-float-btn active" id="summaryFloatBtn" aria-label="Toggle design summary" title="Design Summary" aria-expanded="true">
+            <button type="button" class="summary-float-btn active" id="summaryFloatBtn" aria-label="Toggle design summary" data-tooltip="Design Summary" aria-expanded="true">
                 <i class="fas fa-chevron-left btn-icon"></i>
             </button>
             <div class="summary-float-panel open" id="summaryFloatPanel">
                 <div class="cart-header">
-                    <span><i class="fas fa-receipt"></i> Design Summary</span>
+                    <span>Design Summary</span>
                 </div>
                 <div class="cart-body" id="cartBody">
                     <div class="cart-base-package">
@@ -412,23 +478,48 @@
     </script>
 </section>
 
-<!-- Package Upgrade Confirmation Modal -->
-<div id="upgradeModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
-    <div class="modal-content" style="background: #1a1a1a; border: 1px solid var(--editor-border-strong); border-radius: 24px; width: 90%; max-width: 450px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center;">
-        <div style="background: rgba(255, 255, 255, 0.05); width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
-            <i class="fas fa-arrow-up" style="font-size: 24px; color: var(--accent-primary, #ffffff);"></i>
+<!-- Package Upgrade Confirmation Modal (shared canvas-modal pattern) -->
+<div id="upgradeModal" class="canvas-modal-overlay" aria-hidden="true">
+    <div class="canvas-modal-content canvas-modal-upgrade" role="dialog" aria-modal="true" aria-labelledby="upgradeModalTitle">
+        <div class="canvas-modal-upgrade-icon">
+            <i class="fas fa-arrow-up"></i>
         </div>
-        <h3 style="font-size: 1.5rem; margin-bottom: 12px; color: #fff;">Upgrade Package?</h3>
-        <p id="upgradeModalMessage" style="color: #98a2b3; line-height: 1.6; margin-bottom: 32px;">
+        <h3 id="upgradeModalTitle">Upgrade Package?</h3>
+        <p id="upgradeModalMessage" class="canvas-modal-sub">
             You've reached the limit for this package. Would you like to upgrade to a higher package?
         </p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <button id="cancelUpgradeBtn" style="padding: 12px; border-radius: 12px; border: 1px solid var(--editor-border); background: transparent; color: #fff; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+        <div class="canvas-modal-actions">
+            <button type="button" class="canvas-modal-cancel" id="cancelUpgradeBtn">
                 Not Now
             </button>
-            <button id="confirmUpgradeBtn" style="padding: 12px; border-radius: 12px; border: none; background: #fff; color: #000; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <button type="button" class="canvas-modal-save" id="confirmUpgradeBtn">
                 Upgrade
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Canvas Confirmation Modal (same pattern as Save Design modal) -->
+<div id="clearCanvasModal" class="canvas-modal-overlay" aria-hidden="true">
+    <div class="canvas-modal-content" role="dialog" aria-modal="true" aria-labelledby="clearCanvasModalTitle">
+        <h3 id="clearCanvasModalTitle">Clear Canvas?</h3>
+        <p class="canvas-modal-sub">This will remove all objects from the canvas. This action cannot be undone.</p>
+        <div class="canvas-modal-actions">
+            <button type="button" class="canvas-modal-cancel" id="clearCanvasCancelBtn">Cancel</button>
+            <button type="button" class="canvas-modal-save canvas-modal-danger" id="clearCanvasConfirmBtn">Yes, Clear</button>
+        </div>
+    </div>
+</div>
+
+<!-- Save Design Name Modal (same pattern as My Designs rename modal) -->
+<div id="saveDesignModal" class="canvas-modal-overlay" aria-hidden="true">
+    <div class="canvas-modal-content" role="dialog" aria-modal="true" aria-labelledby="saveDesignModalTitle">
+        <h3 id="saveDesignModalTitle">Save Design</h3>
+        <p class="canvas-modal-sub">Give your design a name to save it to My Designs.</p>
+        <input type="text" id="saveDesignNameInput" class="canvas-modal-input" maxlength="120" placeholder="Enter design name..." autocomplete="off">
+        <div class="canvas-modal-actions">
+            <button type="button" class="canvas-modal-cancel" id="saveDesignCancelBtn">Cancel</button>
+            <button type="button" class="canvas-modal-save" id="saveDesignConfirmBtn">Save Design</button>
         </div>
     </div>
 </div>
@@ -516,5 +607,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 </script>
-<script src="{% static 'js/design_canvas.js' %}?v=20261007c"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20261017t"></script>
 {% endblock content %}

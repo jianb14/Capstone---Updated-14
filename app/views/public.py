@@ -228,6 +228,8 @@ def check_date_availability(request):
     A date is considered taken when any active customer booking
     (pending_payment / confirmed / completed) exists on that day,
     matching the client booking calendar filter.
+    Lead-time blocked dates (SiteSettings.booking_lead_time_days) are also
+    reported as unavailable para consistent sa booking page.
     """
     raw_date = (request.GET.get("date") or "").strip()
     try:
@@ -245,6 +247,9 @@ def check_date_availability(request):
             status=400,
         )
 
+    lead_days, min_bookable_date = get_booking_lead_time_policy()
+    is_lead_blocked = lead_days > 0 and selected_date < min_bookable_date
+
     blocked_statuses = ["pending_payment", "confirmed", "completed"]
     blocked_dates = set(
         Booking.objects.filter(
@@ -260,29 +265,38 @@ def check_date_availability(request):
         date=selected_date
     ).exists()
 
-    available = selected_date not in blocked_dates
+    available = selected_date not in blocked_dates and not is_lead_blocked
 
     suggestions = []
     cursor = selected_date + timedelta(days=1)
     while len(suggestions) < 3 and cursor <= selected_date + timedelta(days=60):
-        if cursor not in blocked_dates:
+        if cursor not in blocked_dates and not (
+            lead_days > 0 and cursor < min_bookable_date
+        ):
             suggestions.append(cursor.isoformat())
         cursor += timedelta(days=1)
+
+    if available:
+        message = "Great news! This date is still open for booking."
+    elif is_lead_blocked:
+        message = (
+            f"Please book at least {lead_days} day(s) in advance. "
+            f"Earliest available: {min_bookable_date.strftime('%B %d, %Y')}. "
+            "Here are the nearest open dates:"
+        )
+    elif blocked_by_admin:
+        message = "Sorry, this date is unavailable (blocked by the admin). Here are the nearest open dates:"
+    else:
+        message = "Sorry, this date is already fully booked. Here are the nearest open dates:"
 
     return JsonResponse(
         {
             "success": True,
             "date": selected_date.isoformat(),
             "available": available,
-            "message": (
-                "Great news! This date is still open for booking."
-                if available
-                else (
-                    "Sorry, this date is unavailable (blocked by the admin). Here are the nearest open dates:"
-                    if blocked_by_admin
-                    else "Sorry, this date is already fully booked. Here are the nearest open dates:"
-                )
-            ),
+            "lead_days": lead_days,
+            "min_bookable_date": min_bookable_date.isoformat(),
+            "message": message,
             "suggestions": suggestions,
         }
     )

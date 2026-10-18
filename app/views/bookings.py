@@ -31,14 +31,16 @@ def booking_page(request):
     booked_ranges = {}
 
     # Get active packages and optionals for the stepper
-    active_packages = Package.objects.filter(is_active=True)
-    active_addons = AddOn.objects.filter(is_active=True)
-    active_additionals = AdditionalOnly.objects.all()
+    active_packages = Package.objects.filter(is_active=True).prefetch_related("preview_images")
+    active_addons = AddOn.objects.filter(is_active=True).prefetch_related("preview_images")
+    active_additionals = AdditionalOnly.objects.all().prefetch_related("preview_images")
     service_charge_config = get_service_charge_config()
 
-    # Admin-blocked dates: ipapasa bilang listahan sa template — sa MONTH view
-    # ang buong day cell na mismo ang magiging pula (JS/CSS), at nakatago ang
-    # pill. Iniwan pa rin bilang events para may makita sa WEEK view (timeGrid).
+    # Admin-blocked dates: ipapasa bilang listahan sa template — ang buong day
+    # cell ay magiging gray na "Unavailable" + ban icon (booking-day-blocked),
+    # kapareho ng lead-time-blocked na walang event. WALA nang pulang
+    # "Unavailable" event pill sa calendar — ang day-cell styling na lang ang
+    # nagmamarka ng blocked dates (buo pa rin ang blocked_dates payload).
     blocked_rows = BlockedDate.objects.filter(date__gte=timezone.now().date())
     blocked_dates_payload = [
         {
@@ -47,15 +49,6 @@ def booking_page(request):
         }
         for blocked in blocked_rows
     ]
-    for blocked in blocked_rows:
-        calendar_events.append(
-            {
-                "title": "Unavailable",
-                "start": blocked.date.isoformat(),
-                "end": None,
-                "color": "#7f1d1d",
-            }
-        )
 
     for b in all_bookings:
         start_dt = (
@@ -105,6 +98,23 @@ def booking_page(request):
                         [clipped_start, clipped_end]
                     )
 
+    # Booking Step 2 preview images — kung ano ang makikita ng client
+    # depende sa package/add-on/additional na pinili nya sa Step 1.
+    preview_data = {
+        "packages": {
+            str(p.id): [img.image.url for img in p.preview_images.all() if img.image][:2]
+            for p in active_packages
+        },
+        "addons": {
+            str(a.id): [img.image.url for img in a.preview_images.all() if img.image][:2]
+            for a in active_addons
+        },
+        "additionals": {
+            str(a.id): [img.image.url for img in a.preview_images.all() if img.image][:2]
+            for a in active_additionals
+        },
+    }
+
     availability_data = {
         "blockedDates": blocked_dates_payload,
         "bookedRanges": booked_ranges,
@@ -121,6 +131,7 @@ def booking_page(request):
             "availability_data": availability_data,
             "today_iso": timezone.localdate().isoformat(),
             "packages": active_packages,
+            "preview_data": preview_data,
             "active_addons": active_addons,
             "active_additionals": active_additionals,
             "global_service_charge": service_charge_config.amount,
@@ -412,14 +423,11 @@ def create_booking(request):
                 messages.error(request, error_msg)
                 return redirect("booking_page")
 
-            # 1B. Booking Lead Time Check (Site Settings)
-            site_settings = SiteSettings.load()
-            lead_days = site_settings.booking_lead_time_days or 0
-            if lead_days > 0 and booking_date < today + timedelta(days=lead_days):
-                error_msg = (
-                    f"Bookings must be made at least {lead_days} day(s) in advance. "
-                    f"Please choose a date on or after "
-                    f"{(today + timedelta(days=lead_days)).strftime('%B %d, %Y')}."
+            # 1B. Booking Lead Time Check (Site Settings — shared policy helper)
+            lead_days, min_bookable_date = get_booking_lead_time_policy()
+            if lead_days > 0 and booking_date < min_bookable_date:
+                error_msg = get_lead_time_violation_message(
+                    booking_date, lead_days=lead_days, min_date=min_bookable_date
                 )
                 if is_ajax:
                     return JsonResponse({"success": False, "message": error_msg})
@@ -775,6 +783,22 @@ def edit_booking(request, id):
             messages.error(request, "Cannot change to a past date.")
             return redirect("edit_booking", id=id)
 
+        # Booking Lead Time Check (Site Settings): hindi pwedeng i-reschedule
+        # sa rush date. Pati parehong araw na inuurong lang ang oras, sakop —
+        # booking_date < today + lead_days pa rin ang check (walang exception
+        # kapag rush ang petsa, kahit hindi ito binago).
+        lead_days, min_bookable_date = get_booking_lead_time_policy()
+        if lead_days > 0 and booking_date < min_bookable_date:
+            messages.error(
+                request,
+                get_lead_time_violation_message(
+                    booking_date,
+                    lead_days=lead_days,
+                    min_date=min_bookable_date,
+                ),
+            )
+            return redirect("edit_booking", id=id)
+
         # Same-day past-time guard (Manila wall-clock): bawal ang start/end na
         # tapos na o kasalukuyang minuto ngayong araw (hal. 5PM na, 1PM-3PM).
         if booking_date == today and (start_time or end_time):
@@ -884,7 +908,16 @@ def edit_booking(request, id):
         messages.success(request, "Booking updated successfully!")
         return redirect("customer_profile")
 
-    return render(request, "client/booking/booking_form.html", {"booking": booking})
+    lead_days, min_bookable_date = get_booking_lead_time_policy()
+    return render(
+        request,
+        "client/booking/booking_form.html",
+        {
+            "booking": booking,
+            "booking_lead_time_days": lead_days,
+            "min_bookable_date": min_bookable_date.isoformat(),
+        },
+    )
 
 
 # -------------------------

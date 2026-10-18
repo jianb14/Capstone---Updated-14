@@ -264,6 +264,7 @@ def customer_profile(request):
     active_addons = AddOn.objects.filter(is_active=True)
     active_additionals = AdditionalOnly.objects.all()
     service_charge_config = get_service_charge_config()
+    lead_days, min_bookable_date = get_booking_lead_time_policy()
 
     return render(
         request,
@@ -280,6 +281,8 @@ def customer_profile(request):
             "active_additionals": active_additionals,
             "global_service_charge": service_charge_config.amount,
             "global_service_charge_note": service_charge_config.notes,
+            "booking_lead_time_days": lead_days,
+            "min_bookable_date": min_bookable_date.isoformat(),
             "search_query": search_query,
             "status_filter": status_filter,
             "sort_date": sort_date,

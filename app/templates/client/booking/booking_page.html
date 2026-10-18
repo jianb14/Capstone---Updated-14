@@ -2,12 +2,13 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261014f">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261018d">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261013a"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
 <script src="{% static 'js/booking_picker_c.js' %}?v=20261014e"></script>
 {{ availability_data|json_script:"booking-availability-data" }}
+{{ preview_data|json_script:"booking-preview-data" }}
 
 
 <div class="booking-page">
@@ -83,9 +84,13 @@
                     </div>
                     <div class="stepper-step-icon" id="step-2-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Event Details</div>
+                        <div class="step-label">Preview</div>
                     </div>
                     <div class="stepper-step-icon" id="step-3-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Event Details</div>
+                    </div>
+                    <div class="stepper-step-icon" id="step-4-indicator">
                         <div class="step-circle"></div>
                         <div class="step-label">Review & Confirm</div>
                     </div>
@@ -107,7 +112,7 @@
 
                     <div class="package-cards-grid">
                         {% for package in packages %}
-                        <div class="package-card" data-package="{{ package.name }}" data-price="{{ package.price }}">
+                        <div class="package-card" data-id="{{ package.id }}" data-package="{{ package.name }}" data-price="{{ package.price }}">
                             <div class="package-info">
                                 <h4>{{ package.name }}</h4>
                                 <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
@@ -130,7 +135,7 @@
                         a package.</p>
                     <div class="package-cards-grid addons-selection-grid">
                         {% for addon in active_addons %}
-                        <div class="package-card addon-selector" data-name="{{ addon.name }}"
+                        <div class="package-card addon-selector" data-id="{{ addon.id }}" data-name="{{ addon.name }}"
                             data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
                             <div class="package-info">
                                 <span class="card-top-label">FOR ADD-ONS</span>
@@ -155,7 +160,7 @@
                     <p class="step-desc">Individual items to customize your event.</p>
                     <div class="package-cards-grid additionals-selection-grid">
                         {% for additional in active_additionals %}
-                        <div class="package-card additional-selector" data-name="{{ additional.name }}"
+                        <div class="package-card additional-selector" data-id="{{ additional.id }}" data-name="{{ additional.name }}"
                             data-price="{{ additional.price }}">
                             <div class="package-info">
                                 <span class="card-top-label">ADDITIONAL ONLY</span>
@@ -186,8 +191,25 @@
                     </div>
                 </div>
 
-                <!-- STEP 2: BOOKING DETAILS -->
+                <!-- STEP 2: PACKAGE PREVIEW -->
                 <div class="stepper-step" id="step-2" style="display: none;">
+                    <h3>Your Package Preview</h3>
+                    <p class="step-desc">Here's a glimpse of what your selected package and add-ons could look like.</p>
+
+                    <div class="preview-images-grid" id="previewImagesGrid"></div>
+                    <p class="preview-empty-message" id="previewEmptyMessage" style="display: none;">
+                        <i class="fa-solid fa-circle-info"></i> No preview images yet for your selection.
+                    </p>
+                    <p class="preview-note"><i class="fa-solid fa-circle-info"></i> Actual setup may vary depending on your event details and venue.</p>
+
+                    <div class="modal-actions split-actions">
+                        <button type="button" class="booking-back-btn" id="btnBackToPackages"><i class="fa-solid fa-arrow-left"></i>Back</button>
+                        <button type="button" class="btn-submit" id="btnNextToDetails">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: BOOKING DETAILS -->
+                <div class="stepper-step" id="step-3" style="display: none;">
                     <h3>Event Details</h3>
                     <p class="step-desc">Great choice! Now fill in the details for your event.</p>
 
@@ -302,8 +324,8 @@
                     </div>
                 </div>
 
-                <!-- STEP 3: BOOKING SUMMARY -->
-                <div class="stepper-step" id="step-3" style="display: none;">
+                <!-- STEP 4: BOOKING SUMMARY -->
+                <div class="stepper-step" id="step-4" style="display: none;">
                     <h3>Review & Confirm</h3>
                     <p class="step-desc">Review your selected package and event details before submitting.</p>
 
@@ -402,18 +424,27 @@
 
         dateInput.setAttribute('min', getLocalTodayStr());
 
+        // Lead-time floor (SiteSettings.booking_lead_time_days): huwag hayaang
+        // makapili ng rush date kahit sa native date input — itaas ang min sa
+        // today + leadDays kapag loaded na ang availability payload.
+        try { dateInput.setAttribute('min', moduleMinBookableDate()); } catch (e) { /* keep today min */ }
+
         // --- Stepper Logic Variables ---
         const step1Indicator = document.getElementById('step-1-indicator');
         const step2Indicator = document.getElementById('step-2-indicator');
         const step3Indicator = document.getElementById('step-3-indicator');
+        const step4Indicator = document.getElementById('step-4-indicator');
         const stepperLine = document.getElementById('stepperLine');
         const step1Content = document.getElementById('step-1');
         const step2Content = document.getElementById('step-2');
         const step3Content = document.getElementById('step-3');
+        const step4Content = document.getElementById('step-4');
         const btnNextStep = document.getElementById('btnNextStep');
         const btnPrevStep = document.getElementById('btnPrevStep');
         const btnNextToSummary = document.getElementById('btnNextToSummary');
         const btnBackToDetails = document.getElementById('btnBackToDetails');
+        const btnNextToDetails = document.getElementById('btnNextToDetails');
+        const btnBackToPackages = document.getElementById('btnBackToPackages');
         const packageInput = document.getElementById('package_type_input');
         const priceInput = document.getElementById('total_price_input');
         const priceDisplay = document.getElementById('total_price_display');
@@ -575,13 +606,14 @@
 
         /* Mirror ng server-side na check_date_availability: hanggang 3 na
            mungkahi sa loob ng 60 araw mula sa napiling petsa, na iniiwasan
-           ang nakaraan, admin-blocked, at fully-booked na mga petsa. */
+           ang nakaraan, lead-time-blocked, admin-blocked, at fully-booked na mga petsa. */
         function getNearestOpenDates(fromDateStr, limit) {
             const maxSuggestions = limit || 3;
             const suggestions = [];
             if (!fromDateStr) return suggestions;
 
             const todayStr = getLocalTodayStr();
+            const minBookable = moduleMinBookableDate();
             const cursor = parseLocalDate(fromDateStr);
             let daysChecked = 0;
 
@@ -590,6 +622,7 @@
                 daysChecked += 1;
                 const candidate = formatLocalDate(cursor);
                 if (candidate < todayStr) continue;
+                if (candidate < minBookable) continue;
                 if (isBlockedDate(candidate)) continue;
                 if (isFullyBookedDate(candidate)) continue;
                 suggestions.push(candidate);
@@ -615,6 +648,20 @@
                 if (window.BookingAvailability && window.BookingAvailability.readData) {
                     return window.BookingAvailability.readData();
                 }
+            } catch (e) { /* fall through sa manual JSON parse */ }
+            /* Fallback kapag hindi nag-load ang decoupled module: basahin mismo
+               ang json_script payload para makuha pa rin ang leadDays/todayIso. */
+            try {
+                const el = document.getElementById('booking-availability-data');
+                if (!el) return null;
+                const raw = JSON.parse(el.textContent || '{}');
+                const leadRaw = parseInt(raw.leadDays, 10);
+                return {
+                    blockedDates: Array.isArray(raw.blockedDates) ? raw.blockedDates : [],
+                    bookedRanges: (raw.bookedRanges && typeof raw.bookedRanges === 'object') ? raw.bookedRanges : {},
+                    todayIso: typeof raw.todayIso === 'string' ? raw.todayIso : '',
+                    leadDays: (isNaN(leadRaw) || leadRaw < 0) ? 0 : leadRaw
+                };
             } catch (e) { /* fall through sa calendar-based data */ }
             return null;
         }
@@ -625,6 +672,62 @@
                 return window.BookingAvailability.isBlockedDate(dateStr, data.blockedDates);
             }
             return isBlockedDate(dateStr);
+        }
+
+        /* LEAD-TIME BRIDGE (SiteSettings.booking_lead_time_days): today + leadDays
+           ang pinaka-maagang pwedeng petsa. Decoupled module ang primary, pero may
+           inline fallback (string compare sa YYYY-MM-DD) kapag wala ang module. */
+        function moduleMinBookableDate() {
+            const data = readAvailabilityData();
+            if (data && window.BookingAvailability && window.BookingAvailability.getMinBookableDate) {
+                try { return window.BookingAvailability.getMinBookableDate(data); } catch (e) { /* fallback */ }
+            }
+            try {
+                const leadDays = (data && data.leadDays) || 0;
+                if (!leadDays) return getLocalTodayStr();
+                const cursor = parseLocalDate((data && data.todayIso) || getLocalTodayStr());
+                cursor.setDate(cursor.getDate() + leadDays);
+                return formatLocalDate(cursor);
+            } catch (e) { return getLocalTodayStr(); }
+        }
+
+        function moduleLeadDays() {
+            try {
+                const data = readAvailabilityData();
+                const lead = data ? parseInt(data.leadDays, 10) : 0;
+                return (isNaN(lead) || lead < 0) ? 0 : lead;
+            } catch (e) { return 0; }
+        }
+
+        function moduleIsLeadBlockedDate(dateStr) {
+            if (!dateStr) return false;
+            const data = readAvailabilityData();
+            if (data && window.BookingAvailability && window.BookingAvailability.isPastOrLeadBlocked) {
+                try { return window.BookingAvailability.isPastOrLeadBlocked(dateStr, data); } catch (e) { /* fallback */ }
+            }
+            return dateStr < moduleMinBookableDate();
+        }
+
+        function formatLeadDateLabel(dateStr) {
+            try {
+                return new Intl.DateTimeFormat('en-US', {
+                    month: 'long', day: 'numeric', year: 'numeric'
+                }).format(parseLocalDate(dateStr));
+            } catch (e) { return dateStr; }
+        }
+
+        function getLeadBlockedLabel(dateStr) {
+            const leadDays = moduleLeadDays();
+            const minDate = moduleMinBookableDate();
+            return 'Please book at least ' + leadDays + ' day(s) ahead. Earliest available: '
+                + formatLeadDateLabel(minDate) + '.';
+        }
+
+        function showLeadBlockedToast() {
+            AppToast.fire({
+                icon: 'error',
+                title: getLeadBlockedLabel()
+            });
         }
 
         function moduleIsFullyBookedDate(dateStr) {
@@ -885,14 +988,90 @@
             referencePicturesRow.style.display = 'none';
         }
 
+        // =============================================
+        // STEP 2: PACKAGE PREVIEW (kung ano ang pinili sa Step 1)
+        // =============================================
+        const previewDataEl = document.getElementById('booking-preview-data');
+        let bookingPreviewData = { packages: {}, addons: {}, additionals: {} };
+        try {
+            bookingPreviewData = JSON.parse(previewDataEl ? previewDataEl.textContent : '{}') || bookingPreviewData;
+        } catch (err) { /* invalid payload -> walang preview images */ }
+
+        const previewImagesGrid = document.getElementById('previewImagesGrid');
+        const previewEmptyMessage = document.getElementById('previewEmptyMessage');
+        const MAX_PREVIEW_IMAGES_PER_ITEM = 2;
+
+        function renderPackagePreview() {
+            const selected = [];
+
+            if (selectedPackageName) {
+                const pkgCard = Array.from(packageOnlyCards).find(c => c.dataset.package === selectedPackageName);
+                if (pkgCard) selected.push({ bucket: 'packages', id: pkgCard.dataset.id, label: selectedPackageName });
+            } else if (soloModeAddon) {
+                const soloCard = Array.from(addonCards).find(c => c.dataset.name === soloModeAddon);
+                if (soloCard) selected.push({ bucket: 'addons', id: soloCard.dataset.id, label: soloModeAddon + ' (Solo)' });
+            }
+
+            if (selectedPackageName && selectedAddonName) {
+                const addonCard = Array.from(addonCards).find(c => c.dataset.name === selectedAddonName);
+                if (addonCard) selected.push({ bucket: 'addons', id: addonCard.dataset.id, label: selectedAddonName });
+            }
+
+            if (selectedAdditionalName) {
+                const additionalCard = Array.from(additionalCards).find(c => c.dataset.name === selectedAdditionalName);
+                if (additionalCard) selected.push({ bucket: 'additionals', id: additionalCard.dataset.id, label: selectedAdditionalName });
+            }
+
+            let hasAnyImages = false;
+            if (previewImagesGrid) {
+                previewImagesGrid.innerHTML = '';
+                selected.forEach(item => {
+                    const images = ((bookingPreviewData[item.bucket] || {})[item.id] || [])
+                        .slice(0, MAX_PREVIEW_IMAGES_PER_ITEM);
+                    if (!images.length) return;
+                    hasAnyImages = true;
+
+                    const group = document.createElement('div');
+                    group.className = 'preview-group';
+
+                    const title = document.createElement('span');
+                    title.className = 'preview-group-title';
+                    title.textContent = item.label;
+                    group.appendChild(title);
+
+                    const groupGrid = document.createElement('div');
+                    groupGrid.className = 'preview-group-grid';
+                    images.forEach(src => {
+                        const tile = document.createElement('div');
+                        tile.className = 'preview-image-tile';
+                        const img = document.createElement('img');
+                        img.src = src;
+                        img.alt = item.label + ' preview';
+                        img.loading = 'lazy';
+                        tile.appendChild(img);
+                        groupGrid.appendChild(tile);
+                    });
+                    group.appendChild(groupGrid);
+                    previewImagesGrid.appendChild(group);
+                });
+                previewImagesGrid.style.display = hasAnyImages ? 'flex' : 'none';
+            }
+            if (previewEmptyMessage) {
+                previewEmptyMessage.style.display = hasAnyImages ? 'none' : 'flex';
+            }
+        }
+
         function showStep(stepNumber) {
+            if (stepNumber === 2) { renderPackagePreview(); }
             step1Content.style.display = stepNumber === 1 ? 'block' : 'none';
             step2Content.style.display = stepNumber === 2 ? 'block' : 'none';
             step3Content.style.display = stepNumber === 3 ? 'block' : 'none';
+            step4Content.style.display = stepNumber === 4 ? 'block' : 'none';
 
             step1Indicator.classList.remove('active', 'completed');
             step2Indicator.classList.remove('active', 'completed');
             step3Indicator.classList.remove('active', 'completed');
+            step4Indicator.classList.remove('active', 'completed');
 
             if (stepNumber === 1) {
                 step1Indicator.classList.add('active');
@@ -900,11 +1079,17 @@
             } else if (stepNumber === 2) {
                 step1Indicator.classList.add('completed');
                 step2Indicator.classList.add('active');
-                stepperLine.style.width = 'calc(50% - 18px)';
-            } else {
+                stepperLine.style.width = 'calc(33.333% - 12px)';
+            } else if (stepNumber === 3) {
                 step1Indicator.classList.add('completed');
                 step2Indicator.classList.add('completed');
                 step3Indicator.classList.add('active');
+                stepperLine.style.width = 'calc(66.666% - 24px)';
+            } else {
+                step1Indicator.classList.add('completed');
+                step2Indicator.classList.add('completed');
+                step3Indicator.classList.add('completed');
+                step4Indicator.classList.add('active');
                 stepperLine.style.width = 'calc(100% - 36px)';
             }
 
@@ -1028,10 +1213,10 @@
             if (referencePicturesRow) referencePicturesRow.style.display = 'none';
 
             {% if prefilled_design %}
-            // If we have a pre-filled design, go to Step 2
-            showStep(2);
+            // If we have a pre-filled design, go to Step 3
+            showStep(3);
 
-            // Hide the back button in Step 2 for pre-filled designs
+            // Hide the back button in Step 3 for pre-filled designs
             const btnPrevStep = document.getElementById('btnPrevStep');
             if (btnPrevStep) btnPrevStep.style.display = 'none';
 
@@ -1308,8 +1493,10 @@
 
         /* =============================================
            ADMIN-BLOCKED DATES (Unavailable)
-           Buong day cell ang magiging pula; kapag na-click
-           ay may toast — hindi bubuksan ang booking form. */
+           Gray na buong day cell + "Unavailable" label + ban icon
+           (walang event pill — tinanggal na ang pulang Unavailable
+           event). Kapag na-click: may toast, hindi bubuksan
+           ang booking form. */
         var blockedDates = [
             {% for bd in blocked_dates %}
             { date: '{{ bd.date }}', reason: '{{ bd.reason|escapejs }}' },
@@ -1335,6 +1522,43 @@
             });
         }
 
+        /* =============================================
+           CUSTOM EVENT TOOLTIP (blue booked bars)
+           Pumapalit sa default browser title tooltip —
+           mas maganda at na-cocontrol ang itsura. */
+        var bookingEventTip = null;
+        function ensureBookingEventTip() {
+            if (bookingEventTip) return bookingEventTip;
+            bookingEventTip = document.createElement('div');
+            bookingEventTip.className = 'booking-event-tip';
+            bookingEventTip.setAttribute('role', 'tooltip');
+            document.body.appendChild(bookingEventTip);
+            return bookingEventTip;
+        }
+        function showBookingEventTooltip(anchorEl, dateText, timeText) {
+            var tip = ensureBookingEventTip();
+            tip.innerHTML = '<span class="bet-date"></span><span class="bet-time"></span>';
+            tip.querySelector('.bet-date').textContent = dateText;
+            tip.querySelector('.bet-time').textContent = timeText;
+            tip.style.display = 'block';
+            var rect = anchorEl.getBoundingClientRect();
+            var tipRect = tip.getBoundingClientRect();
+            var top = rect.top - tipRect.height - 8;
+            if (top < 8) {
+                top = rect.bottom + 8;
+                tip.classList.add('tip-below');
+            } else {
+                tip.classList.remove('tip-below');
+            }
+            var left = rect.left + rect.width / 2 - tipRect.width / 2;
+            left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+            tip.style.top = top + 'px';
+            tip.style.left = left + 'px';
+        }
+        function hideBookingEventTooltip() {
+            if (bookingEventTip) bookingEventTip.style.display = 'none';
+        }
+
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             /* Height 'auto': hindi na gagamitin ng FullCalendar ang default
@@ -1357,8 +1581,17 @@
                 if (cellDate < todayLocal) {
                     return ['is-past-date', 'booking-day-disabled'];
                 }
+                /* ADMIN-BLOCKED lang ang gray + "Unavailable" + ban icon.
+                   Lead-time: faded/malabo (booking-day-disabled) sa baba. */
                 if (isBlockedDate(cellDate)) {
                     return ['booking-day-blocked'];
+                }
+                /* LEAD-TIME: faded/malabo na gaya ng past dates — hindi mukhang
+                   clickable pero may toast pag kinlick. Ang petsa NGAYON (today)
+                   ay hindi faded kahit maabutan ng lead time — mananatiling
+                   naka-highlight. */
+                if (moduleIsLeadBlockedDate(cellDate) && cellDate !== todayLocal) {
+                    return ['booking-day-disabled'];
                 }
                 return [];
             },
@@ -1374,7 +1607,9 @@
                     }
                     return;
                 }
+                /* ADMIN-BLOCKED: gray cell + "Unavailable" + ban icon. */
                 if (isBlockedDate(cellDate)) {
+                    arg.el.classList.add('booking-day-blocked');
                     arg.el.setAttribute('title', getBlockedDateLabel(cellDate));
                     /* "Unavailable" text sa gitna ng buong cell */
                     if (!arg.el.querySelector('.booking-day-blocked-label')) {
@@ -1384,6 +1619,19 @@
                         blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i>Unavailable';
                         arg.el.appendChild(blockedLabel);
                     }
+                    return;
+                }
+                /* LEAD-TIME: faded/malabo na gaya ng past dates — walang
+                   "Unavailable" label. May toast pa rin pag kinlick. Ang petsa
+                   NGAYON (today) ay hindi faded kahit maabutan ng lead time. */
+                if (moduleIsLeadBlockedDate(cellDate) && cellDate !== todayLocal) {
+                    arg.el.classList.add('booking-day-disabled');
+                    const leadDayNumber = arg.el.querySelector('.fc-daygrid-day-number');
+                    if (leadDayNumber) {
+                        leadDayNumber.classList.add('booking-day-number-disabled');
+                        leadDayNumber.style.opacity = '0.45';
+                    }
+                    return;
                 }
             },
             eventDisplay: 'block',
@@ -1411,16 +1659,8 @@
     },
 
         eventDidMount: function (info) {
-            const startDate = info.event.start;
-            const endDate = info.event.end;
-            if (!startDate) return;
-
-            const dateText = formatEventTooltipDate(startDate);
-            const timeText = endDate
-                ? `${formatEventTooltipTime(startDate)} - ${formatEventTooltipTime(endDate)}`
-                : formatEventTooltipTime(startDate);
-
-            info.el.setAttribute('title', `${dateText}\n${timeText}`);
+            /* Date/time info: nakukuha ng custom tooltip sa eventMouseEnter
+               (tinanggal ang default title attribute). */
 
             /* DOTS MODE (mobile O sikip na calendar): i-convert ang default pill
                into compact event dot gamit ang inline styles — deterministic ito.
@@ -1433,6 +1673,21 @@
             }
         },
 
+        /* Custom tooltip sa blue booked bars (pumapalit sa default title). */
+        eventMouseEnter: function (info) {
+            const startDate = info.event.start;
+            const endDate = info.event.end;
+            if (!startDate) return;
+            const dateText = formatEventTooltipDate(startDate);
+            const timeText = endDate
+                ? `${formatEventTooltipTime(startDate)} - ${formatEventTooltipTime(endDate)}`
+                : formatEventTooltipTime(startDate);
+            showBookingEventTooltip(info.el, dateText, timeText);
+        },
+        eventMouseLeave: function () {
+            hideBookingEventTooltip();
+        },
+
         /* Kapag nag-resize ang window (o nag-rotate ang phone): i-refresh ang
            dayMaxEvents kapag nag-cross ng dots breakpoint, AT laging i-sweep
            ang lahat ng events para tama ang pill <-> dot mode. */
@@ -1443,6 +1698,7 @@
                 calendar.setOption('dayMaxEvents', dotsNow ? 3 : 2);
             }
             applyCalendarEventMode();
+            hideBookingEventTooltip();
         },
 
         dateClick: function (info) {
@@ -1458,6 +1714,13 @@
             /* ADMIN-BLOCKED DATE: huwag nang buksan ang booking form */
             if (moduleIsBlockedDate(clickedDate)) {
                 showUnavailableToast();
+                return;
+            }
+
+            /* LEAD-TIME BLOCKED: fail-fast sa calendar pa lang — huwag nang
+               papasukin sa Step 1 (package). Toast sa right-top agad. */
+            if (moduleIsLeadBlockedDate(clickedDate)) {
+                showLeadBlockedToast();
                 return;
             }
 
@@ -1745,6 +2008,7 @@
         const selectedDate = dateInput.value;
         const dateBlocked = !!selectedDate && (
             moduleIsBlockedDate(selectedDate) ||
+            moduleIsLeadBlockedDate(selectedDate) ||
             (!moduleIsBlockedDate(selectedDate) && moduleIsFullyBookedDate(selectedDate))
         );
         const timeViolated = validateStepTwoTimesInstant();
@@ -1807,6 +2071,14 @@
             setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
             showUnavailableToast();
             firstInvalidField = 'event_date';
+        }
+
+        /* LEAD-TIME BLOCKED: hindi dapat maka-proceed kapag rush (fail-fast +
+           inline error + toast, kasama ang earliest available date). */
+        if (dateInput.value && moduleIsLeadBlockedDate(dateInput.value)) {
+            setBookingFieldError('event_date', getLeadBlockedLabel(dateInput.value));
+            showLeadBlockedToast();
+            if (!firstInvalidField) firstInvalidField = 'event_date';
         }
 
         /* FULLY-BOOKED DATE: walang bakante sa 7:00 AM – 6:00 PM */
@@ -1898,7 +2170,7 @@
     btnNextStep.addEventListener('click', function () {
         if (!selectedPackageName && !soloModeAddon) return;
 
-        // Fill data for Step 2 Hidden Inputs
+        // Fill data for Step 3 Hidden Inputs
         packageInput.value = buildPackageTypeString();
         const total = calculateTotalPrice();
         priceInput.value = total.toFixed(2);
@@ -2073,12 +2345,20 @@
         }
     }
 
-    btnPrevStep.addEventListener('click', function () {
+    btnBackToPackages.addEventListener('click', function () {
         showStep(1);
     });
 
-    btnBackToDetails.addEventListener('click', function () {
+    btnNextToDetails.addEventListener('click', function () {
+        showStep(3);
+    });
+
+    btnPrevStep.addEventListener('click', function () {
         showStep(2);
+    });
+
+    btnBackToDetails.addEventListener('click', function () {
+        showStep(3);
     });
 
         btnNextToSummary.addEventListener('click', function () {
@@ -2143,15 +2423,23 @@
             updateOrderSummary();
             updateBookingDetailsSummary();
         updateBookingImageSummary();
-        showStep(3);
+        showStep(4);
     });
 
     dateInput.addEventListener('change', function () {
+        try { dateInput.setAttribute('min', moduleMinBookableDate()); } catch (e) { /* keep today min */ }
         updateTimeConstraints();
         /* ADMIN-BLOCKED DATE: toast + inline error agad kapag blocked ang napili */
         if (dateInput.value && moduleIsBlockedDate(dateInput.value)) {
             setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
             showUnavailableToast();
+        }
+        /* LEAD-TIME BLOCKED: toast + inline error agad kapag rush ang napili */
+        else if (dateInput.value && moduleIsLeadBlockedDate(dateInput.value)) {
+            setBookingFieldError('event_date', getLeadBlockedLabel(dateInput.value));
+            showLeadBlockedToast();
+        } else if (dateInput.value) {
+            setBookingFieldError('event_date', '');
         }
         /* FULLY-BOOKED DATE: banner + nearest-open-date suggestions + disable Next */
         updateEventDateAvailability();
@@ -2267,7 +2555,7 @@
         bookingSubmitAttempted = true;
         const firstInvalidField = validateBookingStepTwoFields();
         if (firstInvalidField) {
-            showStep(2);
+            showStep(3);
             focusBookingField(firstInvalidField);
             return;
         }
@@ -2283,7 +2571,7 @@
 
             const diffMins = (endNode - startNode) / 60000;
             if (diffMins < 120) {
-                showStep(2);
+                showStep(3);
                 setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
                 endTimeInput.focus();
                 return; // Stay on Step 2
@@ -2298,14 +2586,14 @@
                 const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
             if (startHour < 7 || startHour >= 18) {
-                showStep(2);
+                showStep(3);
                 setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
                 startTimeInput.focus();
                 return;
             }
 
             if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
-                showStep(2);
+                showStep(3);
                 setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
                 endTimeInput.focus();
                 return;
@@ -2314,7 +2602,7 @@
             // Check if end time crosses midnight (end <= start) after operating-hours validation
             const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
                 if (crossesMidnight) {
-                    showStep(2);
+                    showStep(3);
                     setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
                     endTimeInput.focus();
                     return;
@@ -2323,14 +2611,14 @@
 
             const blockedScheduleMessage = getBlockedScheduleMessage();
             if (blockedScheduleMessage) {
-                showStep(2);
+                showStep(3);
                 setBookingFieldError('end_time', blockedScheduleMessage);
                 endTimeInput.focus();
                 return;
             }
 
         const applyServerBookingError = (message) => {
-            showStep(2);
+            showStep(3);
             const safeMessage = (message || 'Please review the highlighted booking fields.').trim();
             const normalized = safeMessage.toLowerCase();
 
@@ -2437,7 +2725,7 @@
                             document.querySelectorAll('.package-card, .addon-card, .additional-card').forEach(c => c.classList.remove('selected'));
                         });
                     } else {
-                        // === ERROR: Show inline field error, STAY on Step 2 (no toast) ===
+                        // === ERROR: Show inline field error, STAY on Step 3 (no toast) ===
                         applyServerBookingError(data.message);
                     }
                 })

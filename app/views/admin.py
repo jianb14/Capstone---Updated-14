@@ -4,6 +4,32 @@ from .common import *  # noqa: F401,F403
 from .common import _cleanup_legacy_booking_request_states, _pdf_link_callback  # noqa: F401
 
 
+# Booking Step 2 preview images: hanggang 2 bawat package/add-on/additional
+PREVIEW_IMAGE_MAX = 2
+
+
+def _handle_preview_images(request, preview_manager):
+    """Tanggalin ang mga id sa remove_preview_ids at magdagdag ng bago (max 2)."""
+    remove_raw = request.POST.get("remove_preview_ids", "")
+    remove_ids = [v for v in (part.strip() for part in remove_raw.split(",")) if v]
+    if remove_ids:
+        preview_manager.filter(id__in=remove_ids).delete()
+
+    uploads = request.FILES.getlist("preview_images")
+    if not uploads:
+        return
+
+    slots = max(PREVIEW_IMAGE_MAX - preview_manager.count(), 0)
+    for upload in uploads[:slots]:
+        preview_manager.create(image=upload, order=preview_manager.count())
+
+    if len(uploads) > slots:
+        messages.warning(
+            request,
+            f"Only {PREVIEW_IMAGE_MAX} preview images are allowed — some uploads were skipped.",
+        )
+
+
 # Helper to extract End Time from special_requests string
 
 @login_required
@@ -386,13 +412,14 @@ def admin_package_create(request):
 
         package = Package.objects.create(
             name=request.POST.get("name"),
-            image=request.FILES.get("image"),
             description=request.POST.get("description"),
             features=features,
             price=price,
             notes=request.POST.get("notes"),
             is_featured=bool(request.POST.get("is_featured")),
         )
+
+        _handle_preview_images(request, package.preview_images)
 
         log_action(request.user, f"Created new package: '{package.name}'.")
         messages.success(request, "Package created successfully!")
@@ -434,10 +461,9 @@ def admin_package_edit(request, id):
         package.notes = request.POST.get("notes")
         package.is_featured = bool(request.POST.get("is_featured"))
 
-        if request.FILES.get("image"):
-            package.image = request.FILES.get("image")
-
         package.save()
+        _handle_preview_images(request, package.preview_images)
+
         log_action(request.user, f"Edited package: '{package.name}'.")
         messages.success(request, "Package updated successfully!")
         return redirect("admin_package_list")
@@ -583,11 +609,12 @@ def admin_addon_create(request):
 
         addon = AddOn.objects.create(
             name=request.POST.get("name"),
-            image=request.FILES.get("image"),
             price=price,
             solo_price=solo_price,
             features=features,
         )
+
+        _handle_preview_images(request, addon.preview_images)
 
         log_action(request.user, f"Created new add-on: '{addon.name}'.")
         messages.success(request, "Add-on created successfully!")
@@ -641,10 +668,9 @@ def admin_addon_edit(request, id):
         addon.name = request.POST.get("name")
         addon.features = features
 
-        if request.FILES.get("image"):
-            addon.image = request.FILES.get("image")
-
         addon.save()
+
+        _handle_preview_images(request, addon.preview_images)
 
         log_action(request.user, f"Edited add-on: '{addon.name}'.")
         messages.success(request, "Add-on updated successfully!")
@@ -687,11 +713,12 @@ def admin_additional_create(request):
 
         additional = AdditionalOnly.objects.create(
             name=request.POST.get("name"),
-            image=request.FILES.get("image"),
             price=price,
             features=features,
             notes=request.POST.get("notes"),
         )
+
+        _handle_preview_images(request, additional.preview_images)
 
         log_action(request.user, f"Created new additional item: '{additional.name}'.")
         messages.success(request, "Additional created successfully!")
@@ -737,10 +764,9 @@ def admin_additional_edit(request, id):
         additional.features = features
         additional.notes = request.POST.get("notes")
 
-        if request.FILES.get("image"):
-            additional.image = request.FILES.get("image")
-
         additional.save()
+
+        _handle_preview_images(request, additional.preview_images)
 
         log_action(request.user, f"Edited additional item: '{additional.name}'.")
         messages.success(request, "Additional updated successfully!")

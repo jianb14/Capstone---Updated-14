@@ -20,13 +20,17 @@
     <div class="detail-card">
         <!-- Left: Image Section -->
         <div class="detail-left">
-            {% if addon.image %}
+            {% if addon.preview_images.all %}
             <div class="detail-image-container">
-                <button type="button" class="detail-image-trigger" data-full-src="{{ addon.image.url }}"
-                    aria-label="Open full image">
-                    <img src="{{ addon.image.url }}" class="detail-image">
-                    <span class="detail-image-hint">Click to view full image</span>
-                </button>
+                <div class="detail-preview-grid">
+                    {% for preview in addon.preview_images.all|slice:":2" %}
+                    <button type="button" class="detail-image-trigger" data-full-src="{{ preview.image.url }}"
+                        aria-label="Open full image">
+                        <img src="{{ preview.image.url }}" class="detail-image">
+                        <span class="detail-image-hint">Click to view full image</span>
+                    </button>
+                    {% endfor %}
+                </div>
             </div>
             {% else %}
             <div class="detail-image-container"
@@ -81,12 +85,12 @@
 
 <script>
     (function () {
-        const trigger = document.querySelector('.detail-image-trigger');
+        const triggers = document.querySelectorAll('.detail-image-trigger');
         const modal = document.getElementById('detailImageModal');
         const modalImg = document.getElementById('detailImageModalImg');
         const closeBtn = document.getElementById('detailImageModalClose');
 
-        if (!trigger || !modal || !modalImg || !closeBtn) return;
+        if (!triggers.length || !modal || !modalImg || !closeBtn) return;
 
         function openModal(src) {
             modalImg.src = src;
@@ -102,9 +106,11 @@
             document.body.style.overflow = '';
         }
 
-        trigger.addEventListener('click', function () {
-            const src = this.getAttribute('data-full-src');
-            if (src) openModal(src);
+        triggers.forEach(function (trigger) {
+            trigger.addEventListener('click', function () {
+                const src = this.getAttribute('data-full-src');
+                if (src) openModal(src);
+            });
         });
 
         closeBtn.addEventListener('click', closeModal);

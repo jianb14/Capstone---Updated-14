@@ -15,7 +15,7 @@ from pathlib import Path
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Booking, BlockedDate, User
+from .models import Booking, BlockedDate, SiteSettings, User
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -237,7 +237,7 @@ class BookingAvailabilityTemplateTests(TestCase):
 
     def test_css_cache_bust_updated(self):
         # Cache-bust versions (i-bump kapag nagbabago ang picker/CSS/JS).
-        self.assertIn("client_booking.css' %}?v=20261014f", self.template)
+        self.assertIn("client_booking.css' %}?v=20261018d", self.template)
         self.assertIn("booking_availability.js' %}?v=20261013a", self.template)
         self.assertIn("booking_picker_a.js' %}?v=20261014f", self.template)
         self.assertIn("booking_picker_c.js' %}?v=20261014e", self.template)
@@ -289,7 +289,7 @@ class BookingAvailabilityTemplateTests(TestCase):
             )
             # Unavailable sa calendar = light gray (hindi na aggressive na pula)
             self.assertNotIn("#991b1b", css, str(css_path))
-            self.assertIn("background-color: #2a2a2a !important", css, str(css_path))
+            self.assertIn("background-color: #404040 !important", css, str(css_path))
             # Hindi nag-ho-hover ang unavailable (lahat ng light hover may :not)
             self.assertGreaterEqual(
                 css.count(
@@ -340,6 +340,33 @@ class BookingAvailabilityTemplateTests(TestCase):
         self.assertIn("fa-ban", admin_tpl)
         # Admin CSS cache-bust (bagong design ng unavailable cells)
         self.assertIn("admin_calendar.css' %}?v=20261017a", admin_tpl)
+        # Client CSS: icon sa taas + text sa baba (vertical stack, hindi
+        # magkatabi), may gap, at may tooltip arrow sa event tooltip.
+        for css_path in (BOOKING_CSS, BOOKING_CSS_MIRROR):
+            css = css_path.read_text(encoding="utf-8")
+            self.assertIn("flex-direction: column;", css, str(css_path))
+            self.assertIn("gap: 10px;", css, str(css_path))
+            self.assertIn(".booking-event-tip::after", css, str(css_path))
+            self.assertIn(".booking-event-tip.tip-below::after", css, str(css_path))
+            # Mas magaan na gray: unavailable + today highlight (dark at light)
+            self.assertIn(
+                "background-color: #404040 !important", css, str(css_path)
+            )
+            self.assertIn(
+                "background-color: rgba(255, 255, 255, 0.06) !important",
+                css,
+                str(css_path),
+            )
+            self.assertIn(
+                "background-color: rgba(17, 24, 39, 0.03) !important",
+                css,
+                str(css_path),
+            )
+            self.assertIn(
+                "background-color: rgba(17, 24, 39, 0.05) !important",
+                css,
+                str(css_path),
+            )
         # Regression: hindi dapat na-trap sa CSS comment ang light-mode
         # number/label rules ng blocked cells (nawawala sila sa light mode
         # kapag nasa loob ng /* ... */).
@@ -521,4 +548,219 @@ class CreateBookingValidationTests(TestCase):
             end_time="13:00",
         ).json()
         self.assertTrue(payload["success"], payload)
+
+
+class BookingLeadTimeTests(TestCase):
+    """Booking Rules > Lead Time — backend source of truth + template wiring.
+
+    Sakop: rush reject sa create, boundary allow, edit reschedule reject,
+    Services API unavailable + suggestions na walang rush, at fail-fast
+    calendar guards (dateClick toast + disabled cells) sa template.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="lead-cust",
+            email="lead@test.com",
+            password="pass12345",
+            role="customer",
+        )
+        self.client.force_login(self.user)
+        settings_obj = SiteSettings.load()
+        settings_obj.booking_lead_time_days = 7
+        settings_obj.save()
+        self.url = reverse("create_booking")
+
+    def _post(self, **overrides):
+        from django.utils import timezone
+
+        data = {
+            "event_type": "Birthday",
+            "event_date": (
+                timezone.localdate() + timedelta(days=7)
+            ).isoformat(),
+            "start_time": "09:00",
+            "end_time": "11:00",
+            "event_location": "Test Venue",
+            "package_type": "Package A",
+            "total_price": "5000.00",
+            "special_requests": "",
+        }
+        data.update(overrides)
+        return self.client.post(
+            self.url, data, HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+
+    def test_rush_booking_rejected_with_earliest_date(self):
+        from django.utils import timezone
+
+        rush = timezone.localdate() + timedelta(days=2)
+        min_date = timezone.localdate() + timedelta(days=7)
+        payload = self._post(event_date=rush.isoformat()).json()
+        self.assertFalse(payload["success"])
+        self.assertIn("at least 7 day(s) in advance", payload["message"])
+        self.assertIn(min_date.strftime("%B %d, %Y"), payload["message"])
+        self.assertFalse(Booking.objects.filter(event_date=rush).exists())
+
+    def test_boundary_date_allowed(self):
+        from django.utils import timezone
+
+        boundary = timezone.localdate() + timedelta(days=7)
+        payload = self._post(event_date=boundary.isoformat()).json()
+        self.assertTrue(payload["success"], payload)
+        self.assertTrue(Booking.objects.filter(event_date=boundary).exists())
+
+    def test_day_before_boundary_rejected(self):
+        from django.utils import timezone
+
+        before = timezone.localdate() + timedelta(days=6)
+        payload = self._post(event_date=before.isoformat()).json()
+        self.assertFalse(payload["success"])
+        self.assertFalse(Booking.objects.filter(event_date=before).exists())
+
+    def _make_booking(self, days=30):
+        from django.utils import timezone
+
+        return Booking.objects.create(
+            user=self.user,
+            event_date=timezone.localdate() + timedelta(days=days),
+            event_time=time(9, 0),
+            event_type="Birthday",
+            event_location="Venue",
+            package_type="Package A",
+            total_price=5000,
+            status="pending",
+        )
+
+    def _edit_post(self, booking, event_date):
+        return self.client.post(
+            reverse("edit_booking", args=[booking.id]),
+            {
+                "event_type": "Birthday",
+                "event_date": event_date.isoformat(),
+                "start_time": "09:00",
+                "end_time": "11:00",
+                "event_location": "Venue",
+                "total_price": "5000.00",
+                "special_requests": "",
+            },
+        )
+
+    def test_edit_reschedule_to_rush_rejected(self):
+        from django.utils import timezone
+
+        booking = self._make_booking(days=30)
+        rush = timezone.localdate() + timedelta(days=2)
+        self._edit_post(booking, rush)
+        booking.refresh_from_db()
+        self.assertEqual(
+            booking.event_date, timezone.localdate() + timedelta(days=30)
+        )
+
+    def test_edit_reschedule_to_allowed_date_succeeds(self):
+        from django.utils import timezone
+
+        booking = self._make_booking(days=30)
+        target = timezone.localdate() + timedelta(days=10)
+        self._edit_post(booking, target)
+        booking.refresh_from_db()
+        self.assertEqual(booking.event_date, target)
+
+    def test_services_api_reports_rush_unavailable(self):
+        from django.utils import timezone
+
+        rush = timezone.localdate() + timedelta(days=2)
+        min_date = timezone.localdate() + timedelta(days=7)
+        response = self.client.get(
+            reverse("check_date_availability") + "?date=" + rush.isoformat()
+        )
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertFalse(data["available"])
+        self.assertIn("at least 7 day(s) in advance", data["message"])
+        self.assertEqual(data["min_bookable_date"], min_date.isoformat())
+        for suggestion in data["suggestions"]:
+            self.assertGreaterEqual(suggestion, min_date.isoformat())
+
+    def test_booking_page_has_fail_fast_lead_guards(self):
+        template = BOOKING_TEMPLATE.read_text(encoding="utf-8")
+        # Calendar click: toast + no modal (fail-fast, hindi na papasok sa Step 1)
+        self.assertIn("if (moduleIsLeadBlockedDate(clickedDate)) {", template)
+        self.assertIn("showLeadBlockedToast();", template)
+        # Calendar visual: ADMIN-blocked lang ang gray + "Unavailable" + ban
+        # icon. Lead-time dates: faded/malabo na gaya ng past dates (gamit ang
+        # booking-day-disabled) — walang "Unavailable" label, may toast pag click.
+        self.assertIn("if (isBlockedDate(cellDate)) {", template)
+        self.assertNotIn(
+            "if (isBlockedDate(cellDate) || moduleIsLeadBlockedDate(cellDate)) {",
+            template,
+        )
+        self.assertIn("if (moduleIsLeadBlockedDate(cellDate) && cellDate !== todayLocal) {", template)
+        self.assertIn("return ['booking-day-disabled'];", template)
+        self.assertIn("getLeadBlockedLabel(dateInput.value)", template)
+        self.assertIn("booking-day-blocked-label", template)
+        self.assertNotIn("booking-day-lead-blocked", template)
+
+    def test_edit_modals_have_lead_guards(self):
+        template = PROFILE_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("data-lead-days=", template)
+        self.assertIn("data-min-bookable-date=", template)
+        self.assertIn("isEditLeadBlocked", template)
+        self.assertIn("isEditLeadBlocked(editEventDateEl.value)", template)
+        legacy = (
+            BASE_DIR / "app" / "templates" / "client" / "booking"
+            / "booking_form.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("data-lead-days=", legacy)
+        self.assertIn("isLeadBlocked(dateInput.value)", legacy)
+
+
+class BlockedDateCalendarDisplayTests(TestCase):
+    """Walang red "Unavailable" event pill sa client booking calendar.
+
+    Ang admin-blocked dates ay pumapasok na lang sa `blocked_dates` payload
+    (day-cell styling + tooltip + dateClick guard); ang `calendar_events` ay
+    bookings lang — kapareho ng lead-time-blocked na walang event, kaya
+    magkapareho ang itsura ng dalawang uri ng pagka-block sa calendar.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="block-cust",
+            email="block@test.com",
+            password="pass12345",
+            role="customer",
+        )
+        self.client.force_login(self.user)
+        self.url = reverse("booking_page")
+
+    def _block_a_date(self):
+        from django.utils import timezone
+
+        blocked_date = timezone.localdate() + timedelta(days=14)
+        BlockedDate.objects.create(
+            date=blocked_date, reason="Holiday", created_by=self.user
+        )
+        return blocked_date
+
+    def test_calendar_events_exclude_blocked_flag_pill(self):
+        blocked_date = self._block_a_date()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        events = response.context["calendar_events"]
+        # Walang pulang "Unavailable" flag event (#7f1d1d) — day-cell styling
+        # na lang ang marker ng blocked dates.
+        self.assertFalse(
+            [e for e in events if e["title"] == "Unavailable"], events
+        )
+        self.assertFalse(
+            [e for e in events if e.get("color") == "#7f1d1d"], events
+        )
+        # Hindi nawawala ang petsa sa blocked payload (styling/tooltip/guards).
+        self.assertIn(
+            {"date": blocked_date.isoformat(), "reason": "Holiday"},
+            response.context["blocked_dates"],
+        )
 

@@ -491,9 +491,11 @@
 
                     <div class="form-group full-width">
                         <label><i class="far fa-calendar-days"></i> Event Date <span class="input-required">*</span></label>
-                        <input type="date" id="edit_event_date" name="event_date" required>
+                        <input type="date" id="edit_event_date" name="event_date" required
+                            data-lead-days="{{ booking_lead_time_days|default:0 }}"
+                            data-min-bookable-date="{{ min_bookable_date|default:'' }}">
                         <small class="review-field-error" id="edit_event_date_error"></small>
-                        <small class="edit-date-hint">Past dates can't be selected. Operating hours: 7:00 AM – 6:00 PM.</small>
+                        <small class="edit-date-hint">{% if booking_lead_time_days %}Please book at least {{ booking_lead_time_days }} day(s) ahead (earliest: {{ min_bookable_date }}). {% endif %}Past dates can't be selected. Operating hours: 7:00 AM – 6:00 PM.</small>
                     </div>
 
                     <div class="form-group full-width">
@@ -834,6 +836,10 @@
                 // Mirror ng server-side na "Cannot change to a past date."
                 setEditBookingFieldError('event_date', 'Event Date cannot be in the past.*');
                 if (!firstInvalidField) firstInvalidField = 'event_date';
+            } else if (typeof isEditLeadBlocked === 'function' && isEditLeadBlocked(editEventDateEl.value)) {
+                // LEAD-TIME (inline validator): mirror ng edit_booking backend.
+                setEditBookingFieldError('event_date', getEditLeadMessage());
+                if (!firstInvalidField) firstInvalidField = 'event_date';
             }
 
             if (!editStartTimeEl || !editStartTimeEl.value) {
@@ -915,7 +921,49 @@
         }
     });
 
-    // AJAX Filtering & Pagination
+    // --- EDIT BOOKING LEAD-TIME POLICY (SiteSettings.booking_lead_time_days) ---
+    // Galing sa data-* attributes ng #edit_event_date (sinet ng customer_profile
+    // view). Grandfather rule: kapag hindi binago ang petsa mula sa original,
+    // hindi haharangin kahit nasa lead window. Nasa global scope para magamit
+    // ng DALAWANG validateEditBookingForm (inline + steppers).
+    const getEditLeadPolicy = () => {
+        const dateEl = document.getElementById('edit_event_date');
+        const rawLead = dateEl ? parseInt(dateEl.dataset.leadDays || '0', 10) : 0;
+        const leadDays = (isNaN(rawLead) || rawLead < 0) ? 0 : rawLead;
+        const minDate = dateEl && dateEl.dataset.minBookableDate
+            ? dateEl.dataset.minBookableDate
+            : (dateEl ? (dateEl.min || '') : '');
+        const original = dateEl ? (dateEl.dataset.originalDate || '') : '';
+        return { leadDays, minDate, original };
+    };
+
+    const getEditLeadMessage = () => {
+        const { leadDays, minDate } = getEditLeadPolicy();
+        let label = minDate;
+        try {
+            const [y, m, d] = minDate.split('-').map(Number);
+            label = new Intl.DateTimeFormat('en-US', {
+                month: 'long', day: 'numeric', year: 'numeric'
+            }).format(new Date(y, m - 1, d));
+        } catch (e) { /* keep ISO */ }
+        return 'Please book at least ' + leadDays + ' day(s) ahead. Earliest available: ' + label + '.*';
+    };
+
+    const isEditLeadBlocked = (value) => {
+        const { leadDays, minDate } = getEditLeadPolicy();
+        if (!value || !leadDays || !minDate) return false;
+        // Walang exception kapag rush ang petsa — kahit same date lang na
+        // retime, haharangin pa rin (tugma sa edit_booking backend).
+        return value < minDate;
+    };
+
+    const syncEditDateMin = () => {
+        const dateEl = document.getElementById('edit_event_date');
+        if (!dateEl) return;
+        const { minDate } = getEditLeadPolicy();
+        // Huwag ibaba ang min — lead floor o today, alinman ang mas huli.
+        if (minDate && (!dateEl.min || dateEl.min < minDate)) dateEl.min = minDate;
+    };
     document.addEventListener("DOMContentLoaded", function () {
         const searchInput = document.getElementById('searchFilterInput');
         const statusSelect = document.getElementById('statusFilterSelect');
@@ -1383,6 +1431,8 @@
 
     function updateEditTimeConstraints() {
         if (editEventDateEl) editEventDateEl.min = getEditTodayIso();
+        // LEAD-TIME FLOOR: itaas ang min sa today + leadDays (hindi ibababa).
+        try { if (typeof syncEditDateMin === 'function') syncEditDateMin(); } catch (e) { /* keep today min */ }
         if (!editStartTimeEl || !editEndTimeEl) return;
 
         // Start: floor 07:00, ceiling 16:00 (2 hours bago mag-6:00 PM).
@@ -1484,6 +1534,10 @@
         } else if (editEventDateEl.value < editEventDateEl.min) {
             // Mirror ng server-side na "Cannot change to a past date."
             setEditBookingFieldError('event_date', 'Event Date cannot be in the past.*');
+            if (!firstInvalidField) firstInvalidField = 'event_date';
+        } else if (typeof isEditLeadBlocked === 'function' && isEditLeadBlocked(editEventDateEl.value)) {
+            // LEAD-TIME (steppers validator): mirror ng edit_booking backend.
+            setEditBookingFieldError('event_date', getEditLeadMessage());
             if (!firstInvalidField) firstInvalidField = 'event_date';
         }
 
@@ -2016,6 +2070,9 @@
         }
 
         document.getElementById('edit_event_date').value = date;
+        // Tandaan ang original date para sa grandfather rule (oras lang ang
+        // in-edit = hindi haharangin kahit nasa lead window ang petsa).
+        try { document.getElementById('edit_event_date').dataset.originalDate = date || ''; } catch (e) { /* ignore */ }
         document.getElementById('edit_start_time').value = startTime;
         document.getElementById('edit_end_time').value = endTime;
         document.getElementById('edit_event_location').value = location;

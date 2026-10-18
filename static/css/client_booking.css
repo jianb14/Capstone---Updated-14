@@ -235,7 +235,7 @@
 }
 
 #booking-calendar .fc .fc-day-today {
-    background-color: rgba(255, 255, 255, 0.15) !important;
+    background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 /* Isang tint lang sa cell mismo — transparent ang inner layers para
@@ -251,6 +251,23 @@
     background: transparent !important;
     color: #ffffff !important;
     font-weight: 700;
+}
+
+/* TODAY na natamaan ng lead-time disabled class: manatiling highlighted —
+   mas mataas na specificity para talunin ang booking-day-disabled black bg */
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled,
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.is-past-date {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+}
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-top,
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.is-past-date .fc-daygrid-day-frame,
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.is-past-date .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+#booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-number {
+    color: #ffffff !important;
+    opacity: 1 !important;
 }
 
 #booking-calendar .fc .fc-daygrid-day-frame {
@@ -296,7 +313,7 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day
 
 /* Today keeps its stronger uniform highlight even on hover */
 html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
+    background-color: rgba(255, 255, 255, 0.09) !important;
 }
 html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-frame,
 html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-top {
@@ -440,9 +457,11 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
     background: rgba(255, 255, 255, 0.4);
 }
 
-/* Day Cell Hover Effect */
-.fc .fc-daygrid-day:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+/* Day Cell Hover Effect — AVAILABLE days lang. Past/lead-disabled/blocked/
+ other/today: walang hover tint. (Dati: generic .fc-daygrid-day:hover — ito
+ ang gray-hover bug sa LAHAT ng dates, kasama today.) */
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
@@ -453,6 +472,17 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
 #booking-calendar .fc .fc-daygrid-day.booking-day-disabled,
 #booking-calendar .fc .fc-daygrid-day.fc-day-other,
 #booking-calendar .fc .fc-daygrid-day.fc-day-disabled {
+    background-color: #000000 !important;
+    cursor: default !important;
+}
+
+/* Dark-mode hover lock — past/lead-disabled/blocked/other: WALANG hover tint
+   (insurance laban sa generic hover rules; light mode may sariling locks) */
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-past:hover,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.is-past-date:hover,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day-disabled:hover,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-other:hover,
+html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.fc-day-disabled:hover {
     background-color: #000000 !important;
     cursor: default !important;
 }
@@ -513,7 +543,7 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
    ======================================================== */
 #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
     position: relative;
-    background-color: #2a2a2a !important;
+    background-color: #404040 !important;
     cursor: not-allowed !important;
 }
 
@@ -533,26 +563,45 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
     font-weight: 700;
 }
 
-/* "Unavailable" text label sa gitna ng cell */
+/* "Unavailable" text label sa gitna ng cell — VERTICAL stack:
+   icon sa taas (medyo malaki), text sa baba. Hindi na magkatabi
+   kaya hindi nagwa-wrap sa sikip na (mobile) na cell. */
 #booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label {
     position: absolute;
     inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding-top: 0.75rem;
+    gap: 10px;
+    padding-top: 0.35rem;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.95);
     text-align: center;
-    line-height: 1.2;
-    padding-left: 4px;
-    padding-right: 4px;
+    line-height: 1.15;
+    padding-left: 3px;
+    padding-right: 3px;
     pointer-events: none;
     z-index: 2;
+}
+
+/* Ban icon sa taas ng "Unavailable" text — naka-em para sumakto lang
+   sa laki ng cell, at lumalaki rin kapag malaki ang cell. */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label i {
+    font-size: 1.5em;
+    line-height: 1;
+}
+
+/* "Unavailable" text: hindi ito gaapaw kahit sikip ang cell */
+#booking-calendar .fc .fc-daygrid-day.booking-day-blocked .booking-day-blocked-label .bbl-text {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* MONTH view: nakatago ang "Unavailable" event pill — may text label na sa cell.
@@ -570,11 +619,11 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-day-today:hover .fc-day
 
 /* Walang nagbabago sa hover — manatiling light gray, cursor not-allowed */
 html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #2a2a2a !important;
+    background-color: #404040 !important;
 }
 
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked {
-    background-color: #e5e7eb !important;
+    background-color: #f9fafb !important;
     cursor: not-allowed !important;
 }
 
@@ -597,7 +646,81 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
 }
 
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day.booking-day-blocked:hover {
-    background-color: #e5e7eb !important;
+    background-color: #f9fafb !important;
+}
+
+/* =============================================
+   CUSTOM EVENT TOOLTIP (blue booked bars)
+   Pumapalit sa default browser title tooltip —
+   mas maganda at na-cocontrol ang itsura. May arrow (::after) na
+   nakaturo sa event bar — pababa kapag nasa taas ang tip, pataas
+   kapag nasa baba (.tip-below). */
+.booking-event-tip {
+    position: fixed;
+    z-index: 9999;
+    display: none;
+    pointer-events: none;
+    background: #262626;
+    color: #f9fafb;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    max-width: 220px;
+    text-align: left;
+}
+/* Arrow — nakaturo sa hinover na event bar */
+.booking-event-tip::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: inherit;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+/* Nasa taas ang tip → arrow sa ilalim, nakaturo pababa */
+.booking-event-tip:not(.tip-below)::after {
+    bottom: -6px;
+}
+/* Nasa baba ang tip (tip-below) → arrow sa itaas, nakaturo pataas */
+.booking-event-tip.tip-below::after {
+    top: -6px;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.booking-event-tip .bet-date {
+    display: block;
+    font-weight: 700;
+}
+.booking-event-tip .bet-time {
+    display: block;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.72rem;
+}
+[data-theme="light"] .booking-event-tip {
+    background: #ffffff;
+    color: #111827;
+    border-color: rgba(17, 24, 39, 0.12);
+    box-shadow: 0 8px 24px rgba(17, 24, 39, 0.16);
+}
+/* Light-mode arrow borders — dark-on-white imbes na white-on-dark */
+[data-theme="light"] .booking-event-tip::after {
+    border-right-color: rgba(17, 24, 39, 0.12);
+    border-bottom-color: rgba(17, 24, 39, 0.12);
+}
+[data-theme="light"] .booking-event-tip.tip-below::after {
+    border-left-color: rgba(17, 24, 39, 0.12);
+    border-top-color: rgba(17, 24, 39, 0.12);
+}
+[data-theme="light"] .booking-event-tip .bet-time {
+    color: rgba(17, 24, 39, 0.6);
 }
 
 /* Modal Time Inputs Layout */
@@ -1292,16 +1415,16 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     line-height: 1.45;
 }
 
-#step-3 #referencePicturesRow {
+#step-4 #referencePicturesRow {
     grid-template-columns: 1fr !important;
     gap: 0.45rem;
 }
 
-#step-3 #referencePicturesRow .row-info {
+#step-4 #referencePicturesRow .row-info {
     padding-right: 0;
 }
 
-#step-3 #referencePicturesRow .row-value {
+#step-4 #referencePicturesRow .row-value {
     justify-self: start;
 }
 
@@ -1343,7 +1466,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     margin-bottom: 1.8rem;
 }
 
-#step-3 .step-desc {
+#step-4 .step-desc {
     color: #9ca3af;
     margin-bottom: 1rem;
     max-width: 64ch;
@@ -1730,14 +1853,14 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     border-radius: 8px;
 }
 
-#step-3 .booking-review-grid {
+#step-4 .booking-review-grid {
     display: grid;
     grid-template-columns: 1.35fr 1fr;
     gap: 1rem;
     align-items: start;
 }
 
-#step-3 .booking-summary-container {
+#step-4 .booking-summary-container {
     margin-top: 0;
     padding: 1.1rem 1.1rem 1.2rem;
     background: #141414;
@@ -1753,7 +1876,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     margin: 0 0 0.5rem 0;
 }
 
-#step-3 .summary-title {
+#step-4 .summary-title {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1767,7 +1890,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     border-bottom: 1px solid #1f1f1f;
 }
 
-#step-3 .summary-title i {
+#step-4 .summary-title i {
     color: #6b7280;
     width: 14px;
     text-align: center;
@@ -1795,11 +1918,11 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     padding: 0.4rem 0;
 }
 
-#step-3 .summary-row {
+#step-4 .summary-row {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-#step-3 .summary-row:last-child {
+#step-4 .summary-row:last-child {
     border-bottom: none;
 }
 
@@ -1808,13 +1931,13 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
    display:none, kaya ang :last-child lang ay hindi sapat — gamit ang
    :has(), tinatanggal din ang border ng row na katabi ng nakatagong
    trailing row. Kapag may pictures na, babalik ang border (tama lang). */
-#step-3 #booking-details-list .summary-row:nth-last-child(2):has(+ .summary-row[style*='display: none']) {
+#step-4 #booking-details-list .summary-row:nth-last-child(2):has(+ .summary-row[style*='display: none']) {
     border-bottom: none;
 }
 
 /* Service & Logistics Fee: walang sariling border-bottom — nagdodoble ito
    sa border-top ng Total Price sa ibaba nito. Isang linya lang dapat. */
-#step-3 .service-charge-summary {
+#step-4 .service-charge-summary {
     border-bottom: none;
 }
 
@@ -1851,14 +1974,14 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     flex-shrink: 0;
 }
 
-#step-3 #booking-details-list .row-label {
+#step-4 #booking-details-list .row-label {
     font-size: 0.76rem;
     font-weight: 600;
     color: #8b93a0;
     letter-spacing: 0.02em;
 }
 
-#step-3 #booking-details-list .row-value {
+#step-4 #booking-details-list .row-value {
     color: #f3f4f6;
     font-size: 0.95rem;
     font-weight: 600;
@@ -1882,7 +2005,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 
 /* WALANG nang bg/banner — hiwalay lang via separator, typography na ang gumagawa
    ng emphasis (mas malaki at bold ang presyo, maliit at spaced ang label) */
-#step-3 .total-row {
+#step-4 .total-row {
     margin-top: 0.4rem;
     padding: 1rem 0.1rem 0;
     border: none;
@@ -1891,14 +2014,14 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     background: transparent;
 }
 
-#step-3 .total-row .row-label {
+#step-4 .total-row .row-label {
     font-size: 0.82rem;
     font-weight: 700;
     color: #9ca3af;
     letter-spacing: 0.02em;
 }
 
-#step-3 .total-row .total-price {
+#step-4 .total-row .total-price {
     font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: -0.02em;
@@ -1906,7 +2029,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Mahabang package/add-on names sa summary: bumabalot sa kanan imbes na umapaw */
-#step-3 #booking-item-list .row-value {
+#step-4 #booking-item-list .row-value {
     white-space: normal;
     text-align: right;
     line-height: 1.45;
@@ -1952,7 +2075,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (max-width: 900px) {
-    #step-3 .booking-review-grid {
+    #step-4 .booking-review-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -2345,7 +2468,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     background-color: #f3f4f6 !important;
 }
 /* ========================================================
-   BOOKING PAGE — LIGHT MODE (calendar + modal + step 1/2/3)
+   BOOKING PAGE — LIGHT MODE (calendar + modal + step 1/2/3/4)
    Maraming hardcoded black/white sa file, kaya pinapalitan
    natin ang mga ito kapag [data-theme="light"] sa <html>
    (target ng theme-toggle.js).
@@ -2370,7 +2493,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 
 [data-theme="light"] #booking-calendar {
     --fc-border-color: #e5e7eb;
-    --fc-today-bg-color: rgba(17, 24, 39, 0.15);
+    --fc-today-bg-color: rgba(17, 24, 39, 0.03);
     --fc-neutral-bg-color: #ffffff;
     --fc-page-bg-color: #ffffff;
     --fc-button-bg-color: transparent;
@@ -2417,7 +2540,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
 [data-theme="light"] #booking-calendar tr:hover td.fc-day-today,
 [data-theme="light"] #booking-calendar tr:hover td.fc-day-today.fc-daygrid-day {
-    background-color: rgba(17, 24, 39, 0.05) !important;
+    background-color: rgba(17, 24, 39, 0.03) !important;
 }
 
 /* Inactive (past/outside-month) cells — PUTI imbes na gray; dimmed lang
@@ -2471,19 +2594,34 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
     background-color: transparent !important;
 }
 
+/* Light today hover — mas magaan (0.05) per user feedback */
 [data-theme="light"] #booking-calendar .fc .fc-day-today:hover {
-    background-color: rgba(17, 24, 39, 0.07) !important;
+    background-color: rgba(17, 24, 39, 0.05) !important;
 }
 [data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-frame,
 [data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-top {
     background-color: transparent !important;
 }
 
+/* Light TODAY na natamaan ng lead-time disabled class: manatiling
+   highlighted — talunin ang booking-day-disabled white bg */
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.is-past-date {
+    background-color: rgba(17, 24, 39, 0.03) !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-frame,
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-top {
+    background-color: transparent !important;
+}
+[data-theme="light"] #booking-calendar .fc .fc-daygrid-day.fc-day-today.booking-day-disabled .fc-daygrid-day-number {
+    opacity: 1 !important;
+}
+
 /* Today highlight — tint sa cell lang, transparent ang inner layers
    (uniform na gray highlight, hindi magkakahiwalay na gray strips).
-   0.05 lang — bawas-gray per user feedback */
+   0.03 lang — bawas-gray per user feedback */
 [data-theme="light"] #booking-calendar .fc .fc-day-today {
-    background-color: rgba(17, 24, 39, 0.05) !important;
+    background-color: rgba(17, 24, 39, 0.03) !important;
 }
 [data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-frame,
 [data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-bg,
@@ -2571,7 +2709,7 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
 
 [data-theme="light"] .stepper-step h3 { color: #111827; }
 [data-theme="light"] .step-desc { color: #6b7280; }
-[data-theme="light"] #step-3 .step-desc { color: #6b7280; }
+[data-theme="light"] #step-4 .step-desc { color: #6b7280; }
 
 /* ---------- STEPPER ---------- */
 [data-theme="light"] .stepper-wrapper::before { background: #e5e7eb; }
@@ -2749,36 +2887,36 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
     border-color: #e5e7eb;
 }
 
-[data-theme="light"] #step-3 .booking-summary-container {
+[data-theme="light"] #step-4 .booking-summary-container {
     background: #f9fafb;
     border-color: #e5e7eb;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-[data-theme="light"] #step-3 .summary-title {
+[data-theme="light"] #step-4 .summary-title {
     color: #4b5563;
     border-bottom-color: #e5e7eb;
 }
 
-[data-theme="light"] #step-3 .summary-title i { color: #6b7280; }
+[data-theme="light"] #step-4 .summary-title i { color: #6b7280; }
 [data-theme="light"] .summary-title { color: #4b5563; }
 [data-theme="light"] .summary-divider { background: #e5e7eb; }
 [data-theme="light"] .row-label { color: #374151; }
 [data-theme="light"] .row-value { color: #111827; }
 [data-theme="light"] #booking-details-list .row-label i { color: #6b7280; }
-[data-theme="light"] #step-3 #booking-details-list .row-label { color: #6b7280; }
-[data-theme="light"] #step-3 #booking-details-list .row-value { color: #111827; }
-[data-theme="light"] #step-3 .summary-row { border-bottom-color: rgba(0, 0, 0, 0.06); }
+[data-theme="light"] #step-4 #booking-details-list .row-label { color: #6b7280; }
+[data-theme="light"] #step-4 #booking-details-list .row-value { color: #111827; }
+[data-theme="light"] #step-4 .summary-row { border-bottom-color: rgba(0, 0, 0, 0.06); }
 [data-theme="light"] .booking-summary-thumb { border-color: #e5e7eb; }
 
 /* Light mode: walang bg din — darker separator lang */
-[data-theme="light"] #step-3 .total-row {
+[data-theme="light"] #step-4 .total-row {
     background: transparent;
     border-top-color: rgba(17, 24, 39, 0.15);
 }
 
-[data-theme="light"] #step-3 .total-row .row-label { color: #6b7280; }
-[data-theme="light"] #step-3 .total-row .total-price { color: #111827; }
+[data-theme="light"] #step-4 .total-row .row-label { color: #6b7280; }
+[data-theme="light"] #step-4 .total-row .total-price { color: #111827; }
 [data-theme="light"] .total-row .row-label { color: #111827; }
 [data-theme="light"] .total-row .total-price { color: #111827; }
 [data-theme="light"] .row-note { color: #6b7280; }
@@ -2931,17 +3069,17 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
     .booking-modal-box .custom-select-trigger { padding: 0.5rem 0.65rem; font-size: 0.82rem; }
     .modal-actions { flex-wrap: wrap; gap: 0.6rem; }
     .split-actions { flex-wrap: wrap; gap: 0.6rem; }
-    /* Step 3: compact na review cards, thumbnails, at total banner sa mobile */
-    #step-3 .booking-review-grid { gap: 0.75rem; }
-    #step-3 .booking-summary-container { padding: 0.9rem 0.85rem 1rem; }
+    /* Step 4: compact na review cards, thumbnails, at total banner sa mobile */
+    #step-4 .booking-review-grid { gap: 0.75rem; }
+    #step-4 .booking-summary-container { padding: 0.9rem 0.85rem 1rem; }
     .booking-details-images { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
     .booking-summary-thumb { width: 100%; height: auto; aspect-ratio: 1 / 1; }
-    #step-3 .total-row .total-price { font-size: 1.2rem; }
+    #step-4 .total-row .total-price { font-size: 1.2rem; }
     .review-note { font-size: 0.72rem; }
-    /* Step 3 responsive: higpitan ang label column ng details rows sa
+    /* Step 4 responsive: higpitan ang label column ng details rows sa
        makitid na width para hindi naipit ang values */
     #booking-details-list .summary-row { grid-template-columns: minmax(100px, 140px) minmax(0, 1fr); gap: 0.55rem; }
-    #step-3 .summary-row .row-value { white-space: normal; overflow-wrap: anywhere; }
+    #step-4 .summary-row .row-value { white-space: normal; overflow-wrap: anywhere; }
 }
 
 @media (max-width: 480px) {
@@ -3006,16 +3144,16 @@ date sa parehong week row — talunin ang tr:hover td white rule sa itaas */
    `[data-theme="light"] tr:hover td` rule na nasa taas.
    ======================================================== */
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover {
-    background-color: rgba(17, 24, 39, 0.04) !important;
+    background-color: rgba(17, 24, 39, 0.03) !important;
 }
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-frame,
 [data-theme="light"] #booking-calendar .fc .fc-daygrid-day:not(.fc-day-past):not(.is-past-date):not(.booking-day-disabled):not(.booking-day-blocked):not(.fc-day-other):not(.fc-day-disabled):not(.fc-day-today):hover .fc-daygrid-day-top {
     background-color: transparent !important;
 }
 
-/* Ang today ay may mas malakas pa ring uniform highlight kahit hinover */
+/* Ang today ay may mas magaan pa ring uniform highlight kahit hinover (0.05) */
 [data-theme="light"] #booking-calendar .fc .fc-day-today:hover {
-    background-color: rgba(17, 24, 39, 0.07) !important;
+    background-color: rgba(17, 24, 39, 0.05) !important;
 }
 [data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-frame,
 [data-theme="light"] #booking-calendar .fc .fc-day-today:hover .fc-daygrid-day-top {
@@ -3257,4 +3395,94 @@ html[data-theme="light"] #booking-calendar .fc .fc-day-today .fc-daygrid-day-num
     color: #111827 !important;
     font-weight: 700;
     opacity: 1 !important;
+}
+
+
+/* ========================================================
+   STEP 2: PACKAGE PREVIEW - grouped image sections
+   ======================================================== */
+
+.preview-images-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.preview-image-tile {
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #111;
+}
+
+.preview-image-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.preview-empty-message {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.3rem 1rem;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    color: #9ca3af;
+    font-size: 0.84rem;
+}
+
+.preview-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    color: #9ca3af;
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.preview-note i,
+.preview-empty-message i {
+    margin-top: 2px;
+    color: #6b7280;
+}
+
+[data-theme="light"] .preview-image-tile {
+    background: #ffffff;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .preview-empty-message {
+    border-color: #d1d5db;
+    color: #6b7280;
+}
+
+[data-theme="light"] .preview-note {
+    color: #6b7280;
+}
+
+.preview-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.preview-group-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: #e5e7eb;
+}
+
+.preview-group-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+[data-theme="light"] .preview-group-title {
+    color: #374151;
 }

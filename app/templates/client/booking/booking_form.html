@@ -53,8 +53,13 @@
                 <div class="form-group full-width">
                     <label>Event Date</label>
                     <input type="date" id="event_date" name="event_date"
-                        value="{{ booking.event_date|date:'Y-m-d'|default:'' }}" required>
+                        value="{{ booking.event_date|date:'Y-m-d'|default:'' }}" required
+                        {% if min_bookable_date %}min="{{ min_bookable_date }}"{% endif %}
+                        data-lead-days="{{ booking_lead_time_days|default:0 }}"
+                        data-min-bookable-date="{{ min_bookable_date|default:'' }}"
+                        data-original-date="{{ booking.event_date|date:'Y-m-d'|default:'' }}">
                     <small class="booking-field-error" id="event_date_error"></small>
+                    {% if booking_lead_time_days %}<small class="booking-date-hint">Please book at least {{ booking_lead_time_days }} day(s) ahead (earliest: {{ min_bookable_date }}).</small>{% endif %}
                 </div>
 
                 <div class="form-group full-width">
@@ -123,14 +128,38 @@
         const locationInput = document.getElementById('event_location');
         let submitAttempted = false;
 
-        // 1. Set MIN date to Today
+        // 1. Set MIN date to Today — pero hindi bababa sa lead-time floor
+        // (SiteSettings.booking_lead_time_days): today + leadDays kapag may policy.
         const now = new Date();
         // Use local time string format YYYY-MM-DD
         const offset = now.getTimezoneOffset();
         const localDate = new Date(now.getTime() - (offset * 60 * 1000));
         const todayStr = localDate.toISOString().split('T')[0];
 
-        dateInput.setAttribute('min', todayStr);
+        const leadDaysRaw = dateInput ? parseInt(dateInput.dataset.leadDays || '0', 10) : 0;
+        const leadDays = (isNaN(leadDaysRaw) || leadDaysRaw < 0) ? 0 : leadDaysRaw;
+        const minBookable = (dateInput && dateInput.dataset.minBookableDate) || '';
+        const floorStr = (leadDays && minBookable) ? minBookable : todayStr;
+
+        dateInput.setAttribute('min', floorStr);
+
+        function getLeadMessage() {
+            let label = minBookable;
+            try {
+                const [y, m, d] = minBookable.split('-').map(Number);
+                label = new Intl.DateTimeFormat('en-US', {
+                    month: 'long', day: 'numeric', year: 'numeric'
+                }).format(new Date(y, m - 1, d));
+            } catch (e) { /* keep ISO */ }
+            return 'Please book at least ' + leadDays + ' day(s) ahead. Earliest available: ' + label + '.';
+        }
+
+        function isLeadBlocked(value) {
+            if (!value || !leadDays || !minBookable) return false;
+            // Walang exception kapag rush ang petsa — kahit same date lang na
+            // retime, haharangin pa rin (tugma sa edit_booking backend).
+            return value < minBookable;
+        }
 
         function updateTimeConstraints() {
             const selectedDate = dateInput.value;
@@ -220,6 +249,15 @@
             if (!dateInput.value) {
                 setFieldError('event_date', 'Event Date is required*');
                 if (!firstInvalidField) firstInvalidField = 'event_date';
+            } else if (isLeadBlocked(dateInput.value)) {
+                // LEAD-TIME: mirror ng edit_booking/create_booking backend.
+                setFieldError('event_date', getLeadMessage());
+                if (!firstInvalidField) firstInvalidField = 'event_date';
+                try {
+                    if (typeof AppToast !== 'undefined') {
+                        AppToast.fire({ icon: 'error', title: getLeadMessage() });
+                    }
+                } catch (e) { /* inline error is enough */ }
             }
             if (!startTimeInput.value) {
                 setFieldError('start_time', 'Start Time is required*');

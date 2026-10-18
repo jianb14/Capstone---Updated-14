@@ -146,10 +146,10 @@ class BlockedDateConflictTemplateTests(TestCase):
         self.stripped_css = "".join(css.split())
 
     def test_conflict_modal_markup_present(self):
-        self.assertIn('id="blockConflictModal"', self.template)
-        self.assertIn('id="blockConflictText"', self.template)
-        self.assertIn('id="blockConflictConfirm"', self.template)
-        self.assertIn("Block Anyway", self.template)
+        # Conflict confirm ngayon ay SweetAlert2 (openBlockModal) — wala nang
+        # #blockConflictModal custom modal (inagalaw ng admin-calendar polish).
+        self.assertIn("function openBlockModal(", self.template)
+        self.assertIn("confirmButtonText: 'Block Anyway'", self.template)
         self.assertIn('id="blockDateConfirmConflicts"', self.template)
         self.assertIn('name="confirm_conflicts"', self.template)
         self.assertIn('id="blockedConflictHint"', self.template)
@@ -173,6 +173,8 @@ class BlockedDateConflictTemplateTests(TestCase):
         self.assertIn(".fc-event:not(.blocked-flag-event)", self.stripped_css)
 
     def test_conflict_modal_css_present(self):
-        self.assertIn(".cal-block-confirm", self.stripped_css)
+        # Ang dating .cal-block-confirm custom-modal styles ay SweetAlert2 na;
+        # narito pa rin ang live conflict styles (hint + day-popover warning).
         self.assertIn(".blocked-conflict-hint", self.stripped_css)
+        self.assertIn(".blocked-conflict-hint[hidden]", self.stripped_css)
         self.assertIn(".cal-pop-blocked-warning", self.stripped_css)

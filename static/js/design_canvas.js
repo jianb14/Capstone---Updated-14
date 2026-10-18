@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     const byId = (id) => document.getElementById(id);
 
     const dropZone = byId('canvasDropZone');
@@ -51,8 +51,8 @@
                 let hasVisibleItems = false;
 
                 items.forEach((item) => {
-                    const text = `${item.getAttribute('title') || ''} ${item.dataset.text || ''}`.toLowerCase();
-                    const matches = !query || text.includes(query);
+                    const label = `${item.getAttribute('data-tooltip') || item.getAttribute('title') || ''} ${item.dataset.text || ''}`.toLowerCase();
+                    const matches = !query || label.includes(query);
                     item.classList.toggle('is-hidden', !matches);
                     if (matches) hasVisibleItems = true;
                 });
@@ -92,8 +92,8 @@
 
     const cloneBtn = byId('cloneBtn');
     const lockBtn = byId('lockBtn');
-    const layerUpBtn = byId('layerUpBtn');
-    const layerDownBtn = byId('layerDownBtn');
+    const layerForwardBtn = byId('layerForwardBtn');
+    const layerBackwardBtn = byId('layerBackwardBtn');
     const toFrontBtn = byId('toFrontBtn');
     const toBackBtn = byId('toBackBtn');
     const flipXBtn = byId('flipXBtn');
@@ -118,6 +118,10 @@
     const textAlignCenterBtn = byId('textAlignCenterBtn');
     const textAlignRightBtn = byId('textAlignRightBtn');
 
+    const fontFamilyDropdown = byId('fontFamilyDropdown');
+    const fontFamilyDropdownText = byId('fontFamilyDropdownText');
+    const fontFamilyOptionsList = byId('fontFamilyOptions');
+
     const contextDuplicateBtn = byId('contextDuplicateBtn');
     const contextLockBtn = byId('contextLockBtn');
     const contextBringFrontBtn = byId('contextBringFrontBtn');
@@ -128,8 +132,11 @@
     const contextDeleteBtn = byId('contextDeleteBtn');
 
     const customCanvasColor = byId('customCanvasColor');
+    const customObjectColor = byId('customObjectColor');
     const bgImageUpload = byId('bgImageUpload');
     const removeBgImage = byId('removeBgImage');
+    const bgFitHint = byId('bgFitHint');
+    const bgFitButtons = Array.from(document.querySelectorAll('.bg-fit-btn[data-bg-fit]'));
 
     const elemWidthInput = byId('elemWidthInput');
     const elemHeightInput = byId('elemHeightInput');
@@ -164,8 +171,11 @@
     const MIN_ZOOM = 0.15;
     const MAX_ZOOM = 1.5;
     const MAX_UNDO = 40;
-    const ENABLE_VIEWPORT_PAN = false;
+    const ENABLE_VIEWPORT_PAN = true;
     const DRAFT_STORAGE_PREFIX = 'designCanvasDraft:v1';
+    const UPLOAD_CACHE_KEY = 'design_uploads_cache_';
+    const MAX_SAVED_UPLOADS = 24;
+    const UPLOAD_THUMB_MAX_EDGE = 320;
     const DRAFT_SAVE_DEBOUNCE_MS = 260;
     const urlParams = new URLSearchParams(window.location.search || '');
     const draftPackageId = urlParams.get('package_id') || window.basePackageId || 'none';
@@ -178,7 +188,11 @@
         height: dropZone.clientHeight,
         selection: true,
         preserveObjectStacking: true,
-        backgroundColor: 'transparent'
+        backgroundColor: 'transparent',
+        /* Neutral marquee selection (theme is monochrome, no accent color). */
+        selectionColor: 'rgba(255, 255, 255, 0.08)',
+        selectionBorderColor: '#ffffff',
+        selectionLineWidth: 1
     });
 
     const undoStack = [];
@@ -196,7 +210,8 @@
     const objectControlStyle = {
         cornerColor: '#ffffff',
         cornerStrokeColor: '#111111',
-        borderColor: '#f4f4f4',
+        borderColor: '#ffffff',
+        hoverBorderColor: '#ffffff',
         cornerStyle: 'circle',
         cornerSize: 10,
         transparentCorners: false,
@@ -733,7 +748,19 @@
                 requestAnimationFrame(() => {
                     canvas.setWidth(dropZone.clientWidth);
                     canvas.setHeight(dropZone.clientHeight);
-                    zoomCenter(canvas.getZoom());
+                    // Center the artboard WITHOUT resetting the user's zoom.
+                    // zoomCenter(sameZoom) is a no-op (scale ratio 1, viewport
+                    // transform unchanged), which left the canvas off-center
+                    // after the sidebar toggle — in BOTH open and close
+                    // directions. centerArtboardAtCurrentZoom() only shifts the
+                    // artboard + viewport transform so it stays centered
+                    // regardless of container width, while keeping the user's
+                    // zoom level intact.
+                    centerArtboardAtCurrentZoom();
+                    clampPan();
+                    canvas.renderAll();
+                    updateSelectionToolbarPosition();
+                    updateContextToolbar();
                 });
             });
         };
@@ -866,10 +893,10 @@
                     let listHasVisibleItems = false;
 
                     items.forEach((item) => {
-                        const title = item.getAttribute('title') || '';
+                        const labelAttr = item.getAttribute('data-tooltip') || item.getAttribute('title') || '';
                         const text = item.dataset.text || '';
                         const font = item.dataset.fontFamily || '';
-                        const haystack = `${title} ${text} ${font} ${categoryLabel}`.toLowerCase();
+                        const haystack = `${labelAttr} ${text} ${font} ${categoryLabel}`.toLowerCase();
                         const matches = !query || haystack.includes(query);
                         item.classList.toggle('is-hidden', !matches);
                         if (matches) listHasVisibleItems = true;
@@ -1007,6 +1034,9 @@
 
     function syncLockState(obj, shouldLock) {
         ensureHandleControls(obj);
+        if (shouldLock && typeof obj.isEditing !== 'undefined' && obj.isEditing) {
+            try { obj.exitEditing(); } catch (editError) { /* ignore */ }
+        }
         obj._isLocked = shouldLock;
         obj.set({
             lockMovementX: shouldLock,
@@ -1020,6 +1050,12 @@
             selectable: true,
             evented: true
         });
+        if (isTextObject(obj)) {
+            // Locked text must not be typeable: Fabric text editing
+            // (enterEditing via double-click) ignores movement locks,
+            // so toggle editability with the lock state.
+            obj.set({ editable: !shouldLock });
+        }
         if (typeof obj.setControlsVisibility === 'function') {
             obj.setControlsVisibility({
                 mtr: false,
@@ -1040,10 +1076,101 @@
                 '_isLocked',
                 '_packageCategory',
                 '_isBgImage',
+                '_bgFitMode',
                 '_currentColor',
-                '_outlineShapeIndexes'
+                '_outlineShapeIndexes',
+                '_layerId',
+                '_layerName'
             ])
         );
+    }
+
+    function makeUploadThumbnail(dataUrl) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const longest = Math.max(img.naturalWidth || 0, img.naturalHeight || 0);
+                    if (!longest || longest <= UPLOAD_THUMB_MAX_EDGE) {
+                        resolve(dataUrl);
+                        return;
+                    }
+                    const scale = UPLOAD_THUMB_MAX_EDGE / longest;
+                    const thumbCanvas = document.createElement('canvas');
+                    thumbCanvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+                    thumbCanvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+                    const ctx = thumbCanvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(dataUrl);
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
+                    resolve(thumbCanvas.toDataURL('image/jpeg', 0.85));
+                } catch (thumbError) {
+                    console.warn('Failed to downscale upload thumbnail:', thumbError);
+                    resolve(dataUrl);
+                }
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        });
+    }
+
+    function getSavedUploads() {
+        try {
+            const raw = localStorage.getItem(UPLOAD_CACHE_KEY + (window.currentDesignId || 'new'));
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((item) => item && typeof item.dataUrl === 'string');
+        } catch (error) {
+            console.warn('Failed to read saved uploads:', error);
+            return [];
+        }
+    }
+
+    function persistUploadsNow() {
+        if (!userUploadsGrid) return;
+        try {
+            const items = Array.from(userUploadsGrid.querySelectorAll('.draggable-item[data-src]'))
+                .slice(0, MAX_SAVED_UPLOADS)
+                .map((node) => ({ name: node.title || 'upload', dataUrl: node.dataset.src }));
+            localStorage.setItem(UPLOAD_CACHE_KEY + (window.currentDesignId || 'new'), JSON.stringify(items));
+        } catch (error) {
+            // Quota may be exceeded when many/large images are saved; keep editor usable.
+            console.warn('Failed to persist uploads:', error);
+        }
+    }
+
+    function addUploadNode(name, dataUrl, placeFirst) {
+        if (!userUploadsGrid || !dataUrl) return;
+        const node = document.createElement('div');
+        node.className = 'draggable-item';
+        node.draggable = true;
+        node.dataset.type = 'image';
+        node.dataset.src = dataUrl;
+        node.dataset.width = '180';
+        node.dataset.height = '180';
+        node.title = name || 'upload';
+        node.innerHTML = `<div class="item-preview-img-wrapper"><img class="item-preview-img" src="${dataUrl}" alt="${node.title}"></div>`;
+        bindDraggableItem(node);
+        if (placeFirst && userUploadsGrid.firstChild) {
+            userUploadsGrid.insertBefore(node, userUploadsGrid.firstChild);
+        } else {
+            userUploadsGrid.appendChild(node);
+        }
+    }
+
+    function restoreSavedUploads() {
+        if (!userUploadsGrid) return;
+        getSavedUploads().forEach((item) => addUploadNode(item.name, item.dataUrl, false));
+    }
+
+    function loadUploadCacheForDesign() {
+        if (!userUploadsGrid) return;
+        const cache = getSavedUploads();
+        if (cache.length === 0) return;
+        cache.forEach((item) => addUploadNode(item.name, item.dataUrl, false));
     }
 
     function getDraftCanvasJson() {
@@ -1120,19 +1247,68 @@
         };
     }
 
+    // Background image fit modes (Fabric equivalent ng CSS object-fit):
+    //  - "cover" (Fill): Math.max scale para siguradong sakop ang buong
+    //    artboard, centered, tapos clip ang overflow sa artboard rect —
+    //    hindi "lumalaki" ang canvas sa uploaded image (may crop sa
+    //    mismatched edges, kaya may Fill/Fit toggle sa sidebar).
+    //  - "contain" (Fit): Math.min scale, centered, walang clip —
+    //    kitang-kita ang buong image (may bakante sa gilid na ipapakita
+    //    bilang canvas color).
+    // Hindi kailanman ini-stretch: uniform scale lang, walang distortion.
+    let bgFitMode = 'cover';
+
+    function normalizeBgFitMode(mode) {
+        return mode === 'contain' ? 'contain' : 'cover';
+    }
+
+    function updateBgFitToggleUI() {
+        const activeMode = normalizeBgFitMode(bgFitMode);
+        bgFitButtons.forEach((btn) => {
+            const isActive = normalizeBgFitMode(btn.dataset.bgFit) === activeMode;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        if (bgFitHint) {
+            bgFitHint.textContent = activeMode === 'contain'
+                ? 'Fit shows the whole image; uncovered sides show the canvas color.'
+                : 'Fill covers the whole canvas; mismatched edges are cropped (centered).';
+        }
+    }
+
+    function fitBackgroundImageToArtboard(img) {
+        if (!img || typeof fabric.Rect !== 'function') return;
+        const mode = normalizeBgFitMode(img._bgFitMode || bgFitMode);
+        img._bgFitMode = mode;
+        const scale = mode === 'contain'
+            ? Math.min(ARTBOARD_W / img.width, ARTBOARD_H / img.height)
+            : Math.max(ARTBOARD_W / img.width, ARTBOARD_H / img.height);
+        const scaledW = img.width * scale;
+        const scaledH = img.height * scale;
+        img.set({
+            left: artboard.left + (ARTBOARD_W - scaledW) / 2,
+            top: artboard.top + (ARTBOARD_H - scaledH) / 2,
+            originX: 'left',
+            originY: 'top',
+            scaleX: scale,
+            scaleY: scale,
+            clipPath: mode === 'cover'
+                ? new fabric.Rect({
+                    left: artboard.left,
+                    top: artboard.top,
+                    width: ARTBOARD_W,
+                    height: ARTBOARD_H,
+                    absolutePositioned: true
+                })
+                : null
+        });
+        img.setCoords();
+    }
+
     function syncBackgroundToArtboard() {
         canvas.getObjects().forEach((obj) => {
             if (!obj._isBgImage) return;
-            const scale = Math.max(ARTBOARD_W / obj.width, ARTBOARD_H / obj.height);
-            obj.set({
-                left: artboard.left,
-                top: artboard.top,
-                originX: 'left',
-                originY: 'top',
-                scaleX: scale,
-                scaleY: scale
-            });
-            obj.setCoords();
+            fitBackgroundImageToArtboard(obj);
         });
     }
 
@@ -1229,6 +1405,11 @@
             artboard.setCoords();
             syncBackgroundToArtboard();
 
+            // Ibalik ang Fill/Fit mode mula sa restored background.
+            const loadedBg = canvas.getObjects().find((obj) => obj._isBgImage);
+            bgFitMode = normalizeBgFitMode(loadedBg && loadedBg._bgFitMode ? loadedBg._bgFitMode : 'cover');
+            updateBgFitToggleUI();
+
             fitArtboardToView();
             updateCanvasSizeDisplay();
             updateHintVisibility();
@@ -1236,6 +1417,22 @@
             updateUndoRedoBtnState();
             updateVisualCart();
             updateDrawLabels();
+            scheduleLayersRefresh();
+
+            // Re-measure restored text objects once their web fonts finish
+            // loading so the selection box hugs the text again after reload.
+            const loadedTextObjects = canvas.getObjects().filter((obj) => isTextObject(obj));
+            if (loadedTextObjects.length) {
+                const distinctFonts = Array.from(
+                    new Set(loadedTextObjects.map((obj) => obj.fontFamily).filter(Boolean))
+                );
+                Promise.all(distinctFonts.map((font) => ensureFontLoaded(font))).then(() => {
+                    remeasureTextObjects(loadedTextObjects);
+                    canvas.requestRenderAll();
+                    updateElementSizeInputs();
+                    updateContextToolbar();
+                });
+            }
 
             isLoadingState = false;
         });
@@ -1390,19 +1587,11 @@
 
     function updateSelectionToolbarPosition() {
         if (!selectionToolbar || !selectionToolbar.classList.contains('is-visible')) return;
-        const zoom = canvas.getZoom();
-        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-        const artboardLeft = artboard.left * zoom + vpt[4];
-        const artboardTop = artboard.top * zoom + vpt[5];
-        const artboardWidth = ARTBOARD_W * zoom;
-
-        const centerX = artboardLeft + artboardWidth / 2;
-        const topY = artboardTop;
-        const clampedX = Math.max(12, Math.min(dropZone.clientWidth - 12, centerX));
-        const clampedY = Math.max(0, Math.min(dropZone.clientHeight, topY));
-
-        selectionToolbar.style.left = `${clampedX}px`;
-        selectionToolbar.style.top = `${clampedY}px`;
+        // Pinned Canva-style top bar: CSS owns the position (top/left/transform).
+        // Clear any legacy inline offsets so canvas pan/zoom never drags it.
+        selectionToolbar.style.removeProperty('left');
+        selectionToolbar.style.removeProperty('top');
+        selectionToolbar.style.removeProperty('transform');
     }
 
     function updateContextToolbar() {
@@ -1504,9 +1693,346 @@
         return obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox';
     }
 
+    /* --- Layers panel (sidebar tab): stacking-order list. Top row =
+     * front. Artboard excluded; background shows as locked bottom row.
+     * Locked rows are not draggable and show a lock icon at right. */
+    const layersList = byId('layersList');
+    const layersEmpty = byId('layersEmpty');
+    const layersCountBadge = byId('layersCountBadge');
+    const layersFilterHint = byId('layersFilterHint');
+    const layersFilterBtns = Array.from(document.querySelectorAll('.layers-filter-btn[data-layers-filter]'));
+    let layersFilter = 'all';
+    let layersRefreshTimer = null;
+    let layerDragId = null;
+
+    function makeLayerId() {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            try { return crypto.randomUUID(); } catch (idError) { /* fall through */ }
+        }
+        return `layer-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    }
+
+    function ensureLayerIdentity(obj) {
+        if (!obj || obj._isArtboard) return;
+        if (!obj._layerId) obj._layerId = makeLayerId();
+        if (!obj._layerName) obj._layerName = defaultLayerName(obj);
+    }
+
     function setTextButtonState(btn, active) {
         if (!btn) return;
         btn.classList.toggle('is-active', !!active);
+    }
+
+    function defaultLayerName(obj) {
+        if (!obj) return 'Object';
+        if (obj._isBgImage) return 'Background';
+        if (isTextObject(obj)) {
+            const raw = (obj.text || '').trim().replace(/\s+/g, ' ');
+            return raw ? `Text — ${raw.slice(0, 24)}${raw.length > 24 ? '…' : ''}` : 'Text';
+        }
+        if (obj.type === 'image') return 'Image';
+        if (obj.type === 'rect') return 'Rectangle';
+        if (obj.type === 'circle') return 'Circle';
+        if (obj.type === 'path' || obj.type === 'group') return 'Shape';
+        return obj.type ? obj.type.charAt(0).toUpperCase() + obj.type.slice(1) : 'Object';
+    }
+
+    function layerIconHtml(obj) {
+        if (isTextObject(obj)) return '<i class="fas fa-font"></i>';
+        if (obj.type === 'image') return '<i class="fas fa-image"></i>';
+        const fill = resolveObjectColorHex(obj);
+        if (fill) return `<span class="layer-swatch" style="background:${fill}"></span>`;
+        return '<i class="fas fa-shapes"></i>';
+    }
+
+    function getLayerObjects() {
+        return canvas.getObjects().filter((obj) => !obj._isArtboard);
+    }
+
+    function getVisibleLayerRows() {
+        const rows = getLayerObjects().slice().reverse();
+        if (layersFilter !== 'overlapping') return rows;
+        const selected = getSelectableActiveObjects();
+        if (!selected.length) return rows;
+        return rows.filter((obj) => selected.some(
+            (sel) => sel !== obj && typeof sel.intersectsWithObject === 'function'
+                && (sel.intersectsWithObject(obj) || (typeof obj.intersectsWithObject === 'function' && obj.intersectsWithObject(sel)))
+        ));
+    }
+
+    function scheduleLayersRefresh() {
+        if (!layersList) return;
+        if (layersRefreshTimer) clearTimeout(layersRefreshTimer);
+        layersRefreshTimer = setTimeout(refreshLayersPanel, 60);
+    }
+
+    function startLayerRename(row, obj) {
+        const nameBtn = row.querySelector('.layer-name');
+        if (!nameBtn || obj._isBgImage) return;
+        row.draggable = false;
+        const input = document.createElement('input');
+        input.className = 'layer-name';
+        input.value = obj._layerName || defaultLayerName(obj);
+        input.maxLength = 60;
+        input.setAttribute('aria-label', 'Rename layer');
+        nameBtn.replaceWith(input);
+        input.focus();
+        input.select();
+        let done = false;
+        const commit = (save) => {
+            if (done) return;
+            done = true;
+            if (save) {
+                saveState();
+                obj._layerName = input.value.trim() || defaultLayerName(obj);
+            }
+            refreshLayersPanel();
+        };
+        input.addEventListener('keydown', (event) => {
+            event.stopPropagation();
+            if (event.key === 'Enter') commit(true);
+            else if (event.key === 'Escape') commit(false);
+        });
+        input.addEventListener('blur', () => commit(true));
+        input.addEventListener('click', (event) => event.stopPropagation());
+        input.addEventListener('dblclick', (event) => event.stopPropagation());
+    }
+
+    /* Moves `obj` in front of (before=true) or behind (before=false) the
+     * `targetRowObj` row. Index math is done directly in canvas space so it
+     * also works while the Overlapping filter hides rows. Without a background
+     * image the back-most slot is index 1 (0 = artboard) — the old code always
+     * clamped to 2, which is why objects could never reach the very bottom. */
+    function moveLayerObjectToRow(obj, targetRowObj, before) {
+        if (!obj || !targetRowObj || obj === targetRowObj) return;
+        const objects = canvas.getObjects();
+        const fromIdx = objects.indexOf(obj);
+        const targetIdx = objects.indexOf(targetRowObj);
+        if (fromIdx < 0 || targetIdx < 0) return;
+        const hasBg = objects.some((o) => o._isBgImage);
+        const minIndex = hasBg ? 2 : 1;
+        let newIndex = before ? targetIdx + 1 : targetIdx;
+        if (fromIdx < newIndex) newIndex -= 1;
+        newIndex = Math.max(minIndex, Math.min(objects.length - 1, newIndex));
+        if (newIndex === fromIdx) return;
+        saveState();
+        canvas.moveTo(obj, newIndex);
+        canvas.setActiveObject(obj);
+        canvas.renderAll();
+        updateVisualCart();
+        updateContextToolbar();
+        refreshLayersPanel();
+    }
+
+    function clearLayerDropMarkers() {
+        if (!layersList) return;
+        layersList.querySelectorAll('.drop-before,.drop-after').forEach((n) => n.classList.remove('drop-before', 'drop-after'));
+    }
+
+    /* Purely visual affordance — the whole row is the drag source. */
+    function makeLayerRowHandle(isLocked, isBg) {
+        const handle = document.createElement('span');
+        handle.className = 'layer-drag-handle';
+        handle.textContent = '⋮⋮';
+        handle.setAttribute('data-tooltip', (isLocked || isBg) ? 'Locked — cannot reorder' : 'Drag to reorder');
+        handle.setAttribute('aria-label', handle.getAttribute('data-tooltip'));
+        return handle;
+    }
+
+    function makeLayerRowActions(obj, li, isBg, isLocked) {
+        const actions = document.createElement('span');
+        actions.className = 'layer-actions';
+        const eyeBtn = document.createElement('button');
+        eyeBtn.type = 'button';
+        eyeBtn.className = `layer-action-btn${obj.visible === false ? '' : ' is-on'}`;
+        eyeBtn.innerHTML = `<i class="fas fa-eye${obj.visible === false ? '-slash' : ''}"></i>`;
+        eyeBtn.setAttribute('data-tooltip', obj.visible === false ? 'Show' : 'Hide');
+        eyeBtn.setAttribute('aria-label', eyeBtn.getAttribute('data-tooltip'));
+        eyeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            saveState();
+            obj.visible = obj.visible === false;
+            canvas.renderAll();
+            refreshLayersPanel();
+        });
+        const lockRowBtn = document.createElement('button');
+        lockRowBtn.type = 'button';
+        lockRowBtn.className = 'layer-action-btn';
+        lockRowBtn.innerHTML = `<i class="fas fa-lock${isLocked ? '' : '-open'}"></i>`;
+        lockRowBtn.setAttribute('data-tooltip', isLocked ? 'Unlock' : 'Lock');
+        lockRowBtn.setAttribute('aria-label', lockRowBtn.getAttribute('data-tooltip'));
+        lockRowBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            saveState();
+            syncLockState(obj, !obj._isLocked);
+            canvas.renderAll();
+            updateControlsState();
+            refreshLayersPanel();
+        });
+        actions.appendChild(eyeBtn);
+        actions.appendChild(lockRowBtn);
+        if (isBg) return actions;
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'layer-action-btn';
+        delBtn.innerHTML = '<i class="fas fa-trash-can"></i>';
+        delBtn.setAttribute('data-tooltip', 'Delete');
+        delBtn.setAttribute('aria-label', 'Delete layer');
+        delBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            saveState();
+            canvas.discardActiveObject();
+            canvas.remove(obj);
+            canvas.renderAll();
+            updateHintVisibility();
+            updateVisualCart();
+            updateControlsState();
+            refreshLayersPanel();
+        });
+        actions.appendChild(delBtn);
+        /* Guard: pressing an action button must not start a row drag. */
+        actions.addEventListener('mousedown', (event) => {
+            if (event.target.closest('.layer-action-btn')) li.draggable = false;
+        });
+        actions.addEventListener('mouseup', () => { li.draggable = !isLocked && !isBg; });
+        actions.addEventListener('mouseleave', () => { li.draggable = !isLocked && !isBg; });
+        return actions;
+    }
+
+    function buildLayerRow(obj, rows) {
+        ensureLayerIdentity(obj);
+        const isLocked = !!obj._isLocked;
+        const isBg = !!obj._isBgImage;
+        const li = document.createElement('li');
+        li.className = `layer-row${isLocked ? ' is-locked' : ''}${isBg ? ' is-bg' : ''}`;
+        li.dataset.layerId = obj._layerId;
+        const activeIds = new Set(getSelectableActiveObjects().map((o) => o._layerId));
+        if (activeIds.has(obj._layerId)) li.classList.add('is-active');
+        const icon = document.createElement('span');
+        icon.className = 'layer-icon';
+        icon.innerHTML = layerIconHtml(obj);
+        const nameBtn = document.createElement('button');
+        nameBtn.type = 'button';
+        nameBtn.className = 'layer-name';
+        nameBtn.textContent = obj._layerName || defaultLayerName(obj);
+        nameBtn.setAttribute('data-tooltip', 'Click to select · double-click to rename');
+        li.appendChild(makeLayerRowHandle(isLocked, isBg));
+        li.appendChild(icon);
+        li.appendChild(nameBtn);
+        li.appendChild(makeLayerRowActions(obj, li, isBg, isLocked));
+        /* Whole row is the drag source — no need to grab the 6-dot handle.
+         * Locked rows and the pinned background stay undraggable. */
+        li.draggable = !isLocked && !isBg;
+        li.addEventListener('dragstart', (event) => {
+            if (!li.draggable) { event.preventDefault(); return; }
+            layerDragId = obj._layerId;
+            event.dataTransfer.effectAllowed = 'move';
+            try { event.dataTransfer.setData('text/plain', obj._layerId); } catch (dragError) { /* ignore */ }
+        });
+        li.addEventListener('dragend', () => {
+            layerDragId = null;
+            clearLayerDropMarkers();
+        });
+        li.addEventListener('click', () => {
+            if (isBg) return;
+            canvas.setActiveObject(obj);
+            canvas.renderAll();
+            updateControlsState();
+            refreshLayersPanel();
+        });
+        li.addEventListener('dblclick', (event) => {
+            event.stopPropagation();
+            startLayerRename(li, obj);
+        });
+        li.addEventListener('dragover', (event) => {
+            if (!layerDragId || layerDragId === obj._layerId) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const rect = li.getBoundingClientRect();
+            const before = (event.clientY - rect.top) < rect.height / 2;
+            li.classList.toggle('drop-before', before);
+            li.classList.toggle('drop-after', !before);
+        });
+        li.addEventListener('dragleave', (event) => {
+            if (li.contains(event.relatedTarget)) return;
+            li.classList.remove('drop-before', 'drop-after');
+        });
+        li.addEventListener('drop', (event) => {
+            if (!layerDragId) return;
+            event.preventDefault();
+            const dragged = getLayerObjects().find((o) => o._layerId === layerDragId);
+            layerDragId = null;
+            li.classList.remove('drop-before', 'drop-after');
+            if (!dragged || dragged._isLocked || dragged._isBgImage) {
+                if (dragged && dragged._isLocked) showCanvasToast('info', 'Unlock the layer to reorder it.');
+                return;
+            }
+            const rect = li.getBoundingClientRect();
+            const before = (event.clientY - rect.top) < rect.height / 2;
+            moveLayerObjectToRow(dragged, obj, before);
+        });
+        return li;
+    }
+
+    function refreshLayersPanel() {
+        if (!layersList) return;
+        layersRefreshTimer = null;
+        const rows = getVisibleLayerRows();
+        const total = getLayerObjects().length;
+        layersList.innerHTML = '';
+        rows.forEach((obj) => layersList.appendChild(buildLayerRow(obj, rows)));
+        if (layersEmpty) layersEmpty.style.display = rows.length ? 'none' : 'block';
+        if (layersCountBadge) layersCountBadge.textContent = `${total}`;
+        if (layersFilterHint) layersFilterHint.hidden = layersFilter !== 'overlapping' || !!getSelectableActiveObjects().length;
+    }
+
+    if (layersFilterBtns.length) {
+        layersFilterBtns.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                layersFilter = btn.dataset.layersFilter || 'all';
+                layersFilterBtns.forEach((b) => b.classList.toggle('active', b === btn));
+                refreshLayersPanel();
+            });
+        });
+    }
+
+    /* List-level drop zone: lets you drop below the last row (empty
+     * space) to send an object all the way to the back. Rows handle
+     * their own precise before/after placement. */
+    if (layersList) {
+        layersList.addEventListener('dragover', (event) => {
+            if (!layerDragId) return;
+            if (event.target.closest('.layer-row')) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            clearLayerDropMarkers();
+        });
+        layersList.addEventListener('drop', (event) => {
+            if (!layerDragId) return;
+            if (event.target.closest('.layer-row')) return;
+            event.preventDefault();
+            const dragged = getLayerObjects().find((o) => o._layerId === layerDragId);
+            layerDragId = null;
+            clearLayerDropMarkers();
+            if (!dragged || dragged._isLocked || dragged._isBgImage) {
+                if (dragged && dragged._isLocked) showCanvasToast('info', 'Unlock the layer to reorder it.');
+                return;
+            }
+            const objects = canvas.getObjects();
+            const minIndex = objects.some((o) => o._isBgImage) ? 2 : 1;
+            const fromIdx = objects.indexOf(dragged);
+            if (fromIdx === minIndex) return;
+            saveState();
+            canvas.moveTo(dragged, minIndex);
+            canvas.setActiveObject(dragged);
+            canvas.renderAll();
+            updateVisualCart();
+            updateContextToolbar();
+            refreshLayersPanel();
+        });
+        layersList.addEventListener('dragleave', (event) => {
+            if (event.target === layersList) clearLayerDropMarkers();
+        });
     }
 
     function updateTextControlsUI() {
@@ -1519,6 +2045,7 @@
         });
         if (fontFamilySelect) fontFamilySelect.disabled = !hasTextSelection;
         if (fontSizeInput) fontSizeInput.disabled = !hasTextSelection;
+        syncFontFamilyDropdown();
 
         if (!hasTextSelection) {
             setTextButtonState(textBoldBtn, false);
@@ -1531,8 +2058,21 @@
         }
 
         const first = textObjects[0];
-        if (fontFamilySelect) fontFamilySelect.value = first.fontFamily || '';
+        if (fontFamilySelect) {
+            fontFamilySelect.value = first.fontFamily || '';
+            // Saved designs can carry a font that is no longer in the list —
+            // add it back on the fly so the dropdown label stays accurate.
+            if (first.fontFamily && !fontFamilySelect.value) {
+                const missingOption = document.createElement('option');
+                missingOption.value = first.fontFamily;
+                missingOption.textContent = first.fontFamily;
+                fontFamilySelect.appendChild(missingOption);
+                fontFamilySelect.value = first.fontFamily;
+                addFontOptionItem(first.fontFamily, first.fontFamily);
+            }
+        }
         if (fontSizeInput) fontSizeInput.value = Math.round(first.fontSize || 40);
+        syncFontFamilyDropdown(first.fontFamily || '');
 
         setTextButtonState(textBoldBtn, first.fontWeight === 'bold' || Number(first.fontWeight) >= 600);
         setTextButtonState(textItalicBtn, first.fontStyle === 'italic');
@@ -1597,15 +2137,27 @@
 
     // Keeps the sidebar Custom input and the preset swatch highlight in sync
     // with the color that is actually applied (selected object, or the artboard
-    // when nothing is selected). A custom color that matches no preset clears
-    // every swatch highlight.
-    function syncSidebarColorUI(hex) {
+    // when nothing is selected). `target` scopes the update: 'canvas' touches
+    // only the canvas color input + canvas-targeted swatches, 'object' touches
+    // only the object color input + object-targeted swatches. When `target` is
+    // omitted both sides are updated (backward-compatible fallback).
+    function syncSidebarColorUI(hex, target) {
         const normalized = hex ? toHexColor(hex, '').toLowerCase() : '';
         if (!normalized) return;
-        if (customCanvasColor) customCanvasColor.value = normalized;
+        const wantCanvas = !target || target === 'canvas';
+        const wantObject = !target || target === 'object';
+        if (wantCanvas && customCanvasColor) customCanvasColor.value = normalized;
+        if (wantObject && customObjectColor) customObjectColor.value = normalized;
         document.querySelectorAll('.color-swatch').forEach((node) => {
+            const swatchTarget = node.dataset.target;
             const swatchColor = toHexColor(node.dataset.color, '').toLowerCase();
-            node.classList.toggle('active', swatchColor === normalized);
+            const matches = swatchColor === normalized;
+            const inScope = !target || swatchTarget === target;
+            if (inScope) {
+                node.classList.toggle('active', matches);
+            } else {
+                node.classList.remove('active');
+            }
         });
     }
 
@@ -1629,6 +2181,8 @@
             });
             if (hasSelection && !canvas.isDrawingMode) {
                 requestAnimationFrame(updateSelectionToolbarPosition);
+            } else {
+                closeFontFamilyDropdown();
             }
         }
         if (!hasSelection) hideContextToolbar();
@@ -1636,8 +2190,8 @@
 
         if (cloneBtn) cloneBtn.disabled = !hasSelection || allLocked;
         if (lockBtn) lockBtn.disabled = !hasSelection;
-        if (layerUpBtn) layerUpBtn.disabled = !hasSelection || !hasUnlockedSelection;
-        if (layerDownBtn) layerDownBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (layerForwardBtn) layerForwardBtn.disabled = !hasSelection || !hasUnlockedSelection;
+        if (layerBackwardBtn) layerBackwardBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (toFrontBtn) toFrontBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (toBackBtn) toBackBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (flipXBtn) flipXBtn.disabled = !hasSelection || !hasUnlockedSelection;
@@ -1677,7 +2231,7 @@
         } else if (!hasSelection && artboard) {
             activeColorHex = toHexColor(artboard.fill, '#ffffff');
         }
-        syncSidebarColorUI(activeColorHex);
+        syncSidebarColorUI(activeColorHex, singleObj ? 'object' : 'canvas');
         if (itemColorPicker && activeColorHex) {
             itemColorPicker.value = activeColorHex;
         }
@@ -2016,6 +2570,20 @@
         return true;
     }
 
+    function openUpgradeModal() {
+        const upgradeModal = byId('upgradeModal');
+        if (!upgradeModal) return;
+        upgradeModal.classList.add('show');
+        upgradeModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeUpgradeModal() {
+        const upgradeModal = byId('upgradeModal');
+        if (!upgradeModal) return;
+        upgradeModal.classList.remove('show');
+        upgradeModal.setAttribute('aria-hidden', 'true');
+    }
+
     function handlePackageUpgrade(quotaKey, currentLimit) {
         const upgradeModal = byId('upgradeModal');
         const upgradeMessage = byId('upgradeModalMessage');
@@ -2043,19 +2611,19 @@
 
         if (nextPackage) {
             upgradeMessage.innerHTML = `You've used all <strong>${currentLimit} ${quotaKey}(s)</strong> included in your current package. <br><br>Upgrade to <strong>${nextPackage.name}</strong> (P${nextPackage.price}) to use up to <strong>${window.allPackageQuotas[nextPackage.id][quotaKey]} ${quotaKey}(s)</strong>?`;
-            
-            upgradeModal.style.display = 'flex';
+
+            openUpgradeModal();
 
             const onConfirm = () => {
                 applyPackage(nextPackage.id);
-                upgradeModal.style.display = 'none';
+                closeUpgradeModal();
                 showToast(`Upgraded to ${nextPackage.name}!`, 'success');
                 confirmBtn.removeEventListener('click', onConfirm);
                 cancelBtn.removeEventListener('click', onCancel);
             };
 
             const onCancel = () => {
-                upgradeModal.style.display = 'none';
+                closeUpgradeModal();
                 confirmBtn.removeEventListener('click', onConfirm);
                 cancelBtn.removeEventListener('click', onCancel);
             };
@@ -2093,18 +2661,18 @@
         if (nextPackage) {
             upgradeMessage.innerHTML = `You've used all <strong>${currentLimit} colors</strong> for balloons included in your current package. <br><br>Upgrade to <strong>${nextPackage.name}</strong> (P${nextPackage.price}) to use up to <strong>${window.allPackageQuotas[nextPackage.id].balloon_color_limit} colors</strong>?`;
             
-            upgradeModal.style.display = 'flex';
+            openUpgradeModal();
 
             const onConfirm = () => {
                 applyPackage(nextPackage.id);
-                upgradeModal.style.display = 'none';
+                closeUpgradeModal();
                 showToast(`Upgraded to ${nextPackage.name}!`, 'success');
                 confirmBtn.removeEventListener('click', onConfirm);
                 cancelBtn.removeEventListener('click', onCancel);
             };
 
             const onCancel = () => {
-                upgradeModal.style.display = 'none';
+                closeUpgradeModal();
                 confirmBtn.removeEventListener('click', onConfirm);
                 cancelBtn.removeEventListener('click', onCancel);
             };
@@ -2209,8 +2777,8 @@
 
         if (!item.hasAttribute('tabindex')) item.setAttribute('tabindex', '0');
         if (!item.hasAttribute('role')) item.setAttribute('role', 'button');
-        if (!item.hasAttribute('aria-label') && item.getAttribute('title')) {
-            item.setAttribute('aria-label', `Add ${item.getAttribute('title')} to canvas`);
+        if (!item.hasAttribute('aria-label') && (item.getAttribute('data-tooltip') || item.getAttribute('title'))) {
+            item.setAttribute('aria-label', `Add ${item.getAttribute('data-tooltip') || item.getAttribute('title')} to canvas`);
         }
 
         let lastDragStartedAt = 0;
@@ -2308,6 +2876,7 @@
         updateHintVisibility();
         updateVisualCart();
         updateControlsState();
+        scheduleLayersRefresh();
     }
 
     function duplicateSingleSelectedObject() {
@@ -2330,12 +2899,15 @@
                     top: activeObj.top + 22,
                     evented: true
                 });
+                cloned._layerId = makeLayerId();
+                cloned._layerName = `${activeObj._layerName || defaultLayerName(activeObj)} copy`;
                 canvas.add(cloned);
                 canvas.setActiveObject(cloned);
                 canvas.renderAll();
                 updateHintVisibility();
                 updateVisualCart();
                 updateControlsState();
+                scheduleLayersRefresh();
             },
             [
                 '_isColorableSVG',
@@ -2356,21 +2928,23 @@
         selected.forEach((obj) => syncLockState(obj, shouldLock));
         canvas.renderAll();
         updateControlsState();
+        scheduleLayersRefresh();
     }
 
-    if (layerUpBtn) {
-        layerUpBtn.addEventListener('click', () => {
+    if (layerForwardBtn) {
+        layerForwardBtn.addEventListener('click', () => {
             const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
             if (!selected.length) return;
             saveState();
             selected.forEach((obj) => obj.bringForward());
             canvas.renderAll();
             updateContextToolbar();
+            scheduleLayersRefresh();
         });
     }
 
-    if (layerDownBtn) {
-        layerDownBtn.addEventListener('click', () => {
+    if (layerBackwardBtn) {
+        layerBackwardBtn.addEventListener('click', () => {
             const selected = getSelectableActiveObjects().filter((obj) => !obj._isLocked);
             if (!selected.length) return;
             saveState();
@@ -2380,6 +2954,7 @@
             });
             canvas.renderAll();
             updateContextToolbar();
+            scheduleLayersRefresh();
         });
     }
 
@@ -2391,6 +2966,7 @@
             selected.forEach((obj) => canvas.bringToFront(obj));
             canvas.renderAll();
             updateContextToolbar();
+            scheduleLayersRefresh();
         });
     }
 
@@ -2405,6 +2981,7 @@
             });
             canvas.renderAll();
             updateContextToolbar();
+            scheduleLayersRefresh();
         });
     }
 
@@ -2566,19 +3143,22 @@
         });
     }
 
+    function doClearCanvas() {
+        saveState();
+        const objects = canvas.getObjects().filter((obj) => !obj._isArtboard);
+        objects.forEach((obj) => canvas.remove(obj));
+        canvas.discardActiveObject();
+        canvas.renderAll();
+        updateHintVisibility();
+        updateVisualCart();
+        updateControlsState();
+    }
+
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             const objects = canvas.getObjects().filter((obj) => !obj._isArtboard);
             if (!objects.length) return;
-            if (!confirm('Clear all objects from the canvas?')) return;
-
-            saveState();
-            objects.forEach((obj) => canvas.remove(obj));
-            canvas.discardActiveObject();
-            canvas.renderAll();
-            updateHintVisibility();
-            updateVisualCart();
-            updateControlsState();
+            openClearCanvasModal();
         });
     }
 
@@ -2602,14 +3182,50 @@
         itemColorPicker.addEventListener('change', () => saveState());
     }
 
+    function showCanvasToast(icon, title) {
+        try {
+            if (window.AppToast && typeof window.AppToast.fire === 'function') {
+                window.AppToast.fire({ icon: icon, title: title });
+                return;
+            }
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                window.Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    icon: icon,
+                    title: title
+                });
+                return;
+            }
+        } catch (toastError) {
+            /* ignore — fallback sa alert sa baba */
+        }
+        if (icon === 'error') alert(title);
+    }
+
     document.querySelectorAll('.color-swatch').forEach((swatch) => {
         swatch.addEventListener('click', () => {
             const color = swatch.dataset.color;
-            const selected = getSelectableActiveObjects();
-            if (selected.length) {
+            const target = swatch.dataset.target || 'auto';
+            if (target === 'canvas') {
+                artboard.set('fill', color);
+            } else if (target === 'object') {
+                const selected = getSelectableActiveObjects();
+                if (!selected.length) {
+                    showCanvasToast('info', 'Select an object first to change its color.');
+                    return;
+                }
                 selected.forEach((obj) => applyColorToObject(obj, color));
             } else {
-                artboard.set('fill', color);
+                const selected = getSelectableActiveObjects();
+                if (selected.length) {
+                    selected.forEach((obj) => applyColorToObject(obj, color));
+                } else {
+                    artboard.set('fill', color);
+                }
             }
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
@@ -2620,18 +3236,31 @@
 
     if (customCanvasColor) {
         customCanvasColor.addEventListener('input', (event) => {
-            const color = event.target.value;
-            const selected = getSelectableActiveObjects();
-            if (selected.length) {
-                selected.forEach((obj) => applyColorToObject(obj, color));
-            } else {
-                artboard.set('fill', color);
-            }
+            artboard.set('fill', event.target.value);
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
             updateControlsState();
         });
         customCanvasColor.addEventListener('change', () => saveState());
+    }
+
+    if (customObjectColor) {
+        customObjectColor.addEventListener('input', (event) => {
+            const selected = getSelectableActiveObjects();
+            if (!selected.length) return;
+            selected.forEach((obj) => applyColorToObject(obj, event.target.value));
+            canvas.renderAll();
+            if (canvas.isDrawingMode) applyDrawSettings();
+            updateControlsState();
+        });
+        customObjectColor.addEventListener('change', () => {
+            const selected = getSelectableActiveObjects();
+            if (!selected.length) {
+                showCanvasToast('info', 'Select an object first to change its color.');
+                return;
+            }
+            saveState();
+        });
     }
 
     if (bgImageUpload) {
@@ -2644,14 +3273,8 @@
                 fabric.Image.fromURL(loadEvent.target.result, (img) => {
                     if (!img) return;
 
-                    const scale = Math.max(ARTBOARD_W / img.width, ARTBOARD_H / img.height);
+                    fitBackgroundImageToArtboard(img);
                     img.set({
-                        left: artboard.left,
-                        top: artboard.top,
-                        originX: 'left',
-                        originY: 'top',
-                        scaleX: scale,
-                        scaleY: scale,
                         selectable: false,
                         evented: false,
                         _isBgImage: true
@@ -2681,6 +3304,27 @@
             });
             canvas.renderAll();
             updateHintVisibility();
+        });
+    }
+
+    if (bgFitButtons.length) {
+        bgFitButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const mode = normalizeBgFitMode(btn.dataset.bgFit);
+                if (mode === bgFitMode) return;
+                bgFitMode = mode;
+                updateBgFitToggleUI();
+
+                const bgObjects = canvas.getObjects().filter((obj) => obj._isBgImage);
+                if (!bgObjects.length) return; // Wala pang background — susunod na upload ang masusunod.
+
+                saveState();
+                bgObjects.forEach((obj) => {
+                    obj._bgFitMode = mode;
+                    fitBackgroundImageToArtboard(obj);
+                });
+                canvas.renderAll();
+            });
         });
     }
 
@@ -2720,21 +3364,204 @@
         });
     }
 
+    // ============================================================
+    // Text font helpers — the selection box must follow the text
+    // ============================================================
+    // Google Fonts load lazily while Fabric measures text synchronously.
+    // If a font is still loading, Fabric caches the fallback metrics and the
+    // selection box stops following the rendered text (it stays too small or
+    // too large). These helpers re-measure every text object right after a
+    // style change and again once the web font has actually loaded.
+    function isFontFamilyLoaded(fontFamily) {
+        if (!fontFamily || !document.fonts || !document.fonts.check) return true;
+        try {
+            return (
+                document.fonts.check(`bold 42px "${fontFamily}"`) ||
+                document.fonts.check(`42px "${fontFamily}"`)
+            );
+        } catch (error) {
+            return true;
+        }
+    }
+
+    function ensureFontLoaded(fontFamily) {
+        if (!fontFamily || !document.fonts || !document.fonts.load) return Promise.resolve();
+        const specs = [`bold 42px "${fontFamily}"`, `italic bold 42px "${fontFamily}"`, `42px "${fontFamily}"`];
+        return Promise.all(
+            specs.map((spec) =>
+                Promise.race([
+                    document.fonts.load(spec),
+                    new Promise((resolve) => setTimeout(resolve, 2500))
+                ]).catch(() => null)
+            )
+        );
+    }
+
+    function preloadCanvasFonts() {
+        if (!fontFamilySelect || !document.fonts || !document.fonts.load) return;
+        Array.from(fontFamilySelect.options)
+            .map((option) => option.value)
+            .filter(Boolean)
+            .forEach((fontFamily) => {
+                ensureFontLoaded(fontFamily);
+            });
+    }
+
+    function remeasureTextObjects(textObjects) {
+        textObjects.forEach((obj) => {
+            if (!obj || typeof obj.initDimensions !== 'function') return;
+            obj.initDimensions();
+            obj.setCoords();
+        });
+    }
+
+    // Recomputes the width/height of the given text objects and refreshes
+    // everything that displays those dimensions (selection handles, W/H
+    // fields and the floating context toolbar).
+    function refreshActiveTextDimensions(textObjects) {
+        const targets =
+            textObjects && textObjects.length
+                ? textObjects
+                : getActiveTextObjects().filter((obj) => !obj._isLocked);
+        if (!targets.length) return;
+        remeasureTextObjects(targets);
+        canvas.renderAll();
+        updateTextControlsUI();
+        updateElementSizeInputs();
+        updateContextToolbar();
+    }
+
     function applyToActiveTextObjects(mutator) {
         const textObjects = getActiveTextObjects().filter((obj) => !obj._isLocked);
         if (!textObjects.length) return;
         saveState();
         textObjects.forEach(mutator);
-        canvas.renderAll();
-        updateTextControlsUI();
+        refreshActiveTextDimensions(textObjects);
     }
 
     if (fontFamilySelect) {
         fontFamilySelect.addEventListener('change', () => {
             const font = fontFamilySelect.value;
             if (!font) return;
-            applyToActiveTextObjects((obj) => obj.set('fontFamily', font));
+            const textObjects = getActiveTextObjects().filter((obj) => !obj._isLocked);
+            if (!textObjects.length) return;
+            saveState();
+            textObjects.forEach((obj) => obj.set('fontFamily', font));
+            // Re-measure right away (covers fonts that are already loaded),
+            // then again once the web font finishes loading so the selection
+            // box always matches the rendered text.
+            refreshActiveTextDimensions(textObjects);
+            if (!isFontFamilyLoaded(font)) {
+                ensureFontLoaded(font).then(() => {
+                    const stillActive = textObjects.filter((obj) => obj.fontFamily === font);
+                    if (stillActive.length) refreshActiveTextDimensions(stillActive);
+                });
+            }
         });
+    }
+
+    // ============================================================
+    // Font family dropdown (custom dropdown — same pattern as the
+    // admin pages: trigger + caret + options list, with the hidden
+    // <select> kept as the single source of truth).
+    // ============================================================
+    function closeFontFamilyDropdown() {
+        if (!fontFamilyDropdown) return;
+        fontFamilyDropdown.classList.remove('open');
+        const trigger = fontFamilyDropdown.querySelector('.dropdown-trigger');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        if (selectionToolbar) selectionToolbar.classList.remove('font-dropdown-open');
+    }
+
+    function openFontFamilyDropdown() {
+        if (!fontFamilyDropdown) return;
+        document
+            .querySelectorAll('.selection-toolbar .custom-filter-dropdown.open')
+            .forEach((dropdown) => {
+                if (dropdown !== fontFamilyDropdown) dropdown.classList.remove('open');
+            });
+        const trigger = fontFamilyDropdown.querySelector('.dropdown-trigger');
+        if (trigger) {
+            trigger.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            trigger.setAttribute('aria-expanded', 'true');
+        }
+        fontFamilyDropdown.classList.add('open');
+        // Lift the overflow clip so the options panel is not cut off.
+        if (selectionToolbar) selectionToolbar.classList.add('font-dropdown-open');
+    }
+
+    function addFontOptionItem(value, label) {
+        if (!fontFamilyOptionsList) return;
+        const item = document.createElement('li');
+        item.dataset.value = value;
+        item.textContent = label || value || 'Font';
+        if (value) item.style.fontFamily = `"${value}", sans-serif`;
+        item.addEventListener('click', () => {
+            if (!fontFamilySelect || fontFamilySelect.disabled) return;
+            fontFamilySelect.value = value;
+            fontFamilySelect.dispatchEvent(new Event('change', { bubbles: true }));
+            closeFontFamilyDropdown();
+        });
+        fontFamilyOptionsList.appendChild(item);
+    }
+
+    function syncFontFamilyDropdown(displayName) {
+        if (!fontFamilyDropdown || !fontFamilySelect) return;
+        const selectedValue = fontFamilySelect.value;
+        const labelValue = displayName || selectedValue;
+        const label = labelValue || 'Font';
+        if (fontFamilyDropdownText) {
+            fontFamilyDropdownText.textContent = label;
+            fontFamilyDropdownText.style.fontFamily = labelValue
+                ? `"${labelValue}", "Manrope", sans-serif`
+                : '';
+        }
+        if (fontFamilyOptionsList) {
+            fontFamilyOptionsList.querySelectorAll('li[data-value]').forEach((item) => {
+                item.classList.toggle(
+                    'selected',
+                    !!selectedValue && item.dataset.value === selectedValue
+                );
+            });
+        }
+        const disabled = !!fontFamilySelect.disabled;
+        fontFamilyDropdown.classList.toggle('is-disabled', disabled);
+        const trigger = fontFamilyDropdown.querySelector('.dropdown-trigger');
+        if (trigger) trigger.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
+
+    function initFontFamilyDropdown() {
+        if (!fontFamilyDropdown || !fontFamilySelect) return;
+        const trigger = fontFamilyDropdown.querySelector('.dropdown-trigger');
+
+        if (fontFamilyOptionsList && !fontFamilyOptionsList.children.length) {
+            Array.from(fontFamilySelect.options).forEach((option) => {
+                addFontOptionItem(option.value, option.textContent);
+            });
+        }
+
+        if (trigger) {
+            trigger.addEventListener('click', () => {
+                if (fontFamilySelect.disabled) return;
+                if (fontFamilyDropdown.classList.contains('open')) closeFontFamilyDropdown();
+                else openFontFamilyDropdown();
+            });
+            trigger.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                trigger.click();
+            });
+        }
+
+        document.addEventListener('mousedown', (event) => {
+            if (!fontFamilyDropdown.classList.contains('open')) return;
+            if (!fontFamilyDropdown.contains(event.target)) closeFontFamilyDropdown();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeFontFamilyDropdown();
+        });
+
+        syncFontFamilyDropdown();
     }
 
     if (fontSizeInput) {
@@ -2841,23 +3668,14 @@
     }
 
     if (userUploadInput && userUploadsGrid) {
+        loadUploadCacheForDesign();
         userUploadInput.addEventListener('change', (event) => {
             Array.from(event.target.files).forEach((file) => {
                 if (!file.type.startsWith('image/')) return;
                 const reader = new FileReader();
                 reader.onload = (loadEvent) => {
-                    const dataUrl = loadEvent.target.result;
-                    const node = document.createElement('div');
-                    node.className = 'draggable-item';
-                    node.draggable = true;
-                    node.dataset.type = 'image';
-                    node.dataset.src = dataUrl;
-                    node.dataset.width = '180';
-                    node.dataset.height = '180';
-                    node.title = file.name;
-                    node.innerHTML = `<div class="item-preview-img-wrapper"><img class="item-preview-img" src="${dataUrl}" alt="${file.name}"></div>`;
-                    bindDraggableItem(node);
-                    userUploadsGrid.prepend(node);
+                    addUploadNode(file.name, loadEvent.target.result, true);
+                    persistUploadsNow();
                 };
                 reader.readAsDataURL(file);
             });
@@ -2866,82 +3684,205 @@
         });
     }
 
-    if (saveDesignBtn) {
-        saveDesignBtn.addEventListener('click', async () => {
-            const nonArtboard = canvas.getObjects().filter((obj) => !obj._isArtboard);
-            if (!nonArtboard.length) {
-                alert('The canvas is empty. Add some elements first.');
+    const clearCanvasModal = byId('clearCanvasModal');
+    const clearCanvasCancelBtn = byId('clearCanvasCancelBtn');
+    const clearCanvasConfirmBtn = byId('clearCanvasConfirmBtn');
+
+    function openClearCanvasModal() {
+        if (!clearCanvasModal) {
+            doClearCanvas();
+            return;
+        }
+        clearCanvasModal.classList.add('show');
+        clearCanvasModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeClearCanvasModal() {
+        if (!clearCanvasModal) return;
+        clearCanvasModal.classList.remove('show');
+        clearCanvasModal.setAttribute('aria-hidden', 'true');
+    }
+
+    if (clearCanvasCancelBtn) {
+        clearCanvasCancelBtn.addEventListener('click', () => closeClearCanvasModal());
+    }
+
+    if (clearCanvasConfirmBtn) {
+        clearCanvasConfirmBtn.addEventListener('click', () => {
+            closeClearCanvasModal();
+            doClearCanvas();
+        });
+    }
+
+    if (clearCanvasModal) {
+        clearCanvasModal.addEventListener('click', (event) => {
+            if (event.target === clearCanvasModal) closeClearCanvasModal();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && clearCanvasModal.classList.contains('show')) {
+                closeClearCanvasModal();
+            }
+        });
+    }
+
+    // Upgrade modal: shared .show pattern + backdrop/Escape dismiss (same as
+    // Clear Canvas modal). Confirm/Cancel listeners are wired per-open by
+    // handlePackageUpgrade()/handleColorUpgrade() via onConfirm/onCancel.
+    const upgradeModalEl = byId('upgradeModal');
+    if (upgradeModalEl) {
+        upgradeModalEl.addEventListener('click', (event) => {
+            if (event.target === upgradeModalEl) closeUpgradeModal();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && upgradeModalEl.classList.contains('show')) {
+                closeUpgradeModal();
+            }
+        });
+    }
+
+    const saveDesignModal = byId('saveDesignModal');
+    const saveDesignNameInput = byId('saveDesignNameInput');
+    const saveDesignCancelBtn = byId('saveDesignCancelBtn');
+    const saveDesignConfirmBtn = byId('saveDesignConfirmBtn');
+
+    function openSaveDesignModal() {
+        if (!saveDesignModal || !saveDesignNameInput) return;
+        saveDesignNameInput.value = 'My Balloon Setup';
+        saveDesignModal.classList.add('show');
+        saveDesignModal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => {
+            saveDesignNameInput.focus();
+            saveDesignNameInput.select();
+        }, 60);
+    }
+
+    function closeSaveDesignModal() {
+        if (!saveDesignModal) return;
+        saveDesignModal.classList.remove('show');
+        saveDesignModal.setAttribute('aria-hidden', 'true');
+    }
+
+    if (saveDesignCancelBtn) {
+        saveDesignCancelBtn.addEventListener('click', () => closeSaveDesignModal());
+    }
+
+    if (saveDesignModal) {
+        saveDesignModal.addEventListener('click', (event) => {
+            if (event.target === saveDesignModal) closeSaveDesignModal();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && saveDesignModal.classList.contains('show')) {
+                closeSaveDesignModal();
+            }
+        });
+    }
+
+    async function persistDesign(designName) {
+        const nonArtboard = canvas.getObjects().filter((obj) => !obj._isArtboard);
+        if (!nonArtboard.length) {
+            showCanvasToast('error', 'The canvas is empty. Add some elements first.');
+            return;
+        }
+
+        canvas.discardActiveObject();
+        canvas.renderAll();
+
+        persistUploadsNow();
+
+        const originalVpt = canvas.viewportTransform.slice();
+        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        canvas.renderAll();
+
+        const thumbnail = canvas.toDataURL({
+            format: 'png',
+            quality: 0.8,
+            multiplier: 2,
+            left: artboard.left,
+            top: artboard.top,
+            width: ARTBOARD_W,
+            height: ARTBOARD_H
+        });
+
+        canvas.setViewportTransform(originalVpt);
+        canvas.renderAll();
+
+        const originalHtml = saveDesignBtn.innerHTML;
+        saveDesignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        saveDesignBtn.disabled = true;
+        if (saveDesignConfirmBtn) saveDesignConfirmBtn.disabled = true;
+
+        try {
+            const csrfTokenNode = document.querySelector('[name=csrfmiddlewaretoken]');
+            const csrfToken = csrfTokenNode ? csrfTokenNode.value : '';
+
+            const response = await fetch('/my-designs/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    id: window.currentDesignId || null,
+                    name: designName,
+                    canvas_json: getCurrentState(),
+                    thumbnail: thumbnail,
+                    base_package_id: window.basePackageId || null
+                })
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                clearDraftState();
+                closeSaveDesignModal();
+                showCanvasToast('success', 'Design saved successfully!');
+                setTimeout(() => {
+                    window.location.href = '/my-designs/';
+                }, 1200);
                 return;
             }
 
-            canvas.discardActiveObject();
-            canvas.renderAll();
+            showCanvasToast('error', `Error saving design: ${result.message || 'Unknown error'}`);
+        } catch (error) {
+            console.error('Save error:', error);
+            showCanvasToast('error', 'Network error. Could not save design.');
+        } finally {
+            saveDesignBtn.innerHTML = originalHtml;
+            saveDesignBtn.disabled = false;
+            if (saveDesignConfirmBtn) saveDesignConfirmBtn.disabled = false;
+        }
+    }
 
-            const originalVpt = canvas.viewportTransform.slice();
-            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-            canvas.renderAll();
+    if (saveDesignConfirmBtn) {
+        saveDesignConfirmBtn.addEventListener('click', () => {
+            const value = saveDesignNameInput ? saveDesignNameInput.value.trim() : '';
+            persistDesign(value || 'My Balloon Setup');
+        });
+    }
 
-            const thumbnail = canvas.toDataURL({
-                format: 'png',
-                quality: 0.8,
-                multiplier: 2,
-                left: artboard.left,
-                top: artboard.top,
-                width: ARTBOARD_W,
-                height: ARTBOARD_H
-            });
+    if (saveDesignNameInput) {
+        saveDesignNameInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const value = saveDesignNameInput.value.trim();
+                persistDesign(value || 'My Balloon Setup');
+            }
+        });
+    }
 
-            canvas.setViewportTransform(originalVpt);
-            canvas.renderAll();
-
-            let designName = 'My Balloon Setup';
-            if (!window.currentDesignId) {
-                const prompted = prompt('Enter a name for your design:', 'My Balloon Setup');
-                if (prompted === null) return;
-                if (prompted.trim()) designName = prompted.trim();
-            } else {
-                designName = '';
+    if (saveDesignBtn) {
+        saveDesignBtn.addEventListener('click', () => {
+            const nonArtboard = canvas.getObjects().filter((obj) => !obj._isArtboard);
+            if (!nonArtboard.length) {
+                showCanvasToast('error', 'The canvas is empty. Add some elements first.');
+                return;
             }
 
-            const originalHtml = saveDesignBtn.innerHTML;
-            saveDesignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            saveDesignBtn.disabled = true;
-
-            try {
-                const csrfTokenNode = document.querySelector('[name=csrfmiddlewaretoken]');
-                const csrfToken = csrfTokenNode ? csrfTokenNode.value : '';
-
-                const response = await fetch('/my-designs/save/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({
-                        id: window.currentDesignId || null,
-                        name: designName,
-                        canvas_json: getCurrentState(),
-                        thumbnail: thumbnail,
-                        base_package_id: window.basePackageId || null
-                    })
-                });
-
-                const result = await response.json();
-                if (result.status === 'success') {
-                    clearDraftState();
-                    alert('Design saved successfully!');
-                    window.location.href = '/my-designs/';
-                    return;
-                }
-
-                alert(`Error saving design: ${result.message || 'Unknown error'}`);
-            } catch (error) {
-                console.error('Save error:', error);
-                alert('Network error. Could not save design.');
-            } finally {
-                saveDesignBtn.innerHTML = originalHtml;
-                saveDesignBtn.disabled = false;
+            if (window.currentDesignId) {
+                persistDesign('');
+                return;
             }
+
+            openSaveDesignModal();
         });
     }
 
@@ -3099,7 +4040,10 @@
             });
             applyObjectControlStyle(obj);
         } else if (obj && !obj._isArtboard && !obj._isBgImage) {
-            applyInteractionCursors(obj);
+            /* Re-apply the themed control style on every add — Fabric does
+             * not serialize borderColor/cornerColor, so objects restored
+             * from JSON would otherwise fall back to the default blue box. */
+            applyObjectControlStyle(obj);
         }
 
         if (!isLoadingState && obj && !obj._isArtboard) {
@@ -3151,7 +4095,10 @@
             return;
         }
         if (!ENABLE_VIEWPORT_PAN) return;
-        if (opt.e.altKey || opt.e.button === 1 || isSpaceDown) {
+        // Left-drag on empty canvas (or on the artboard itself) pans the viewport
+        // when zoomed in, so the user can navigate without the Space key.
+        const isEmptyCanvas = !opt.target || opt.target === artboard;
+        if (opt.e.altKey || opt.e.button === 1 || isSpaceDown || (isEmptyCanvas && opt.e.button === 0)) {
             isPanning = true;
             lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
             canvas.selection = false;
@@ -3191,8 +4138,32 @@
     canvas.on('selection:created', updateControlsState);
     canvas.on('selection:updated', updateControlsState);
     canvas.on('selection:cleared', updateControlsState);
+    canvas.on('selection:created', scheduleLayersRefresh);
+    canvas.on('selection:updated', scheduleLayersRefresh);
+    canvas.on('selection:cleared', scheduleLayersRefresh);
+    // Locked text must never enter edit mode: block double-click entry
+    // and force-exit if editing somehow starts on a locked object.
+    canvas.on('mouse:dblclick', (opt) => {
+        const target = opt.target;
+        if (target && target._isLocked && isTextObject(target) && typeof target.exitEditing === 'function') {
+            try { target.exitEditing(); } catch (editError) { /* ignore */ }
+            canvas.requestRenderAll();
+        }
+    });
+    canvas.on('text:editing:entered', (event) => {
+        const target = (event && event.target) || canvas.getActiveObject();
+        if (target && target._isLocked && typeof target.exitEditing === 'function') {
+            try { target.exitEditing(); } catch (editError) { /* ignore */ }
+            canvas.requestRenderAll();
+        }
+    });
     canvas.on('object:added', () => scheduleDraftPersist());
     canvas.on('object:removed', () => scheduleDraftPersist());
+    canvas.on('object:added', (event) => {
+        if (event && event.target) ensureLayerIdentity(event.target);
+        scheduleLayersRefresh();
+    });
+    canvas.on('object:removed', scheduleLayersRefresh);
     canvas.on('path:created', () => scheduleDraftPersist());
     canvas.on('text:changed', () => scheduleDraftPersist());
 
@@ -3206,6 +4177,7 @@
             saveState();
             updateVisualCart();
             updateControlsState();
+            scheduleLayersRefresh();
         }
     });
 
@@ -3309,6 +4281,7 @@
             draftSaveTimer = null;
         }
         persistDraftNow();
+        persistUploadsNow();
     });
 
     if (isFreshCanvasRequest) {
@@ -3352,5 +4325,8 @@
     updateHintVisibility();
     updateControlsState();
     updateVisualCart();
+    refreshLayersPanel();
     filterAssetsByPackage();
+    initFontFamilyDropdown();
+    preloadCanvasFonts();
 });

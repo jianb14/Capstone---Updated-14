@@ -56,10 +56,28 @@
                     placeholder="Any extra info...">{{ package.notes|default:'' }}</textarea>
             </div>
 
-            <!-- Row 4: Package Image (always at bottom) -->
+            <!-- Booking Step 2 preview images (max 2) -->
             <div class="form-group span-6">
-                <label>Package Image</label>
-                <input type="file" name="image">
+                <label class="preview-section-label">Booking Preview Images <span class="preview-limit-hint">(max 2)</span></label>
+                {% if package %}
+                <div class="preview-image-list">
+                    {% for preview in package.preview_images.all %}
+                    <div class="preview-image-card" data-preview-id="{{ preview.id }}">
+                        <div class="preview-image-thumb">
+                            <img src="{{ preview.image.url }}" alt="Preview image {{ forloop.counter }}">
+                        </div>
+                        <button type="button" class="preview-remove-btn" data-remove-id="{{ preview.id }}">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                            <span>Remove</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <input type="hidden" name="remove_preview_ids" value="">
+                <input type="file" name="preview_images" accept="image/*" multiple>
+                <small class="preview-field-hint">Shown in Step 2 of the booking flow so clients can preview their selection.</small>
+                <p class="preview-limit-note" id="previewLimitNote" style="display: none;">Only 2 preview images are allowed per item.</p>
             </div>
 
             <!-- Row 3: Featured Toggle -->
@@ -86,6 +104,39 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const form = document.getElementById("packageForm");
+        const previewLimitNote = document.getElementById('previewLimitNote');
+        const previewImagesInput = form.querySelector('input[name="preview_images"]');
+        if (previewImagesInput) {
+            previewImagesInput.addEventListener('change', function (e) {
+                const existingCount = form.querySelectorAll('.preview-image-card').length;
+                const slots = Math.max(2 - existingCount, 0);
+                const files = Array.from(e.target.files || []);
+                if (files.length > slots) {
+                    const dataTransfer = new DataTransfer();
+                    files.slice(0, slots).forEach(f => dataTransfer.items.add(f));
+                    e.target.files = dataTransfer.files;
+                    if (previewLimitNote) previewLimitNote.style.display = 'block';
+                } else if (previewLimitNote) {
+                    previewLimitNote.style.display = 'none';
+                }
+            });
+        }
+        // Remove na walang checkbox: tinatanggal ang card sa DOM at sinusulat
+        // ang id sa hidden field — ma-eexecute lang kapag pinindot ang Save.
+        const removedIdsInput = form.querySelector('input[name="remove_preview_ids"]');
+        form.querySelectorAll('.preview-remove-btn[data-remove-id]').forEach(function (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                const removedId = this.getAttribute('data-remove-id');
+                if (removedIdsInput) {
+                    const currentIds = removedIdsInput.value ? removedIdsInput.value.split(',') : [];
+                    if (currentIds.indexOf(removedId) === -1) currentIds.push(removedId);
+                    removedIdsInput.value = currentIds.join(',');
+                }
+                const card = this.closest('.preview-image-card');
+                if (card) card.remove();
+            });
+        });
+
         if (!form) return;
 
         const name = form.querySelector('input[name="name"]');

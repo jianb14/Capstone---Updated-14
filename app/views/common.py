@@ -60,7 +60,9 @@ from ..models import (
     AboutJourneyItem,
     AboutValueItem,
     AdditionalOnly,
+    AdditionalOnlyPreviewImage,
     AddOn,
+    AddOnPreviewImage,
     AdminNotification,
     AuditLog,
     Booking,
@@ -88,6 +90,7 @@ from ..models import (
     MessageReaction,
     Notification,
     Package,
+    PackagePreviewImage,
     Payment,
     Review,
     ReviewImage,
@@ -915,3 +918,32 @@ def _pdf_link_callback(uri, rel):
         return uri
 
     return path
+
+
+def get_booking_lead_time_policy():
+    """Shared lead-time policy (SiteSettings.booking_lead_time_days).
+
+    Returns (lead_days, min_bookable_date) where min date = today + lead_days.
+    Single source of truth para sa create/edit/API guards — hindi na kailangang
+    ulitin ang SiteSettings.load() sa bawat view.
+    """
+    try:
+        lead_days = SiteSettings.load().booking_lead_time_days or 0
+    except Exception:
+        lead_days = 0
+    try:
+        lead_days = max(0, int(lead_days))
+    except (TypeError, ValueError):
+        lead_days = 0
+    today = timezone.localdate()
+    return lead_days, today + timedelta(days=lead_days)
+
+
+def get_lead_time_violation_message(booking_date, lead_days=None, min_date=None):
+    """User-friendly message kapag rush ang napiling petsa (kasama earliest date)."""
+    if lead_days is None or min_date is None:
+        lead_days, min_date = get_booking_lead_time_policy()
+    return (
+        f"Bookings must be made at least {lead_days} day(s) in advance. "
+        f"Please choose a date on or after {min_date.strftime('%B %d, %Y')}."
+    )

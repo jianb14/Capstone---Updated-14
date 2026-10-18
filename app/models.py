@@ -544,6 +544,21 @@ class Package(models.Model):
         return self.name
 
 
+# Booking Step 2 preview photos (max 2) — ang mga larawang ito ang
+# lumalabas sa "Preview" step ng booking kapag package ang napili.
+class PackagePreviewImage(models.Model):
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='preview_images')
+    image = models.ImageField(upload_to='package_previews/')
+    order = models.PositiveIntegerField(default=0, help_text="Lower number = shown first")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"Preview {self.id} ({self.package.name})"
+
+
 # -----------------------------
 # 8️⃣ Audit Log
 # -----------------------------
@@ -597,6 +612,20 @@ class AddOn(models.Model):
 
 
 
+# Booking Step 2 preview photos (max 2) para sa add-on combos.
+class AddOnPreviewImage(models.Model):
+    addon = models.ForeignKey(AddOn, on_delete=models.CASCADE, related_name='preview_images')
+    image = models.ImageField(upload_to='addon_previews/')
+    order = models.PositiveIntegerField(default=0, help_text="Lower number = shown first")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"Preview {self.id} ({self.addon.name})"
+
+
 class AdditionalOnly(models.Model):
     name = models.CharField(max_length=150)
     image = models.ImageField(upload_to='additional/', blank=True, null=True)
@@ -613,6 +642,20 @@ class AdditionalOnly(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# Booking Step 2 preview photos (max 2) para sa additional-only items.
+class AdditionalOnlyPreviewImage(models.Model):
+    additional = models.ForeignKey(AdditionalOnly, on_delete=models.CASCADE, related_name='preview_images')
+    image = models.ImageField(upload_to='additional_previews/')
+    order = models.PositiveIntegerField(default=0, help_text="Lower number = shown first")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"Preview {self.id} ({self.additional.name})"
 
 
 class ServiceChargeConfig(models.Model):
