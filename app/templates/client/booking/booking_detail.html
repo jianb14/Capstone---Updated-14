@@ -3,6 +3,11 @@
 {% load static %}
 
 {% block content %}
+<!-- Leaflet read-only mini map (booking details) — free OSM, no API key -->
+<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261019e">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261019e"></script>
 <style>
     .booking-detail-page {
         min-height: 80vh;
@@ -597,8 +602,41 @@
         </div>
         <div class="detail-row">
             <span class="detail-label">Location</span>
-            <span class="detail-value">{{ booking.event_location|default:"-" }}</span>
+            <span class="detail-value">
+                {{ booking.event_location|default:"-" }}
+                {% if booking.venue_landmark %}
+                <br><small style="color:#9ca3af;"><i class="fa-solid fa-thumbtack"></i> {{ booking.venue_landmark }}</small>
+                {% endif %}
+            </span>
         </div>
+
+        <!-- Location Map — laging render: may pin → mini map; walang coords → fallback line. -->
+        <div class="section-block">
+            <span class="section-title">Location Map</span>
+            {% if booking.event_lat is not None and booking.event_lng is not None %}
+            <div id="booking_detail_map" class="booking-detail-map"
+                 data-lat="{{ booking.event_lat }}" data-lng="{{ booking.event_lng }}"
+                 style="height: 260px; border-radius: 12px; overflow: hidden; border: 1px solid #333333;"></div>
+            {% else %}
+            <p style="color:#9ca3af; margin:0; font-size:0.85rem; font-style:italic;">No map pin saved — see venue address above.</p>
+            {% endif %}
+        </div>
+        {% if booking.event_lat is not None and booking.event_lng is not None %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var mapEl = document.getElementById('booking_detail_map');
+                if (mapEl && window.BookingLocationMap) {
+                    window.BookingLocationMap.initReadOnly({
+                        mapId: 'booking_detail_map',
+                        lat: mapEl.getAttribute('data-lat'),
+                        lng: mapEl.getAttribute('data-lng'),
+                        label: "{{ booking.event_location|default:'Event venue'|escapejs }}"
+                    });
+                }
+            });
+        </script>
+        {% endif %}
+
         <div class="detail-row">
             <span class="detail-label">Package</span>
             <span class="detail-value">{{ booking.package_type|default:"-" }}</span>
@@ -613,8 +651,25 @@
         </div>
 
         <div class="section-block" style="border-style:dashed;">
-            <span class="section-title">Special Requests</span>
+            <span class="section-title">Design Notes / Special Requests</span>
             <p style="color:#d1d5db; margin:0; line-height:1.5;">{{ cleaned_requests|default:"-"|linebreaksbr }}</p>
+        </div>
+
+        <!-- Step 4 Design Preferences — laging render; empty → "–" fallback. -->
+        <div class="section-block" style="border-style:dashed;">
+            <span class="section-title">Design Preferences</span>
+            <div class="detail-row" style="margin-bottom:0.6rem;">
+                <span class="detail-label">Theme</span>
+                <span class="detail-value">{{ booking.design_theme|default:"–" }}</span>
+            </div>
+            <div class="detail-row" style="margin-bottom:0.6rem;">
+                <span class="detail-label">Color Palette</span>
+                <span class="detail-value">{{ booking.color_palette|default:"–" }}</span>
+            </div>
+            <div class="detail-row" style="margin-bottom:0;">
+                <span class="detail-label">Motto</span>
+                <span class="detail-value">{{ booking.motto_text|default:"–" }}</span>
+            </div>
         </div>
 
         {% if booking.reference_image or booking.images.all %}

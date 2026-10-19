@@ -2,11 +2,18 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261018f">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261019a">
+<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261019e">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
+     Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
+     booking_location_map.js at mananatiling required ang text location. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261013a"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
 <script src="{% static 'js/booking_picker_c.js' %}?v=20261014e"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261019e"></script>
 {{ availability_data|json_script:"booking-availability-data" }}
 {{ preview_data|json_script:"booking-preview-data" }}
 
@@ -92,7 +99,11 @@
                     </div>
                     <div class="stepper-step-icon" id="step-4-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Review & Confirm</div>
+                        <div class="step-label">Design Preferences</div>
+                    </div>
+                    <div class="stepper-step-icon" id="step-5-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Review &amp; Confirm</div>
                     </div>
                 </div>
                 <button type="button" class="close-btn" id="closeModalBtn">&times;</button>
@@ -280,41 +291,45 @@
                             </div>
                         </div>
 
-                        <div class="form-group full-width">
+                        <!-- 📍 STEP 3 — LOCATION CARD (interactive map, Shopee-style).
+                             Text address pa rin ang required field; ang map/coords
+                             ay optional supplementary data (graceful degradation). -->
+                        <div class="form-group full-width location-card-group">
                             <label><i class="far fa-map"></i> Location (Venue Address) <span class="input-required">*</span></label>
-                            <input type="text" id="event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" data-label="Event Location" required>
+                            <input type="text" id="event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" data-label="Event Location" required autocomplete="off">
                             <small class="booking-field-error" id="event_location_error"></small>
+
+                            <div class="location-map-toolbar">
+                                <div class="location-search-wrap">
+                                    <i class="fa-solid fa-magnifying-glass location-search-icon"></i>
+                                    <input type="text" id="location_search" class="location-search-input"
+                                        placeholder="Search address or place (e.g., SM North EDSA)…"
+                                        autocomplete="off" aria-label="Search for a place">
+                                    <div id="location_suggestions" class="location-suggestions" hidden></div>
+                                </div>
+                                <button type="button" id="location_use_my" class="location-use-my-btn">
+                                    <i class="fa-solid fa-location-crosshairs"></i> Use my location
+                                </button>
+                            </div>
+                            <small id="location_map_status" class="location-map-status" style="display: none;"></small>
+
+                            <div id="booking_location_map" class="booking-location-map" aria-label="Event location map"></div>
+
+                            <label for="venue_landmark" class="location-landmark-label"><i class="fa-solid fa-thumbtack"></i> Nearest landmark / gate / floor (Optional)</label>
+                            <input type="text" id="venue_landmark" name="venue_landmark" maxlength="255"
+                                placeholder="e.g., Near Blue Gate, 2nd floor of Robinsons Mall">
+                            <small class="booking-hint">Drop or drag the pin so our crew finds the exact spot. You can still book using the address alone.</small>
                         </div>
+
+                        <!-- Map pin coords (optional — walang laman kapag hindi gumamit ng map) -->
+                        <input type="hidden" name="event_lat" id="event_lat_input">
+                        <input type="hidden" name="event_lng" id="event_lng_input">
 
                         <!-- Removed No. of Guests -->
 
                         <!-- Hidden inputs for data from Step 1 -->
                         <input type="hidden" name="package_type" id="package_type_input">
                         <input type="hidden" name="total_price" id="total_price_input">
-
-                        <!-- Special Requests -->
-                        <div class="form-group full-width">
-                            <label for="booking_special_requests"><i class="far fa-comment"></i> Special Requests (Optional)</label>
-                            <textarea id="booking_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
-                        </div>
-                        
-                        <!-- Reference Images -->
-                        <div class="form-group full-width">
-                            {% if not prefilled_design %}
-                                <label for="booking_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
-                                <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
-                                <!-- Hidden proper input for backend submission -->
-                                <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
-                                
-                                <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
-                                <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
-                            {% else %}
-                                <label><i class="far fa-pen-to-square"></i> Your Custom Design</label>
-                            {% endif %}
-                            
-                            <!-- Container for Preview Images -->
-                            <div id="bookingImagePreviewContainer" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;"></div>
-                        </div>
 
                     </div>
 
@@ -324,9 +339,119 @@
                     </div>
                 </div>
 
-                <!-- STEP 4: BOOKING SUMMARY -->
+                <!-- STEP 4: DESIGN PREFERENCES (Tier 1: theme + palette + motto,
+                     kasama ang moved Special Requests + Reference Pictures).
+                     Theme + palette REQUIRED (max 3 colors); motto optional. -->
                 <div class="stepper-step" id="step-4" style="display: none;">
-                    <h3>Review & Confirm</h3>
+                    <h3>Design Preferences</h3>
+                    <p class="step-desc">Two fields are required — pick a theme and up to 3 colors so our team can match your look.</p>
+
+                    <div class="form-grid">
+
+                        <!-- 🎨 Theme / Decor style -->
+                        <div class="form-group full-width">
+                            <label><i class="fa-solid fa-wand-magic-sparkles"></i> Theme / Decor Style <span class="input-required">*</span></label>
+                            <div class="design-theme-chips" id="designThemeChips">
+                                <button type="button" class="design-chip" data-value="Spiderman">Spider-Man</button>
+                                <button type="button" class="design-chip" data-value="Superhero">Superhero</button>
+                                <button type="button" class="design-chip" data-value="Princess">Princess</button>
+                                <button type="button" class="design-chip" data-value="Unicorn">Unicorn</button>
+                                <button type="button" class="design-chip" data-value="Jungle Safari">Jungle Safari</button>
+                                <button type="button" class="design-chip" data-value="Dinosaur">Dinosaur</button>
+                                <button type="button" class="design-chip" data-value="Space Galaxy">Space / Galaxy</button>
+                                <button type="button" class="design-chip" data-value="Under the Sea">Under the Sea</button>
+                                <button type="button" class="design-chip" data-value="Frozen Winter">Frozen / Winter</button>
+                                <button type="button" class="design-chip" data-value="Racing Cars">Racing Cars</button>
+                                <button type="button" class="design-chip" data-value="Basketball">Basketball</button>
+                                <button type="button" class="design-chip" data-value="Enchanted Garden">Enchanted Garden</button>
+                                <button type="button" class="design-chip" data-value="Twinkle Star">Twinkle Star</button>
+                                <button type="button" class="design-chip" data-value="Teddy Bear">Teddy Bear</button>
+                                <button type="button" class="design-chip" data-value="Wizard Magic">Wizard / Magic</button>
+                                <button type="button" class="design-chip" data-value="Rainbow">Rainbow</button>
+                                <button type="button" class="design-chip" data-value="Nautical Sailor">Nautical / Sailor</button>
+                                <button type="button" class="design-chip" data-value="Cowboy Western">Cowboy / Western</button>
+                                <button type="button" class="design-chip" data-value="Cocomelon">Cocomelon</button>
+                                <button type="button" class="design-chip design-chip-other" data-value="Other">Other ✎</button>
+                            </div>
+                            <input type="text" id="design_theme_other" maxlength="100"
+                                placeholder="Type your theme (e.g. Cars 2, anime, floral…)"
+                                style="display: none; margin-top: 10px;">
+                            <input type="hidden" name="design_theme" id="design_theme_input">
+                            <small class="booking-field-error" id="design_theme_error"></small>
+                        </div>
+
+                        <!-- 🎨 Color palette -->
+                        <div class="form-group full-width">
+                            <label><i class="fa-solid fa-palette"></i> Color Palette (Pick up to 3) <span class="input-required">*</span></label>
+                            <div class="design-palette-swatches" id="designPaletteSwatches">
+                                <button type="button" class="palette-swatch" data-color="Red" style="--sw:#e63946" title="Red"></button>
+                                <button type="button" class="palette-swatch" data-color="Blue" style="--sw:#4895ef" title="Blue"></button>
+                                <button type="button" class="palette-swatch" data-color="Yellow" style="--sw:#fee440" title="Yellow"></button>
+                                <button type="button" class="palette-swatch" data-color="Green" style="--sw:#06d6a0" title="Green"></button>
+                                <button type="button" class="palette-swatch" data-color="Pink" style="--sw:#ffb3c6" title="Pink"></button>
+                                <button type="button" class="palette-swatch" data-color="Purple" style="--sw:#9d4edd" title="Purple"></button>
+                                <button type="button" class="palette-swatch" data-color="Orange" style="--sw:#f77f00" title="Orange"></button>
+                                <button type="button" class="palette-swatch" data-color="Gold" style="--sw:#ffb703" title="Gold"></button>
+                                <button type="button" class="palette-swatch" data-color="Silver" style="--sw:#ced4da" title="Silver"></button>
+                                <button type="button" class="palette-swatch" data-color="White" style="--sw:#f8f9fa" title="White"></button>
+                                <button type="button" class="palette-swatch" data-color="Black" style="--sw:#212529" title="Black"></button>
+                                <button type="button" class="palette-swatch" data-color="Brown" style="--sw:#8b5a2b" title="Brown"></button>
+                                <button type="button" class="palette-swatch" data-color="Cream" style="--sw:#faf0e6" title="Cream"></button>
+                                <button type="button" class="palette-swatch" data-color="Sage" style="--sw:#a7c4a0" title="Sage"></button>
+                            </div>
+                            <div class="design-palette-custom">
+                                <input type="color" id="palette_custom_color" value="#9d4edd" title="Pick a custom color" aria-label="Pick a custom color">
+                                <button type="button" id="palette_add_custom" class="palette-add-btn">Add color</button>
+                                <span id="palette_selected" class="palette-selected">0 of 3 colors selected</span>
+                            </div>
+                            <small class="booking-hint">Pick up to 3 colors.</small>
+                            <small class="booking-field-error" id="color_palette_error"></small>
+                            <input type="hidden" name="color_palette" id="color_palette_input">
+                        </div>
+
+                        <!-- ✍️ Motto / text sa backdrop -->
+                        <div class="form-group full-width">
+                            <label for="motto_text"><i class="fa-solid fa-font"></i> Motto / Text on the Backdrop (Optional)</label>
+                            <input type="text" id="motto_text" name="motto_text" maxlength="150"
+                                placeholder='e.g., "Happy 18th, Maria!" or "Congrats Batch 2026!"'>
+                            <small class="booking-hint">The exact text you want on the backdrop or signage.</small>
+                        </div>
+
+                        <!-- Special Requests (moved from Step 3) -->
+                        <div class="form-group full-width">
+                            <label for="booking_special_requests"><i class="far fa-comment"></i> Design Notes / Special Requests (Optional)</label>
+                            <textarea id="booking_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
+                        </div>
+
+                        <!-- Reference Images (moved from Step 3) -->
+                        <div class="form-group full-width">
+                            {% if not prefilled_design %}
+                                <label for="booking_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
+                                <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
+                                <!-- Hidden proper input for backend submission -->
+                                <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
+
+                                <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
+                                <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
+                            {% else %}
+                                <label><i class="far fa-pen-to-square"></i> Your Custom Design</label>
+                            {% endif %}
+
+                            <!-- Container for Preview Images -->
+                            <div id="bookingImagePreviewContainer" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;"></div>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-actions split-actions">
+                        <button type="button" class="booking-back-btn" id="btnPrevFromDesign"><i class="fa-solid fa-arrow-left"></i>Back</button>
+                        <button type="button" class="btn-submit" id="btnNextDesignToReview">Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 5: BOOKING SUMMARY -->
+                <div class="stepper-step" id="step-5" style="display: none;">
+                    <h3>Review &amp; Confirm</h3>
                     <p class="step-desc">Review your selected package and event details before submitting.</p>
 
                     <div class="booking-review-grid">
@@ -429,19 +554,23 @@
         // today + leadDays kapag loaded na ang availability payload.
         try { dateInput.setAttribute('min', moduleMinBookableDate()); } catch (e) { /* keep today min */ }
 
-        // --- Stepper Logic Variables ---
+        // --- Stepper Logic Variables (5 steps) ---
         const step1Indicator = document.getElementById('step-1-indicator');
         const step2Indicator = document.getElementById('step-2-indicator');
         const step3Indicator = document.getElementById('step-3-indicator');
         const step4Indicator = document.getElementById('step-4-indicator');
+        const step5Indicator = document.getElementById('step-5-indicator');
         const stepperLine = document.getElementById('stepperLine');
         const step1Content = document.getElementById('step-1');
         const step2Content = document.getElementById('step-2');
         const step3Content = document.getElementById('step-3');
         const step4Content = document.getElementById('step-4');
+        const step5Content = document.getElementById('step-5');
         const btnNextStep = document.getElementById('btnNextStep');
         const btnPrevStep = document.getElementById('btnPrevStep');
         const btnNextToSummary = document.getElementById('btnNextToSummary');
+        const btnPrevFromDesign = document.getElementById('btnPrevFromDesign');
+        const btnNextDesignToReview = document.getElementById('btnNextDesignToReview');
         const btnBackToDetails = document.getElementById('btnBackToDetails');
         const btnNextToDetails = document.getElementById('btnNextToDetails');
         const btnBackToPackages = document.getElementById('btnBackToPackages');
@@ -922,21 +1051,206 @@
             const endValue = formatTimeWithMeridiem(endTimeInput.value);
             const durationValue = (startValue === '-' || endValue === '-') ? '-' : `${startValue} - ${endValue}`;
             const specialRequestsRow = specialRequestsValue
-                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Special Requests</span></div><span class="row-value">${specialRequestsValue}</span></div>`
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Design Notes</span></div><span class="row-value">${specialRequestsValue}</span></div>`
                 : '';
+
+            /* Step 4 rows — theme + palette required (laging may value), motto
+               optional; no-pin soft warning (map optional, hindi gate). */
+            const designThemeValue = getDesignThemeValue();
+            const colorPaletteValue = getColorPaletteValue();
+            const mottoValue = document.getElementById('motto_text')?.value?.trim() || '';
+            const landmarkValue = document.getElementById('venue_landmark')?.value?.trim() || '';
+            const hasMapPin = !!(
+                document.getElementById('event_lat_input')?.value?.trim() &&
+                document.getElementById('event_lng_input')?.value?.trim()
+            );
+            const themeRow = `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Theme</span></div><span class="row-value">${escapeSummaryHtml(designThemeValue) || '-'}</span></div>`;
+            const paletteRow = `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-palette"></i> Color Palette</span></div><span class="row-value">${escapeSummaryHtml(colorPaletteValue) || '-'}</span></div>`;
+            const mottoRow = mottoValue
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-font"></i> Motto</span></div><span class="row-value">${escapeSummaryHtml(mottoValue)}</span></div>`
+                : '';
+            const landmarkRow = landmarkValue
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-thumbtack"></i> Landmark</span></div><span class="row-value">${escapeSummaryHtml(landmarkValue)}</span></div>`
+                : '';
+            const noPinRow = hasMapPin
+                ? ''
+                : `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-map-pin"></i> Map Pin</span></div><span class="row-value" style="color:#9ca3af;">No map pin — our crew will confirm the exact spot via chat.</span></div>`;
 
             detailsContainer.innerHTML = `
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-square-check"></i> Package / Items</span></div><span class="row-value">${bookedItems}</span></div>
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clipboard"></i> Event Type</span></div><span class="row-value">${getSelectedEventTypeDisplay()}</span></div>
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-calendar-days"></i> Event Date</span></div><span class="row-value">${dateInput.value || '-'}</span></div>
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clock"></i> Event Duration</span></div><span class="row-value">${durationValue}</span></div>
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-map"></i> Location</span></div><span class="row-value">${locationValue || '-'}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-map"></i> Location</span></div><span class="row-value">${escapeSummaryHtml(locationValue) || '-'}</span></div>
+                ${landmarkRow}
+                ${noPinRow}
+                ${themeRow}
+                ${paletteRow}
+                ${mottoRow}
                 ${specialRequestsRow}
                 <div class="summary-row" id="referencePicturesRow" style="display: none;">
                     <div class="row-info"><span class="row-label"><i class="far fa-images"></i> Reference Pictures</span></div>
                     <div class="row-value booking-details-images" id="booking-details-image-list"></div>
                 </div>
             `;
+        }
+
+        /* Minimal escaping para sa user-supplied values sa summary innerHTML
+           (₱ sign / formatting ng ibang rows ay hindi naapektuhan). */
+        function escapeSummaryHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        // =============================================
+        // STEP 4: DESIGN PREFERENCES (chips + palette)
+        // =============================================
+        const designThemeInput = document.getElementById('design_theme_input');
+        const designThemeOther = document.getElementById('design_theme_other');
+        const colorPaletteInput = document.getElementById('color_palette_input');
+        const paletteSelectedEl = document.getElementById('palette_selected');
+        const MAX_PALETTE_COLORS = 3;
+        let selectedDesignTheme = '';            // preset chip value ('' = walang pinili)
+        let selectedPaletteColors = [];          // names (preset) + '#RRGGBB' (custom)
+
+        function setDesignFieldError(fieldKey, message) {
+            const errorEl = document.getElementById(
+                fieldKey === 'design_theme' ? 'design_theme_error' : 'color_palette_error'
+            );
+            if (errorEl) errorEl.textContent = message || '';
+        }
+
+        function validateDesignPreferences() {
+            let firstInvalidField = null;
+            if (!getDesignThemeValue()) {
+                setDesignFieldError('design_theme', 'Please choose a theme.*');
+                if (!firstInvalidField) firstInvalidField = 'design_theme';
+            } else {
+                setDesignFieldError('design_theme', '');
+            }
+            if (!getColorPaletteValue()) {
+                setDesignFieldError('color_palette', 'Please pick at least 1 color (up to 3).*');
+                if (!firstInvalidField) firstInvalidField = 'color_palette';
+            } else {
+                setDesignFieldError('color_palette', '');
+            }
+            return firstInvalidField;
+        }
+
+        function syncDesignThemeInput() {
+            if (!designThemeInput) return;
+            if (selectedDesignTheme === 'Other') {
+                designThemeInput.value = (designThemeOther?.value || '').trim();
+            } else {
+                designThemeInput.value = selectedDesignTheme || '';
+            }
+        }
+
+        function getDesignThemeValue() {
+            if (!designThemeInput) return '';
+            syncDesignThemeInput();
+            return designThemeInput.value.trim();
+        }
+
+        document.querySelectorAll('#designThemeChips .design-chip').forEach((chip) => {
+            chip.addEventListener('click', function () {
+                const value = chip.dataset.value;
+                const wasSelected = chip.classList.contains('selected');
+                document.querySelectorAll('#designThemeChips .design-chip').forEach((c) => c.classList.remove('selected'));
+
+                if (wasSelected) {
+                    selectedDesignTheme = '';
+                } else {
+                    chip.classList.add('selected');
+                    selectedDesignTheme = value;
+                }
+
+                if (designThemeOther) {
+                    if (selectedDesignTheme === 'Other') {
+                        designThemeOther.style.display = 'block';
+                        designThemeOther.focus();
+                    } else {
+                        designThemeOther.style.display = 'none';
+                        designThemeOther.value = '';
+                    }
+                }
+                syncDesignThemeInput();
+                setDesignFieldError('design_theme', '');
+            });
+        });
+        if (designThemeOther) {
+            designThemeOther.addEventListener('input', function () {
+                syncDesignThemeInput();
+                if (getDesignThemeValue()) setDesignFieldError('design_theme', '');
+            });
+        }
+
+        function syncPaletteUI() {
+            if (colorPaletteInput) colorPaletteInput.value = selectedPaletteColors.join(', ');
+            if (paletteSelectedEl) {
+                const count = selectedPaletteColors.length;
+                paletteSelectedEl.textContent = count
+                    ? count + ' of ' + MAX_PALETTE_COLORS + ' colors selected'
+                    : '0 of ' + MAX_PALETTE_COLORS + ' colors selected';
+            }
+            document.querySelectorAll('#designPaletteSwatches .palette-swatch').forEach((s) => {
+                s.classList.toggle('selected', selectedPaletteColors.includes(s.dataset.color));
+            });
+            if (paletteAddBtn) paletteAddBtn.disabled = selectedPaletteColors.length >= MAX_PALETTE_COLORS;
+            if (getColorPaletteValue()) setDesignFieldError('color_palette', '');
+        }
+
+        function togglePaletteColor(value) {
+            if (!value) return;
+            const idx = selectedPaletteColors.indexOf(value);
+            if (idx >= 0) {
+                selectedPaletteColors.splice(idx, 1);
+            } else {
+                if (selectedPaletteColors.length >= MAX_PALETTE_COLORS) {
+                    setDesignFieldError('color_palette', 'Maximum 3 colors only.');
+                    if (typeof AppToast !== 'undefined') {
+                        AppToast.fire({ icon: 'info', title: 'Maximum 3 colors only.', timer: 2500 });
+                    }
+                    return;
+                }
+                selectedPaletteColors.push(value);
+            }
+            syncPaletteUI();
+        }
+
+        document.querySelectorAll('#designPaletteSwatches .palette-swatch').forEach((sw) => {
+            sw.addEventListener('click', function () {
+                togglePaletteColor(sw.dataset.color);
+            });
+        });
+
+        const paletteAddBtn = document.getElementById('palette_add_custom');
+        const paletteColorInput = document.getElementById('palette_custom_color');
+        if (paletteAddBtn) {
+            paletteAddBtn.addEventListener('click', function () {
+                const hex = (paletteColorInput?.value || '').toUpperCase();
+                if (!/^#[0-9A-F]{6}$/.test(hex)) return;
+                togglePaletteColor(hex);
+            });
+        }
+
+        function getColorPaletteValue() {
+            return colorPaletteInput ? colorPaletteInput.value.trim() : '';
+        }
+
+        /* Tinatawag sa resetModalSteps para walang natitirang selection sa
+           susunod na booking. */
+        function resetDesignPreferences() {
+            selectedDesignTheme = '';
+            selectedPaletteColors = [];
+            document.querySelectorAll('#designThemeChips .design-chip').forEach((c) => c.classList.remove('selected'));
+            if (designThemeOther) {
+                designThemeOther.style.display = 'none';
+                designThemeOther.value = '';
+            }
+            syncDesignThemeInput();
+            syncPaletteUI();
         }
 
         function updateBookingImageSummary() {
@@ -1061,36 +1375,53 @@
             }
         }
 
+        /* Loop-based stepper (5 steps): hindi na paulit-ulit ang if/else —
+           0% / 25% / 50% / 75% / 100% ang progress line (12px offset per step,
+           kagaya ng dating 33.333%/66.666% pattern). */
+        const STEPPER_TOTAL_STEPS = 5;
+        const STEPPER_PROGRESS = ['0%', 'calc(25% - 12px)', 'calc(50% - 24px)', 'calc(75% - 36px)', 'calc(100% - 48px)'];
+        const stepContents = [step1Content, step2Content, step3Content, step4Content, step5Content];
+        const stepIndicators = [step1Indicator, step2Indicator, step3Indicator, step4Indicator, step5Indicator];
+        let bookingMapInstance = null;
+
+        function ensureBookingMap() {
+            // Lazy init: unang bukas ng Step 3 lang bubuoin ang map (nakatago
+            // kasi ang modal noong unang render → stencil/size issues).
+            if (bookingMapInstance || !window.BookingLocationMap) return;
+            bookingMapInstance = window.BookingLocationMap.init({
+                mapId: 'booking_location_map',
+                latId: 'event_lat_input',
+                lngId: 'event_lng_input',
+                searchId: 'location_search',
+                suggestionsId: 'location_suggestions',
+                useLocationId: 'location_use_my',
+                statusId: 'location_map_status',
+                landmarkId: 'venue_landmark',
+                addressId: 'event_location'
+            });
+        }
+
         function showStep(stepNumber) {
             if (stepNumber === 2) { renderPackagePreview(); }
-            step1Content.style.display = stepNumber === 1 ? 'block' : 'none';
-            step2Content.style.display = stepNumber === 2 ? 'block' : 'none';
-            step3Content.style.display = stepNumber === 3 ? 'block' : 'none';
-            step4Content.style.display = stepNumber === 4 ? 'block' : 'none';
+            if (stepNumber === 3) {
+                ensureBookingMap();
+                // Leaflet needs an explicit re-layout kapag unang lumitaw sa view
+                setTimeout(function () {
+                    if (bookingMapInstance) bookingMapInstance.invalidate();
+                }, 200);
+            }
 
-            step1Indicator.classList.remove('active', 'completed');
-            step2Indicator.classList.remove('active', 'completed');
-            step3Indicator.classList.remove('active', 'completed');
-            step4Indicator.classList.remove('active', 'completed');
-
-            if (stepNumber === 1) {
-                step1Indicator.classList.add('active');
-                stepperLine.style.width = '0%';
-            } else if (stepNumber === 2) {
-                step1Indicator.classList.add('completed');
-                step2Indicator.classList.add('active');
-                stepperLine.style.width = 'calc(33.333% - 12px)';
-            } else if (stepNumber === 3) {
-                step1Indicator.classList.add('completed');
-                step2Indicator.classList.add('completed');
-                step3Indicator.classList.add('active');
-                stepperLine.style.width = 'calc(66.666% - 24px)';
-            } else {
-                step1Indicator.classList.add('completed');
-                step2Indicator.classList.add('completed');
-                step3Indicator.classList.add('completed');
-                step4Indicator.classList.add('active');
-                stepperLine.style.width = 'calc(100% - 36px)';
+            stepContents.forEach((el, idx) => {
+                if (el) el.style.display = (idx + 1 === stepNumber) ? 'block' : 'none';
+            });
+            stepIndicators.forEach((el, idx) => {
+                if (!el) return;
+                el.classList.remove('active', 'completed');
+                if (idx + 1 < stepNumber) el.classList.add('completed');
+                else if (idx + 1 === stepNumber) el.classList.add('active');
+            });
+            if (stepperLine) {
+                stepperLine.style.width = STEPPER_PROGRESS[stepNumber - 1] || '0%';
             }
 
             document.querySelector('.booking-modal-box').scrollTop = 0;
@@ -1201,7 +1532,17 @@
             document.getElementById('bookingForm').reset();
             bookingSubmitAttempted = false;
             clearBookingValidationErrors();
-            
+
+            // Step 4 selections (chips/palette) — dapat malinis din
+            if (typeof resetDesignPreferences === 'function') resetDesignPreferences();
+
+            // Map pin: form reset clears lat/lng → huwag ipakita ang luma sa mapa
+            try {
+                if (bookingMapInstance && bookingMapInstance.marker) {
+                    bookingMapInstance.marker.setOpacity(0);
+                }
+            } catch (e) { /* map unavailable */ }
+
             // Clear image previews
             const bookingPreviewGrid = document.getElementById('bookingImagePreviewContainer');
             if (bookingPreviewGrid) bookingPreviewGrid.innerHTML = '';
@@ -2149,6 +2490,9 @@
         if (!eventLocationInput.value.trim()) {
             setBookingFieldError('event_location', 'Event Location is required*');
             if (!firstInvalidField) firstInvalidField = 'event_location';
+        } else if (eventLocationInput.value.trim().length < 10) {
+            setBookingFieldError('event_location', 'Please enter a complete venue address (at least 10 characters).*');
+            if (!firstInvalidField) firstInvalidField = 'event_location';
         }
 
         return firstInvalidField;
@@ -2373,8 +2717,38 @@
         showStep(2);
     });
 
+    /* Step 3 (details) → Step 4 (design prefs) — validation ng details muna;
+       ang Step 4 fields ay optional kaya walang error dito. */
+    if (btnPrevFromDesign) {
+        btnPrevFromDesign.addEventListener('click', function () {
+            showStep(3);
+        });
+    }
+
+    /* Step 4 (design prefs) → Step 5 (review): theme + palette required bago
+       buuin ang summaries. */
+    if (btnNextDesignToReview) {
+        btnNextDesignToReview.addEventListener('click', function () {
+            const firstInvalidField = validateDesignPreferences();
+            if (firstInvalidField) {
+                const target = firstInvalidField === 'design_theme'
+                    ? document.getElementById('designThemeChips')
+                    : document.getElementById('designPaletteSwatches');
+                if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            packageInput.value = buildPackageTypeString();
+            priceInput.value = calculateTotalPrice().toFixed(2);
+            updateOrderSummary();
+            updateBookingDetailsSummary();
+            updateBookingImageSummary();
+            showStep(5);
+        });
+    }
+
+    /* Step 5 (review) → Back sa Step 4 (design prefs), hindi na sa details. */
     btnBackToDetails.addEventListener('click', function () {
-        showStep(3);
+        showStep(4);
     });
 
         btnNextToSummary.addEventListener('click', function () {

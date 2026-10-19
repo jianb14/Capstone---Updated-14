@@ -260,11 +260,28 @@ def customer_profile(request):
         b.price_breakdown = get_booking_price_breakdown(b)
 
     # Get active packages, addons, additionals for the edit modal dropdown
-    active_packages = Package.objects.filter(is_active=True)
-    active_addons = AddOn.objects.filter(is_active=True)
-    active_additionals = AdditionalOnly.objects.all()
+    active_packages = Package.objects.filter(is_active=True).prefetch_related("preview_images")
+    active_addons = AddOn.objects.filter(is_active=True).prefetch_related("preview_images")
+    active_additionals = AdditionalOnly.objects.all().prefetch_related("preview_images")
     service_charge_config = get_service_charge_config()
     lead_days, min_bookable_date = get_booking_lead_time_policy()
+
+    # Edit-modal Preview (Step 2 mirror): name-keyed preview map para sa
+    # renderEditPackagePreview() — walang bagong query, reuse ng prefetches.
+    edit_preview_data = {
+        str(p.name): [img.image.url for img in p.preview_images.all() if img.image][:2]
+        for p in active_packages
+    }
+    for a in active_addons:
+        edit_preview_data.setdefault(
+            str(a.name),
+            [img.image.url for img in a.preview_images.all() if img.image][:2],
+        )
+    for a in active_additionals:
+        edit_preview_data.setdefault(
+            str(a.name),
+            [img.image.url for img in a.preview_images.all() if img.image][:2],
+        )
 
     return render(
         request,
@@ -279,6 +296,7 @@ def customer_profile(request):
             "packages": active_packages,
             "active_addons": active_addons,
             "active_additionals": active_additionals,
+            "edit_preview_data": edit_preview_data,
             "global_service_charge": service_charge_config.amount,
             "global_service_charge_note": service_charge_config.notes,
             "booking_lead_time_days": lead_days,

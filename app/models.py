@@ -48,6 +48,35 @@ class Booking(models.Model):
     special_requests = models.TextField(blank=True, null=True)
     reference_image = models.ImageField(upload_to='booking_references/', blank=True, null=True)
 
+    # 📍 Step 3 — Location (interactive map). Text location stays required;
+    # coords/landmark are optional so booking never blocks when the map fails.
+    event_lat = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        help_text='Latitude pin from the Step 3 location map.',
+    )
+    event_lng = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        help_text='Longitude pin from the Step 3 location map.',
+    )
+    venue_landmark = models.CharField(
+        max_length=255, blank=True, default='',
+        help_text='Nearest landmark / floor / gate hint shown to the styling crew.',
+    )
+
+    # 🎨 Step 4 — Design Preferences (all optional; Tier 1 scope).
+    design_theme = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Chosen theme/decor style (e.g. Spiderman, Princess) or custom text.',
+    )
+    color_palette = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Preferred color palette (preset swatches or custom colors).',
+    )
+    motto_text = models.CharField(
+        max_length=150, blank=True, default='',
+        help_text='Text requested on the backdrop/signage (e.g. "Happy 18th, Maria!").',
+    )
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
     # ✅ NEW FIELDS

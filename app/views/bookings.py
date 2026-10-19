@@ -355,6 +355,50 @@ def admin_blocked_date_delete(request, id):
 # VIEW BOOKING
 # -------------------------
 
+def _parse_optional_coord(value):
+    """Step 3 map pin coords — blank/invalid input → None.
+
+    Text location ang required; ang coords ay laging optional kaya walang
+    pagkakataong mablock ang booking dito (graceful degradation guard).
+    """
+    raw = "" if value is None else str(value).strip()
+    if not raw:
+        return None
+    try:
+        return Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _clean_optional_field(value, max_length):
+    """Trim + hard-cap na haba ng bagong optional na field (walang rejection)."""
+    return (value or "").strip()[:max_length]
+
+
+# Step 4 required rules: theme + palette (max 3 colors). Ginagamit ng
+# create_booking (strict) at edit_booking (kapag nasa POST ang keys —
+# wipe-guard buhay pa rin).
+MAX_PALETTE_COLORS = 3
+
+
+def _parse_palette_colors(value):
+    """Comma-separated palette string → listahan ng trimmed color names."""
+    return [c.strip() for c in (value or "").split(",") if c.strip()]
+
+
+def _validate_design_preferences(theme, palette):
+    """Balik error message kapag blank ang theme/palette o sobra sa max."""
+    theme = (theme or "").strip()
+    colors = _parse_palette_colors(palette)
+    if not theme:
+        return "Please choose a theme."
+    if not colors:
+        return "Please pick at least 1 color (up to 3)."
+    if len(colors) > MAX_PALETTE_COLORS:
+        return "Maximum 3 colors only."
+    return ""
+
+
 @login_required
 def create_booking(request):
     if request.user.role != "customer":
@@ -576,16 +620,53 @@ def create_booking(request):
             messages.error(request, error_msg)
             return redirect("booking_page")
 
+        # Step 3 map coords (optional; kapag isa lang ang laman, pareho → None)
+        event_lat = _parse_optional_coord(request.POST.get("event_lat"))
+        event_lng = _parse_optional_coord(request.POST.get("event_lng"))
+        if (event_lat is None) != (event_lng is None):
+            event_lat = event_lng = None
+        if event_lat is not None and not Decimal("-90") <= event_lat <= Decimal("90"):
+            event_lat = None
+        if event_lng is not None and not Decimal("-180") <= event_lng <= Decimal("180"):
+            event_lng = None
+
+        # Step 3 strength (map pa rin OPTIONAL): address min 10 chars para
+        # hindi makalusot ang one-word entries tulad ng "QC".
+        event_location = (request.POST.get("event_location") or "").strip()
+        if len(event_location) < 10:
+            error_msg = "Please enter a complete venue address (at least 10 characters)."
+            if is_ajax:
+                return JsonResponse({"success": False, "message": error_msg})
+            messages.error(request, error_msg)
+            return redirect("booking_page")
+
+        # Step 4 required: theme + palette (max 3 colors). Motto optional pa rin.
+        design_theme = _clean_optional_field(request.POST.get("design_theme"), 100)
+        color_palette = _clean_optional_field(request.POST.get("color_palette"), 100)
+        design_error = _validate_design_preferences(design_theme, color_palette)
+        if design_error:
+            if is_ajax:
+                return JsonResponse({"success": False, "message": design_error})
+            messages.error(request, design_error)
+            return redirect("booking_page")
+
         booking = Booking.objects.create(
             user=request.user,
             event_type=request.POST.get("event_type"),
             event_date=event_date,
             event_time=start_time,  # Save start time to event_time field
-            event_location=request.POST.get("event_location"),
+            event_location=event_location,
             package_type=request.POST.get("package_type"),
             special_requests=special_requests,
             reference_image=request.FILES.get("reference_image"),
             total_price=total_price_val,
+            # 📍 Step 3 (location extras) + 🎨 Step 4 (design preferences)
+            event_lat=event_lat,
+            event_lng=event_lng,
+            venue_landmark=_clean_optional_field(request.POST.get("venue_landmark"), 255),
+            design_theme=design_theme,
+            color_palette=color_palette,
+            motto_text=_clean_optional_field(request.POST.get("motto_text"), 150),
         )
 
         # Initial status history entry
@@ -627,6 +708,18 @@ def create_booking(request):
         log_action(request.user, f"Created a new booking #{booking.id}.")
 
         # Admin alert email (fail-safe)
+        alert_design_lines = ""
+        if booking.venue_landmark:
+            alert_design_lines += f"Landmark: {booking.venue_landmark}\n"
+        if booking.design_theme:
+            alert_design_lines += f"Design Theme: {booking.design_theme}\n"
+        if booking.color_palette:
+            alert_design_lines += f"Color Palette: {booking.color_palette}\n"
+        if booking.motto_text:
+            alert_design_lines += f"Motto: {booking.motto_text}\n"
+        if booking.event_lat is not None and booking.event_lng is not None:
+            alert_design_lines += f"Map Pin: {booking.event_lat}, {booking.event_lng}\n"
+
         send_admin_alert_email(
             f"New Booking #{booking.id}",
             (
@@ -636,6 +729,7 @@ def create_booking(request):
                 f"Event: {booking.event_type or '—'} on {booking.event_date}"
                 f"{' ' + get_booking_time_range(booking) if booking.event_time else ''}\n"
                 f"Location: {booking.event_location or '—'}\n"
+                f"{alert_design_lines}"
                 f"Total Price: PHP {booking.total_price:,.2f}\n\n"
                 f"Review it here: {request.build_absolute_uri(f'/staff/bookings/{booking.id}/view/')}"
             ),
@@ -866,10 +960,52 @@ def edit_booking(request, id):
         booking.event_type = request.POST.get("event_type")
         booking.event_date = request.POST.get("event_date")
         booking.event_time = start_time
-        booking.event_location = request.POST.get("event_location")
+        event_location = (request.POST.get("event_location") or "").strip()
+        if len(event_location) < 10:
+            messages.error(
+                request,
+                "Please enter a complete venue address (at least 10 characters).",
+            )
+            return redirect("edit_booking", id=id)
+        booking.event_location = event_location
         booking.package_type = request.POST.get("package_type")
         booking.special_requests = special_requests
         booking.total_price = total_price_val
+
+        # 📍🎨 Bagong Step 3/4 fields — INA-UPDATE LAMANG kapag kasama sa POST.
+        # WIPE-GUARD: ang legacy booking_form.html (hindi pa na-upgrade na
+        # edit surface) ay walang mga field na ito — hindi nila dapat burahin
+        # ang lalong na-save na mapa/design data ng booking.
+        if "venue_landmark" in request.POST:
+            booking.venue_landmark = _clean_optional_field(
+                request.POST.get("venue_landmark"), 255
+            )
+        # Step 4 strict (grandfather rule sa legacy): kapag nasa POST ang
+        # theme/palette keys (edit modal), required + max 3 colors.
+        if "design_theme" in request.POST or "color_palette" in request.POST:
+            new_theme = _clean_optional_field(request.POST.get("design_theme"), 100)
+            new_palette = _clean_optional_field(request.POST.get("color_palette"), 100)
+            design_error = _validate_design_preferences(new_theme, new_palette)
+            if design_error:
+                messages.error(request, design_error)
+                return redirect("edit_booking", id=id)
+            booking.design_theme = new_theme
+            booking.color_palette = new_palette
+        if "motto_text" in request.POST:
+            booking.motto_text = _clean_optional_field(
+                request.POST.get("motto_text"), 150
+            )
+        if "event_lat" in request.POST or "event_lng" in request.POST:
+            new_lat = _parse_optional_coord(request.POST.get("event_lat"))
+            new_lng = _parse_optional_coord(request.POST.get("event_lng"))
+            if (new_lat is None) != (new_lng is None):
+                new_lat = new_lng = None
+            if new_lat is not None and not Decimal("-90") <= new_lat <= Decimal("90"):
+                new_lat = None
+            if new_lng is not None and not Decimal("-180") <= new_lng <= Decimal("180"):
+                new_lng = None
+            booking.event_lat = new_lat
+            booking.event_lng = new_lng
 
         if request.FILES.get("reference_image"):
             booking.reference_image = request.FILES.get("reference_image")

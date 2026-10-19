@@ -237,7 +237,7 @@ class BookingAvailabilityTemplateTests(TestCase):
 
     def test_css_cache_bust_updated(self):
         # Cache-bust versions (i-bump kapag nagbabago ang picker/CSS/JS).
-        self.assertIn("client_booking.css' %}?v=20261018f", self.template)
+        self.assertIn("client_booking.css' %}?v=20261019a", self.template)
         self.assertIn("booking_availability.js' %}?v=20261013a", self.template)
         self.assertIn("booking_picker_a.js' %}?v=20261014f", self.template)
         self.assertIn("booking_picker_c.js' %}?v=20261014e", self.template)
@@ -465,7 +465,11 @@ class EditBookingGuardrailTemplateTests(TestCase):
 
 
 class CreateBookingValidationTests(TestCase):
-    """Backend rules — dapat pareho pa rin ang behaviour (source of truth)."""
+    """Backend rules — dapat pareho pa rin ang behaviour (source of truth).
+
+    Sakop din ng bagong Step 3/4 rules: address min 10 chars + theme/palette
+    required (max 3 colors) — pero iba ang tine-test ng bawat case dito.
+    """
 
     def setUp(self):
         self.client = Client()
@@ -491,6 +495,10 @@ class CreateBookingValidationTests(TestCase):
             "package_type": "Package A",
             "total_price": "5000.00",
             "special_requests": "",
+            # Step 4 required (theme + palette, max 3) — hindi ito ang
+            # tine-test dito, kaya valid values lang palagi.
+            "design_theme": "Princess",
+            "color_palette": "Pink, Gold",
         }
         data.update(overrides)
         return self.client.post(
@@ -627,6 +635,10 @@ class BookingLeadTimeTests(TestCase):
             "package_type": "Package A",
             "total_price": "5000.00",
             "special_requests": "",
+            # Step 4 required (theme + palette, max 3) — hindi ito ang
+            # tine-test dito, kaya valid values lang palagi.
+            "design_theme": "Princess",
+            "color_palette": "Pink, Gold",
         }
         data.update(overrides)
         return self.client.post(
@@ -682,9 +694,12 @@ class BookingLeadTimeTests(TestCase):
                 "event_date": event_date.isoformat(),
                 "start_time": "09:00",
                 "end_time": "11:00",
-                "event_location": "Venue",
+                "event_location": "Test Venue, Quezon City",
                 "total_price": "5000.00",
                 "special_requests": "",
+                # Edit-modal strict (theme + palette kapag nasa POST).
+                "design_theme": "Princess",
+                "color_palette": "Pink, Gold",
             },
         )
 

@@ -1,0 +1,494 @@
+/* ============================================================================
+ * Booking Design Step — shared components (Step 3 location card + Step 4
+ * Design Preferences + read-only mini map). Ginagamit ng booking_page,
+ * customer_profile (edit modal), booking_detail, at admin detail templates
+ * kaya hiwalay sa client_booking.css (iwas style-bleed sa ibang pages).
+ * Palette: eksaktong design-guide.md (lineal color icon set).
+ * ========================================================================== */
+
+/* --- Step 3: Location card (Shopee-style map) --------------------------- */
+.location-map-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    align-items: stretch;
+    flex-wrap: wrap;
+}
+
+.location-search-wrap {
+    position: relative;
+    flex: 1 1 240px;
+    min-width: 200px;
+}
+
+.location-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+
+.location-search-input {
+    width: 100%;
+    padding: 0.65rem 0.85rem 0.65rem 2.3rem;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    background: #1b1b1b;
+    color: #f3f4f6;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.location-search-input:focus {
+    border-color: #9d4edd;
+}
+
+.location-suggestions {
+    position: absolute;
+    z-index: 1050;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #161616;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.map-suggestion-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.6rem 0.85rem;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #2a2a2a;
+    color: #e5e7eb;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.map-suggestion-item:last-child {
+    border-bottom: 0;
+}
+
+.map-suggestion-item:hover {
+    background: #242424;
+}
+
+.map-suggestion-empty {
+    padding: 0.6rem 0.85rem;
+    color: #9ca3af;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.location-use-my-btn {
+    flex: 0 0 auto;
+    padding: 0.65rem 1rem;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    background: #242424;
+    color: #f3f4f6;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.location-use-my-btn:hover {
+    background: #2e2e2e;
+    border-color: #9d4edd;
+}
+
+.location-use-my-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.location-map-status {
+    display: block;
+    margin-top: 8px;
+    color: #a7c4a0;
+    font-size: 0.78rem;
+}
+
+.location-map-status.is-error {
+    color: #fca5a5;
+}
+
+.booking-location-map {
+    height: 300px;
+    margin-top: 10px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #3a3a3a;
+    background: #101010;
+}
+
+.location-landmark-label {
+    display: block;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #d1d5db;
+}
+
+.booking-hint {
+    display: block;
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+
+/* --- Step 4: Design Preferences ----------------------------------------- */
+.design-theme-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.design-chip {
+    padding: 0.45rem 0.85rem;
+    border: 1px solid #3a3a3a;
+    border-radius: 999px;
+    background: #1b1b1b;
+    color: #e5e7eb;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.design-chip:hover {
+    border-color: #9d4edd;
+}
+
+.design-chip.selected {
+    background: #9d4edd;
+    border-color: #9d4edd;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.design-chip-other.selected {
+    background: #f77f00;
+    border-color: #f77f00;
+}
+
+.design-palette-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.palette-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--sw, #888);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.palette-swatch:hover {
+    transform: scale(1.12);
+}
+
+.palette-swatch.selected {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px #9d4edd;
+    transform: scale(1.12);
+}
+
+.design-palette-custom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.design-palette-custom input[type="color"] {
+    width: 38px;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    background: #1b1b1b;
+    cursor: pointer;
+}
+
+.palette-add-btn {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    background: #242424;
+    color: #e5e7eb;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.palette-add-btn:hover {
+    border-color: #9d4edd;
+}
+
+.palette-selected {
+    color: #9ca3af;
+    font-size: 0.78rem;
+}
+
+/* --- Read-only mini map pin (detail/admin views) ------------------------ */
+.booking-map-div-icon {
+    background: transparent;
+    border: 0;
+}
+
+.map-pin-dot {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #e63946;
+    border: 3px solid #ffffff;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+
+/* --- Tile credit (legal requirement ng Esri/OSM-FR): pinaliit, hindi
+   binura — tiny single-line bar sa sulok ng map. ----------------------- */
+.booking-location-map .leaflet-control-attribution,
+.booking-detail-map .leaflet-control-attribution,
+#admin_booking_detail_map.leaflet-container .leaflet-control-attribution {
+    max-width: 70%;
+    padding: 1px 6px;
+    font-size: 10px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.booking-location-map .leaflet-control-attribution a,
+.booking-detail-map .leaflet-control-attribution a,
+#admin_booking_detail_map.leaflet-container .leaflet-control-attribution a {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+/* Disabled palette "Add color" state (kapag 3 na ang napili) */
+.palette-add-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.booking-map-unavailable {
+    padding: 1rem;
+    border: 1px dashed #4b5563;
+    border-radius: 10px;
+}
+
+.map-unavailable-note {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+/* --- Expandable read-only map (fullscreen stage) ----------------------- */
+/* Ang bawat read-only mini map ay may maliit na expand button sa sulok.
+   Pag-tap: nililipat ng JS ang map sa body-level na .booking-map-stage
+   (fullscreen, may ✕ / Esc / backdrop-click para isara). ---------------- */
+.booking-map-frame {
+    position: relative;
+    width: 100%;
+}
+
+.booking-map-expand-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1000;
+    /* nasa itaas ng Leaflet panes/controls */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: rgba(17, 17, 17, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: #f8f9fa;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.booking-map-expand-btn:hover {
+    background: #1f2937;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.booking-map-expand-btn:focus-visible {
+    outline: 2px solid #4895ef;
+    outline-offset: 2px;
+}
+
+.booking-map-expand-btn svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+
+/* Frame na walang laman (nasa stage ang map) — huwag ipakita ang button */
+.booking-map-frame.is-expanded .booking-map-expand-btn {
+    display: none;
+}
+
+.booking-map-stage {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 6000;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.94);
+    backdrop-filter: blur(2px);
+}
+
+.booking-map-stage.is-open {
+    display: flex;
+}
+
+.booking-map-stage-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.booking-map-stage-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(248, 249, 250, 0.8);
+}
+
+.booking-map-stage-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: #f8f9fa;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.booking-map-stage-close:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.booking-map-stage-close:focus-visible {
+    outline: 2px solid #4895ef;
+    outline-offset: 2px;
+}
+
+.booking-map-stage-slot {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Dapat manalo ang fullscreen size sa inline height ng mini map */
+.booking-map-stage-slot > div {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+body.booking-map-stage-open {
+    overflow: hidden;
+}
+
+[data-theme="light"] .booking-map-expand-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.18);
+    color: #1f2937;
+}
+
+[data-theme="light"] .booking-map-expand-btn:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+/* --- Light theme variants ([data-theme="light"]) ------------------------ */
+[data-theme="light"] .location-search-input,
+[data-theme="light"] .location-use-my-btn,
+[data-theme="light"] .design-chip,
+[data-theme="light"] .palette-add-btn {
+    background: #ffffff;
+    color: #1f2937;
+    border-color: rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .location-suggestions {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .map-suggestion-item {
+    color: #1f2937;
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .map-suggestion-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .design-chip.selected {
+    background: #7b2cbf;
+    border-color: #7b2cbf;
+    color: #ffffff;
+}
+
+[data-theme="light"] .booking-location-map {
+    border-color: rgba(0, 0, 0, 0.15);
+    background: #e5e7eb;
+}
+
+[data-theme="light"] .location-landmark-label {
+    color: #374151;
+}
+
+[data-theme="light"] .location-map-status {
+    color: #166534;
+}
+
+[data-theme="light"] .location-map-status.is-error {
+    color: #b91c1c;
+}

@@ -22,24 +22,24 @@
                     <select id="event_type_select" name="event_type" required onchange="toggleOtherEventType(this)">
                         <option value="" disabled {% if not booking.event_type %}selected{% endif %}>Select an Event
                         </option>
-                        <option value="Birthday" {% if booking.event_type=='Birthday' %}selected{% endif %}>Birthday
+                        <option value="Birthday" {% if booking.event_type == 'Birthday' %}selected{% endif %}>Birthday
                         </option>
-                        <option value="Wedding" {% if booking.event_type=='Wedding' %}selected{% endif %}>Wedding
+                        <option value="Wedding" {% if booking.event_type == 'Wedding' %}selected{% endif %}>Wedding
                         </option>
-                        <option value="Anniversary" {% if booking.event_type=='Anniversary' %}selected{% endif %}>
+                        <option value="Anniversary" {% if booking.event_type == 'Anniversary' %}selected{% endif %}>
                             Anniversary</option>
-                        <option value="Corporate Event" {% if booking.event_type=='Corporate Event' %}selected{% endif
+                        <option value="Corporate Event" {% if booking.event_type == 'Corporate Event' %}selected{% endif
                             %}>Corporate Event</option>
-                        <option value="Christening" {% if booking.event_type=='Christening' %}selected{% endif %}>
+                        <option value="Christening" {% if booking.event_type == 'Christening' %}selected{% endif %}>
                             Christening</option>
-                        <option value="Bridal Shower" {% if booking.event_type=='Bridal Shower' %}selected{% endif %}>
+                        <option value="Bridal Shower" {% if booking.event_type == 'Bridal Shower' %}selected{% endif %}>
                             Bridal Shower</option>
-                        <option value="Baby Shower" {% if booking.event_type=='Baby Shower' %}selected{% endif %}>Baby
+                        <option value="Baby Shower" {% if booking.event_type == 'Baby Shower' %}selected{% endif %}>Baby
                             Shower</option>
-                        <option value="Other" {% if booking.event_type and booking.event_type !='Birthday' and
-                            booking.event_type !='Wedding' and booking.event_type !='Anniversary' and booking.event_type
-                            !='Corporate Event' and booking.event_type !='Christening' and booking.event_type
-                            !='Bridal Shower' and booking.event_type !='Baby Shower' %}selected{% endif %}>Other
+                        <option value="Other" {% if booking.event_type and booking.event_type != 'Birthday' and
+                            booking.event_type != 'Wedding' and booking.event_type != 'Anniversary' and booking.event_type
+                            != 'Corporate Event' and booking.event_type != 'Christening' and booking.event_type
+                            != 'Bridal Shower' and booking.event_type != 'Baby Shower' %}selected{% endif %}>Other
                         </option>
                     </select>
                     <input type="text" id="event_type_other"
@@ -86,11 +86,41 @@
                     <small class="booking-field-error" id="event_location_error"></small>
                 </div>
 
+                <!-- 📍🎨 Legacy edit surface: text-only para sa bagong Step 3/4
+                     fields. Walang map dito, pero dahil naka-send ang mga key,
+                     hindi mabubura ang naka-save na map/design data (wipe-guard
+                     sa edit_booking ay update-only kapag nasa POST ang key). -->
+                <div class="form-group full-width">
+                    <label>Nearest Landmark (Optional)</label>
+                    <input type="text" name="venue_landmark" maxlength="255"
+                        value="{{ booking.venue_landmark|default:'' }}"
+                        placeholder="e.g., Near Blue Gate, 2nd floor of Robinsons Mall">
+                </div>
+                <div class="form-group full-width">
+                    <label>Theme / Decor Style <span class="input-required">*</span></label>
+                    <input type="text" name="design_theme" maxlength="100"
+                        value="{{ booking.design_theme|default:'' }}"
+                        placeholder="e.g., Princess, Spiderman, floral…" required>
+                </div>
+                <div class="form-group full-width">
+                    <label>Color Palette (Pick up to 3) <span class="input-required">*</span></label>
+                    <input type="text" name="color_palette" maxlength="100"
+                        value="{{ booking.color_palette|default:'' }}"
+                        placeholder="e.g., Pink, Gold, White" required>
+                    <small class="booking-hint">Pick up to 3 colors, separated by commas.</small>
+                </div>
+                <div class="form-group full-width">
+                    <label>Motto / Text on the Backdrop (Optional)</label>
+                    <input type="text" name="motto_text" maxlength="150"
+                        value="{{ booking.motto_text|default:'' }}"
+                        placeholder='e.g., "Happy 18th, Maria!"'>
+                </div>
+
                 <!-- Hidden input for Package Type (not editable, set from original booking) -->
                 <input type="hidden" name="package_type" value="{{ booking.package_type|default:'' }}">
 
                 <div class="form-group full-width">
-                    <label>Special Requests</label>
+                    <label>Design Notes / Special Requests</label>
                     <textarea name="special_requests"
                         placeholder="Any notes...">{{ booking.special_requests|default:'' }}</textarea>
                 </div>

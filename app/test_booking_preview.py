@@ -82,7 +82,7 @@ class BookingPreviewPageTests(TempMediaMixin, TestCase):
 
         for marker in (
             'id="booking-preview-data"',
-            'id="step-4-indicator"',
+            'id="step-5-indicator"',
             'id="step-2"',
             'id="btnNextToDetails"',
             'id="btnBackToPackages"',
