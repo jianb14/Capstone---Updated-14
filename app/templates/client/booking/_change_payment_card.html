@@ -1,0 +1,35 @@
+{% load humanize %}
+<article class="mp-card mp-card--change" data-change-request-id="{{ change.id }}">
+    <div class="mp-card-head">
+        <div class="mp-card-info">
+            <h3 class="mp-card-title">Additional Payment for Booking Change</h3>
+            <p class="mp-card-sub">Booking #{{ change.booking_id }} &middot; Request #{{ change.id }}</p>
+            <p class="mp-card-sub">{{ change.booking.event_type }} &middot; {{ change.booking.event_date|date:"M d, Y" }}</p>
+        </div>
+        <div class="mp-card-amount">
+            <span class="mp-card-amount-value">&#8369;{{ change.additional_due|floatformat:2|intcomma }}</span>
+            <span class="mp-card-amount-label">{% if change.waiting_for_review %}Submitted for review{% elif change.can_pay %}Additional amount due{% else %}Needs team review{% endif %}</span>
+        </div>
+    </div>
+    <div class="mp-card-meta">
+        {% if change.status == 'manual_review' %}<span class="mp-status mp-status--info">Needs team review</span>
+        {% elif change.waiting_for_review %}<span class="mp-status mp-status--info">Payment under review</span>
+        {% else %}<span class="mp-status mp-status--pending">Additional payment required</span>{% endif %}
+    </div>
+    <p class="mp-change-note">{% if change.original_package != change.proposed_package %}Additional payment for your accepted change from <strong>{{ change.original_package }}</strong> to <strong>{{ change.proposed_package }}</strong>.{% else %}Additional payment for your accepted booking changes.{% endif %} Your previous verified payments remain credited.</p>
+    {% if change.existing_balance > 0 %}<p class="mp-change-note">Your original booking balance of <strong>&#8369;{{ change.existing_balance|floatformat:2|intcomma }}</strong> is listed separately in Remaining Balances.</p>{% endif %}
+    {% if change.status == 'manual_review' %}
+        <p class="mp-change-note">Our team needs to resolve this request with you. Please do not submit another payment.</p>
+    {% elif change.waiting_for_review %}
+        <p class="mp-change-note">Your payment has been submitted. Please wait for verification before paying again. Your changes become final after verification.</p>
+    {% else %}
+        <p class="mp-change-note">Your changes become final after the additional payment is verified.</p>
+    {% endif %}
+    {% if change.expires_at %}<p class="mp-change-deadline">{% if change.waiting_for_review %}Original payment deadline{% else %}Payment deadline{% endif %}: <strong>{{ change.expires_at|date:"M d, Y · g:i A" }}</strong></p>{% endif %}
+    <div class="mp-card-foot">
+        <div class="mp-actions">
+            <a class="cp-btn-row cp-btn-pending-info" href="{{ change.details_url }}">View Request</a>
+            {% if change.can_pay %}<a class="mp-btn-pay" href="{{ change.payment_url }}">Pay Additional &#8369;{{ change.additional_due|floatformat:2|intcomma }}</a>{% endif %}
+        </div>
+    </div>
+</article>

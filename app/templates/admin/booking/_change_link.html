@@ -1,0 +1,7 @@
+{% if change_request %}
+<section class="booking-change-admin request-booking-callout" id="booking-change-review" aria-label="Related change request">
+    <div><strong>Change request #{{ change_request.id }}</strong><p>{{ change_status_label|default:change_request.get_status_display }}. Review the requested changes in Change Requests.</p></div>
+    <a href="{% url 'admin_booking_change_detail' change_request.id %}" class="request-review-button">{% if change_request.status == 'pending_review' or change_request.status == 'quoted' or change_request.status == 'awaiting_payment' or change_request.status == 'manual_review' %}Review Request{% else %}View Request{% endif %} ↗</a>
+    <a class="request-booking-link" href="{% url 'admin_booking_list' %}?tab=requests&amp;booking_id={{ booking.id }}&amp;scope=history">Request history for this booking</a>
+</section>
+{% endif %}

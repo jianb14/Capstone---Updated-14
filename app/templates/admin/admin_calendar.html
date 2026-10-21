@@ -4,7 +4,7 @@
 {% block title %}Events Calendar - Admin{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261017a">
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261020a">
 {% endblock %}
 
 {% block content %}
@@ -123,6 +123,7 @@
 
 {% block extra_js %}
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var calendarEl = document.getElementById('admin-calendar-mount');
@@ -424,7 +425,15 @@
             });
         }
 
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+        /* FullCalendar CDN/init guard — kapag hindi nag-load ang library o
+           bumigong mag-construct/render, hindi mamamatay ang buong handler at
+           papalitan ng friendly fallback ang "Loading..." sa halip na nakatagan. */
+        var calendar = null;
+        try {
+            if (typeof FullCalendar === 'undefined') {
+                throw new Error('FullCalendar library not loaded (CDN failed or was blocked).');
+            }
+            calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             showNonCurrentDates: false,
             fixedWeekCount: false,
@@ -546,17 +555,37 @@
             positionCalPopover(info.el.getBoundingClientRect());
         }
         });
+        } catch (calInitErr) {
+            calendar = null;
+            if (window.console && console.error) console.error('Admin calendar init failed:', calInitErr);
+        }
 
-        calendar.render();
+        if (calendar) {
+            try {
+                calendar.render();
+            } catch (calRenderErr) {
+                calendar = null;
+                if (window.console && console.error) console.error('Admin calendar render failed:', calRenderErr);
+            }
+        }
 
         /* Initial sweep: siguradong tama ang pill <-> dot mode sa unang render
            (hal. nag-load nang mobile ang page o sikip ang calendar container). */
-        applyCalendarEventMode();
+        if (calendar) {
+            applyCalendarEventMode();
+        } else if (window.showBookingCalendarLoadError) {
+            window.showBookingCalendarLoadError('admin calendar did not initialize');
+        } else {
+            /* Inline fallback kapag hindi naka-load ang guard script. */
+            var calTitleFallback = document.getElementById('cal-title-text');
+            if (calTitleFallback) calTitleFallback.textContent = 'Calendar unavailable';
+        }
 
         // =============================================
         // CUSTOM TOOLBAR WIRING (same design as client booking page)
         // =============================================
         function updateCalendarNavState() {
+            if (!calendar) return;
             var titleTextEl = document.getElementById('cal-title-text');
             if (titleTextEl) titleTextEl.textContent = calendar.view.title || '';
 
@@ -596,8 +625,10 @@
             });
         });
 
-        calendar.on('datesSet', updateCalendarNavState);
-        updateCalendarNavState();
+        if (calendar) {
+            calendar.on('datesSet', updateCalendarNavState);
+            updateCalendarNavState();
+        }
 
         // =============================================
         // CUSTOM MONTH/YEAR PICKER LOGIC

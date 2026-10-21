@@ -1,0 +1,27 @@
+{% load humanize %}
+{% for item in breakdown.items %}
+<div class="summary-row detail-row">
+    <div class="row-info"><span class="row-label detail-label">{{ item.label }}</span></div>
+    <span class="row-value detail-value">₱{{ item.amount|floatformat:2|intcomma }}</span>
+</div>
+{% endfor %}
+<div class="summary-row detail-row">
+    <div class="row-info"><span class="row-label detail-label">Items subtotal</span></div>
+    <span class="row-value detail-value">₱{{ breakdown.subtotal|floatformat:2|intcomma }}</span>
+</div>
+<div class="summary-row detail-row">
+    <div class="row-info">
+        <span class="row-label detail-label">Service &amp; Logistics Fee</span>
+        {% if breakdown.logistics_notes %}<p class="row-note">{{ breakdown.logistics_notes }}</p>{% endif %}
+        <p class="row-note">{{ breakdown.logistics_explanation }}</p>
+        {% if breakdown.logistics_distance_km != None %}<p class="row-note">Approx. {{ breakdown.logistics_distance_km|floatformat:2 }} km from shop (straight-line)</p>{% endif %}
+    </div>
+    <span class="row-value detail-value">₱{{ breakdown.service_charge|floatformat:2|intcomma }}</span>
+</div>
+<div class="summary-row detail-row">
+    <div class="row-info">
+        <span class="row-label detail-label">Overtime{% if breakdown.overtime_hours %} ({{ breakdown.overtime_hours }} billable hour{{ breakdown.overtime_hours|pluralize }}){% endif %}</span>
+        <p class="row-note">{{ breakdown.overtime_explanation }}</p>
+    </div>
+    <span class="row-value detail-value">₱{{ breakdown.overtime_fee|floatformat:2|intcomma }}</span>
+</div>

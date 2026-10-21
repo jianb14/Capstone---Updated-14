@@ -780,6 +780,7 @@
 </style>
 {% endblock %}
 {% block content %}
+{% if payment.change_request_id %}<div role="status" style="padding:18px;margin-bottom:20px;border:1px solid #d69c3677;border-radius:12px;background:#d69c3610"><strong>Booking change payment · Request #{{ payment.change_request_id }}</strong><p>This payment is separate from the original booking. Verification applies the customer-accepted changes only while the quote and reservation remain valid. {% if not payment.applied_to_booking %}These funds have not been applied to the original booking balance.{% endif %}</p><a href="{% url 'admin_booking_change_detail' payment.change_request_id %}">Review requested changes and quote →</a></div>{% endif %}
 <div class="page-header detail-page-header">
     <div>
         <h1>Payment #{{ payment.id }}</h1>

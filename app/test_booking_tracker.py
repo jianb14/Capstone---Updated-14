@@ -30,7 +30,7 @@ class BookingTrackerTests(TestCase):
         return Booking.objects.create(**defaults)
 
     def _get_body(self, booking):
-        response = self.client.get(reverse("view_booking", args=[booking.id]))
+        response = self.client.get(reverse("booking_modal_content", args=[booking.id]))
         self.assertEqual(response.status_code, 200)
         return response.content.decode("utf-8")
 
@@ -86,16 +86,13 @@ class BookingTrackerTests(TestCase):
             username="other", email="other@test.com", password="pass12345", role="customer"
         )
         booking = self._create_booking(user=other)
-        response = self.client.get(reverse("view_booking", args=[booking.id]))
+        response = self.client.get(reverse("booking_modal_content", args=[booking.id]))
         self.assertEqual(response.status_code, 403)
 
     def test_light_mode_overrides_present(self):
         # Dapat may light-mode adjustments ang tracker sa template
         from pathlib import Path
 
-        template = (
-            Path(__file__).resolve().parent.parent
-            / "app" / "templates" / "client" / "booking" / "booking_detail.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn('[data-theme="light"] .tracker', template)
-        self.assertIn("@media (max-width: 640px)", template)
+        css = (Path(__file__).resolve().parent.parent / "static" / "css" / "customer_booking_details.css").read_text(encoding="utf-8")
+        self.assertIn('[data-theme="light"] .customer-booking-modal', css)
+        self.assertIn("@media (max-width: 640px)", css)

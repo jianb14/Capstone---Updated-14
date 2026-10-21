@@ -2,20 +2,25 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261019a">
-<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261019e">
+<link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
+<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261022mono">
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261022mono"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
      booking_location_map.js at mananatiling required ang text location. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/booking_availability.js' %}?v=20261013a"></script>
+<script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
-<script src="{% static 'js/booking_picker_c.js' %}?v=20261014e"></script>
-<script src="{% static 'js/booking_location_map.js' %}?v=20261019e"></script>
+<script src="{% static 'js/booking_picker_c.js' %}?v=20261021b"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261021b"></script>
+<script src="{% static 'js/booking_logistics.js' %}?v=20261021d"></script>
+<script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
 {{ availability_data|json_script:"booking-availability-data" }}
 {{ preview_data|json_script:"booking-preview-data" }}
+{{ cavite_boundary|json_script:"booking-cavite-boundary" }}
 
 
 <div class="booking-page">
@@ -111,7 +116,17 @@
 
             <form method="POST" action="{% url 'create_booking' %}" id="bookingForm" enctype="multipart/form-data"
                 data-global-service-charge="{{ global_service_charge|default:'0' }}"
-                data-global-service-charge-note="{{ global_service_charge_note|default:'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.' }}">
+                data-global-service-charge-note="{{ global_service_charge_note|default:'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.' }}"
+                data-logistics-base="{{ logistics_config.base|default:'0' }}"
+                data-logistics-shop-lat="{{ logistics_config.shop_lat|default:'' }}"
+                data-logistics-shop-lng="{{ logistics_config.shop_lng|default:'' }}"
+                data-logistics-free-radius="{{ logistics_config.free_radius_km|default:'0' }}"
+                data-logistics-per-km="{{ logistics_config.per_km_rate|default:'0' }}"
+                data-logistics-max-cap="{{ logistics_config.max_fee_cap|default:'0' }}"
+                data-duration-min-hours="{{ duration_policy.min_hours|default:'2' }}"
+                data-duration-included-hours="{{ duration_policy.included_hours|default:'3' }}"
+                data-duration-overtime-rate="{{ duration_policy.overtime_rate|default_if_none:'500' }}"
+                data-duration-max-hours="{{ duration_policy.max_hours|default:'24' }}">
                 {% csrf_token %}
 
 
@@ -280,14 +295,23 @@
                             <div class="time-row">
                                 <div class="time-field">
                                     <small>Start</small>
-                                    <input type="time" id="start_time" name="start_time" data-label="Start Time" min="07:00" max="16:00" step="900" required>
+                                    <input type="time" id="start_time" name="start_time" data-label="Start Time" min="07:00" max="17:45" step="900" required>
                                     <small class="booking-field-error" id="start_time_error"></small>
                                 </div>
                                 <div class="time-field">
                                     <small>End</small>
-                                    <input type="time" id="end_time" name="end_time" data-label="End Time" min="07:00" max="18:00" step="900" required>
+                                    <input type="time" id="end_time" name="end_time" data-label="End Time" min="07:00" max="23:59" step="900" required>
                                     <small class="booking-field-error" id="end_time_error"></small>
                                 </div>
+                            </div>
+                            <!-- ⏱️ Overtime labels — ang taas ang included window,
+                                 ang baba ang paalala ng dagdag (finna-fill ng JS). -->
+                            <small class="booking-hint" id="duration_included_hint">
+                                First {{ duration_policy.included_hours|default:'3' }} hours are included in your package.
+                            </small>
+                            <div class="booking-overtime-notice" id="overtime_notice" hidden>
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span id="overtime_notice_text"></span>
                             </div>
                         </div>
 
@@ -295,35 +319,38 @@
                              Text address pa rin ang required field; ang map/coords
                              ay optional supplementary data (graceful degradation). -->
                         <div class="form-group full-width location-card-group">
-                            <label><i class="far fa-map"></i> Location (Venue Address) <span class="input-required">*</span></label>
-                            <input type="text" id="event_location" name="event_location" placeholder="e.g., Brgy. 123, Quezon City, Metro Manila" data-label="Event Location" required autocomplete="off">
+                            <label for="event_location"><i class="far fa-map"></i> Location (Venue Address) <span class="input-required">*</span></label>
+                            <div class="location-address-wrap">
+                                <input type="text" id="event_location" name="event_location" placeholder="Search venue, barangay or city (e.g., Molino, Bacoor)" data-label="Event Location" required autocomplete="off">
+                                <div id="location_suggestions" class="location-suggestions" hidden></div>
+                            </div>
                             <small class="booking-field-error" id="event_location_error"></small>
 
                             <div class="location-map-toolbar">
-                                <div class="location-search-wrap">
-                                    <i class="fa-solid fa-magnifying-glass location-search-icon"></i>
-                                    <input type="text" id="location_search" class="location-search-input"
-                                        placeholder="Search address or place (e.g., SM North EDSA)…"
-                                        autocomplete="off" aria-label="Search for a place">
-                                    <div id="location_suggestions" class="location-suggestions" hidden></div>
-                                </div>
+                                <small class="booking-hint location-search-help">Choose a suggestion, then check the pin. Click or drag the pin to your exact venue.</small>
                                 <button type="button" id="location_use_my" class="location-use-my-btn">
                                     <i class="fa-solid fa-location-crosshairs"></i> Use my location
                                 </button>
                             </div>
-                            <small id="location_map_status" class="location-map-status" style="display: none;"></small>
+                            <small id="location_map_status" class="location-map-status" aria-live="polite" style="display: none;"></small>
 
                             <div id="booking_location_map" class="booking-location-map" aria-label="Event location map"></div>
+                            <!-- 📍 Live pin-status chip: "Pin saved / No pin yet / map unavailable" -->
+                            <small id="booking_pin_status" class="location-map-status" aria-live="polite"></small>
+                            <div id="location_logistics_preview" class="location-logistics-preview" aria-live="polite"></div>
+                            {% include 'client/booking/_map_sources.html' %}
 
                             <label for="venue_landmark" class="location-landmark-label"><i class="fa-solid fa-thumbtack"></i> Nearest landmark / gate / floor (Optional)</label>
-                            <input type="text" id="venue_landmark" name="venue_landmark" maxlength="255"
+                            <input type="text" id="venue_landmark" name="venue_landmark" maxlength="255" autocomplete="off"
                                 placeholder="e.g., Near Blue Gate, 2nd floor of Robinsons Mall">
-                            <small class="booking-hint">Drop or drag the pin so our crew finds the exact spot. You can still book using the address alone.</small>
+                            <small class="booking-hint">Enter your own landmark or arrival instructions. This field is optional.</small>
                         </div>
 
                         <!-- Map pin coords (optional — walang laman kapag hindi gumamit ng map) -->
                         <input type="hidden" name="event_lat" id="event_lat_input">
                         <input type="hidden" name="event_lng" id="event_lng_input">
+                        <!-- 📍 Smart-required pin flag: 1 = buhay ang map, 0 = CDN fail (tuloy sa base + admin review) -->
+                        <input type="hidden" name="map_available" id="map_available_input" value="1">
 
                         <!-- Removed No. of Guests -->
 
@@ -371,7 +398,7 @@
                                 <button type="button" class="design-chip" data-value="Nautical Sailor">Nautical / Sailor</button>
                                 <button type="button" class="design-chip" data-value="Cowboy Western">Cowboy / Western</button>
                                 <button type="button" class="design-chip" data-value="Cocomelon">Cocomelon</button>
-                                <button type="button" class="design-chip design-chip-other" data-value="Other">Other ✎</button>
+                                <button type="button" class="design-chip design-chip-other" data-value="Other">Other <i class="fa-solid fa-pencil"></i></button>
                             </div>
                             <input type="text" id="design_theme_other" maxlength="100"
                                 placeholder="Type your theme (e.g. Cars 2, anime, floral…)"
@@ -399,11 +426,7 @@
                                 <button type="button" class="palette-swatch" data-color="Cream" style="--sw:#faf0e6" title="Cream"></button>
                                 <button type="button" class="palette-swatch" data-color="Sage" style="--sw:#a7c4a0" title="Sage"></button>
                             </div>
-                            <div class="design-palette-custom">
-                                <input type="color" id="palette_custom_color" value="#9d4edd" title="Pick a custom color" aria-label="Pick a custom color">
-                                <button type="button" id="palette_add_custom" class="palette-add-btn">Add color</button>
-                                <span id="palette_selected" class="palette-selected">0 of 3 colors selected</span>
-                            </div>
+                            {% include 'client/booking/_palette_custom.html' with color_id='palette_custom_color' button_id='palette_add_custom' selected_id='palette_selected' %}
                             <small class="booking-hint">Pick up to 3 colors.</small>
                             <small class="booking-field-error" id="color_palette_error"></small>
                             <input type="hidden" name="color_palette" id="color_palette_input">
@@ -427,11 +450,11 @@
                         <div class="form-group full-width">
                             {% if not prefilled_design %}
                                 <label for="booking_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
-                                <input type="file" id="booking_reference_images_ui" accept="image/*" multiple class="file-input">
+                                {% include 'client/booking/_reference_upload.html' with input_id='booking_reference_images_ui' %}
                                 <!-- Hidden proper input for backend submission -->
                                 <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
 
-                                <small style="color: #666; font-size: 0.75rem;">Upload sample or peg images. You can select up to 4 reference pictures.</small>
+                                <small class="booking-hint">Upload sample or peg images. You can select up to 4 reference pictures.</small>
                                 <p id="bookingImageLimitError" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; display: none;">Maximum 4 images allowed.</p>
                             {% else %}
                                 <label><i class="far fa-pen-to-square"></i> Your Custom Design</label>
@@ -466,8 +489,6 @@
                             <!-- Dynamic rows will be inserted here by JS -->
                         </div>
 
-                        <div class="summary-divider"></div>
-
                         <!-- Service Charge Row (Special handling for the note) -->
                         <div class="summary-row service-charge-summary" id="serviceChargeRow"
                             style="display: none;">
@@ -476,6 +497,15 @@
                                 <p class="row-note" id="service_charge_note_text">{{ global_service_charge_note|default:"Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics." }}</p>
                             </div>
                             <span class="row-value" id="service_charge_display">₱0.00</span>
+                        </div>
+
+                        <!-- ⏱️ Overtime Row (hidden kapag <= included hours) -->
+                        <div class="summary-row overtime-summary" id="overtimeRow" style="display: none;">
+                            <div class="row-info">
+                                <span class="row-label">Overtime</span>
+                                <p class="row-note" id="overtime_row_note">Beyond the included hours.</p>
+                            </div>
+                            <span class="row-value" id="overtime_display">₱0.00</span>
                         </div>
 
                         <div class="summary-row total-row">
@@ -582,6 +612,24 @@
         const eventTypeTrigger = document.querySelector('#eventTypeCustomSelect .custom-select-trigger');
         const globalServiceCharge = parseFloat((bookingForm?.dataset.globalServiceCharge || '0'));
         const globalServiceChargeNote = bookingForm?.dataset.globalServiceChargeNote || 'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.';
+        /* 🚚 Live logistics quote — mirror ng backend compute_logistics_quote():
+           base + ceil(km − free) × per-km (naka-cap). */
+        const logisticsConfig = {
+            base: parseFloat(bookingForm?.dataset.logisticsBase || bookingForm?.dataset.globalServiceCharge || '0') || 0,
+            shopLat: parseFloat(bookingForm?.dataset.logisticsShopLat || ''),
+            shopLng: parseFloat(bookingForm?.dataset.logisticsShopLng || ''),
+            freeRadius: parseFloat(bookingForm?.dataset.logisticsFreeRadius || '0') || 0,
+            perKm: parseFloat(bookingForm?.dataset.logisticsPerKm || '0') || 0,
+            maxCap: parseFloat(bookingForm?.dataset.logisticsMaxCap || '0') || 0,
+        };
+        const caviteBoundary = JSON.parse(document.getElementById('booking-cavite-boundary').textContent);
+        function computeLogisticsQuoteLive() {
+            const latEl = document.getElementById('event_lat_input');
+            const lngEl = document.getElementById('event_lng_input');
+            const vLat = parseFloat(latEl?.value || '');
+            const vLng = parseFloat(lngEl?.value || '');
+            return window.BookingLogistics.quote(logisticsConfig, vLat, vLng, caviteBoundary);
+        }
 
         // --- Selection State ---
         let selectedPackageName = null;
@@ -789,7 +837,11 @@
                     blockedDates: Array.isArray(raw.blockedDates) ? raw.blockedDates : [],
                     bookedRanges: (raw.bookedRanges && typeof raw.bookedRanges === 'object') ? raw.bookedRanges : {},
                     todayIso: typeof raw.todayIso === 'string' ? raw.todayIso : '',
-                    leadDays: (isNaN(leadRaw) || leadRaw < 0) ? 0 : leadRaw
+                    leadDays: (isNaN(leadRaw) || leadRaw < 0) ? 0 : leadRaw,
+                    minDurationHours: parseInt(raw.minDurationHours, 10) || 0,
+                    includedHours: parseInt(raw.includedHours, 10) || 0,
+                    overtimeRate: raw.overtimeRate || '0',
+                    maxDurationHours: parseInt(raw.maxDurationHours, 10) || 0
                 };
             } catch (e) { /* fall through sa calendar-based data */ }
             return null;
@@ -946,6 +998,10 @@
             }
             if (selectedAdditionalName) total += selectedAdditionalPrice;
             if (hasBaseSelection) total += selectedServiceCharge;
+            // ⏱️ Overtime (lampas sa included hours) — server-validated pa rin
+            // sa create_booking, dito lang para makita ang totoong total agad.
+            const overtimeInfo = computeOvertimeInfo();
+            if (hasBaseSelection && overtimeInfo) total += overtimeInfo.overtimeFee;
             return total;
         }
 
@@ -1003,19 +1059,53 @@
                     </div>`;
             }
 
-            // 4. Update Service Charge Visibility & Display
+            // 4. Update Service Charge Visibility & Display (live logistics quote:
+            //    base + distance extra mula sa map pin — mirror ng backend).
             const svcRow = document.getElementById('serviceChargeRow');
             const svcDisplay = document.getElementById('service_charge_display');
             const svcNote = document.getElementById('service_charge_note_text');
             const finalPriceDisplay = document.getElementById('total_price_display');
             const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
+            const liveQuote = computeLogisticsQuoteLive();
+            selectedServiceCharge = liveQuote.total;
+            const locationPreview = document.getElementById('location_logistics_preview');
+            if (locationPreview) {
+                if (liveQuote.inCavite === null) {
+                    locationPreview.textContent = `Cavite logistics: ${formatPrice(logisticsConfig.base)}. Select your venue to calculate the fee.`;
+                } else if (!liveQuote.configured) {
+                    locationPreview.textContent = 'Logistics quote needs review. Please ask our team to confirm the shop location.';
+                } else {
+                    locationPreview.textContent = liveQuote.inCavite
+                        ? `Logistics fee: ${formatPrice(liveQuote.total)} · Within Cavite, base fee only.`
+                        : `Logistics fee: ${formatPrice(liveQuote.total)} · ${formatPrice(logisticsConfig.base)} base + ${formatPrice(liveQuote.extra)} outside-Cavite distance fee.`;
+                    if (liveQuote.distanceKm !== null) locationPreview.textContent += ` Approx. ${liveQuote.distanceKm.toFixed(2)} km from shop (straight-line).`;
+                }
+            }
 
             if (hasBaseSelection && selectedServiceCharge > 0) {
                 if (svcDisplay) svcDisplay.textContent = formatPrice(selectedServiceCharge);
-                if (svcNote) svcNote.textContent = globalServiceChargeNote;
+                if (svcNote) {
+                    svcNote.textContent = globalServiceChargeNote + ' ' + window.BookingLogistics.describeQuote(logisticsConfig, liveQuote);
+                }
                 if (svcRow) svcRow.style.display = 'flex';
             } else {
                 if (svcRow) svcRow.style.display = 'none';
+            }
+
+            // 4B. ⏱️ Overtime row (hidden kapag walang lagpas sa included hours)
+            const otRow = document.getElementById('overtimeRow');
+            const otDisplay = document.getElementById('overtime_display');
+            const otNote = document.getElementById('overtime_row_note');
+            const overtimeInfo = computeOvertimeInfo();
+            if (otRow && overtimeInfo && overtimeInfo.overtimeHours > 0 && hasBaseSelection) {
+                if (otDisplay) otDisplay.textContent = formatPrice(overtimeInfo.overtimeFee);
+                if (otNote) {
+                    otNote.textContent = window.BookingAvailability.overtimeNote(overtimeInfo.overtimeHours,
+                        DURATION_POLICY.includedHours, DURATION_POLICY.overtimeRate);
+                }
+                otRow.style.display = 'flex';
+            } else if (otRow) {
+                otRow.style.display = 'none';
             }
 
             // 5. Update Total Price Display
@@ -1048,10 +1138,11 @@
             const specialRequestsValue = document.getElementById('booking_special_requests')?.value?.trim() || '';
             const bookedItems = buildPackageTypeString() || '-';
             const startValue = formatTimeWithMeridiem(startTimeInput.value);
-            const endValue = formatTimeWithMeridiem(endTimeInput.value);
+            const endValue = formatTimeWithMeridiem(endTimeInput.value)
+                + (startTimeInput.value && endTimeInput.value && endTimeInput.value <= startTimeInput.value ? ' (+1 day)' : '');
             const durationValue = (startValue === '-' || endValue === '-') ? '-' : `${startValue} - ${endValue}`;
             const specialRequestsRow = specialRequestsValue
-                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Design Notes</span></div><span class="row-value">${specialRequestsValue}</span></div>`
+                ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Design Notes</span></div><span class="row-value">${escapeSummaryHtml(specialRequestsValue)}</span></div>`
                 : '';
 
             /* Step 4 rows — theme + palette required (laging may value), motto
@@ -1077,8 +1168,8 @@
                 : `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-map-pin"></i> Map Pin</span></div><span class="row-value" style="color:#9ca3af;">No map pin — our crew will confirm the exact spot via chat.</span></div>`;
 
             detailsContainer.innerHTML = `
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-square-check"></i> Package / Items</span></div><span class="row-value">${bookedItems}</span></div>
-                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clipboard"></i> Event Type</span></div><span class="row-value">${getSelectedEventTypeDisplay()}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-square-check"></i> Package / Items</span></div><span class="row-value">${escapeSummaryHtml(bookedItems)}</span></div>
+                <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clipboard"></i> Event Type</span></div><span class="row-value">${escapeSummaryHtml(getSelectedEventTypeDisplay())}</span></div>
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-calendar-days"></i> Event Date</span></div><span class="row-value">${dateInput.value || '-'}</span></div>
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-clock"></i> Event Duration</span></div><span class="row-value">${durationValue}</span></div>
                 <div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-map"></i> Location</span></div><span class="row-value">${escapeSummaryHtml(locationValue) || '-'}</span></div>
@@ -1336,53 +1427,44 @@
                 if (additionalCard) selected.push({ bucket: 'additionals', id: additionalCard.dataset.id, label: selectedAdditionalName });
             }
 
-            let hasAnyImages = false;
-            if (previewImagesGrid) {
-                previewImagesGrid.innerHTML = '';
-                selected.forEach(item => {
-                    const images = ((bookingPreviewData[item.bucket] || {})[item.id] || [])
-                        .slice(0, MAX_PREVIEW_IMAGES_PER_ITEM);
-                    if (!images.length) return;
-                    hasAnyImages = true;
-
-                    const group = document.createElement('div');
-                    group.className = 'preview-group';
-
-                    const title = document.createElement('span');
-                    title.className = 'preview-group-title';
-                    title.textContent = item.label;
-                    group.appendChild(title);
-
-                    const groupGrid = document.createElement('div');
-                    groupGrid.className = 'preview-group-grid';
-                    images.forEach(src => {
-                        const tile = document.createElement('div');
-                        tile.className = 'preview-image-tile';
-                        const img = document.createElement('img');
-                        img.src = src;
-                        img.alt = item.label + ' preview';
-                        img.loading = 'lazy';
-                        tile.appendChild(img);
-                        groupGrid.appendChild(tile);
-                    });
-                    group.appendChild(groupGrid);
-                    previewImagesGrid.appendChild(group);
-                });
-                previewImagesGrid.style.display = hasAnyImages ? 'flex' : 'none';
-            }
-            if (previewEmptyMessage) {
-                previewEmptyMessage.style.display = hasAnyImages ? 'none' : 'flex';
-            }
+            window.BookingFormUI.renderPreview(previewImagesGrid, selected.map(item => ({
+                label: item.label,
+                images: ((bookingPreviewData[item.bucket] || {})[item.id] || []).slice(0, MAX_PREVIEW_IMAGES_PER_ITEM)
+            })), previewEmptyMessage);
         }
 
         /* Loop-based stepper (5 steps): hindi na paulit-ulit ang if/else —
            0% / 25% / 50% / 75% / 100% ang progress line (12px offset per step,
            kagaya ng dating 33.333%/66.666% pattern). */
         const STEPPER_TOTAL_STEPS = 5;
-        const STEPPER_PROGRESS = ['0%', 'calc(25% - 12px)', 'calc(50% - 24px)', 'calc(75% - 36px)', 'calc(100% - 48px)'];
+        const STEPPER_PROGRESS = ['0%', '20%', '40%', '60%', '80%'];
         const stepContents = [step1Content, step2Content, step3Content, step4Content, step5Content];
         const stepIndicators = [step1Indicator, step2Indicator, step3Indicator, step4Indicator, step5Indicator];
         let bookingMapInstance = null;
+
+        /* 📍 Pin-status chip (Step 3): laging updated ang estado ng pin —
+           "Pin saved / No pin yet / map unavailable". Tinatawag kapag
+           binubuksan ang step at sa bawat pagbabago ng pin. */
+        function refreshBookingPinStatusText() {
+            const chip = document.getElementById('booking_pin_status');
+            if (!chip) return;
+            let mapAlive = false;
+            try {
+                mapAlive = !!(window.BookingLocationMap && window.BookingLocationMap.isMapReady && window.BookingLocationMap.isMapReady());
+            } catch (e) { mapAlive = false; }
+            const latOk = document.getElementById('event_lat_input')?.value?.trim();
+            const lngOk = document.getElementById('event_lng_input')?.value?.trim();
+            if (!mapAlive) {
+                chip.textContent = 'Map unavailable — pin optional. Our crew will confirm the exact spot via chat.';
+                chip.classList.remove('is-error');
+            } else if (latOk && lngOk) {
+                chip.textContent = 'Pin saved. Check that it marks your exact venue.';
+                chip.classList.remove('is-error');
+            } else {
+                chip.textContent = 'No pin yet — drop a pin or pick from search. Required to continue.';
+                chip.classList.add('is-error');
+            }
+        }
 
         function ensureBookingMap() {
             // Lazy init: unang bukas ng Step 3 lang bubuoin ang map (nakatago
@@ -1392,12 +1474,31 @@
                 mapId: 'booking_location_map',
                 latId: 'event_lat_input',
                 lngId: 'event_lng_input',
-                searchId: 'location_search',
+                searchId: 'event_location',
                 suggestionsId: 'location_suggestions',
                 useLocationId: 'location_use_my',
                 statusId: 'location_map_status',
                 landmarkId: 'venue_landmark',
-                addressId: 'event_location'
+                addressId: 'event_location',
+                onPinChange: function () {
+                    /* 📍 Kapag nagbago ang pin, i-refresh ang Step 5 quote +
+                       i-clear ang event_location error kung may pin na. */
+                    try {
+                        if (typeof updateOrderSummary === 'function') updateOrderSummary();
+                    } catch (e) { /* noop */ }
+                    try {
+                        const latOk = document.getElementById('event_lat_input')?.value?.trim();
+                        const lngOk = document.getElementById('event_lng_input')?.value?.trim();
+                        if (latOk && lngOk && typeof setBookingFieldError === 'function') {
+                            setBookingFieldError('event_location', '');
+                            const stEl = document.getElementById('location_map_status');
+                            if (stEl) stEl.classList.remove('is-error');
+                        }
+                    } catch (e) { /* noop */ }
+                    try {
+                        if (typeof refreshBookingPinStatusText === 'function') refreshBookingPinStatusText();
+                    } catch (e) { /* noop */ }
+                }
             });
         }
 
@@ -1405,6 +1506,7 @@
             if (stepNumber === 2) { renderPackagePreview(); }
             if (stepNumber === 3) {
                 ensureBookingMap();
+                refreshBookingPinStatusText();
                 // Leaflet needs an explicit re-layout kapag unang lumitaw sa view
                 setTimeout(function () {
                     if (bookingMapInstance) bookingMapInstance.invalidate();
@@ -1900,7 +2002,16 @@
             if (bookingEventTip) bookingEventTip.style.display = 'none';
         }
 
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+        /* FullCalendar CDN/init guard — kapag hindi nag-load ang library o
+           bumigong mag-construct/render, hindi mamamatay ang buong handler
+           (form/stepper keeps working) at papalitan ng friendly fallback ang
+           "Loading…" sa halip na nakatagan. */
+        var calendar = null;
+        try {
+            if (typeof FullCalendar === 'undefined') {
+                throw new Error('FullCalendar library not loaded (CDN failed or was blocked).');
+            }
+            calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             /* Height 'auto': hindi na gagamitin ng FullCalendar ang default
                aspectRatio (1.35) na nagse-stretch ng rows para mapuno ang
@@ -1999,9 +2110,9 @@
             events: [
                 {% for event in calendar_events %}
             {
-                title: '{{ event.title }}',
-                start: '{{ event.start }}',
-                {% if event.end %}end: '{{ event.end }}', {% endif %}
+                title: '{{ event.title|escapejs }}',
+                start: '{{ event.start|escapejs }}',
+                {% if event.end %}end: '{{ event.end|escapejs }}', {% endif %}
         backgroundColor: '{{ event.color }}',
         borderColor: '{{ event.color }}',
         textColor: '#ffffff'
@@ -2104,12 +2215,33 @@
             }, 300);
         }
         });
+        } catch (calInitErr) {
+            calendar = null;
+            if (window.console && console.error) console.error('Booking calendar init failed:', calInitErr);
+        }
 
-    calendar.render();
-    /* Siguraduhing tama ang pill <-> dot mode pagkatapos ng unang render */
-    applyCalendarEventMode();
+        if (calendar) {
+            try {
+                calendar.render();
+            } catch (calRenderErr) {
+                calendar = null;
+                if (window.console && console.error) console.error('Booking calendar render failed:', calRenderErr);
+            }
+        }
+
+        if (calendar) {
+            /* Siguraduhing tama ang pill <-> dot mode pagkatapos ng unang render */
+            applyCalendarEventMode();
+        } else if (window.showBookingCalendarLoadError) {
+            window.showBookingCalendarLoadError('booking calendar did not initialize');
+        } else {
+            /* Inline fallback kapag hindi naka-load ang guard script. */
+            var calTitleFallback = document.getElementById('cal-title-text');
+            if (calTitleFallback) calTitleFallback.textContent = 'Calendar unavailable';
+        }
 
     function updateCalendarNavState() {
+        if (!calendar) return;
         const currentDate = calendar.getDate();
         const prevButton = document.getElementById('cal-prev');
         if (prevButton) {
@@ -2163,9 +2295,11 @@
         });
     });
 
-    calendar.on('datesSet', updateCalendarNavState);
-    calendar.on('datesSet', applyCalendarEventMode);
-    updateCalendarNavState();
+    if (calendar) {
+        calendar.on('datesSet', updateCalendarNavState);
+        calendar.on('datesSet', applyCalendarEventMode);
+        updateCalendarNavState();
+    }
 
     // =============================================
     // CUSTOM MONTH/YEAR PICKER LOGIC
@@ -2193,6 +2327,7 @@
 
     // Intercept clicks on the custom calendar title (opens month/year picker)
     document.getElementById('cal-title').addEventListener('click', function () {
+        if (!calendar) return;
         const currentDate = calendar.getDate();
         currentPickerYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth();
@@ -2242,7 +2377,7 @@
             if (isBeforeCurrentMonth(currentPickerYear, selectedMonth)) return;
             // Navigate FullCalendar to the 1st day of chosen month/year
             const newDate = new Date(currentPickerYear, selectedMonth, 1);
-            calendar.gotoDate(newDate);
+            if (calendar) calendar.gotoDate(newDate);
 
             mypModal.style.display = 'none';
             const titleBtn = document.getElementById('cal-title');
@@ -2253,6 +2388,117 @@
     // =============================================
     // TIME VALIDATION
     // =============================================
+    /* ⏱️ Duration/overtime policy (galing sa SiteSettings via form data attrs
+       at availability payload). Server pa rin ang source of truth. */
+    const DURATION_POLICY = (function () {
+        const data = readAvailabilityData() || {};
+        const minH = parseInt(bookingForm?.dataset.durationMinHours || data.minDurationHours || '2', 10);
+        const inclH = parseInt(bookingForm?.dataset.durationIncludedHours || data.includedHours || '3', 10);
+        const rate = parseFloat(bookingForm?.dataset.durationOvertimeRate || data.overtimeRate || '500');
+        const maxH = parseInt(bookingForm?.dataset.durationMaxHours || data.maxDurationHours || '24', 10);
+        return {
+            minHours: (isNaN(minH) || minH < 1) ? 2 : minH,
+            includedHours: (isNaN(inclH) || inclH < 1) ? 3 : inclH,
+            overtimeRate: (isNaN(rate) || rate < 0) ? 500 : rate,
+            maxHours: (isNaN(maxH) || maxH < 1) ? 24 : maxH
+        };
+    })();
+
+    /* Duration sa minutes (overnight: end <= start → +24h). */
+    function getSelectedDurationMinutes() {
+        const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
+        const endMinutes = getMinutesFromTimeValue(endTimeInput.value);
+        if (startMinutes === null || endMinutes === null) return null;
+        let duration = endMinutes - startMinutes;
+        if (duration <= 0) duration += 24 * 60;
+        return duration;
+    }
+
+    /* Overtime computation — pareho ng backend compute_overtime():
+       lampas sa included → ceil(overtimeMinutes / 60) × rate.
+       NOTE: gumagana na kahit Start-only (walang End pa) — para agad
+       makita ng customer ang "included window" (hanggang kailan kasama).
+       Sa walang End, durationMinutes = null at overtimeHours = 0 (wala pa
+       dapat i-charge). */
+    function computeOvertimeInfo() {
+        const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
+        if (startMinutes === null) return null;
+        const durationMinutes = getSelectedDurationMinutes();
+        const includedMinutes = DURATION_POLICY.includedHours * 60;
+        const info = {
+            durationMinutes: durationMinutes,
+            hasEnd: durationMinutes !== null,
+            overtimeHours: 0,
+            overtimeFee: 0,
+            includedUntil: ''
+        };
+        const untilMinutes = startMinutes + includedMinutes;
+        const untilH = String(Math.floor((untilMinutes % (24 * 60)) / 60)).padStart(2, '0');
+        const untilM = String(untilMinutes % 60).padStart(2, '0');
+        info.includedUntil = `${untilH}:${untilM}`;
+        if (durationMinutes !== null && durationMinutes > includedMinutes) {
+            const overtimeMinutes = durationMinutes - includedMinutes;
+            info.overtimeHours = Math.ceil(overtimeMinutes / 60);
+            info.overtimeFee = info.overtimeHours * DURATION_POLICY.overtimeRate;
+        }
+        return info;
+    }
+
+    function formatTimeLabel(timeValue) {
+        const minutes = getMinutesFromTimeValue(timeValue);
+        if (minutes === null) return timeValue || '';
+        const h24 = Math.floor(minutes / 60);
+        const m = String(minutes % 60).padStart(2, '0');
+        const suffix = h24 >= 12 ? 'PM' : 'AM';
+        const h12 = h24 % 12 || 12;
+        return `${h12}:${m} ${suffix}`;
+    }
+
+    /* Notice + toast kapag lumagpas sa included window (warning lang —
+       hindi hinaharap ang booking, price lang ang dagdag). */
+    let lastOvertimeHoursShown = 0;
+    function updateOvertimeNotice(showToast) {
+        const notice = document.getElementById('overtime_notice');
+        const noticeText = document.getElementById('overtime_notice_text');
+        const hint = document.getElementById('duration_included_hint');
+        const info = computeOvertimeInfo();
+        if (!info) {
+            if (notice) notice.hidden = true;
+            if (hint) hint.textContent = `First ${DURATION_POLICY.includedHours} hour(s) are included — pick a start time to see your exact included window.`;
+            lastOvertimeHoursShown = 0;
+            return info;
+        }
+        if (hint) {
+            hint.textContent = `Start ${formatTimeLabel(startTimeInput.value)} → included until ${formatTimeLabel(info.includedUntil || '')}`
+                + ` (${DURATION_POLICY.includedHours} hrs). Additional time: +₱${DURATION_POLICY.overtimeRate.toLocaleString('en-PH')} per started hour.`;
+        }
+        /* Walang End pa → walang overtime pa, kaya walang notice/toast. Ang hint
+           na nasa itaas ang nagpapakita ng included window. */
+        if (!info.hasEnd) {
+            if (notice) notice.hidden = true;
+            lastOvertimeHoursShown = 0;
+            return info;
+        }
+        if (notice && noticeText) {
+            notice.hidden = info.overtimeHours <= 0;
+            if (info.overtimeHours > 0) {
+                noticeText.textContent = `Overtime: ${info.overtimeHours} hr(s) × `
+                    + `₱${DURATION_POLICY.overtimeRate.toLocaleString('en-PH')} = `
+                    + `₱${info.overtimeFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+                    + ` — added to your total.`;
+                if (showToast && info.overtimeHours > lastOvertimeHoursShown && window.AppToast && endTimeInput.dataset.overtimeConfirmed !== '1') {
+                    AppToast.fire({
+                        icon: 'warning',
+                        title: 'Heads up: may overtime ito.',
+                        text: `End ${formatTimeLabel(endTimeInput.value)} = ${Math.floor(info.durationMinutes / 60)}h ${info.durationMinutes % 60}m total → ${info.overtimeHours} hr(s) overtime = +₱${info.overtimeFee.toLocaleString('en-PH')}`
+                    });
+                }
+            }
+        }
+        lastOvertimeHoursShown = info.overtimeHours;
+        return info;
+    }
+
     function updateTimeConstraints() {
         // Lahat ng date/time constraints ay laging nakatalaga — maging pagkatapos
         // ng form.reset() o programmatic na pag-set ng petsa mula sa calendar.
@@ -2275,35 +2521,39 @@
             if (nowRounded > startMin) startMin = nowRounded;
         }
         startTimeInput.min = startMin;
-        /* 2-hour minimum duration bago mag-6:00 PM → pinakahuling start = 16:00 */
-        startTimeInput.max = '16:00';
+        /* Start window: 7:00 AM – 6:00 PM operating hours. Ang END ay hindi
+           na limitado sa 6:00 PM (overnight allowed hanggang max duration). */
+        startTimeInput.max = '17:45';
         startTimeInput.step = 900;
         validateEndTime();
     }
 
     function validateEndTime() {
+        /* End: +min duration lang ang floor (hal. start+2h). Walang 18:00 cap —
+           pwedeng mag-end sa susunod na araw (overnight), basta't hindi
+           lalampas sa max duration na chine-check ng validation. */
         endTimeInput.min = '07:00';
-        endTimeInput.max = '18:00';
+        endTimeInput.max = '23:59';
         endTimeInput.step = 900;
 
-        /* End min = start + 2 hours (kasinghalaga ng server-side na 2h rule),
-           hindi na lalampas sa 18:00. */
         const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
         if (startMinutes === null) return;
 
-        let minEndMinutes = startMinutes + 120;
-        if (minEndMinutes > 18 * 60) minEndMinutes = 18 * 60;
+        let minEndMinutes = startMinutes + (DURATION_POLICY.minHours * 60);
+        if (minEndMinutes > 24 * 60) minEndMinutes -= 24 * 60;
         const minEndHours = String(Math.floor(minEndMinutes / 60)).padStart(2, '0');
         const minEndMins = String(minEndMinutes % 60).padStart(2, '0');
         const minEndStr = `${minEndHours}:${minEndMins}`;
 
         if (minEndStr > endTimeInput.min) endTimeInput.min = minEndStr;
+        updateOvertimeNotice(false);
     }
 
     /* Instant operating-hours guard (Option A): hindi na hinihintay ang Next
-       click. Kapag ang Start/End ay nasa labas ng 7:00 AM – 6:00 PM, o kulang
-       sa 2-hour minimum, nagse-set agad ng inline error. Return true kapag
-       may violation (para ma-disable ang Next). */
+       click. Kapag ang Start/End ay nasa labas ng allowed window, o kulang sa
+       min / lampas sa max na duration, nagse-set agad ng inline error.
+       Overtime (lampas sa included) ay HINDI violation — price + toast lang.
+       Return true kapag may violation (para ma-disable ang Next). */
     function validateStepTwoTimesInstant() {
         /* Decoupled module muna (same rules); fallback sa inline kapag wala. */
         const _selectedDate = dateInput ? dateInput.value : '';
@@ -2311,14 +2561,15 @@
         if (moduleResult) {
             setBookingFieldError('start_time', moduleResult.startError);
             setBookingFieldError('end_time', moduleResult.endError);
+            updateOvertimeNotice(true);
             return moduleResult.violated;
         }
         const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
         const endMinutes = getMinutesFromTimeValue(endTimeInput.value);
         let violated = false;
 
-        if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
-            setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.');
+        if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 17 * 60 + 45)) {
+            setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 5:45 PM.');
             violated = true;
         } else if (_selectedDate && _selectedDate === getTodayIso() && startMinutes !== null && startMinutes <= getNowMinutes()) {
             /* Same-day past-time guard: kapag today ang date, bawal ang start na
@@ -2329,19 +2580,28 @@
             setBookingFieldError('start_time', '');
         }
 
-        if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
-            setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
-            violated = true;
-        } else if (startMinutes !== null && endMinutes !== null && (endMinutes - startMinutes) < 120) {
-            setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
-            violated = true;
-        } else if (_selectedDate && _selectedDate === getTodayIso() && endMinutes !== null && endMinutes <= getNowMinutes()) {
-            /* Same-day past-time guard para sa end time (hal. 5PM na, 3PM bawal na). */
-            setBookingFieldError('end_time', 'The selected end time has already passed. Please choose a future time.');
-            violated = true;
-        } else {
-            setBookingFieldError('end_time', '');
+        if (startMinutes !== null && endMinutes !== null) {
+            let duration = endMinutes - startMinutes;
+            if (duration <= 0) duration += 24 * 60;  // overnight
+            const minMinutes = DURATION_POLICY.minHours * 60;
+            const maxMinutes = DURATION_POLICY.maxHours * 60;
+            if (duration < minMinutes) {
+                setBookingFieldError('end_time', `Event duration must be at least ${DURATION_POLICY.minHours} hour(s).`);
+                violated = true;
+            } else if (duration > maxMinutes) {
+                setBookingFieldError('end_time', `Maximum booking duration is ${DURATION_POLICY.maxHours} hours only.`);
+                violated = true;
+            } else if (_selectedDate && _selectedDate === getTodayIso()
+                && duration < 24 * 60 && endMinutes <= getNowMinutes()) {
+                /* Same-day past-time guard para sa end time (full 24h wrap ay
+                   next-day na — hindi pasado sa guard na ito). */
+                setBookingFieldError('end_time', 'The selected end time has already passed. Please choose a future time.');
+                violated = true;
+            } else {
+                setBookingFieldError('end_time', '');
+            }
         }
+        updateOvertimeNotice(true);
 
         return violated;
     }
@@ -2351,6 +2611,11 @@
     function refreshStepTwoNextState() {
         if (!btnNextToSummary) return;
         btnNextToSummary.dataset.availabilityGuard = 'main';
+        /* ⏱️ Overtime notice + toast — DITO laging na-u-update para agad
+           mag-react sa Start/End change. (Hindi ito ang nagta-trigger dati:
+           ang module branch ay early-return, kaya hindi na napapasok ang
+           validateStepTwoTimesInstant → updateOvertimeNotice.) */
+        updateOvertimeNotice(true);
         /* Decoupled module ang single writer: blocked/fully-booked kahit
            walang laman ang oras, plus instant time violation. */
         if (window.BookingAvailability && window.BookingAvailability.computeNextDisabled) {
@@ -2467,10 +2732,11 @@
             setBookingFieldError('start_time', 'Start Time is required*');
             if (!firstInvalidField) firstInvalidField = 'start_time';
         } else {
-            /* Operating-hours guard (7:00 AM–4:00 PM start window para sa 2h minimum). */
+            /* Start window guard (7:00 AM–5:45 PM — operating hours; ang end
+               ay hindi na limitado sa 6:00 PM, may max-duration check sa ibaba). */
             const startMinutes = getMinutesFromTimeValue(startTimeInput.value);
-            if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 16 * 60)) {
-                setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 4:00 PM.');
+            if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 17 * 60 + 45)) {
+                setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 5:45 PM.');
                 if (!firstInvalidField) firstInvalidField = 'start_time';
             }
         }
@@ -2479,11 +2745,20 @@
             setBookingFieldError('end_time', 'End Time is required*');
             if (!firstInvalidField) firstInvalidField = 'end_time';
         } else {
-            /* Operating-hours guard (7:00 AM–6:00 PM end window). */
+            /* Duration guard (min..max hours, overnight-aware) — walang 6:00 PM
+               end cap; overtime ay price lang, hindi violation. */
+            const startMin = getMinutesFromTimeValue(startTimeInput.value);
             const endMinutes = getMinutesFromTimeValue(endTimeInput.value);
-            if (endMinutes !== null && (endMinutes < 7 * 60 || endMinutes > 18 * 60)) {
-                setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
-                if (!firstInvalidField) firstInvalidField = 'end_time';
+            if (startMin !== null && endMinutes !== null) {
+                let duration = endMinutes - startMin;
+                if (duration <= 0) duration += 24 * 60;
+                if (duration < DURATION_POLICY.minHours * 60) {
+                    setBookingFieldError('end_time', `Event duration must be at least ${DURATION_POLICY.minHours} hour(s).`);
+                    if (!firstInvalidField) firstInvalidField = 'end_time';
+                } else if (duration > DURATION_POLICY.maxHours * 60) {
+                    setBookingFieldError('end_time', `Maximum booking duration is ${DURATION_POLICY.maxHours} hours only.`);
+                    if (!firstInvalidField) firstInvalidField = 'end_time';
+                }
             }
         }
 
@@ -2495,6 +2770,42 @@
             if (!firstInvalidField) firstInvalidField = 'event_location';
         }
 
+        /* 📍 Smart-required pin: kailangan may coords bago maka-Next kapag
+           buhay ang map. Pag patay ang map (CDN fail), tuloy sa base +
+           admin review — hindi nawawalan ng benta sa tech failure. */
+        const pinLatOk = document.getElementById('event_lat_input')?.value?.trim();
+        const pinLngOk = document.getElementById('event_lng_input')?.value?.trim();
+        const pinFlag = document.getElementById('map_available_input');
+        let mapAlive = false;
+        try {
+            mapAlive = !!(window.BookingLocationMap && window.BookingLocationMap.isMapReady && window.BookingLocationMap.isMapReady());
+        } catch (e) { mapAlive = false; }
+        if (pinFlag) pinFlag.value = mapAlive ? '1' : '0';
+        if ((!pinLatOk || !pinLngOk) && mapAlive) {
+            setBookingFieldError('event_location', 'Please drop a pin or pick from search so we can compute your exact logistics fee.');
+            try {
+                const mapStatusEl = document.getElementById('location_map_status');
+                if (mapStatusEl) {
+                    mapStatusEl.style.display = 'block';
+                    mapStatusEl.textContent = 'No pin yet — drop a pin or pick from search. Required for exact fee.';
+                }
+            } catch (e) { /* noop */ }
+            if (window.AppToast && !validateBookingStepTwoFields._pinToastAt) validateBookingStepTwoFields._pinToastAt = 0;
+            try {
+                const nowTs = Date.now();
+                if (window.AppToast && nowTs - validateBookingStepTwoFields._pinToastAt > 4000) {
+                    validateBookingStepTwoFields._pinToastAt = nowTs;
+                    AppToast.fire({ icon: 'warning', title: 'Map pin required.', text: 'Drop a pin or pick from search for the exact logistics fee.' });
+                }
+            } catch (e) { /* noop */ }
+            if (!firstInvalidField) firstInvalidField = 'event_location';
+        }
+
+        const locationQuote = computeLogisticsQuoteLive();
+        if (locationQuote.inCavite === false && !locationQuote.configured) {
+            setBookingFieldError('event_location', "We couldn't calculate logistics for this venue location. Please contact our team before continuing.");
+            if (!firstInvalidField) firstInvalidField = 'event_location';
+        }
         return firstInvalidField;
     }
 
@@ -2735,6 +3046,9 @@
                     ? document.getElementById('designThemeChips')
                     : document.getElementById('designPaletteSwatches');
                 if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof AppToast !== 'undefined') {
+                    AppToast.fire({ icon: 'error', title: 'Required field missing.', text: 'Please pick a theme and color palette before continuing.', timer: 3500 });
+                }
                 return;
             }
             packageInput.value = buildPackageTypeString();
@@ -2768,8 +3082,13 @@
             if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
 
             const diffMins = (endNode - startNode) / 60000;
-            if (diffMins < 120) {
-                setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+            if (diffMins < DURATION_POLICY.minHours * 60) {
+                setBookingFieldError('end_time', `Event duration must be at least ${DURATION_POLICY.minHours} hour(s).`);
+                endTimeInput.focus();
+                return;
+            }
+            if (diffMins > DURATION_POLICY.maxHours * 60) {
+                setBookingFieldError('end_time', `Maximum booking duration is ${DURATION_POLICY.maxHours} hours only.`);
                 endTimeInput.focus();
                 return;
             }
@@ -2787,18 +3106,27 @@
                 return;
             }
 
-            if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
-                setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
-                endTimeInput.focus();
-                return;
-            }
-
-            const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
-                if (crossesMidnight) {
-                    setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
+            /* Duration guard (min..max hours, overnight-aware) — walang 6:00 PM
+               end cap; ang overtime ay idinadagdag sa price, hindi ito blocker. */
+            {
+                const startMinTotal = (startHour * 60) + startMinute;
+                const endMinTotal = (endHour * 60) + endMinute;
+                let duration = endMinTotal - startMinTotal;
+                if (duration <= 0) duration += 24 * 60;
+                if (duration < DURATION_POLICY.minHours * 60) {
+                    setBookingFieldError('end_time', `Event duration must be at least ${DURATION_POLICY.minHours} hour(s).`);
                     endTimeInput.focus();
                     return;
                 }
+                if (duration > DURATION_POLICY.maxHours * 60) {
+                    setBookingFieldError('end_time', `Maximum booking duration is ${DURATION_POLICY.maxHours} hours only.`);
+                    endTimeInput.focus();
+                    return;
+                }
+            }
+
+            /* Overnight (end <= start) ay VALID na ngayon — next-day end.
+               Tanggal ang lumang "crossesMidnight" blocker. */
             }
 
             const blockedScheduleMessage = getBlockedScheduleMessage();
@@ -2835,8 +3163,18 @@
         updateEventDateAvailability();
         refreshStepTwoNextState();
     });
-    startTimeInput.addEventListener('change', function () { validateEndTime(); refreshStepTwoNextState(); });
-    endTimeInput.addEventListener('change', refreshStepTwoNextState);
+    /* ⏱️ Custom time picker ay nagse-dispatch ng 'change' (hindi 'input') —
+       kaya dapat naka-re-validate DITO para malinis ang dating "Start/End Time
+       is required*" error pagkatapos ng failed Next click. */
+    startTimeInput.addEventListener('change', function () {
+        validateEndTime();
+        refreshStepTwoNextState();
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
+    endTimeInput.addEventListener('change', function () {
+        refreshStepTwoNextState();
+        if (bookingSubmitAttempted) validateBookingStepTwoFields();
+    });
     dateInput.addEventListener('input', () => {
         if (bookingSubmitAttempted) validateBookingStepTwoFields();
     });
@@ -2953,27 +3291,31 @@
         const startTimeStr = startTimeInput.value;
         const endTimeStr = endTimeInput.value;
 
-        // Validate Minimum 2 Hours Duration (client-side, stays on Step 2)
+        // Validate Duration (min..max hours, overnight-aware — client-side)
         if (startTimeStr && endTimeStr) {
             const startNode = new Date(`1970-01-01T${startTimeStr}:00`);
             let endNode = new Date(`1970-01-01T${endTimeStr}:00`);
             if (endNode <= startNode) endNode.setDate(endNode.getDate() + 1);
 
             const diffMins = (endNode - startNode) / 60000;
-            if (diffMins < 120) {
+            if (diffMins < DURATION_POLICY.minHours * 60) {
                 showStep(3);
-                setBookingFieldError('end_time', 'Event duration must be at least 2 hours.');
+                setBookingFieldError('end_time', `Event duration must be at least ${DURATION_POLICY.minHours} hour(s).`);
                 endTimeInput.focus();
                 return; // Stay on Step 2
             }
+            if (diffMins > DURATION_POLICY.maxHours * 60) {
+                showStep(3);
+                setBookingFieldError('end_time', `Maximum booking duration is ${DURATION_POLICY.maxHours} hours only.`);
+                endTimeInput.focus();
+                return;
+            }
         }
 
-        // Validate Time Between 7:00 AM and 6:00 PM
-            if (startTimeStr && endTimeStr) {
+        // Start window: 7:00 AM – 6:00 PM (ang END ay walang 6PM cap —
+        // overnight allowed, may max-duration check sa itaas).
+            if (startTimeStr) {
                 const startHour = parseInt(startTimeStr.split(':')[0], 10);
-                const startMinute = parseInt(startTimeStr.split(':')[1], 10);
-                const endHour = parseInt(endTimeStr.split(':')[0], 10);
-                const endMinute = parseInt(endTimeStr.split(':')[1], 10);
 
             if (startHour < 7 || startHour >= 18) {
                 showStep(3);
@@ -2981,22 +3323,6 @@
                 startTimeInput.focus();
                 return;
             }
-
-            if (endHour < 7 || endHour > 18 || (endHour === 18 && endMinute !== 0)) {
-                showStep(3);
-                setBookingFieldError('end_time', 'Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM.');
-                endTimeInput.focus();
-                return;
-            }
-
-            // Check if end time crosses midnight (end <= start) after operating-hours validation
-            const crossesMidnight = (endHour < startHour) || (endHour === startHour && endMinute <= startMinute);
-                if (crossesMidnight) {
-                    showStep(3);
-                    setBookingFieldError('end_time', 'End time must be later than start time on the same day.');
-                    endTimeInput.focus();
-                    return;
-                }
             }
 
             const blockedScheduleMessage = getBlockedScheduleMessage();

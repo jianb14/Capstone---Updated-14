@@ -4,6 +4,8 @@ from .common import *  # noqa: F401,F403
 from .admin import build_dashboard_context  # noqa: F401
 from .common import _cleanup_legacy_booking_request_states  # noqa: F401
 from django.db.models import Avg
+from ..booking_lifecycle import lifecycle_display
+from ..booking_changes import eligibility
 
 
 @login_required
@@ -108,7 +110,7 @@ def my_profile(request):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
-    user_bookings = Booking.objects.filter(user=request.user)
+    user_bookings = Booking.objects.filter(user=request.user).prefetch_related("design_deliveries")
     total_bookings = user_bookings.count()
     pending_count = user_bookings.filter(status="pending").count()
     confirmed_count = user_bookings.filter(status="confirmed").count()
@@ -214,7 +216,7 @@ def customer_profile(request):
     status_filter = request.GET.get("status", "all")
     sort_date = request.GET.get("sort_date", "id_desc")
 
-    user_bookings = Booking.objects.filter(user=request.user)
+    user_bookings = Booking.objects.filter(user=request.user).prefetch_related("design_deliveries", "images", "designs", "reviews", "payments", "change_requests__payments")
 
     # Calculate Stats before filtering so overall stats remain correct
     total_bookings = user_bookings.count()
@@ -253,11 +255,26 @@ def customer_profile(request):
     # Attach formatted time range for the table/modal and check if reviewed
     for b in page_obj:
         b.time_range_display = get_booking_time_range(b)
+        b.lifecycle = lifecycle_display(b)
         if b.status == "completed":
-            b.has_reviewed = b.reviews.filter(user=request.user).exists()
+            b.has_reviewed = any(review.user_id == request.user.id for review in b.reviews.all())
         else:
             b.has_reviewed = False
-        b.price_breakdown = get_booking_price_breakdown(b)
+        b.schedule = get_booking_schedule(b)
+        b.can_request_changes, b.change_unavailable_reason = eligibility(b)
+
+    # Edit deep links must work outside the current list page/search/status filter.
+    edit_link_booking = None
+    edit_link_id = request.GET.get("open_edit", "")
+    if edit_link_id:
+        if not edit_link_id.isdigit():
+            raise Http404("Booking not found")
+        target = get_object_or_404(Booking.objects.prefetch_related("images", "designs"), pk=edit_link_id, user=request.user)
+        if target.status != "pending" and not eligibility(target)[0]:
+            messages.error(request, eligibility(target)[1])
+        elif not any(b.pk == target.pk for b in page_obj):
+            target.schedule = get_booking_schedule(target)
+            edit_link_booking = target
 
     # Get active packages, addons, additionals for the edit modal dropdown
     active_packages = Package.objects.filter(is_active=True).prefetch_related("preview_images")
@@ -288,6 +305,7 @@ def customer_profile(request):
         "client/customer_profile.html",
         {
             "page_obj": page_obj,
+            "edit_link_booking": edit_link_booking,
             "user_bookings": page_obj,  # To maintain some backward compatibility for template logic, though page_obj is better
             "total_bookings": total_bookings,
             "pending_count": pending_count,
@@ -299,6 +317,9 @@ def customer_profile(request):
             "edit_preview_data": edit_preview_data,
             "global_service_charge": service_charge_config.amount,
             "global_service_charge_note": service_charge_config.notes,
+            "availability_data": get_booking_form_availability(),
+            "logistics_config": get_booking_logistics_config(),
+            "cavite_boundary": get_cavite_geometry(),
             "booking_lead_time_days": lead_days,
             "min_bookable_date": min_bookable_date.isoformat(),
             "search_query": search_query,
@@ -314,7 +335,7 @@ def _sync_customer_booking_payment_states(user):
         user=user, status__in=["pending_payment", "confirmed"]
     ).annotate(
         verified_total=Coalesce(
-            Sum("payments__amount", filter=Q(payments__payment_status="verified")),
+            Sum("payments__amount", filter=Q(payments__payment_status="verified", payments__applied_to_booking=True)),
             Decimal("0.00"),
         )
     )

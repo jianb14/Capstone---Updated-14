@@ -1,6 +1,48 @@
 """Payments: PayMongo checkout/webhooks, GCash config, receipts. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
+from ..booking_lifecycle import deadline_notice, lifecycle_display, process_booking, payment_was_received
+from ..booking_changes import schedule_atomic, change_payment_state
+from ..models import BookingChangeRequest
+
+
+def _change_payment_actions(user, search=''):
+    """Accepted amendment dues are separate from the live booking balance."""
+    changes = BookingChangeRequest.objects.filter(
+        booking__user=user, booking__status__in=('pending_payment', 'confirmed'),
+        status__in=('awaiting_payment', 'manual_review'), accepted_at__isnull=False,
+        additional_due__gt=0,
+    ).select_related('booking').prefetch_related('payments', 'booking__payments').order_by('-updated_at', '-pk')
+    if search:
+        changes = changes.filter(Q(booking__id__icontains=search) | Q(booking__event_type__icontains=search))
+    result = []
+    for change in changes:
+        change.is_change_payment = True
+        state = change_payment_state(change)
+        change.waiting_for_review = state['change_payment_under_review']
+        change.can_pay = state['change_can_pay']
+        change.payment_url = reverse('booking_change_payment', args=[change.booking_id, change.pk])
+        change.details_url = f'{reverse("customer_profile")}?booking_id={change.booking_id}&modal=details'
+        paid = sum((p.amount for p in change.booking.payments.all()
+            if p.payment_status == 'verified' and p.applied_to_booking), Decimal('0.00'))
+        change.existing_balance = max((change.booking.total_price or Decimal('0.00')) - paid, Decimal('0.00'))
+        change.original_package = change.original.get('package_type', '')
+        change.proposed_package = change.proposed.get('package_type', '')
+        result.append(change)
+    return result
+
+
+def _flag_late_received_payment(payment):
+    if payment.change_request_id:
+        if payment.change_request.status != 'awaiting_payment' or (payment.change_request.expires_at and payment.received_at and payment.received_at > payment.change_request.expires_at):
+            deadline_notice(payment.booking, f'late-change-receipt-{payment.pk}', f'Late change payment #{payment.pk} received for request #{payment.change_request_id}. Verify and resolve manually; do not amend the original booking automatically.')
+        return
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().get(pk=payment.booking_id)
+        late = booking.payment_due_at and payment.received_at and payment.received_at > booking.payment_due_at
+        if booking.status in ('expired', 'cancelled', 'completed') or late:
+            deadline_notice(booking, f'late-receipt-{payment.pk}',
+                f'Late payment received for Booking #{booking.id}, payment #{payment.id}. Review the reservation and contact the customer. No booking was automatically reopened.')
 
 
 def _first_non_empty(*values):
@@ -127,7 +169,7 @@ def my_payments(request):
     # from every action queue and never block retries).
     payments_qs = (
         Payment.objects.filter(booking__user=user)
-        .select_related("booking")
+        .select_related("booking", "change_request")
         .prefetch_related("booking__images", "booking__payments")
         .order_by("-created_at")
     )
@@ -163,7 +205,7 @@ def my_payments(request):
     for pay in payments_page_obj:
         booking_payments = list(pay.booking.payments.all())
         verified_payments = [
-            p for p in booking_payments if p.payment_status == "verified"
+            p for p in booking_payments if p.payment_status == "verified" and p.applied_to_booking
         ]
         verified_paid = sum(
             (p.amount for p in verified_payments),
@@ -180,6 +222,15 @@ def my_payments(request):
         pay.booking.total_payment_records = len(booking_payments)
         pay.booking.cleaned_special_requests = remove_end_time_tag(pay.booking.special_requests or "")
         pay.pending_info_url = reverse("payment_page", kwargs={"booking_id": pay.booking.id})
+        pay.can_retry = True
+        if pay.change_request_id:
+            change = pay.change_request
+            pay.can_retry = bool(change.status == 'awaiting_payment' and change.accepted_at
+                and change.expires_at and change.expires_at > timezone.now())
+            pay.pending_info_url = (
+                reverse('booking_change_payment', args=[pay.booking_id, change.pk]) if pay.can_retry
+                else f'{reverse("customer_profile")}?booking_id={pay.booking_id}&modal=details'
+            )
         # Failed/expired PayMongo attempts stay in the history as an audit
         # trail, but never look like actionable "Pending" payments.
         pay.is_failed_attempt = _is_abandoned_paymongo_payment(pay)
@@ -243,10 +294,15 @@ def my_payments(request):
     partial_bookings = []  # Bookings with partial verified payments
     
     for b in all_action_bookings:
+        change_payment_under_review = any(
+            pay.change_request_id and not pay.applied_to_booking
+            and pay.payment_status == 'pending' and payment_was_received(pay)
+            for pay in b.payments.all()
+        )
         booking_payments = [
-            pay for pay in b.payments.all() if not _is_abandoned_paymongo_payment(pay)
+            pay for pay in b.payments.all() if pay.applied_to_booking and not _is_abandoned_paymongo_payment(pay)
         ]
-        verified_payments = [p for p in booking_payments if p.payment_status == "verified"]
+        verified_payments = [p for p in booking_payments if p.payment_status == "verified" and p.applied_to_booking]
         verified_paid = sum((p.amount for p in verified_payments), Decimal("0.00"))
         remaining = (b.total_price or Decimal("0.00")) - verified_paid
         if remaining < Decimal("0.00"):
@@ -305,6 +361,14 @@ def my_payments(request):
                 b.latest_pay_amount = Decimal("0.00")
                 b.latest_pay_status = ""
 
+            if change_payment_under_review:
+                b.payment_action_display = 'Change payment under review'
+                b.payment_action_disabled = True
+                b.cleaned_special_requests = remove_end_time_tag(b.special_requests or '')
+                target_list = partial_bookings if verified_paid > 0 else action_required_list
+                target_list.append(b)
+                continue
+
             # If customer already submitted a payment that is awaiting admin review,
             # this booking should no longer appear under "Action Required".
             if latest_payment and latest_payment.payment_status == "pending":
@@ -340,6 +404,9 @@ def my_payments(request):
             
             b.cleaned_special_requests = remove_end_time_tag(b.special_requests or "")
 
+    # Show accepted change dues even when the original booking is fully paid.
+    # Submitted change proof must never suppress an unrelated original balance.
+    action_required_list = _change_payment_actions(user, ar_search_query) + action_required_list
     action_required_total_count = len(action_required_list)
     partial_total_count = len(partial_bookings)
 
@@ -533,7 +600,7 @@ def _get_booking_payment_breakdown(booking):
     config = GCashConfig.objects.first()
     dp_percent = config.downpayment_percent if config else 20
     total_price = booking.total_price or Decimal("0.00")
-    verified_paid = booking.payments.filter(payment_status="verified").aggregate(
+    verified_paid = booking.payments.filter(payment_status="verified", applied_to_booking=True).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
     remaining_balance = total_price - verified_paid
@@ -544,7 +611,7 @@ def _get_booking_payment_breakdown(booking):
 
 
 def _refresh_booking_payment_status(booking):
-    total_paid = booking.payments.filter(payment_status="verified").aggregate(
+    total_paid = booking.payments.filter(payment_status="verified", applied_to_booking=True).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
     total_price = booking.total_price or Decimal("0.00")
@@ -659,7 +726,7 @@ def payment_page(request, booking_id):
         )
         return redirect("customer_profile")
 
-    payment_history = booking.payments.select_related("verified_by").order_by(
+    payment_history = booking.payments.filter(applied_to_booking=True).select_related("verified_by").order_by(
         "-created_at"
     )
     (
@@ -700,6 +767,7 @@ def payment_page(request, booking_id):
         None,
     )
     paymongo_method_types = ["gcash"] if settings.PAYMONGO_SECRET_KEY else []
+    booking.time_range_display = get_booking_time_range(booking)
     is_initial_payment = total_paid <= Decimal("0.00")
     downpayment_due = dp_amount if is_initial_payment else Decimal("0.00")
     full_amount_due = remaining_balance
@@ -711,6 +779,7 @@ def payment_page(request, booking_id):
             "booking": booking,
             "is_fully_paid": is_fully_paid,
             "pending_payment": pending_payment,
+            "lifecycle": lifecycle_display(booking),
             "pending_checkout_url": (
                 incomplete_paymongo_payment.paymongo_checkout_url
                 if incomplete_paymongo_payment
@@ -736,11 +805,14 @@ def payment_page(request, booking_id):
 
 
 @login_required
+@transaction.atomic
 def submit_payment(request, booking_id):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    process_booking(booking.pk)
+    booking.refresh_from_db()
 
     if booking.status not in ["pending_payment", "confirmed"]:
         messages.error(request, "This booking is not available for payment.")
@@ -838,6 +910,7 @@ def submit_payment(request, booking_id):
         transaction_ref=transaction_ref,
         gcash_reference_number=gcash_ref_number,
         gcash_sender_name=sender_name,
+        received_at=timezone.now(),
     )
     if receipt_image:
         payment.receipt_image = receipt_image
@@ -886,7 +959,8 @@ def payment_success(request, booking_id):
 
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
 
-    payment_history = booking.payments.select_related("verified_by").order_by(
+    booking.time_range_display = get_booking_time_range(booking)
+    payment_history = booking.payments.filter(applied_to_booking=True).select_related("verified_by").order_by(
         "-created_at"
     )
     (
@@ -1073,7 +1147,7 @@ def admin_payment_list(request):
             if booking_payments
             else None
         )
-        verified_paid = b.payments.filter(payment_status="verified").aggregate(
+        verified_paid = b.payments.filter(payment_status="verified", applied_to_booking=True).aggregate(
             total=Sum("amount")
         )["total"] or Decimal("0.00")
 
@@ -1179,7 +1253,7 @@ def admin_payment_detail(request, id):
                 else "Failed"
             )
 
-    total_paid = payment_history.filter(payment_status="verified").aggregate(
+    total_paid = payment_history.filter(payment_status="verified", applied_to_booking=True).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
     remaining_balance = (booking.total_price or Decimal("0.00")) - total_paid
@@ -1213,6 +1287,8 @@ def admin_payment_detail(request, id):
 
 
 @login_required
+@transaction.atomic
+@schedule_atomic
 def admin_payment_action(request, id, action):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -1229,8 +1305,10 @@ def admin_payment_action(request, id, action):
             return redirect("admin_payment_list")
         return redirect("admin_payment_detail", id=id)
 
-    payment = get_object_or_404(Payment, id=id)
-    booking = payment.booking
+    payment = get_object_or_404(Payment.objects.select_for_update(), id=id)
+    booking = Booking.objects.select_for_update().get(pk=payment.booking_id)
+    process_booking(booking.pk)
+    booking.refresh_from_db()
 
     # Idempotency guard: only pending payments can be verified or rejected.
     # Prevents double-clicks or stale tabs from re-processing an action,
@@ -1245,6 +1323,11 @@ def admin_payment_action(request, id, action):
             return redirect("admin_payment_list")
         return redirect("admin_payment_detail", id=id)
 
+    if payment.change_request_id:
+        from .changes import verify_change_payment
+        verify_change_payment(request, payment, action)
+        return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
+
     if action == "verify":
         with transaction.atomic():
             payment.payment_status = "verified"
@@ -1255,7 +1338,7 @@ def admin_payment_action(request, id, action):
             # Recalculate booking payment status.
             # Business rule: once admin verifies any customer payment,
             # booking should be marked as confirmed immediately.
-            total_paid = booking.payments.filter(payment_status="verified").aggregate(
+            total_paid = booking.payments.filter(payment_status="verified", applied_to_booking=True).aggregate(
                 total=Sum("amount")
             )["total"] or Decimal("0.00")
             total_price = booking.total_price or Decimal("0.00")
@@ -1265,11 +1348,16 @@ def admin_payment_action(request, id, action):
             else:
                 booking.payment_status = "partial"
             old_booking_status = booking.status
-            booking.status = "confirmed"
+            if old_booking_status in ('pending_payment', 'confirmed'):
+                booking.status = "confirmed"
+            else:
+                deadline_notice(booking, f'late-payment-{payment.id}',
+                    f'Payment #{payment.id} verified for {booking.status} booking #{booking.id}. The reservation was not reopened. Contact the customer to resolve this payment.')
+                messages.warning(request, 'Payment recorded. This booking was not reopened; review its schedule and contact the customer.')
             booking.save()
 
             # Record the status transition in the booking's history timeline
-            if old_booking_status != "confirmed":
+            if booking.status == 'confirmed' and old_booking_status != "confirmed":
                 log_booking_status(
                     booking,
                     old_booking_status,
@@ -1314,12 +1402,14 @@ def admin_payment_action(request, id, action):
 
             # Keep booking in pending payment state when payment is rejected,
             # unless there are other verified payments already recorded.
-            verified_total = booking.payments.filter(payment_status="verified").aggregate(
+            verified_total = booking.payments.filter(payment_status="verified", applied_to_booking=True).aggregate(
                 total=Sum("amount")
             )["total"] or Decimal("0.00")
             total_price = booking.total_price or Decimal("0.00")
             old_booking_status = booking.status
-            if verified_total <= Decimal("0.00"):
+            if old_booking_status not in ('pending_payment', 'confirmed'):
+                booking.payment_status = 'paid' if verified_total >= total_price else ('partial' if verified_total > 0 else 'pending')
+            elif verified_total <= Decimal("0.00"):
                 booking.payment_status = "pending"
                 booking.status = "pending_payment"
             elif verified_total >= total_price:
@@ -1468,7 +1558,7 @@ def admin_send_payment_reminder(request, booking_id):
 
     gcash_config = GCashConfig.objects.first()
     dp_percent = gcash_config.downpayment_percent if gcash_config else 20
-    verified_paid = booking.payments.filter(payment_status="verified").aggregate(
+    verified_paid = booking.payments.filter(payment_status="verified", applied_to_booking=True).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
     remaining = (booking.total_price or Decimal("0.00")) - verified_paid
@@ -1524,11 +1614,14 @@ def admin_send_payment_reminder(request, booking_id):
 
 
 @login_required
+@transaction.atomic
 def create_paymongo_checkout(request, booking_id):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    process_booking(booking.pk)
+    booking.refresh_from_db()
 
     if booking.status not in ["pending_payment", "confirmed"]:
         messages.warning(request, "This booking is not available for payment.")
@@ -1696,11 +1789,18 @@ def create_paymongo_checkout(request, booking_id):
 @login_required
 def paymongo_success(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    from ..models import BookingChangeRequest
+    change_id = request.GET.get('change_request')
+    if change_id:
+        if not change_id.isdigit():
+            raise Http404('Change request not found')
+        get_object_or_404(BookingChangeRequest, pk=change_id, booking=booking)
     pending_paymongo = (
         booking.payments.filter(
             payment_status="pending",
             payment_method__startswith="paymongo_",
             paymongo_checkout_session_id__gt="",
+            change_request_id=change_id or None,
         )
         .order_by("-created_at")
         .first()
@@ -1711,6 +1811,8 @@ def paymongo_success(request, booking_id):
             request,
             "No pending PayMongo payment found. If you already paid, please wait for confirmation.",
         )
+        if change_id:
+            return redirect('booking_change_payment', booking_id=booking_id, change_id=change_id)
         return redirect("payment_page", booking_id=booking_id)
 
     checkout_data = retrieve_paymongo_checkout_session(
@@ -1721,6 +1823,8 @@ def paymongo_success(request, booking_id):
             request,
             "Payment is still processing. Please refresh this page in a moment.",
         )
+        if change_id:
+            return redirect('booking_change_payment', booking_id=booking_id, change_id=change_id)
         return redirect("payment_page", booking_id=booking_id)
 
     attrs = checkout_data.get("data", {}).get("attributes", {})
@@ -1759,6 +1863,7 @@ def paymongo_success(request, booking_id):
             payment_data=payment_data,
         )
         pending_paymongo.paymongo_payment_id = actual_payment_id or payment_intent_id
+        pending_paymongo.received_at = pending_paymongo.received_at or timezone.now()
         if payer_name:
             pending_paymongo.gcash_sender_name = payer_name
         if payer_phone:
@@ -1770,11 +1875,14 @@ def paymongo_success(request, booking_id):
         pending_paymongo.save(
             update_fields=[
                 "paymongo_payment_id",
+                "received_at",
                 "gcash_sender_name",
                 "paymongo_contact_number",
                 "notes",
             ]
         )
+
+        _flag_late_received_payment(pending_paymongo)
 
         AdminNotification.objects.create(
             booking=booking,
@@ -1822,6 +1930,8 @@ def paymongo_success(request, booking_id):
         )
 
     check_booking_expirations()
+    if pending_paymongo.change_request_id:
+        return redirect('booking_change_payment', booking_id=booking_id, change_id=pending_paymongo.change_request_id)
     return redirect("payment_page", booking_id=booking_id)
 
 
@@ -1892,14 +2002,17 @@ def paymongo_webhook(request):
             if payer_phone:
                 payment.paymongo_contact_number = payer_phone
             payment.notes = "Paid via PayMongo webhook. Awaiting admin verification."
+            payment.received_at = payment.received_at or timezone.now()
             payment.save(
                 update_fields=[
                     "paymongo_payment_id",
+                    "received_at",
                     "gcash_sender_name",
                     "paymongo_contact_number",
                     "notes",
                 ]
             )
+            _flag_late_received_payment(payment)
         elif event_type in {"checkout_session.payment.failed", "checkout_session.expired"}:
             # Keep the record as an audit trail instead of deleting it. The
             # marker notes exclude it from all action queues (treated as an

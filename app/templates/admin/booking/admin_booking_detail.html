@@ -3,12 +3,15 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_booking.css' %}?v=20260921e">
+<link rel="stylesheet" href="{% static 'css/admin_booking_requests.css' %}?v=20261022mono">
 <!-- Shared components ng venue map pin + design prefs display -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261019e">
+<link rel="stylesheet" href="{% static 'css/admin_booking_detail.css' %}?v=20261022detail">
+<script defer src="{% static 'js/admin_booking_detail.js' %}?v=20261022detail"></script>
 <!-- Leaflet read-only mini map (booking pin) — free OSM, no API key -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/booking_location_map.js' %}?v=20261019e"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261021a"></script>
 
 <div class="page-header detail-page-header">
     <div>
@@ -22,7 +25,11 @@
     <a href="{% url 'admin_booking_list' %}" class="btn-top-back"><svg class="ic" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>Back to List</span></a>
 </div>
 
-<div class="detail-container">
+<div class="detail-container booking-admin-workspace">
+    <link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
+    {% include 'admin/booking/_change_link.html' %}
+    {% if lifecycle.design_overdue %}<div role="alert" style="padding: 16px; margin-bottom: 16px; border: 1px solid #ef444466; border-radius: 10px; background: #ef444412;"><strong>Urgent — event design is overdue</strong><p>This confirmed booking has no uploaded design. Design due {{ lifecycle.design_due_at|date:"M d, Y — g:i A" }}. Upload the customer's design below.</p></div>{% endif %}
+    {% if booking.status == 'pending_payment' %}<div style="padding: 14px; margin-bottom: 16px; border: 1px solid #d69c3666; border-radius: 10px;">{% if lifecycle.awaiting_verification %}<strong>Payment submitted — awaiting your verification.</strong> Review the submitted proof; this booking is protected from automatic expiry.{% else %}<strong>Payment deadline:</strong> {{ booking.payment_due_at|date:"M d, Y — g:i A" }}{% endif %}</div>{% endif %}
     <!-- Header with Status -->
     <div class="detail-header">
         <div class="detail-status">
@@ -46,14 +53,14 @@
         <div class="detail-col">
         <!-- Customer Info -->
         <div class="detail-card">
-            <h3><svg class="ic" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Customer Information</h3>
+            <h3>Customer Information</h3>
             <div class="info-field">
                 <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>Username</div>
                 <div class="info-field-value">{{ booking.user.username }}</div>
             </div>
             <div class="info-field">
                 <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Full Name</div>
-                <div class="info-field-value">{{ booking.user.first_name }} {{ booking.user.last_name }}</div>
+                <div class="info-field-value">{{ booking.user.get_full_name|default:"Not provided" }}</div>
             </div>
             <div class="info-field">
                 <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email</div>
@@ -68,7 +75,7 @@
         <!-- Reference Pictures & Custom Designs -->
         {% if booking.images.all or booking.reference_image or booking.designs.all %}
         <div class="detail-card">
-            <h3><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Reference Pictures &amp; Custom Designs</h3>
+            <h3>Reference Pictures &amp; Custom Designs</h3>
             <div class="booking-images-row">
                 {% if booking.designs.all %}
                     {% for design in booking.designs.all %}
@@ -103,7 +110,7 @@
         </div>
         {% else %}
         <div class="detail-card">
-            <h3><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Reference Pictures &amp; Custom Designs</h3>
+            <h3>Reference Pictures &amp; Custom Designs</h3>
             <div class="no-reference-placeholder">
                 <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><line x1="21" y1="15" x2="16" y2="10"/><line x1="9" y1="10" x2="9.01" y2="10"/><line x1="21" y1="15" x2="3" y2="21"/></svg>
                 <p>No reference images uploaded</p>
@@ -112,11 +119,85 @@
         </div>
         {% endif %}
 
+        <!-- Event Backdrop Design — DITO ina-upload ang design na matatanggap
+             ng customer PAGKATAPOS ng bayad (confirmed/completed). -->
+        <div class="detail-card">
+            <h3>Event Backdrop Design (for Customer)</h3>
+
+            {% if booking.design_deliveries.all %}
+            <div class="booking-images-row" style="margin-bottom: 0.9rem;">
+                {% for delivery in booking.design_deliveries.all %}
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem;">
+                    <button type="button" class="booking-thumb-btn" data-full-src="{{ delivery.image.url }}"
+                        aria-label="Open design delivery {{ forloop.counter }}">
+                        <img src="{{ delivery.image.url }}" alt="Backdrop Design {{ forloop.counter }}" loading="lazy">
+                        <span class="thumb-label">Design</span>
+                    </button>
+                    {% if booking.status == 'confirmed' or booking.status == 'completed' %}
+                    <form method="POST" action="{% url 'admin_booking_design_delete' booking.id delivery.id %}"
+                        onsubmit="return confirm('Delete this design image? The customer will no longer see it.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-action danger" style="padding: 0.25rem 0.55rem; font-size: 0.7rem;">
+                            <span>Delete</span>
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if delivery.caption %}
+                    <small style="opacity: 0.7; font-size: 0.7rem; text-align: center; max-width: 110px;">{{ delivery.caption }}</small>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if booking.status == 'confirmed' or booking.status == 'completed' %}
+                {% if booking.design_deliveries.count < 3 %}
+                <form method="POST" action="{% url 'admin_booking_design_upload' booking.id %}" enctype="multipart/form-data" class="design-upload-form">
+                    {% csrf_token %}
+                    <div class="info-field">
+                        <label class="info-field-label" for="designImageInput">Upload design image <span class="design-upload-limit">Up to 3 designs per booking</span></label>
+                        <input type="file" id="designImageInput" class="design-file-input" name="design_image" accept="image/jpeg,image/png,image/webp" required aria-describedby="designUploadHelp designFileStatus">
+                        <div class="design-upload-zone" data-design-dropzone hidden>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18H6a4 4 0 0 1-.6-8A6.5 6.5 0 0 1 18 8a5 5 0 0 1 0 10h-1M12 21V10m-4 4 4-4 4 4"/></svg>
+                            <strong>Choose an image or drag &amp; drop it here</strong>
+                            <span id="designUploadHelp">JPG, PNG or WEBP · Up to 5MB per image</span>
+                            <button type="button" class="design-browse-button">Browse File</button>
+                        </div>
+                        <p id="designFileStatus" class="design-file-status" role="status" hidden></p>
+                        <div class="design-selected-file" hidden><span></span><button type="button" aria-label="Remove selected design image">Remove</button></div>
+                    </div>
+                    <div class="info-field">
+                        <label class="info-field-label" for="designCaption">Caption (optional)</label>
+                        <input type="text" id="designCaption" name="caption" maxlength="255"
+                            placeholder="e.g. Final backdrop design — Spiderman theme">
+                    </div>
+                    <button type="submit" class="btn-action primary">
+                        <svg class="ic" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span>Upload &amp; Send to Customer</span>
+                    </button>
+                </form>
+                {% else %}
+                <p style="opacity: 0.7;">Maximum of 3 design images reached. Delete one to upload a new design.</p>
+                {% endif %}
+                <small class="design-delivery-note">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></svg>
+                    <span>Sent to the customer once uploaded. Visible in My Bookings → View Event Design.</span>
+                </small>
+            {% else %}
+                <div class="no-reference-placeholder">
+                    <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <p>Locked — payment not yet confirmed</p>
+                    <span>The design upload opens once this booking is paid &amp; confirmed (status: Confirmed).</span>
+                </div>
+            {% endif %}
         </div>
 
+        </div>
+
+        <div class="detail-col">
         <!-- Booking Info -->
         <div class="detail-card">
-            <h3><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Event Details</h3>
+            <h3>Event Details</h3>
             <div class="info-field">
                 <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Event Type</div>
                 <div class="info-field-value">{{ booking.event_type }}</div>
@@ -181,10 +262,14 @@
                         <span class="breakdown-item-amount">&#8369;{{ item.amount|floatformat:"-2"|intcomma }}</span>
                     </div>
                     {% endfor %}
-                    {% if price_breakdown.service_charge > 0 %}
                     <div class="breakdown-item breakdown-item-service">
-                        <span class="breakdown-item-label">Service & Logistics Fee</span>
+                        <span class="breakdown-item-label">Service &amp; Logistics Fee{% if booking.logistics_fee_override is not None %} (Manual fee){% endif %}<br><small>{{ price_breakdown.logistics_explanation }}</small></span>
                         <span class="breakdown-item-amount">&#8369;{{ price_breakdown.service_charge|floatformat:"-2"|intcomma }}</span>
+                    </div>
+                    {% if price_breakdown.overtime_fee > 0 %}
+                    <div class="breakdown-item breakdown-item-service">
+                        <span class="breakdown-item-label">Overtime ({{ price_breakdown.overtime_hours }} hr{{ price_breakdown.overtime_hours|pluralize }} beyond included)</span>
+                        <span class="breakdown-item-amount">&#8369;{{ price_breakdown.overtime_fee|floatformat:"-2"|intcomma }}</span>
                     </div>
                     {% endif %}
                 </div>
@@ -193,6 +278,28 @@
                 <div class="info-field-label"><svg class="ic" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Total Price</div>
                 <div class="info-field-value">&#8369;{{ booking.total_price|intcomma }}</div>
             </div>
+            <!-- Logistics fee override — manual adjustment (toll/traffic edge case). -->
+            <form method="POST" action="{% url 'admin_booking_logistics_override' booking.id %}" class="logistics-override-form">
+                {% csrf_token %}
+                <div class="manual-logistics-copy">
+                    <label class="info-field-label" for="manualLogisticsFee">Manual Logistics Fee (₱)</label>
+                    <p id="manualLogisticsHelp">Enter the entire logistics fee for this booking. Leave blank to use the original computed fee.</p>
+                    <dl class="manual-logistics-amounts"><div><dt>Original computed fee:</dt><dd>₱{{ original_logistics_fee|floatformat:2|intcomma }}</dd></div><div><dt>Currently applied fee: <span>{% if booking.logistics_fee_override is not None %}(Manual fee){% else %}(Computed fee){% endif %}</span></dt><dd>₱{{ price_breakdown.service_charge|floatformat:2|intcomma }}</dd></div></dl>
+                </div>
+                <div class="manual-logistics-controls">
+                    <input type="number" id="manualLogisticsFee" name="logistics_fee_override" step="0.01" min="0" max="99999999.99" aria-describedby="manualLogisticsHelp"
+                           value="{% if booking.logistics_fee_override is not None %}{{ booking.logistics_fee_override }}{% endif %}"
+                           placeholder="Auto-computed">
+                <button type="submit" class="btn-action primary">
+                    <span>Save Manual Fee</span>
+                </button>
+                </div>
+                {% if booking.logistics_fee_override is not None %}
+                <button type="submit" name="action" value="reset" formnovalidate class="btn-action manual-logistics-reset">
+                    Remove Override / Use Computed Fee
+                </button>
+                {% endif %}
+            </form>
             {% endif %}
             {% if booking.admin_denial_reason %}
             <div class="info-field info-field--danger">
@@ -211,15 +318,15 @@
 
         <!-- Design Notes / Special Requests -->
         {% if cleaned_requests %}
-        <div class="detail-card full-width">
-            <h3><svg class="ic" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Design Notes / Special Requests</h3>
+        <div class="detail-card">
+            <h3>Design Notes / Special Requests</h3>
             <div class="special-request-box">{{ cleaned_requests|linebreaksbr }}</div>
         </div>
         {% endif %}
 
         <!-- Step 4 Design Preferences — laging render; empty → "–" fallback. -->
         <div class="detail-card full-width">
-            <h3><svg class="ic" viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Design Preferences</h3>
+            <h3>Design Preferences</h3>
             <div class="info-field">
                 <div class="info-field-label">Theme</div>
                 <div class="info-field-value">{{ booking.design_theme|default:"–" }}</div>
@@ -234,9 +341,10 @@
             </div>
         </div>
 
+        </div>
         <!-- Status History Timeline -->
         <div class="detail-card full-width">
-            <h3><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Status History</h3>
+            <h3>Status History</h3>
             {% if status_logs %}
             <div class="status-timeline">
                 {% for log in status_logs %}

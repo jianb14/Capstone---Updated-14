@@ -44,6 +44,10 @@ class NotifRoutingTests(TestCase):
 
     # ---- Customer routing ----
 
+    def test_customer_design_ready_links_directly_to_event_design_section(self):
+        notif = self._customer_notif(f"Your backdrop design for booking #{self.booking.id} is ready! Open your booking details to view and download it.")
+        self.assertEqual(_customer_notif_target_url(notif), f"{reverse('customer_profile')}?booking_id={self.booking.id}&modal=design&from_notif=1")
+
     def test_customer_payment_verified_goes_to_payment_history(self):
         notif = self._customer_notif(
             f"Your payment of PHP 1,000.00 for Booking #{self.booking.id} "

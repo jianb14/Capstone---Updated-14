@@ -1,0 +1,11 @@
+<nav class="booking-management-tabs" aria-label="Booking management sections">
+    <a href="{% url 'admin_booking_list' %}" class="booking-management-tab {% if active_tab == 'bookings' %}is-current{% endif %}" {% if active_tab == 'bookings' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/></svg>
+        <span>Bookings</span>
+    </a>
+    <a href="{% url 'admin_booking_list' %}?tab=requests" class="booking-management-tab {% if active_tab == 'requests' %}is-current{% endif %}" {% if active_tab == 'requests' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M15 5H5v15h15V10M13 12l-4 1 1-4 7-7 3 3-7 7Z"/></svg>
+        <span>Change Requests</span>
+        {% if change_summary.needs_review %}<span class="booking-request-count" aria-label="{{ change_summary.needs_review }} requests need admin action">{{ change_summary.needs_review }}</span>{% endif %}
+    </a>
+</nav>

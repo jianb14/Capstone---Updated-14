@@ -1,0 +1,37 @@
+<div id="booking-data-{{ b.id }}" hidden>
+    <!-- Raw Data for Editing -->
+    <div class="raw-type">{{ b.event_type }}</div>
+    <div class="raw-date">{{ b.event_date|date:"Y-m-d" }}</div>
+    <div class="raw-time">{{ b.event_time|date:"H:i" }}</div>
+    <div class="raw-end-time">{{ b.schedule.end_time }}</div>
+    <div class="raw-end-date">{{ b.schedule.end_date }}</div>
+    <div class="raw-duration">{{ b.schedule.duration_label }}</div>
+    <div class="raw-logistics-override">{{ b.logistics_fee_override|default_if_none:"" }}</div>
+    <div class="raw-location">{{ b.event_location }}</div>
+    <div class="raw-package">{{ b.package_type|default:"" }}</div>
+    <div class="raw-price">{{ b.total_price }}</div>
+    <div class="raw-requests">{{ b.special_requests|default:"" }}</div>
+    <!-- 📍🎨 Step 3/4 raw data (edit modal prefill) -->
+    <div class="raw-lat">{{ b.event_lat|default_if_none:"" }}</div>
+    <div class="raw-lng">{{ b.event_lng|default_if_none:"" }}</div>
+    <div class="raw-landmark">{{ b.venue_landmark|default:"" }}</div>
+    <div class="raw-theme">{{ b.design_theme|default:"" }}</div>
+    <div class="raw-palette">{{ b.color_palette|default:"" }}</div>
+    <div class="raw-motto">{{ b.motto_text|default:"" }}</div>
+    <div class="raw-image-url">{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}</div>
+    <div class="raw-multi-images">
+        {% for img in b.images.all %}
+        <span class="multi-img-url" data-id="{{ img.id }}">{{ img.image.url }}</span>
+        {% endfor %}
+    </div>
+    <div class="raw-design-images">
+        {% for design in b.designs.all %}
+            {% if design.image %}
+            <span class="design-img-url" data-id="{{ design.id }}">{{ design.image.url }}</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+    <div class="raw-change-mode">{% if b.status != 'pending' %}1{% endif %}</div>
+    <div class="raw-edit-url">{% if b.status == 'pending' %}{% url 'edit_booking' b.id %}{% else %}{% url 'request_booking_change' b.id %}{% endif %}</div>
+    <div class="raw-delete-url">{% url 'delete_booking' b.id %}</div>
+</div>

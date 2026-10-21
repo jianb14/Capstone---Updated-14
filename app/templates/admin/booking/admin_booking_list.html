@@ -5,11 +5,18 @@
 {% block content %}
 
 <link rel="stylesheet" href="{% static 'css/admin_booking.css' %}?v=20260906a">
+<link rel="stylesheet" href="{% static 'css/admin_booking_requests.css' %}?v=20261022mono">
 
 <div class="page-header">
     <h1>Booking Management</h1>
-    <p class="page-subtitle">Manage and monitor all customer bookings, approvals, and status updates.</p>
+    <p class="page-subtitle">{% if active_tab == 'requests' %}Review requested changes while keeping the original reservations in place.{% else %}Manage customer reservations, booking approvals, and event status.{% endif %}</p>
 </div>
+
+{% include 'admin/booking/_management_tabs.html' %}
+
+{% if active_tab == 'requests' %}
+{% include 'admin/booking/_change_request_list.html' %}
+{% else %}
 
 <div class="booking-summary-grid">
     <div class="booking-summary-card booking-summary-card--total">
@@ -226,6 +233,8 @@
                         {% endif %}
                         </td>
                     <td data-label="Actions">
+                        {% if b.lifecycle.design_overdue %}<div role="status" style="color: #ef4444; font-size: .75rem; font-weight: 600; margin-bottom: 6px;">Urgent: design not uploaded</div>{% endif %}
+                        {% if b.lifecycle.awaiting_verification %}<div style="font-size: .75rem; margin-bottom: 6px;">Payment awaiting verification</div>{% endif %}
                         <div class="action-buttons">
                             <a href="{% url 'admin_booking_detail' b.id %}" class="action-icon-btn action-view" title="View booking" aria-label="View booking">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -296,10 +305,13 @@
     {% csrf_token %}
     <input type="hidden" name="deny_reason" id="denyReasonInput">
 </form>
+{% endif %}
 
 {% endblock %}
 
 {% block extra_js %}
+{% if active_tab == 'requests' %}<script defer src="{% static 'js/admin_booking_requests.js' %}?v=20261022mono"></script>{% endif %}
+{% if active_tab == 'bookings' %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('searchInput');
@@ -474,4 +486,5 @@
         };
     });
 </script>
+{% endif %}
 {% endblock %}

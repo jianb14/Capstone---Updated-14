@@ -1,0 +1,27 @@
+{% with deliveries=booking.design_deliveries.all %}
+<section class="event-design-section" aria-label="Your Event Design" tabindex="-1">
+    {% if lifecycle.design_revision_pending %}<p class="booking-notice">Your booking preferences changed. The images below were delivered before your accepted changes. Our team is preparing your updated design.</p>{% endif %}
+    {% if deliveries %}
+    <p class="event-design-description">View and download the event design uploaded by our team for this booking.</p>
+    <div class="event-design-grid">
+        {% for delivery in deliveries %}
+        <article class="event-design-card">
+            <a class="event-design-preview" href="{{ delivery.image.url }}" target="_blank" rel="noopener" aria-label="Open event design {{ forloop.counter }} full size">
+                <img src="{{ delivery.image.url }}" alt="Event design {{ forloop.counter }} for booking {{ booking.id }}" loading="lazy">
+            </a>
+            {% if delivery.caption %}<p class="event-design-caption">{{ delivery.caption }}</p>{% endif %}
+            <p class="event-design-date">Uploaded {{ delivery.uploaded_at|date:"M d, Y h:i A" }}</p>
+            {% if lifecycle.design_revision_at and delivery.uploaded_at <= lifecycle.design_revision_at %}<p class="event-design-date">Previous design — before your booking changes</p>{% endif %}
+            <div class="event-design-actions">
+                <a href="{{ delivery.image.url }}" target="_blank" rel="noopener">View full size</a>
+                <a class="event-design-download" href="{% url 'booking_design_download' booking.id delivery.id %}">Download Design</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    {% if lifecycle.design_preparing %}<p><strong>Design in preparation</strong></p>{% endif %}
+    <p class="event-design-description">Your event design will appear here once uploaded by our team.</p>
+    {% endif %}
+</section>
+{% endwith %}

@@ -1,0 +1,21 @@
+<section class="booking-tracker" aria-label="Booking progress tracker">
+    <ol class="tracker-steps">
+        {% for step in tracker_steps %}
+        <li class="tracker-step tracker-step-{{ step.state }}"{% if step.state == 'current' %} aria-current="step"{% endif %}>
+            <div class="tracker-node">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    {% if step.state == 'failed' %}<path d="m6 6 12 12M18 6 6 18"/>
+                    {% elif forloop.counter == 1 %}<path d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h8m-8 4h5"/>
+                    {% elif forloop.counter == 2 %}<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-13 5h3"/>
+                    {% elif forloop.counter == 3 %}<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>
+                    {% else %}<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5 3 3 5-5"/>{% endif %}
+                </svg>
+                {% if step.state == 'done' %}<span class="tracker-check" aria-label="Done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>{% endif %}
+            </div>
+            <div class="tracker-copy"><span class="tracker-label">{{ step.label }}</span><span class="tracker-note">{{ step.note }}</span></div>
+            {% if not forloop.last %}<span class="tracker-line{% if step.state == 'done' %} tracker-line-fill{% endif %}" aria-hidden="true"></span>{% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+    <p class="tracker-message tracker-message-{{ tracker_message_state }}">{{ tracker_message }}</p>
+</section>

@@ -29,7 +29,8 @@ class BookingViewMapMarkupTests(TestCase):
     """Source-level wiring ng modal map + fullscreen stage."""
 
     def setUp(self):
-        self.profile = PROFILE_TEMPLATE.read_text(encoding="utf-8")
+        self.profile = (BASE_DIR / "app/templates/client/booking/_details_content.html").read_text(encoding="utf-8")
+        self.controller = (BASE_DIR / "static/js/customer_booking_details.js").read_text(encoding="utf-8")
         self.module = MAP_JS.read_text(encoding="utf-8")
         self.css = DESIGN_CSS.read_text(encoding="utf-8")
 
@@ -37,14 +38,11 @@ class BookingViewMapMarkupTests(TestCase):
         # Container sa #bookingModal (My Bookings → View Details)
         self.assertIn('id="modalMapRow"', self.profile)
         self.assertIn('id="booking_modal_map"', self.profile)
-        # Coordinates ay galing sa pre-rendered hidden data div
-        self.assertIn(".raw-lat", self.profile)
-        self.assertIn(".raw-lng", self.profile)
-        self.assertIn("initReadOnly", self.profile)
-        # Plain mini map lang sa View Details — walang fullscreen/expand button
-        self.assertIn("expandable: false", self.profile)
-        # Close ay nagco-collapse ng naka-fullscreen na mapa
-        self.assertIn("BookingLocationMap.collapse()", self.profile)
+        self.assertIn('data-lat="{{ booking.event_lat }}"', self.profile)
+        self.assertIn('data-lng="{{ booking.event_lng }}"', self.profile)
+        self.assertIn("initReadOnly", self.controller)
+        self.assertIn("expandable: false", self.controller)
+        self.assertIn("map.remove()", self.controller)
 
     def test_read_only_map_is_reusable_and_expandable(self):
         self.assertIn("function initReadOnly(", self.module)
@@ -100,8 +98,8 @@ class BookingViewMapPageTests(TestCase):
         response = self.client.get(reverse("customer_profile"))
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn('id="modalMapRow"', body)
-        self.assertIn('id="booking_modal_map"', body)
+        self.assertIn('id="bookingModal"', body)
+        self.assertIn('data-content-url=', body)
         # Raw coords ay naka-render para sa JS-populated modal map
         self.assertIn("raw-lat", body)
         self.assertIn("raw-lng", body)
@@ -109,16 +107,16 @@ class BookingViewMapPageTests(TestCase):
     def test_view_booking_page_shows_map_with_pin(self):
         booking = self._create_booking(event_lat="14.599500", event_lng="120.984200")
         self.client.force_login(self.user)
-        response = self.client.get(reverse("view_booking", args=[booking.id]))
+        response = self.client.get(reverse("booking_modal_content", args=[booking.id]))
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
-        self.assertIn('id="booking_detail_map"', body)
+        self.assertIn('id="booking_modal_map"', body)
         self.assertIn("14.599500", body)
 
     def test_view_booking_page_fallback_without_pin(self):
         booking = self._create_booking()
         self.client.force_login(self.user)
-        response = self.client.get(reverse("view_booking", args=[booking.id]))
+        response = self.client.get(reverse("booking_modal_content", args=[booking.id]))
         self.assertEqual(response.status_code, 200)
         self.assertIn("No map pin saved", response.content.decode("utf-8"))
 

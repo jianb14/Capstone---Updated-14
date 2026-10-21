@@ -39,12 +39,19 @@ def admin_site_settings(request):
         return HttpResponseForbidden("Admins only")
 
     settings_obj = SiteSettings.load()
+    service_charge_config = get_service_charge_config()
 
     if request.method == "POST":
         site_name = (request.POST.get("site_name") or "").strip()[:150]
         contact_email = (request.POST.get("contact_email") or "").strip()[:255]
         contact_phone = (request.POST.get("contact_phone") or "").strip()[:50]
         address = (request.POST.get("address") or "").strip()[:255]
+        old_address = settings_obj.address
+        posted_shop_lat = request.POST.get("shop_lat")
+        posted_shop_lng = request.POST.get("shop_lng")
+        if (posted_shop_lat or posted_shop_lng) and not valid_coordinates(posted_shop_lat, posted_shop_lng):
+            messages.error(request, "Invalid shop pin. Select the address from suggestions or pin the shop on the map.")
+            return redirect("admin_site_settings")
         facebook_link = (request.POST.get("facebook_link") or "").strip()[:200]
         instagram_link = (request.POST.get("instagram_link") or "").strip()[:200]
         admin_emails_raw = (request.POST.get("admin_emails_for_notifications") or "").strip()[:500]
@@ -54,7 +61,35 @@ def admin_site_settings(request):
         try:
             booking_lead_time_days = max(0, int(lead_time_raw))
         except ValueError:
-            booking_lead_time_days = 0
+            booking_lead_time_days = 0  # ⏱️ see overtime policy block below
+
+        # ⏱️ Duration & overtime policy — admin-tunable (min/included/rate/max).
+        def _pos_int(raw, fallback, minimum=1):
+            try:
+                return max(minimum, int(str(raw).strip()))
+            except (ValueError, TypeError):
+                return fallback
+
+        booking_min_duration_hours = _pos_int(
+            request.POST.get("booking_min_duration_hours"), 2
+        )
+        booking_included_hours = _pos_int(
+            request.POST.get("booking_included_hours"), 3
+        )
+        booking_max_duration_hours = _pos_int(
+            request.POST.get("booking_max_duration_hours"), 24
+        )
+        payment_window = min(720, _pos_int(request.POST.get('booking_payment_window_hours'), settings_obj.booking_payment_window_hours))
+        design_lead = min(720, _pos_int(request.POST.get('booking_design_lead_hours'), settings_obj.booking_design_lead_hours))
+        change_cutoff = min(720, _pos_int(request.POST.get('booking_change_cutoff_hours'), settings_obj.booking_change_cutoff_hours))
+        try:
+            booking_overtime_rate = max(
+                Decimal("0"),
+                Decimal(str(request.POST.get("booking_overtime_rate") or "500").strip()),
+            )
+        except (InvalidOperation, ValueError, TypeError):
+            booking_overtime_rate = Decimal("500")
+
 
         if not site_name:
             messages.error(request, "Site name is required.")
@@ -65,13 +100,30 @@ def admin_site_settings(request):
             settings_obj.address = address
             settings_obj.facebook_link = facebook_link
             settings_obj.instagram_link = instagram_link
-            settings_obj.booking_lead_time_days = booking_lead_time_days
+            settings_obj.booking_lead_time_days = booking_lead_time_days  # ⏱️ + duration policy below
+            settings_obj.booking_min_duration_hours = booking_min_duration_hours
+            settings_obj.booking_included_hours = booking_included_hours
+            settings_obj.booking_max_duration_hours = booking_max_duration_hours
+            settings_obj.booking_overtime_rate = booking_overtime_rate
+            settings_obj.booking_payment_window_hours = payment_window
+            settings_obj.booking_design_lead_hours = design_lead
+            settings_obj.booking_change_cutoff_hours = change_cutoff
+
+
             settings_obj.admin_emails_for_notifications = ", ".join(
                 e for e in (x.strip() for x in admin_emails_raw.split(",")) if e
             )
             settings_obj.email_notifications_enabled = email_notifications_enabled
             settings_obj.updated_by = request.user
             settings_obj.save()
+            if "shop_lat" in request.POST or "shop_lng" in request.POST:
+                service_charge_config.shop_lat = Decimal(posted_shop_lat) if posted_shop_lat else None
+                service_charge_config.shop_lng = Decimal(posted_shop_lng) if posted_shop_lng else None
+                service_charge_config.save(update_fields=["shop_lat", "shop_lng", "updated_at"])
+            elif address != old_address:
+                # An old exact pin must never survive an address-only relocation.
+                service_charge_config.shop_lat = service_charge_config.shop_lng = None
+                service_charge_config.save(update_fields=["shop_lat", "shop_lng", "updated_at"])
 
             log_action(request.user, "Updated site settings.")
             messages.success(request, "Site settings saved successfully.")
@@ -81,7 +133,7 @@ def admin_site_settings(request):
     return render(
         request,
         "admin/settings/admin_site_settings.html",
-        {"settings": settings_obj},
+        {"settings": settings_obj, "shop_origin": get_logistics_origin(service_charge_config)},
     )
 
 
@@ -503,8 +555,13 @@ def admin_service_charge_update(request):
         return redirect("admin_package_list")
 
     config = get_service_charge_config()
-    amount_raw = request.POST.get("service_charge_amount", "").strip()
-    notes = request.POST.get("service_charge_notes", "").strip()
+    amount_raw = (request.POST.get("service_charge_amount") or "").strip()
+    notes = (request.POST.get("service_charge_notes") or "").strip()
+    shop_lat_raw = request.POST.get("shop_lat", str(config.shop_lat) if config.shop_lat is not None else "")
+    shop_lng_raw = request.POST.get("shop_lng", str(config.shop_lng) if config.shop_lng is not None else "")
+    free_radius_raw = (request.POST.get("free_radius_km") or "").strip()
+    per_km_raw = (request.POST.get("per_km_rate") or "").strip()
+    max_cap_raw = (request.POST.get("max_fee_cap") or "").strip()
 
     if not notes:
         messages.error(request, "Service charge notes are required.")
@@ -521,15 +578,49 @@ def admin_service_charge_update(request):
         return redirect("admin_package_list")
 
     max_price = Decimal("99999999.99")
-    if amount < 0 or amount > max_price:
+    if not amount.is_finite() or amount < 0 or amount > max_price:
         messages.error(request, "Service charge must be between 0 and 99,999,999.99.")
+        return redirect("admin_package_list")
+
+    # Rates are maintained here; Site Settings owns the shop address/pin.
+    def _optional_decimal(raw, minimum=None, maximum=None):
+        raw = (raw or "").strip()
+        if not raw:
+            return None
+        try:
+            value = Decimal(raw)
+        except (InvalidOperation, ValueError, TypeError):
+            return "invalid"
+        if not value.is_finite():
+            return "invalid"
+        if minimum is not None and value < minimum:
+            return "invalid"
+        if maximum is not None and value > maximum:
+            return "invalid"
+        return value
+
+    shop_lat = _optional_decimal(shop_lat_raw, Decimal("-90"), Decimal("90"))
+    shop_lng = _optional_decimal(shop_lng_raw, Decimal("-180"), Decimal("180"))
+    free_radius = _optional_decimal(free_radius_raw, Decimal("0"), Decimal("1000"))
+    per_km = _optional_decimal(per_km_raw, Decimal("0"), max_price)
+    max_cap = _optional_decimal(max_cap_raw, Decimal("0"), max_price)
+    if "invalid" in (shop_lat, shop_lng, free_radius, per_km, max_cap):
+        messages.error(request, "Invalid logistics distance settings. Check shop coords, free radius, per-km rate, and cap.")
+        return redirect("admin_package_list")
+    if (shop_lat is None) != (shop_lng is None):
+        messages.error(request, "Shop latitude and longitude must both be set (or both be blank).")
         return redirect("admin_package_list")
 
     config.amount = amount
     config.notes = notes
+    config.shop_lat = shop_lat
+    config.shop_lng = shop_lng
+    config.free_radius_km = free_radius if free_radius is not None else Decimal("0")
+    config.per_km_rate = per_km if per_km is not None else Decimal("0")
+    config.max_fee_cap = max_cap if max_cap is not None else Decimal("0")
     config.save()
 
-    log_action(request.user, f"Updated global service charge to {config.amount}.")
+    log_action(request.user, f"Updated global service charge to {config.amount} (logistics distance settings included).")
     messages.success(request, "Service charge settings updated.")
     return redirect("admin_package_list")
 

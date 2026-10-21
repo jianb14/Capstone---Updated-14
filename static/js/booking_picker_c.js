@@ -5,6 +5,35 @@ function makeTime(input, kind, getIso) {
   var H = g._BKP; if (!H || !input || input.dataset.customPicker) return null;
   var A = H.A(); if (!A) return null;
   var wrap = input.parentElement;
+  // Preserve HH:MM for validation/submission; show a separate AM/PM control.
+  var display = document.createElement('input');
+  display.type = 'text';
+  display.id = input.id + '_display';
+  display.className = input.className;
+  display.readOnly = true;
+  display.setAttribute('inputmode', 'none');
+  display.setAttribute('aria-label', kind === 'start' ? 'Start time' : 'End time');
+  display.setAttribute('aria-required', 'true');
+  display.dataset.customPicker = 'time-' + kind;
+  display.placeholder = kind === 'start' ? 'Select start time' : 'Select end time';
+  display.setAttribute('aria-describedby', input.id + '_error');
+  input.type = 'hidden';
+  input.style.display = 'none';
+  input.required = false;
+  input.focus = function () { display.focus(); };
+  function syncDisplay() {
+    var mins = A.toMinutes(input.value);
+    if (kind === 'end' && mins !== null) {
+      var start = document.getElementById(input.id.indexOf('edit_') === 0 ? 'edit_start_time' : 'start_time');
+      var sm = A.toMinutes(start ? start.value : '');
+      if (sm !== null && mins <= sm) mins += 1440;
+    }
+    display.value = mins === null ? '' : A.minutesToLabel(mins);
+    display.classList.toggle('is-invalid', input.classList.contains('is-invalid'));
+  }
+  input.addEventListener('change', syncDisplay);
+  input.addEventListener('input', syncDisplay);
+  if (input.form) input.form.addEventListener('reset', function () { setTimeout(syncDisplay, 0); });
   /* Icon sa kanan ng input (clock) — clickable toggle ng time dropdown.
      Ini-wrap muna ang input sa .booking-input-holder para pantay ang icon. */
   var icon = null;
@@ -13,6 +42,7 @@ function makeTime(input, kind, getIso) {
     holder.className = 'booking-input-holder';
     wrap.insertBefore(holder, input);
     holder.appendChild(input);
+    holder.appendChild(display);
     icon = document.createElement('span');
     icon.className = 'booking-picker-icon';
     icon.setAttribute('data-custom-picker', 'time-icon-' + kind);
@@ -33,12 +63,13 @@ function makeTime(input, kind, getIso) {
     if (getComputedStyle(popHost).position === 'static') popHost.style.position = 'relative';
     popHost.appendChild(pop);
   }
-  function close() { pop.hidden = true; }
+  function close() { pop.hidden = true; display.setAttribute('aria-expanded', 'false'); }
   function open() {
     /* Kapag walang petsa, unavailable ang date, o walang slots (hal. End bago
        pumili ng Start): HUWAG buksan ang dropdown — hint lang sa footer. */
     if (!slots().length) return;
     H.closeOthers(pop); render(); pop.hidden = false;
+    display.setAttribute('aria-expanded', 'true');
   }
   function slots() {
     var d = null; try { d = H.RD(); } catch (e) { return []; }
@@ -67,30 +98,111 @@ function makeTime(input, kind, getIso) {
       em.className = 'booking-picker-foot';
       em.textContent = kind === 'start'
         ? 'No available start times for this date'
-        : 'Pick a start time first (min 2 hours, until 6:00 PM)';
+        : 'Pick a start time first (min 2 hours)';
       pop.appendChild(em);
       return;
+    }
+    /* Overtime label sa End dropdown: options na lampas sa included hours
+       ay may "+₱X" suffix (galing sa SiteSettings overtime rate) — para
+       alam ng customer na may dagdag bayad BAGO pa niya piliin ang oras. */
+    var otPolicy = null; var otStart = null;
+    if (kind === 'end') {
+      try { otPolicy = A2.getDurationPolicy(H.RD()); } catch (e) { otPolicy = null; }
+      try {
+        var otStartEl = (input.id === 'edit_start_time' || input.id === 'edit_end_time')
+          ? document.getElementById('edit_start_time')
+          : document.getElementById('start_time');
+        otStart = A2.toMinutes(otStartEl ? otStartEl.value : '');
+      } catch (e) { otStart = null; }
+    }
+    var lastGroup = '';
+    function groupHeading(paid) {
+      var heading = document.createElement('div');
+      heading.className = 'booking-time-group-label' + (paid ? ' is-overtime' : '');
+      heading.setAttribute('role', 'presentation');
+      var until = A2.minutesToLabel(otStart + otPolicy.includedMinutes);
+      heading.textContent = paid
+        ? 'Additional fee · after ' + until
+        : 'Included in your package · until ' + until;
+      pop.appendChild(heading);
     }
     for (var i = 0; i < list.length; i++) { (function (m) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'booking-picker-timeopt';
       b.setAttribute('role', 'option');
-      b.textContent = A2.minutesToLabel(m);
+      var optLabel = A2.minutesToLabel(m);
+      var otHours = 0;
+      if (kind === 'end' && otPolicy && otStart !== null && otStart !== undefined) {
+        var durMin = A2.getDurationMinutes(otStart, m);
+        if (durMin !== null && durMin > otPolicy.includedMinutes) {
+          otHours = Math.ceil((durMin - otPolicy.includedMinutes) / 60);
+          optLabel += '  +₱' + (otHours * otPolicy.overtimeRate).toLocaleString('en-PH');
+        }
+        var group = otHours > 0 ? 'overtime' : 'included';
+        if (lastGroup !== group) { groupHeading(otHours > 0); lastGroup = group; }
+      }
+      b.textContent = optLabel;
+      if (otHours > 0) b.classList.add('is-overtime');
       b.dataset.value = A2.minutesToValue(m);
+      b.setAttribute('aria-selected', input.value === b.dataset.value ? 'true' : 'false');
       if (input.value === b.dataset.value) b.classList.add('is-selected');
-      b.addEventListener('click', function () {
-        input.value = b.dataset.value; H.fire(input); close();
+      b.addEventListener('click', async function () {
+        close();
+        var previous = input.value;
+        var originalDate = getIso();
+        var startEl = document.getElementById(input.id.indexOf('edit_') === 0 ? 'edit_start_time' : 'start_time');
+        var originalStart = startEl ? startEl.value : '';
+        if (otHours > 0 && otPolicy.overtimeRate > 0 && previous !== b.dataset.value) {
+          var fee = otHours * otPolicy.overtimeRate;
+          var message = 'Your package includes time until ' + A2.minutesToLabel(otStart + otPolicy.includedMinutes)
+            + '. Ending at ' + A2.minutesToLabel(m) + ' has a total overtime fee of ₱' + fee.toLocaleString('en-PH')
+            + ' (' + otHours + ' billable hour(s) × ₱' + otPolicy.overtimeRate.toLocaleString('en-PH')
+            + '). Each started overtime hour is charged in full. This is the overtime amount in your updated booking total.';
+          var confirmed;
+          if (g.Swal && typeof g.Swal.fire === 'function') {
+            var result = await g.Swal.fire({
+              title: 'Extend your booking?', text: message, icon: 'info',
+              showCancelButton: true, confirmButtonText: 'Confirm +₱' + fee.toLocaleString('en-PH'),
+              cancelButtonText: previous ? 'Keep previous time' : 'Choose another time', focusCancel: true, returnFocus: false,
+              customClass: { popup: 'app-dialog-popup' }
+            });
+            confirmed = result.isConfirmed;
+          } else {
+            confirmed = g.confirm(message);
+          }
+          if (!confirmed) { display.focus(); return; }
+          // Discard a confirmation if the underlying date/start changed meanwhile.
+          if (getIso() !== originalDate || (startEl && startEl.value !== originalStart)) return;
+        }
+        input.value = b.dataset.value;
+        input.dataset.overtimeConfirmed = otHours > 0 ? '1' : '';
+        syncDisplay(); H.fire(input);
         if (g.BookingPickers) g.BookingPickers.refreshAll();
+        display.focus();
       });
       pop.appendChild(b);
     })(list[i]); }
+    /* 📌 End-dropdown footer: ipakita ang included window + overtime rate —
+       hal. "Beyond 10:00 AM = overtime (+₱500/hr)" — kahit hindi pa nagse-select. */
+    if (kind === 'end' && otPolicy && otStart !== null) {
+      try {
+        var _ft = document.createElement('div');
+        _ft.className = 'booking-picker-foot';
+        var _until = otStart + (otPolicy.includedMinutes || 180);
+        var _uh = Math.floor((_until % (24 * 60)) / 60);
+        var _um = _until % 60;
+        var _suf = _uh >= 12 ? 'PM' : 'AM';
+        var _h12 = _uh % 12 || 12;
+        var _untilLbl = _h12 + ':' + String(_um).padStart(2, '0') + ' ' + _suf;
+        var _rate = otPolicy.overtimeRate;
+        _ft.textContent = 'Beyond ' + _untilLbl + ' = overtime (+₱' + Number(_rate).toLocaleString('en-PH') + '/hr)';
+        pop.appendChild(_ft);
+      } catch (e) { /* footer optional lang */ }
+    }
   }
-  try { input.setAttribute('type', 'text'); } catch (e) {}
-  input.setAttribute('readonly', 'readonly');
-  input.setAttribute('inputmode', 'none');
   input.dataset.customPicker = 'time-' + kind;
-  input.setAttribute('aria-haspopup', 'listbox');
-  input.placeholder = input.placeholder || (kind === 'start' ? 'Select start' : 'Select end');
+  display.setAttribute('aria-haspopup', 'listbox');
+  display.setAttribute('aria-expanded', 'false');
   /* Foot hint: paliwanag kung bakit hindi nagbubukas ang dropdown —
      walang laman kapag walang date o walang start (para sa End). */
   function hintMsg() {
@@ -102,6 +214,7 @@ function makeTime(input, kind, getIso) {
     return 'No available times for this date';
   }
   function syncHint() {
+    syncDisplay();
     try {
       /* Gamitin ang original wrap (hindi ang bagong .booking-input-holder)
          para sa ilalim pa rin ng input lilitaw ang hint. */
@@ -123,15 +236,15 @@ function makeTime(input, kind, getIso) {
       }
     } catch (e) {}
   }
-  input.addEventListener('click', function (e) { e.preventDefault(); if (pop.hidden) open(); else close(); syncHint(); });
+  display.addEventListener('click', function (e) { e.preventDefault(); if (pop.hidden) open(); else close(); syncHint(); });
   /* WALANG focus auto-open — ang nagiging sanhi ng "may nakalabas agad".
      Bubukas lang kapag click/Enter/Space na may laman ang slots. */
-  input.addEventListener('focus', function () { syncHint(); });
-  input.addEventListener('blur', function () { setTimeout(syncHint, 150); });
-  input.addEventListener('keydown', function (e) {
+  display.addEventListener('focus', function () { syncHint(); });
+  display.addEventListener('blur', function () { setTimeout(syncHint, 150); });
+  display.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') close();
     else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (pop.hidden) open(); else close(); }
-    else e.preventDefault();
+    else if (e.key === 'ArrowDown') { e.preventDefault(); open(); var first = pop.querySelector('button'); if (first) first.focus(); }
     setTimeout(syncHint, 0);
   });
   /* Icon toggle: isara muna ang ibang dropdown bago buksan ang sarili —
@@ -148,7 +261,16 @@ function makeTime(input, kind, getIso) {
       else if (e.key === 'Escape') { close(); syncHint(); }
     });
   }
-  H.outsideCloser(pop, input, function () { close(); syncHint(); }, { syncHint: syncHint });
+  pop.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { close(); display.focus(); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      var buttons = Array.prototype.slice.call(pop.querySelectorAll('button'));
+      var index = buttons.indexOf(document.activeElement);
+      if (buttons.length) buttons[(index + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
+    }
+  });
+  H.outsideCloser(pop, display, function () { close(); syncHint(); }, { syncHint: syncHint });
   setTimeout(syncHint, 0);
   return { input: input, render: render, close: close, kind: kind, syncHint: syncHint };
 }

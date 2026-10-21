@@ -1,3 +1,4 @@
+import re
 from django.urls import reverse
 
 from .models import Booking, ChatMessage, ChatSession, Notification, AdminNotification, Payment, ConcernTicket
@@ -54,6 +55,12 @@ def _customer_notif_target_url(notif):
     msg = (getattr(notif, "message", "") or "").lower()
     booking = getattr(notif, "booking", None)
 
+    if booking is not None and 'booking change request' in msg:
+        return f"{reverse('customer_profile')}?booking_id={booking.id}&modal=details&from_notif=1"
+
+    if booking is not None and "backdrop design" in msg:
+        return f"{reverse('customer_profile')}?booking_id={booking.id}&modal=design&from_notif=1"
+
     # Payment-related: verified / rejected / received / reminder / proceed-to-payment.
     # Diretso sa detalye ng pinakabagong payment ng booking (hindi list) —
     # para pag-click, kita agad yung payment status/amount/ref.
@@ -96,6 +103,11 @@ def _customer_notif_target_url(notif):
 def _admin_notif_target_url(notif_type, message, booking):
     """Target URL ng isang admin notif (legacy booking o AdminNotification event)."""
     msg = (message or "").lower()
+    if booking is not None and 'change request' in msg:
+        match = re.search(r'\b(?:booking )?change request #(\d+)\b', msg)
+        if match:
+            return reverse('admin_booking_change_detail', args=[int(match.group(1))])
+        return f"{reverse('admin_booking_list')}?tab=requests&booking_id={booking.pk}"
 
     # Payment-related: "New GCash/PayMongo payment submitted ..." etc.
     # Diretso sa payment detail ng pinakabagong payment ng booking —

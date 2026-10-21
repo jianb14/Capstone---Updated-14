@@ -1,0 +1,14 @@
+{% extends 'admin/admin_base.html' %}
+{% load static humanize %}
+{% block title %}Change Request #{{ change_request.id }} · Balloorina Admin{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
+<link rel="stylesheet" href="{% static 'css/admin_booking_requests.css' %}?v=20261022mono">
+<div class="request-review-header"><div><a class="request-back-link" href="{{ return_to }}">← Back to change requests</a><p class="request-eyebrow">BOOKING MANAGEMENT / CHANGE REQUESTS</p><h1>{% if change_request.is_active_request %}Review change request{% else %}Change request history{% endif %}</h1><p>Request #{{ change_request.id }} <span aria-hidden="true">·</span> <a href="{% url 'admin_booking_detail' booking.id %}">Booking #{{ booking.id }} ↗</a></p></div><span class="request-status request-status-{{ change_request.status }} {% if change_request.payment_to_verify %}request-status-verification{% endif %}">{{ change_status_label }}</span></div>
+{% include 'admin/booking/_management_tabs.html' %}
+<div class="request-review-layout">
+    <section class="request-review-customer" aria-label="Request context"><div><span>Customer</span><strong>{{ booking.user.get_full_name|default:booking.user.username }}</strong>{% if booking.user.email %}<small>{{ booking.user.email }}</small>{% endif %}</div><div><span>Submitted</span><strong>{{ change_request.created_at|date:"M d, Y · g:i A" }}</strong></div><div><span>Next step</span><strong>{{ change_status_label }}</strong><small>{{ change_status_note }}</small></div></section>
+    {% include 'admin/booking/_change_review.html' %}
+    {% if not change_request.is_active_request %}<p class="request-history-note">This request is closed. The saved requested changes and quote above are kept for reference. <a href="{% url 'admin_booking_detail' booking.id %}">View the current booking</a>.</p>{% endif %}
+</div>
+{% endblock %}

@@ -154,8 +154,8 @@ function make(input) {
        pula = unavailable (blocked), dilaw = fully booked. */
     var lg = document.createElement('div');
     lg.className = 'booking-picker-legend';
-    lg.innerHTML = '<span><i class="lp-dot lp-blocked"></i>Unavailable</span>' +
-                   '<span><i class="lp-dot lp-full"></i>Fully booked</span>';
+    lg.innerHTML = '<span><span class="lp-dot lp-blocked"></span>Unavailable</span>' +
+                   '<span><span class="lp-dot lp-full"></span>Fully booked</span>';
     ft.appendChild(lg);
     pop.appendChild(ft);
   }

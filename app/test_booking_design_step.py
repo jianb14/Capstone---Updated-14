@@ -4,7 +4,7 @@ Sakop:
 - create_booking: nasasave ang event_lat/lng, venue_landmark, design_theme,
   color_palette, motto_text; graceful degradation kapag walang map data;
   hindi na-i-keep ang half/invalid coords.
-- edit_booking WIPE-GUARD: ang legacy booking_form.html (walang bagong
+- edit_booking WIPE-GUARD: partial submissions (walang bagong
   fields sa POST) ay HINDI dapat mag-wipe ng naka-save na mapa/design data.
 - Templates: stepper wiring (5-step booking page / 4-step edit modal),
   Step 4 markup, map module/CSS links, at detail/admin display surfaces.
@@ -16,12 +16,11 @@ from pathlib import Path
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Booking, User
+from .models import Booking, ServiceChargeConfig, User
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 BOOKING_PAGE = BASE_DIR / "app" / "templates" / "client" / "booking" / "booking_page.html"
-BOOKING_DETAIL = BASE_DIR / "app" / "templates" / "client" / "booking" / "booking_detail.html"
-LEGACY_FORM = BASE_DIR / "app" / "templates" / "client" / "booking" / "booking_form.html"
+BOOKING_DETAIL = BASE_DIR / "app" / "templates" / "client" / "booking" / "_details_content.html"
 PROFILE_TEMPLATE = BASE_DIR / "app" / "templates" / "client" / "customer_profile.html"
 ADMIN_BOOKING_DETAIL = BASE_DIR / "app" / "templates" / "admin" / "booking" / "admin_booking_detail.html"
 ADMIN_PAYMENT_DETAIL = BASE_DIR / "app" / "templates" / "admin" / "payment" / "admin_payment_detail.html"
@@ -29,6 +28,12 @@ MAP_JS = BASE_DIR / "static" / "js" / "booking_location_map.js"
 MAP_JS_MIRROR = BASE_DIR / "staticfiles" / "js" / "booking_location_map.js"
 DESIGN_CSS = BASE_DIR / "static" / "css" / "booking_design_step.css"
 DESIGN_CSS_MIRROR = BASE_DIR / "staticfiles" / "css" / "booking_design_step.css"
+
+
+def read_profile_source():
+    paths = [PROFILE_TEMPLATE, BOOKING_DETAIL,
+        BASE_DIR / "app/templates/client/booking/_edit_data.html"]
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
 
 def _base_payload(**overrides):
@@ -44,6 +49,11 @@ def _base_payload(**overrides):
         # Step 4 required (theme + palette, max 3) — laging kasama by default
         "design_theme": "Princess",
         "color_palette": "Pink, Gold",
+        # 📍 Smart-required pin: valid coords by default (map-alive booking).
+        # Ang create gate ay nagre-reject kapag walang pin at hindi flag=0 —
+        # kaya ang map-degradation tests ay nag-o-override ng coords/flag.
+        "event_lat": "14.599500",
+        "event_lng": "120.984200",
     }
     data.update(overrides)
     return data
@@ -53,6 +63,7 @@ class BookingDesignStepTests(TestCase):
     """Backend save/update ng bagong Step 3/4 fields."""
 
     def setUp(self):
+        ServiceChargeConfig.objects.create(pk=1, shop_lat="14.414", shop_lng="120.982")
         self.user = User.objects.create_user(
             username="design_customer", password="pass1234", role="customer"
         )
@@ -99,10 +110,11 @@ class BookingDesignStepTests(TestCase):
         self.assertEqual(booking.motto_text, "Happy 18th, Maria!")
 
     def test_create_booking_without_map_still_succeeds(self):
-        """Graceful degradation: text location lang, walang coords — OK pa rin."""
+        """Graceful degradation (patay ang map → map_available=0): text location
+        lang, walang coords — OK pa rin (base fee + admin review later)."""
         resp = self.client.post(
             reverse("create_booking"),
-            _base_payload(),
+            _base_payload(event_lat="", event_lng="", map_available="0"),
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(resp.status_code, 200)
@@ -162,9 +174,11 @@ class BookingDesignStepTests(TestCase):
         self.assertIn("10", resp.json()["message"])
 
     def test_create_booking_discards_invalid_coords(self):
+        # Garbage coords → parehong na-sanitize to None; patay ang map (flag 0)
+        # kaya tuloy ang booking — walang stale pin na nai-store.
         resp = self.client.post(
             reverse("create_booking"),
-            _base_payload(event_lat="999", event_lng="not-a-number"),
+            _base_payload(event_lat="999", event_lng="not-a-number", map_available="0"),
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(resp.status_code, 200)
@@ -177,7 +191,7 @@ class BookingDesignStepTests(TestCase):
         """Kapag isa lang ang laman ng lat/lng, pareho → None (walang stale pin)."""
         resp = self.client.post(
             reverse("create_booking"),
-            _base_payload(event_lat="14.599500", event_lng=""),
+            _base_payload(event_lat="14.599500", event_lng="", map_available="0"),
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(resp.status_code, 200)
@@ -189,7 +203,7 @@ class BookingDesignStepTests(TestCase):
     # --- edit_booking wipe-guard ---------------------------------------
 
     def test_legacy_edit_post_does_not_wipe_design_fields(self):
-        """booking_form.html-style POST (walang bagong keys) = hindi nagbabago
+        """Partial POST (walang bagong keys) = hindi nagbabago
         ang naka-save na mapa/design data."""
         booking = self._create_booking(
             event_lat=Decimal("14.599500"),
@@ -295,11 +309,12 @@ class BookingDesignStepTemplateTests(TestCase):
         self.assertIn('id="step-5"', self.page)
         self.assertIn("Design Preferences", self.page)
         self.assertIn("STEPPER_PROGRESS", self.page)
-        self.assertIn("calc(75% - 36px)", self.page)
+        self.assertIn("['0%', '20%', '40%', '60%', '80%']", self.page)
 
     def test_booking_page_location_card_wiring(self):
         self.assertIn('id="booking_location_map"', self.page)
-        self.assertIn('id="location_search"', self.page)
+        self.assertIn('id="event_location"', self.page)
+        self.assertNotIn('id="location_search"', self.page)
         self.assertIn('id="location_suggestions"', self.page)
         self.assertIn('id="location_use_my"', self.page)
         self.assertIn('name="event_lat"', self.page)
@@ -336,7 +351,7 @@ class BookingDesignStepTemplateTests(TestCase):
         self.assertIn("showStep(5)", self.page)
 
     def test_edit_modal_has_five_steps_with_design_step(self):
-        profile = PROFILE_TEMPLATE.read_text(encoding="utf-8")
+        profile = read_profile_source()
         for step_no in range(1, 6):
             self.assertIn(f'id="edit-step-{step_no}-indicator"', profile)
         self.assertIn('id="edit-step-5"', profile)
@@ -357,7 +372,7 @@ class BookingDesignStepTemplateTests(TestCase):
         self.assertIn('name="venue_landmark"', profile)
         self.assertIn('id="btnNextEditDesignToReview"', profile)
         self.assertIn("EDIT_STEP_PROGRESS", profile)
-        self.assertIn("calc(100% - 48px)", profile)
+        self.assertIn("['0%', '20%', '40%', '60%', '80%']", profile)
         self.assertIn("showEditStep(5)", profile)
         # Step 4 required wiring
         self.assertIn('id="edit_design_theme_error"', profile)
@@ -373,15 +388,15 @@ class BookingDesignStepTemplateTests(TestCase):
             self.assertIn(raw_key, profile)
 
     def test_edit_modal_view_details_shows_design_rows(self):
-        profile = PROFILE_TEMPLATE.read_text(encoding="utf-8")
+        profile = read_profile_source()
         self.assertIn('id="modalTheme"', profile)
         self.assertIn('id="modalPalette"', profile)
         self.assertIn('id="modalMotto"', profile)
         self.assertIn('id="modalLandmarkRow"', profile)
         self.assertIn("Design Notes / Special Requests", profile)
 
-    def test_legacy_form_has_required_design_fields(self):
-        legacy = LEGACY_FORM.read_text(encoding="utf-8")
+    def test_edit_modal_has_required_design_fields(self):
+        legacy = read_profile_source()
         self.assertIn('name="venue_landmark"', legacy)
         self.assertIn('name="design_theme"', legacy)
         self.assertIn('name="color_palette"', legacy)
@@ -392,7 +407,7 @@ class BookingDesignStepTemplateTests(TestCase):
 
     def test_detail_and_admin_surfaces_show_design_data(self):
         detail = BOOKING_DETAIL.read_text(encoding="utf-8")
-        self.assertIn('id="booking_detail_map"', detail)
+        self.assertIn('id="booking_modal_map"', detail)
         self.assertIn("Design Preferences", detail)
         self.assertIn("Design Notes / Special Requests", detail)
         self.assertIn("booking.venue_landmark", detail)
@@ -419,7 +434,8 @@ class BookingDesignStepTemplateTests(TestCase):
         module = MAP_JS.read_text(encoding="utf-8")
         self.assertIn("global.BookingLocationMap", module)
         self.assertIn("function initReadOnly(", module)
-        self.assertIn("nominatim.openstreetmap.org", module)
+        self.assertIn("/booking/places/search/", module)
+        self.assertIn("/booking/places/reverse/", module)
         # Tile provider: Esri World Street Map primary (libre, walang key —
         # hindi tulad ng CARTO na nagre-require na ng key kahit free tier),
         # OSM France HOT ang fallback. Walang cartocdn o

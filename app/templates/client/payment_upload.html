@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20260918c">
+<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261021checkout">
 {% endblock %}
 
 {% block content %}
@@ -14,11 +14,11 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
         </a>
         <div class="pu-head-text">
-            <span class="pu-eyebrow">Booking #{{ booking.id }}</span>
+            <span class="pu-eyebrow">Booking #{{ booking.id }}{% if is_change_payment %} &middot; Change Request #{{ change.id }}{% endif %}</span>
             <h1 class="pu-title">{% if pending_payment %}Payment Information{% elif is_fully_paid %}Payment Complete{% else %}Complete Your Payment{% endif %}</h1>
             <p class="pu-sub">{% if pending_payment %}Your payment is in — here's where it stands.{% elif is_fully_paid %}This booking is fully settled.{% else %}Secure GCash checkout via PayMongo{% endif %}</p>
         </div>
-        {% if not pending_payment and not is_fully_paid %}
+        {% if not pending_payment and not is_fully_paid and not payment_unavailable %}
         <div class="pu-secure-pill">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             <span>Secured</span>
@@ -26,13 +26,24 @@
         {% endif %}
     </div>
 
+    {% if is_change_payment %}
+    {% if change.expires_at %}<div class="pu-alert pu-change-deadline"><strong>{% if pending_payment %}Original payment deadline{% else %}Pay by{% endif %} {{ change.expires_at|date:"M d, Y" }} &mdash; {{ change.expires_at|date:"g:i A" }}</strong><p>{% if pending_payment %}Your submitted additional payment is awaiting verification. Please wait before paying again.{% else %}Pay the additional amount before this deadline to proceed with your accepted booking changes.{% endif %}</p></div>{% endif %}
+    {% else %}{% include 'client/booking/_lifecycle_status.html' %}{% endif %}
+    {% if payment_error %}<div class="pu-alert" role="alert">{{ payment_error }}</div>{% endif %}
     {% if messages %}
         {% for message in messages %}
         <div class="pu-alert">{{ message }}</div>
         {% endfor %}
     {% endif %}
 
-    {% if is_fully_paid %}
+    {% if payment_unavailable %}
+    <div class="pu-card">
+        <div class="pu-card-head">Payment Unavailable</div>
+        <p class="pu-change-note">{% if pending_payment %}Your payment is recorded, but our team needs to review this request with you. Please do not submit another payment.{% else %}This request cannot accept an online payment right now. Review its current status or contact our team for assistance.{% endif %}</p>
+        <a href="{% url 'customer_profile' %}?booking_id={{ booking.id }}&amp;modal=details" class="pu-btn-ghost">View Booking Request</a>
+        <a href="{% url 'my_payments' %}" class="pu-btn-ghost">Back to My Payments</a>
+    </div>
+    {% elif is_fully_paid %}
     <!-- ============ Fully paid state ============ -->
     <div class="pu-card pu-paid">
         <div class="pu-paid-icon">
@@ -76,7 +87,7 @@
                 </div>
                 <div class="pu-detail-row">
                     <span class="pu-detail-label">Method</span>
-                    <span class="pu-detail-value">{{ pending_payment.get_payment_method_display }} via PayMongo</span>
+                    <span class="pu-detail-value">{{ pending_payment.get_payment_method_display }}</span>
                 </div>
                 <div class="pu-detail-row">
                     <span class="pu-detail-label">Type</span>
@@ -104,48 +115,19 @@
                     <li class="ps-step">
                         <span class="ps-step-dot">3</span>
                         <div class="ps-step-body">
-                            <h4>Booking confirmed</h4>
-                            <p>Once verified, your booking is confirmed. If you only paid the downpayment, the remaining balance can be settled from My Payments.</p>
+                            <h4>{% if is_change_payment %}Booking changes finalized{% else %}Booking confirmed{% endif %}</h4>
+                            <p>{% if is_change_payment %}Once verified, your accepted changes will be applied and this payment will be credited to your revised booking. Any original unpaid balance remains payable through My Payments.{% else %}Once verified, your booking is confirmed. If you only paid the downpayment, the remaining balance can be settled from My Payments.{% endif %}</p>
                         </div>
                     </li>
                 </ol>
             </div>
         </div>
         <aside class="ps-side">
-            <div class="pu-card">
-                <div class="pu-card-head">Booking Details</div>
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Booking</span>
-                    <span class="pu-detail-value">#{{ booking.id }}</span>
-                </div>
-                {% if booking.event_type %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Event</span>
-                    <span class="pu-detail-value">{{ booking.event_type }}</span>
-                </div>
-                {% endif %}
-                {% if booking.event_date %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Date</span>
-                    <span class="pu-detail-value">{{ booking.event_date|date:"M d, Y" }}</span>
-                </div>
-                {% endif %}
-                {% if booking.time_range_display %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Time</span>
-                    <span class="pu-detail-value">{{ booking.time_range_display }}</span>
-                </div>
-                {% endif %}
-                {% if booking.event_location %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Location</span>
-                    <span class="pu-detail-value">{{ booking.event_location }}</span>
-                </div>
-                {% endif %}
-            </div>
+            {% include 'client/booking/_payment_booking_details.html' %}
 
             <div class="pu-card">
                 <div class="pu-card-head">Payment Summary</div>
+                {% if is_change_payment %}{% include 'client/booking/_payment_change_summary.html' %}{% else %}
                 <div class="pu-sum-row">
                     <span>Total Booking Price</span>
                     <span>&#8369;{{ total_price|floatformat:2 }}</span>
@@ -170,6 +152,7 @@
                         <span>{{ dp_percent }}% downpayment required</span>
                     </div>
                 </div>
+                {% endif %}
             </div>
 
             <a href="{% url 'my_payments' %}" class="ps-back-btn">Back to My Payments<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
@@ -184,7 +167,7 @@
             <span class="pu-notice-title">Unfinished checkout</span>
             <span class="pu-notice-sub">You have an unfinished PayMongo checkout for this booking. You can continue where you left off.</span>
         </div>
-        <a href="{{ pending_checkout_url }}" target="_blank" rel="noopener" class="pu-notice-btn">Continue Payment</a>
+        <a href="{% if is_change_payment %}#js-refund-ack{% else %}{{ pending_checkout_url }}{% endif %}" class="pu-notice-btn">{% if is_change_payment %}Review &amp; Continue{% else %}Continue Payment{% endif %}</a>
     </div>
     {% endif %}
 
@@ -199,8 +182,9 @@
 
     <div class="pu-layout">
         <!-- ============ Checkout form ============ -->
-        <form method="post" action="{% url 'create_paymongo_checkout' booking.id %}" class="pu-form">
+        <form method="post" action="{% if is_change_payment %}{{ checkout_action }}{% else %}{% url 'create_paymongo_checkout' booking.id %}{% endif %}" class="pu-form">
             {% csrf_token %}
+            {% if is_change_payment %}<input type="hidden" name="method" value="paymongo">{% endif %}
             <input type="hidden" name="payment_method" value="gcash">
             <input type="hidden" id="js-hidden-amount" name="amount" value="{% if is_initial_payment %}{% if not pending_payment %}{{ total_price|floatformat:2 }}{% else %}{{ downpayment_due|floatformat:2 }}{% endif %}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}">
 
@@ -210,10 +194,14 @@
                     <span class="pu-step-num">1</span>
                     <div class="pu-step-text">
                         <h2>Select Payment Option</h2>
-                        <p>Choose how much you want to pay today.</p>
+                        <p>{% if is_change_payment %}Pay the additional amount from your accepted quote.{% else %}Choose how much you want to pay today.{% endif %}</p>
                         </div>
                 </div>
-                {% if is_initial_payment %}
+                {% if is_change_payment %}
+                <div class="pu-fixed-option">Additional payment only &mdash; <strong>&#8369;{{ change.additional_due|floatformat:2 }}</strong></div>
+                <p class="pu-change-note">This is the price difference for your accepted booking changes. Your previous verified payments remain credited.</p>
+                <input type="hidden" name="payment_option" value="change_balance">
+                {% elif is_initial_payment %}
                 <div class="cp-option-grid pu-option-grid">
                     <label class="cp-option-card {% if not pending_payment %}cp-option-card--active{% endif %}">
                         <input type="radio" name="payment_option" value="full" {% if not pending_payment %}checked{% endif %} {% if pending_payment %}disabled{% endif %}>
@@ -279,7 +267,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             <span>Payment Type</span>
                         </div>
-                        <div class="pu-review-value" id="js-selected-type-label-2">{% if is_initial_payment %}{% if not pending_payment %}Full Payment{% else %}Downpayment{% endif %}{% else %}Balance Payment{% endif %}</div>
+                        <div class="pu-review-value" id="js-selected-type-label-2">{% if is_change_payment %}Booking Change &mdash; Additional Payment{% elif is_initial_payment %}{% if not pending_payment %}Full Payment{% else %}Downpayment{% endif %}{% else %}Balance Payment{% endif %}</div>
                     </div>
                     <div class="pu-review-item pu-review-item--highlight">
                         <div class="pu-review-label">
@@ -323,39 +311,11 @@
         </form>
         <!-- ============ Sidebar ============ -->
         <aside class="pu-side">
-            <div class="pu-card">
-                <div class="pu-card-head">Booking Details</div>
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Booking</span>
-                    <span class="pu-detail-value">#{{ booking.id }}</span>
-                </div>
-                {% if booking.event_type %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Event</span>
-                    <span class="pu-detail-value">{{ booking.event_type }}</span>
-                </div>
-                {% endif %}
-                {% if booking.event_date %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Date</span>
-                    <span class="pu-detail-value">{{ booking.event_date|date:"M d, Y" }}</span>
-                </div>
-                {% endif %}
-                {% if booking.time_range_display %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Time</span>
-                    <span class="pu-detail-value">{{ booking.time_range_display }}</span>
-                </div>
-                {% endif %}
-                {% if booking.event_location %}
-                <div class="pu-detail-row">
-                    <span class="pu-detail-label">Location</span>
-                    <span class="pu-detail-value">{{ booking.event_location }}</span>
-                </div>
-                {% endif %}
-            </div>
+            {% include 'client/booking/_payment_booking_details.html' %}
+
             <div class="pu-card">
                 <div class="pu-card-head">Order Summary</div>
+                {% if is_change_payment %}{% include 'client/booking/_payment_change_summary.html' %}{% else %}
                 <div class="pu-sum-row">
                     <span>Total Booking Price</span>
                     <span>&#8369;{{ total_price|floatformat:2 }}</span>
@@ -380,6 +340,7 @@
                         <span>{{ dp_percent }}% downpayment required</span>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </aside>
     </div>
@@ -387,7 +348,7 @@
     <!-- ============ Payment history ============ -->
     <div class="cp-panel pu-history">
         <div class="cp-panel-head">
-            <h3>Payment History</h3>
+            <h3>{% if is_change_payment %}Payments for This Change{% else %}Payment History{% endif %}</h3>
         </div>
         <div class="cp-table-wrap">
             <table class="cp-table">
@@ -419,7 +380,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="cp-empty">No payments recorded yet for this booking.</td>
+                        <td colspan="5" class="cp-empty">{% if is_change_payment %}No payments recorded yet for this change request.{% else %}No payments recorded yet for this booking.{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -470,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 {% endif %}
-{% if not is_fully_paid and not pending_payment %}
+{% if not is_fully_paid and not pending_payment and not payment_unavailable %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const refundCheckbox = document.getElementById('js-refund-ack');

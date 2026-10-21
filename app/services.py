@@ -2045,6 +2045,13 @@ def build_availability_snapshot(days_ahead=14):
             status__in=ACTIVE_BOOKING_STATUSES,
         ).values_list("event_date", flat=True)
     )
+    from .booking_changes import live_holds
+    for hold in live_holds():
+        day = timezone.localtime(hold.hold_start).date()
+        last = timezone.localtime(hold.hold_end - timedelta(microseconds=1)).date()
+        while day <= last:
+            booked.add(day)
+            day += timedelta(days=1)
     blocked = set(
         BlockedDate.objects.filter(
             date__gte=today, date__lte=end_date
@@ -2435,7 +2442,7 @@ def _build_core_chunks():
         "(1) Customer starts at the Events Calendar first, then selects an available date to begin booking. "
         "(2) Customer picks a package/solo add-on plus optional add-ons/additionals. "
         "(3) Customer fills event details: event type, date, start/end time, location, optional notes, optional reference images (up to 4). "
-        "(4) Validation rules: date cannot be in the past; if date is today, start time must be in the future; booking hours are 7:00 AM to 6:00 PM; end time must be later than start time; duration must be at least 2 hours; overlapping slots are blocked only against existing pending_payment/confirmed/completed bookings (pending bookings are not blocking yet). "
+        "(4) Validation rules: date cannot be in the past; if date is today, start time must be in the future; start time must be within 7:00 AM to 6:00 PM operating hours, while the end time may run late or overnight (up to the max duration, crossing midnight into the next day); duration must be at least 2 hours, and hours beyond the included hours are charged as overtime per hour at the configured rate; overlapping slots are blocked only against existing pending_payment/confirmed/completed bookings (pending bookings are not blocking yet). "
         "(5) Submit creates a pending booking. Admin approval moves it to pending_payment. After admin verifies payment, booking becomes confirmed; admin can later mark it completed. "
         "Customer change rules: pending bookings can still be edited or deleted by the customer before confirmation; confirmed bookings are final. "
         f"Booking statuses: {_status_line(Booking.STATUS_CHOICES)}. "

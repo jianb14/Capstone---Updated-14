@@ -1,4 +1,7 @@
 from django.urls import path
+from .views.changes import (request_booking_change, admin_booking_change_action,
+    customer_booking_change_action, booking_change_payment)
+from .views.change_management import admin_booking_change_detail
 from django.views.generic import RedirectView
 
 from .views import (
@@ -30,8 +33,13 @@ from .views import (
     admin_analytics_export_pdf,
     admin_audit_log_list,
     admin_booking_action,
+    admin_booking_design_delete,
+    admin_booking_design_upload,
     admin_booking_detail,
     admin_booking_list,
+    admin_booking_logistics_override,
+    booking_design_download,
+    booking_modal_content,
     admin_blocked_date_create,
     admin_blocked_date_delete,
     admin_calendar,
@@ -96,6 +104,8 @@ from .views import (
     admin_user_toggle_active,
     admin_site_settings,
     booking_page,
+    booking_place_search,
+    booking_place_reverse,
     change_password,
     check_date_availability,
     chat_api,
@@ -229,18 +239,42 @@ urlpatterns = [
     path("reviews/<int:review_id>/delete/", delete_review, name="delete_review"),
     # Booking
     path("booking/", booking_page, name="booking_page"),
+    path("booking/places/search/", booking_place_search, name="booking_place_search"),
+    path("booking/places/reverse/", booking_place_reverse, name="booking_place_reverse"),
     path("booking/create/", create_booking, name="create_booking"),
     path("booking/<int:id>/", view_booking, name="view_booking"),
+    path("booking/<int:id>/modal/", booking_modal_content, name="booking_modal_content"),
+    path("booking/<int:id>/design/<int:design_id>/download/", booking_design_download, name="booking_design_download"),
     path("booking/<int:id>/edit/", edit_booking, name="edit_booking"),
     path("booking/<int:id>/delete/", delete_booking, name="delete_booking"),
     path("booking/<int:id>/review/", submit_review, name="submit_review"),
     path("design/", design_canvas_page, name="design_canvas"),
     # Admin Booking Approval
     path("staff/bookings/", admin_booking_list, name="admin_booking_list"),
+    path("staff/booking-changes/<int:change_id>/", admin_booking_change_detail, name="admin_booking_change_detail"),
     path(
         "staff/bookings/<int:id>/view/",
         admin_booking_detail,
         name="admin_booking_detail",
+    ),
+    # Backdrop design delivery — dapat MAUNA sa generic
+    # staff/bookings/<id>/<action>/ para hindi ma-capture ng action route.
+    path(
+        "staff/bookings/<int:id>/design-upload/",
+        admin_booking_design_upload,
+        name="admin_booking_design_upload",
+    ),
+    path(
+        "staff/bookings/<int:id>/design/<int:design_id>/delete/",
+        admin_booking_design_delete,
+        name="admin_booking_design_delete",
+    ),
+    # Logistics fee override — dapat MAUNA sa generic action route
+    # (hindi ma-capture ng <str:action>).
+    path(
+        "staff/bookings/<int:id>/logistics-override/",
+        admin_booking_logistics_override,
+        name="admin_booking_logistics_override",
     ),
     path(
         "staff/bookings/<int:id>/<str:action>/",
@@ -616,6 +650,10 @@ urlpatterns = [
         name="admin_canvas_asset_delete",
     ),
     # Payment System
+    path("booking/<int:booking_id>/changes/new/", request_booking_change, name="request_booking_change"),
+    path("booking/<int:booking_id>/changes/<int:change_id>/payment/", booking_change_payment, name="booking_change_payment"),
+    path("booking/<int:booking_id>/changes/<int:change_id>/<str:action>/", customer_booking_change_action, name="customer_booking_change_action"),
+    path("staff/booking/<int:booking_id>/changes/<int:change_id>/<str:action>/", admin_booking_change_action, name="admin_booking_change_action"),
     path("booking/<int:booking_id>/payment/", payment_page, name="payment_page"),
     path(
         "booking/<int:booking_id>/payment/submit/",

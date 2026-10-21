@@ -1,0 +1,60 @@
+{% load humanize %}
+<div class="booking-details-lead">
+    <div><h3>{{ booking.event_type|default:"Your event" }}</h3><p>{{ booking.event_date|date:"F d, Y" }} <span aria-hidden="true">·</span> {{ booking.time_range_display }}</p></div>
+    <span id="modalStatusBadge" class="booking-state booking-state-{{ booking.status }}">{{ booking.get_status_display }}</span>
+</div>
+{% if booking.status == 'pending' or can_request_changes %}{% include 'client/booking/_edit_data.html' with b=booking %}{% endif %}
+{% include 'client/booking/_status_tracker.html' %}
+{% include 'client/booking/_lifecycle_status.html' %}
+{% include 'client/booking/_change_request.html' %}
+{% if booking.admin_denial_reason %}<div class="booking-notice booking-notice-danger"><strong>Booking update</strong><p>{{ booking.admin_denial_reason }}</p></div>{% endif %}
+<div class="booking-details-grid">
+    <div class="booking-details-main">
+        <section class="booking-info-panel" aria-labelledby="bookingEventHeading">
+            <div class="booking-panel-heading"><span class="booking-panel-number">01</span><h3 id="bookingEventHeading">Event &amp; Venue</h3></div>
+            <dl class="booking-facts">
+                <div><dt>Event type</dt><dd id="modalType">{{ booking.event_type|default:"—" }}</dd></div>
+                <div><dt>Event date</dt><dd id="modalDate">{{ booking.event_date|date:"F d, Y" }}</dd></div>
+                <div><dt>Time</dt><dd id="modalTime">{{ booking.time_range_display|default:"—" }}</dd></div>
+                <div><dt>Booked duration</dt><dd id="modalDuration">{{ booking.schedule.duration_label }}</dd></div>
+                <div class="booking-fact-wide"><dt>Package</dt><dd id="modalPackage">{{ booking.package_type|default:"—" }}</dd></div>
+                <div class="booking-fact-wide"><dt>Venue address</dt><dd id="modalLocation">{{ booking.event_location|default:"—" }}</dd></div>
+                {% if booking.venue_landmark %}<div class="booking-fact-wide" id="modalLandmarkRow"><dt>Nearest landmark</dt><dd id="modalLandmark">{{ booking.venue_landmark }}</dd></div>{% endif %}
+            </dl>
+            {% if booking.event_lat is not None and booking.event_lng is not None %}
+            <div id="modalMapRow" class="booking-venue-map"><div id="booking_modal_map" data-lat="{{ booking.event_lat }}" data-lng="{{ booking.event_lng }}" aria-label="Event venue map"></div><p>Saved venue pin</p></div>
+            {% else %}<p class="booking-muted booking-map-empty">No map pin saved — see the venue address above.</p>{% endif %}
+        </section>
+        <section class="booking-info-panel" aria-labelledby="bookingPreferencesHeading">
+            <div class="booking-panel-heading"><span class="booking-panel-number">02</span><h3 id="bookingPreferencesHeading">Design Preferences</h3></div>
+            <dl class="booking-facts">
+                <div><dt>Theme</dt><dd id="modalTheme">{{ booking.design_theme|default:"Not specified" }}</dd></div>
+                <div><dt>Color palette</dt><dd id="modalPalette">{{ booking.color_palette|default:"Not specified" }}</dd></div>
+                {% if booking.motto_text %}<div class="booking-fact-wide"><dt>Backdrop text</dt><dd id="modalMotto">{{ booking.motto_text }}</dd></div>{% endif %}
+            </dl>
+            {% if cleaned_requests %}<div class="booking-written-note" id="modalRequestsBlock"><h4>Design Notes / Special Requests</h4><p id="modalRequests">{{ cleaned_requests }}</p></div>{% endif %}
+            {% if booking.reference_image or booking.images.all or booking.designs.all %}
+            <div class="booking-reference-section" id="viewImageRow"><h4>Reference Images &amp; Custom Designs</h4><div class="booking-reference-grid" id="viewMultiImageGrid">
+                {% for design in booking.designs.all %}{% if design.image %}<a href="{{ design.image.url }}" target="_blank" rel="noopener"><img src="{{ design.image.url }}" alt="Custom design {{ forloop.counter }}" loading="lazy"><span>Custom design</span></a>{% endif %}{% endfor %}
+                {% if booking.reference_image %}<a href="{{ booking.reference_image.url }}" target="_blank" rel="noopener"><img src="{{ booking.reference_image.url }}" alt="Booking reference" loading="lazy"><span>Reference</span></a>{% endif %}
+                {% for image in booking.images.all %}<a href="{{ image.image.url }}" target="_blank" rel="noopener"><img src="{{ image.image.url }}" alt="Reference image {{ forloop.counter }}" loading="lazy"><span>Reference {{ forloop.counter }}</span></a>{% endfor %}
+            </div></div>{% endif %}
+        </section>
+        {% if booking.design_deliveries.all %}
+        <section class="booking-design-callout"><div><span class="event-design-ready">{% if lifecycle.design_revision_pending %}Design Revision Pending{% else %}Design Ready{% endif %}</span><h3>{% if lifecycle.design_revision_pending %}Your design needs an update{% else %}Your event design is ready{% endif %}</h3><p>{% if lifecycle.design_revision_pending %}Your previous delivery is available while our team prepares a revision.{% else %}See the design prepared by our team.{% endif %}</p></div><button type="button" class="booking-primary-button" data-view-design="{{ booking.id }}">View Event Design <span aria-hidden="true">↗</span></button></section>
+        {% elif booking.status == 'confirmed' or booking.status == 'completed' %}<p class="booking-muted">Your event design will appear here once uploaded by our team.</p>{% endif %}
+    </div>
+    <aside class="booking-details-aside">
+        <section class="booking-info-panel booking-pricing-panel" aria-labelledby="bookingPricingHeading">
+            <div class="booking-panel-heading"><span class="booking-panel-number">03</span><h3 id="bookingPricingHeading">Pricing &amp; Payment</h3></div>
+            <h4 class="booking-subheading">Price Breakdown</h4>
+            <div id="modalPriceBreakdown">{% include 'client/booking/_price_breakdown_rows.html' with breakdown=booking.price_breakdown %}</div>
+            <div class="booking-total-line"><span>Total price</span><strong id="modalPrice">₱{{ booking.total_price|floatformat:2|intcomma }}</strong></div>
+            <dl class="booking-payment-facts"><div><dt>Verified payments</dt><dd>₱{{ total_verified_paid|floatformat:2|intcomma }}</dd></div><div><dt>{% if remaining_balance < 0 %}Overpaid amount{% else %}Remaining balance{% endif %}</dt><dd>{% if remaining_balance < 0 %}₱{{ overpaid_amount|floatformat:2|intcomma }}{% else %}₱{{ remaining_balance|floatformat:2|intcomma }}{% endif %}</dd></div></dl>
+            {% if remaining_balance > 0 and booking.status == 'pending_payment' or remaining_balance > 0 and booking.status == 'confirmed' %}<a class="booking-primary-button" href="{% url 'payment_page' booking.id %}">Proceed to Payment <span aria-hidden="true">→</span></a>{% endif %}
+            <a class="booking-text-link" href="{% url 'my_payments' %}?tab=payment_history&amp;search={{ booking.id }}">View payment history <span aria-hidden="true">↗</span></a>
+        </section>
+        {% if booking.status == 'pending' %}<div class="booking-detail-actions"><button class="booking-secondary-button" type="button" data-edit-booking="{{ booking.id }}">Edit Booking</button><button class="booking-text-link booking-danger-link" type="button" data-cancel-booking="{{ booking.id }}">Cancel Booking</button></div>{% endif %}
+        {% if can_request_changes %}<div class="booking-detail-actions"><button class="booking-secondary-button" type="button" data-edit-booking="{{ booking.id }}">Request Changes</button><p class="booking-muted">Team review and your acceptance are required. Your current reservation stays in place until finalization.</p></div>{% elif booking.status == 'pending_payment' or booking.status == 'confirmed' %}<p class="booking-muted">{{ change_unavailable_reason }}</p>{% endif %}
+    </aside>
+</div>

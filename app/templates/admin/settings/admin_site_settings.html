@@ -4,6 +4,10 @@
 {% block title %}Site Settings - Balloorina{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261021b"></script>
 <style>
     /* ============================================
        SITE SETTINGS — self-contained styles (ss-)
@@ -514,8 +518,14 @@
                     <label for="ss_address">Business Address</label>
                     <div class="ss-input-wrap">
                         <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                        <input type="text" id="ss_address" name="address" value="{{ settings.address }}" placeholder="e.g. San Nicolas 3, Bacoor City, Cavite">
+                        <input type="text" id="ss_address" name="address" value="{{ settings.address }}" autocomplete="off" placeholder="Search the shop address or place">
+                        <div id="ss_address_suggestions" class="location-suggestions" hidden></div>
                     </div>
+                    <small class="ss-help">This address is the shop origin for logistics fees. Select a suggestion, then adjust the pin to the exact shop. Update both here when you move.</small>
+                    <input type="hidden" id="ss_shop_lat" name="shop_lat" value="{{ shop_origin.0|default_if_none:'' }}">
+                    <input type="hidden" id="ss_shop_lng" name="shop_lng" value="{{ shop_origin.1|default_if_none:'' }}">
+                    <div id="ss_shop_map" class="booking-location-map" aria-label="Shop location for logistics" style="height:260px;margin-top:12px;"></div>
+                    <small id="ss_shop_map_status" class="location-map-status" aria-live="polite"></small>
                 </div>
             </div>
         </section>
@@ -555,10 +565,25 @@
                 <div class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></div>
                 <div>
                     <h3>Booking Rules</h3>
-                    <p>Control how early customers must book their events.</p>
+                    <p>Set advance booking, payment deadlines, and event design reminders.</p>
                 </div>
             </div>
             <div class="ss-grid">
+                <div class="ss-field">
+                    <label for="ss_payment_window">Payment window after approval (hours)</label>
+                    <div class="ss-input-wrap"><input type="number" id="ss_payment_window" name="booking_payment_window_hours" min="1" max="720" value="{{ settings.booking_payment_window_hours }}" required></div>
+                    <p class="ss-help">Customers have this long to submit payment after approval. The deadline never goes beyond the event start. Applies to newly approved bookings.</p>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_design_lead">Missing design warning before event (hours)</label>
+                    <div class="ss-input-wrap"><input type="number" id="ss_design_lead" name="booking_design_lead_hours" min="1" max="720" value="{{ settings.booking_design_lead_hours }}" required></div>
+                    <p class="ss-help">Warn the team when a confirmed event is this close and no design has been uploaded. Paid bookings are kept active.</p>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_change_cutoff">Customer change request cutoff (hours)</label>
+                    <div class="ss-input-wrap"><input type="number" id="ss_change_cutoff" name="booking_change_cutoff_hours" min="1" max="720" value="{{ settings.booking_change_cutoff_hours }}" required></div>
+                    <p class="ss-help">Approved and confirmed bookings can request changes before this cutoff. Closer events need direct assistance. Each final quote uses the payment window above.</p>
+                </div>
                 <div class="ss-field full">
                     <label for="ss_lead_time">Booking Lead Time (days)</label>
                     <div class="ss-input-wrap">
@@ -621,6 +646,51 @@
                 <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Save Changes
             </button>
         </div>
+        <!-- ⏱️ DURATION & OVERTIME POLICY (SiteSettings — client bookings) -->
+        <div class="ss-card" style="margin-top: 1.25rem;">
+            <div class="ss-card-head">
+                <span class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                <div>
+                    <h4>Booking Duration &amp; Overtime</h4>
+                    <p class="ss-card-sub">Rules ng event duration — kasama, dagdag, at maximum. Ang overtime ay idinagdag sa total price kada oras (o fraction) lampas sa included hours.</p>
+                </div>
+            </div>
+            <div class="ss-grid-2">
+                <div class="ss-field">
+                    <label for="ss_min_duration">Minimum duration (hours)</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                        <input type="number" id="ss_min_duration" name="booking_min_duration_hours" min="1" max="24" value="{{ settings.booking_min_duration_hours }}">
+                    </div>
+                    <small class="ss-field-hint">Pinakamaikling booking (default: 2).</small>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_included_hours">Included hours (no overtime)</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <input type="number" id="ss_included_hours" name="booking_included_hours" min="1" max="24" value="{{ settings.booking_included_hours }}">
+                    </div>
+                    <small class="ss-field-hint">Oras na kasama na sa package price (default: 3).</small>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_overtime_rate">Overtime rate per hour (₱)</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <input type="number" id="ss_overtime_rate" name="booking_overtime_rate" min="0" step="0.01" value="{{ settings.booking_overtime_rate|floatformat:'-2' }}">
+                    </div>
+                    <small class="ss-field-hint">Dagdag kada oras (o sobrang minuto) lampas sa included (default: 500).</small>
+                </div>
+                <div class="ss-field">
+                    <label for="ss_max_duration">Maximum duration (hours)</label>
+                    <div class="ss-input-wrap">
+                        <svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <input type="number" id="ss_max_duration" name="booking_max_duration_hours" min="1" max="168" value="{{ settings.booking_max_duration_hours }}">
+                    </div>
+                    <small class="ss-field-hint">Pinakamahabang booking — 24 = pwedeng 1 whole day / overnight (default: 24).</small>
+                </div>
+            </div>
+        </div>
+
     </form>
 </div>
 
@@ -724,5 +794,18 @@
         syncChips();
         refresh();
     });
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.BookingLocationMap) return;
+    window.BookingLocationMap.init({
+        mapId: 'ss_shop_map', latId: 'ss_shop_lat', lngId: 'ss_shop_lng',
+        addressId: 'ss_address', searchId: 'ss_address', suggestionsId: 'ss_address_suggestions',
+        statusId: 'ss_shop_map_status',
+        initialLat: document.getElementById('ss_shop_lat').value,
+        initialLng: document.getElementById('ss_shop_lng').value,
+        searchUrl: "{% url 'booking_place_search' %}", reverseUrl: "{% url 'booking_place_reverse' %}"
+    });
+});
 </script>
 {% endblock %}

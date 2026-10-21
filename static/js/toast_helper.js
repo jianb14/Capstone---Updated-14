@@ -55,7 +55,7 @@
 
     function getKey(options) {
         var icon = options.icon || 'info';
-        var text = options.title || options.text || '';
+        var text = options.titleText || options.title || options.text || '';
         return icon + '|' + text;
     }
 
@@ -64,6 +64,10 @@
         var originalFire = mixin.fire.bind(mixin);
         mixin.fire = function (options) {
             options = options || {};
+            // Toasts carry one message; confirmation dialogs retain their own title/body.
+            if (options.text) {
+                options = merge(options, { titleText: options.text, title: undefined, text: undefined });
+            }
             var now = Date.now();
             var key = getKey(options);
 

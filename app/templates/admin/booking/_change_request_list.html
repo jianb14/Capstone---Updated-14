@@ -1,0 +1,44 @@
+{% load humanize %}
+<section class="request-workspace" aria-labelledby="requestQueueHeading">
+    <div class="request-summary-strip">
+        <div><span class="request-stat-label">Needs admin action</span><strong>{{ change_summary.needs_review }}</strong><span class="request-stat-note">Review a request or verify a submitted payment</span></div>
+        <div><span class="request-stat-label">Waiting for customer</span><strong>{{ change_summary.waiting }}</strong><span class="request-stat-note">Quote acceptance or additional payment</span></div>
+        <div><span class="request-stat-label">Request history</span><strong>{{ change_summary.history }}</strong><span class="request-stat-note">Applied, declined, withdrawn, or expired</span></div>
+    </div>
+    <div class="request-list-heading"><div><h2 id="requestQueueHeading">{% if request_scope == 'history' %}Request history{% else %}Active change requests{% endif %}</h2><p>{% if request_scope == 'history' %}A record of completed reviews and closed requests.{% else %}Requests needing admin action appear first. Each request stays linked to its original booking.{% endif %}</p></div>
+        <div class="request-scope-switch" aria-label="Request list scope"><a href="{{ request_active_url }}" {% if request_scope == 'active' %}aria-current="page" class="is-current"{% endif %}>Active <span>{{ change_summary.active }}</span></a><a href="{{ request_history_url }}" {% if request_scope == 'history' %}aria-current="page" class="is-current"{% endif %}>History <span>{{ change_summary.history }}</span></a></div>
+    </div>
+    {% if request_booking_id %}<p class="request-booking-filter">Showing requests for <strong>Booking #{{ request_booking_id }}</strong> <a href="{{ request_clear_url }}">Show all bookings</a></p>{% endif %}
+    <form class="request-filter-form" method="get" action="{% url 'admin_booking_list' %}">
+        <input type="hidden" name="tab" value="requests"><input type="hidden" name="scope" value="{{ request_scope }}">{% if request_booking_id %}<input type="hidden" name="booking_id" value="{{ request_booking_id }}">{% endif %}
+        <div class="request-search-control"><label for="requestSearch">Search requests</label><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="requestSearch" name="request_search" value="{{ request_search }}" placeholder="Booking ID, request ID, customer, or reason…" type="search"></div></div>
+        <div class="request-status-control"><label id="requestStatusLabel" for="requestStatus">Request status</label>
+            <div class="custom-filter-dropdown request-status-dropdown">
+                <button type="button" class="dropdown-trigger" aria-labelledby="requestStatusLabel requestStatusText" aria-haspopup="listbox" aria-expanded="false" aria-controls="requestStatusOptions" hidden><span id="requestStatusText">All {{ request_scope }} requests</span><span class="dropdown-caret" aria-hidden="true"></span></button>
+                <ul class="dropdown-options" id="requestStatusOptions" role="listbox" aria-labelledby="requestStatusLabel"><li role="option" tabindex="-1" data-value="" aria-selected="{% if not request_status %}true{% else %}false{% endif %}">All {{ request_scope }} requests</li>{% for value,label in request_status_options %}<li role="option" tabindex="-1" data-value="{{ value }}" aria-selected="{% if request_status == value %}true{% else %}false{% endif %}">{{ label }}</li>{% endfor %}</ul>
+                <select id="requestStatus" name="request_status"><option value="">All {{ request_scope }} requests</option>{% for value,label in request_status_options %}<option value="{{ value }}" {% if request_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </div>
+        </div>
+        <a href="{{ request_clear_url }}" class="request-clear-link" {% if not request_search and not request_status %}hidden{% endif %}>Clear</a>
+    </form>
+    <p class="request-filter-feedback" role="status" hidden></p>
+    <div id="requestResults" aria-live="polite" aria-busy="false">
+    <div class="request-table-wrap">
+        <table class="request-queue-table"><caption class="request-sr-only">{{ request_scope|title }} booking change requests</caption>
+            <thead><tr><th scope="col">Request / Booking</th><th scope="col">Customer</th><th scope="col">Requested change</th><th scope="col">Submitted</th><th scope="col">Request status</th><th scope="col">Action</th></tr></thead>
+            <tbody>{% for change in change_requests %}
+                <tr data-request-id="{{ change.id }}" class="{% if change.needs_admin_action %}request-needs-action{% endif %}">
+                    <td data-label="Request / Booking"><strong class="request-number">Request #{{ change.id }}</strong><a href="{% url 'admin_booking_detail' change.booking_id %}" class="request-booking-link">Booking #{{ change.booking_id }} <span aria-hidden="true">↗</span></a></td>
+                    <td data-label="Customer"><strong class="request-customer">{{ change.booking.user.get_full_name|default:change.booking.user.username }}</strong>{% if change.booking.user.email %}<span class="request-secondary">{{ change.booking.user.email }}</span>{% endif %}</td>
+                    <td data-label="Requested change" class="request-change-cell">{% for row in change.summary_rows %}<div class="request-change-line"><span class="request-change-label">{{ row.label }}</span><span class="request-change-before">{{ row.before|truncatechars:64 }}</span><span aria-label="to" class="request-change-arrow">→</span><strong>{{ row.after|truncatechars:64 }}</strong></div>{% empty %}<strong>Reference images / booking preferences updated</strong>{% endfor %}{% if change.more_changes %}<span class="request-secondary">+{{ change.more_changes }} more detail{{ change.more_changes|pluralize }} changed</span>{% endif %}<p class="request-reason">{{ change.reason|truncatechars:115 }}</p></td>
+                    <td data-label="Submitted"><span class="request-submitted">{{ change.created_at|date:"M d, Y" }}</span><span class="request-secondary">{{ change.created_at|date:"g:i A" }}</span></td>
+                    <td data-label="Request status"><span class="request-status request-status-{{ change.status }} {% if change.payment_to_verify %}request-status-verification{% endif %}">{{ change.admin_status_label }}</span><span class="request-status-note">{{ change.admin_status_note }}</span></td>
+                    <td data-label="Action"><a class="request-review-button" href="{{ change.review_url }}">{% if change.is_active_request %}Review Request{% else %}View Request{% endif %}<span aria-hidden="true">↗</span></a></td>
+                </tr>
+            {% empty %}<tr><td colspan="6" class="request-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 5H4v16h16V5h-4M8 3h8v5H8zM8 12h8m-8 4h5"/></svg><h3>{% if request_search or request_status or request_booking_id %}No matching requests{% elif request_scope == 'history' %}No request history yet{% else %}No active change requests{% endif %}</h3><p>{% if request_search or request_status or request_booking_id %}Try a different search or clear the filters.{% elif request_scope == 'history' %}Closed requests will appear here when their review ends.{% else %}Customer change requests will appear here for review.{% endif %}</p></td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="request-pagination"><span>{{ change_requests.paginator.count }} request{{ change_requests.paginator.count|pluralize }}{% if change_requests.paginator.count %} · {{ change_requests.start_index }}–{{ change_requests.end_index }} of {{ change_requests.paginator.count }}{% endif %}</span><nav aria-label="Change request pages">{% if request_previous_url %}<a href="{{ request_previous_url }}" rel="prev" aria-label="Previous page">←</a>{% endif %}{% for page in request_page_links %}{% if page.current %}<span class="is-current" aria-current="page">{{ page.label }}</span>{% elif page.url %}<a href="{{ page.url }}" aria-label="Page {{ page.label }}">{{ page.label }}</a>{% else %}<span class="request-page-gap">{{ page.label }}</span>{% endif %}{% endfor %}{% if request_next_url %}<a href="{{ request_next_url }}" rel="next" aria-label="Next page">→</a>{% endif %}</nav></div>
+    </div>
+</section>

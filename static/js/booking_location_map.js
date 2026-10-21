@@ -1,13 +1,12 @@
 /* ============================================================================
- * Booking Location Map (Step 3 — Shopee-style interactive map, vanilla JS only)
+ * Booking Location Map (booking forms and Site Settings, vanilla JS)
  * ---------------------------------------------------------------------------- 
- * Leaflet + Esri tiles + Nominatim geocoding — lahat libre, walang
- * API key, walang dependency sa ibang page scripts. Hiwalay na file para
+ * Leaflet + Esri tiles + cached, same-origin Photon geocoding. Hiwalay na file para
  * madeploy nang hiwalay sa 2000+ line inline script ng booking page.
  *
  * Graceful degradation: ang text location (event_location) ay MANANATILING
  * required at bine-validate nang hiwalay — kahit mag-fail ang Leaflet CDN o
- * ang Nominatim, hindi mab-block ang booking flow.
+ * ang place lookup, puwedeng mag-pin nang direkta sa mapa.
  *
  * Public API (window.BookingLocationMap):
  *   .init(opts)        → bubuo ng editable map sa booking/create + edit forms
@@ -28,10 +27,11 @@
 (function (global) {
     'use strict';
 
-    var NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-    var REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
-    var SEARCH_DEBOUNCE_MS = 1200;   // 1.2s hihintayin bago tumawag sa Nominatim
-    var SUGGESTION_LIMIT = 5;
+    var SEARCH_URL = '/booking/places/search/';
+    // 📍 Smart-required pin state — tinatanong ng booking/edit forms.
+    var mapReady = false;
+    var REVERSE_URL = '/booking/places/reverse/';
+    var SEARCH_DEBOUNCE_MS = 450;
     var PH_DEFAULT = { lat: 14.5995, lng: 120.9842, zoom: 11 }; // Metro Manila
 
     /* Tile provider: Esri World Street Map (corporate CDN, libre, walang API
@@ -39,7 +39,7 @@
        tile.openstreetmap.org volunteer servers na nag-403 "Access blocked"
        (osm.wiki/Blocked) — at hindi tulad ng CARTO na nagre-require na ng
        API key kahit free tier. Fallback = OSM France HOT (libre, walang key).
-       Ang Nominatim geocoding sa itaas ay magkaibang service — hindi
+       Ang Photon place lookup ay magkaibang service — hindi
        aapektuhan. */
     var TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
     var TILE_OPTIONS = {
@@ -55,26 +55,31 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles style by <a href="https://www.hotosm.org/" target="_blank">Humanitarian OpenStreetMap Team</a> hosted by <a href="https://openstreetmap.fr/" target="_blank">OpenStreetMap France</a>'
     };
 
-    function debounce(fn, wait) {
-        var timer = null;
-        return function () {
-            var args = arguments;
-            var ctx = this;
-            clearTimeout(timer);
-            timer = setTimeout(function () { fn.apply(ctx, args); }, wait);
-        };
-    }
-
     function roundCoord(value) {
         var num = parseFloat(value);
         return isNaN(num) ? null : Math.round(num * 1000000) / 1000000;
     }
 
+    /* 📍 Smart-required pin state — may pin kapag may laman ang hidden lat/lng.
+       NASA MODULE SCOPE ito (hindi sa loob ng init) dahil expose ito rin sa
+       public API (window.BookingLocationMap.hasPin) — kung nasa loob ng init,
+       ReferenceError ang mahahabol pag-load ng script at hindi na gagana yung
+       buong mapa (search, "use my location", at mga button).
+       Args: (latEl, lngEl) — dalawang input element o raw string values. */
+    function hasPin(latEl, lngEl) {
+        var latVal = (latEl && latEl.value !== undefined) ? latEl.value : latEl;
+        var lngVal = (lngEl && lngEl.value !== undefined) ? lngEl.value : lngEl;
+        var latOk = latVal !== null && latVal !== undefined && String(latVal).trim() !== '';
+        var lngOk = lngVal !== null && lngVal !== undefined && String(lngVal).trim() !== '';
+        return !!(latOk && lngOk && Number.isFinite(Number(latVal)) && Number.isFinite(Number(lngVal))
+            && Math.abs(Number(latVal)) <= 90 && Math.abs(Number(lngVal)) <= 180);
+    }
+
     function setStatus(statusEl, message, isError) {
         if (!statusEl) return;
         statusEl.textContent = message || '';
-        statusEl.classList.toggle('is-error', !!isError);
         statusEl.style.display = message ? 'block' : 'none';
+        statusEl.classList.toggle('is-error', !!isError);
     }
 
     function escapeHtml(text) {
@@ -90,6 +95,7 @@
         if (!opts || !opts.mapId) return null;
         if (typeof global.L === 'undefined') {
             // Leaflet CDN failed → huwag sirain ang form; text input na lang.
+            mapReady = false;
             var rawMap = document.getElementById(opts.mapId);
             if (rawMap) rawMap.style.display = 'none';
             return null;
@@ -102,7 +108,18 @@
         var suggestionsEl = opts.suggestionsId ? document.getElementById(opts.suggestionsId) : null;
         var useLocationBtn = opts.useLocationId ? document.getElementById(opts.useLocationId) : null;
         var statusEl = opts.statusId ? document.getElementById(opts.statusId) : null;
-        var landmarkInput = opts.landmarkId ? document.getElementById(opts.landmarkId) : null;
+        // 📍 Optional callback kapag nagbago ang pin (booking page: refresh quote + clear error).
+        var onPinChange = (opts && typeof opts.onPinChange === 'function') ? opts.onPinChange : null;
+        function notifyPinChange() {
+            if (onPinChange) { try { onPinChange(); } catch (e) { /* noop */ } }
+        }
+        var addressInput = document.getElementById(opts.addressId || 'event_location');
+        var activeSearchInput = searchInput || addressInput;
+        var applyingAddress = false;
+        var searchSeq = 0;
+        var searchTimer = null;
+        var searchController = null;
+        var reverseRequestToken = 0;
         if (!mapEl) return null;
 
         var startLat = roundCoord(opts.initialLat);
@@ -118,6 +135,7 @@
         );
         // Extra "Leaflet" prefix text tanggalin (attribution ng provider, buhay).
         try { map.attributionControl.setPrefix(false); } catch (e) { /* noop */ }
+        mapReady = true;
 
         var editableTiles = global.L.tileLayer(TILE_URL, TILE_OPTIONS);
         /* Fallback: kung bumagsak man ang Esri, awtomatikong lumipat sa
@@ -142,46 +160,59 @@
             .addTo(map);
 
         function writeCoords(lat, lng) {
-            if (latInput) latInput.value = (lat === null || lat === undefined) ? '' : lat;
-            if (lngInput) lngInput.value = (lng === null || lng === undefined) ? '' : lng;
+            // Write both coordinates before notifying any quote/validation listener.
+            if (latInput) latInput.value = lat == null ? '' : lat;
+            if (lngInput) lngInput.value = lng == null ? '' : lng;
+            if (latInput) {
+                try { latInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* noop */ }
+            }
+            if (lngInput) {
+                try { lngInput.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* noop */ }
+            }
         }
 
         function placePin(lat, lng, zoom, reverseGeocode) {
             var cleanLat = roundCoord(lat);
             var cleanLng = roundCoord(lng);
-            if (cleanLat === null || cleanLng === null) return;
+            if (cleanLat === null || cleanLng === null || Math.abs(cleanLat) > 90 || Math.abs(cleanLng) > 180) return;
+            cancelSearch();
+            reverseRequestToken++;
             marker.setLatLng([cleanLat, cleanLng]);
             marker.setOpacity(1);
             map.setView([cleanLat, cleanLng], zoom || map.getZoom() || 15);
             writeCoords(cleanLat, cleanLng);
+            notifyPinChange();
             if (reverseGeocode) reverseGeocodeIntoFields(cleanLat, cleanLng);
         }
 
         /* Reverse geocode: pin → address field (kapag walang laman pa o
            galing mismo sa pin drag). Landmark field ay HINDI ina-overwrite —
            manual yun ng customer. */
-        var reverseRequestToken = 0;
+        function applyAddress(value) {
+            applyingAddress = true;
+            [addressInput, searchInput].forEach(function (field, idx, fields) {
+                if (!field || fields.indexOf(field) !== idx) return;
+                field.value = value;
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+                field.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            applyingAddress = false;
+        }
         function reverseGeocodeIntoFields(lat, lng) {
             var token = ++reverseRequestToken;
             setStatus(statusEl, 'Finding address for the pinned location…', false);
-            var params = new URLSearchParams({ lat: lat, lng: lng, format: 'jsonv2', limit: '1' });
-            fetch(REVERSE_URL + '?' + params.toString(), {
-                headers: { 'Accept-Language': 'en-PH,en;q=0.9' }
-            })
+            var params = new URLSearchParams({ lat: lat, lng: lng });
+            fetch((opts.reverseUrl || REVERSE_URL) + '?' + params.toString())
                 .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('reverse failed')); })
                 .then(function (rows) {
                     if (token !== reverseRequestToken) return; // stale response
-                    var hit = rows && rows[0];
+                    var hit = rows && rows.results && rows.results[0];
                     if (!hit || !hit.display_name) {
                         setStatus(statusEl, 'Pin saved, but no address found. Please type the venue address.', true);
                         return;
                     }
-                    var addressInput = document.getElementById(opts.addressId || 'event_location');
-                    if (addressInput && !addressInput.value.trim()) {
-                        addressInput.value = hit.display_name;
-                        addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                    setStatus(statusEl, 'Location pinned. Drag the pin to adjust if needed.', false);
+                    applyAddress(hit.display_name);
+                    setStatus(statusEl, 'Location pinned. Drag the pin to adjust if needed. Search another place or drop a new pin to change it.', false);
                 })
                 .catch(function () {
                     if (token !== reverseRequestToken) return;
@@ -191,8 +222,7 @@
 
         marker.on('dragend', function () {
             var pos = marker.getLatLng();
-            writeCoords(pos.lat, pos.lng);
-            reverseGeocodeIntoFields(pos.lat, pos.lng);
+            placePin(pos.lat, pos.lng, map.getZoom(), true);
         });
 
         map.on('click', function (e) {
@@ -200,15 +230,37 @@
         });
 
         /* --- Address search (debounced) + suggestions ---------------------- */
+        function hideSuggestions() {
+            if (suggestionsEl) { suggestionsEl.hidden = true; suggestionsEl.innerHTML = ''; }
+            [addressInput, searchInput].forEach(function (field) {
+                if (field) field.setAttribute('aria-expanded', 'false');
+            });
+        }
+        function cancelSearch() {
+            clearTimeout(searchTimer);
+            searchSeq++;
+            if (searchController) searchController.abort();
+            hideSuggestions();
+        }
+        function clearPin() {
+            reverseRequestToken++;
+            marker.setOpacity(0);
+            writeCoords(null, null);
+            notifyPinChange();
+        }
         function renderSuggestions(results) {
             if (!suggestionsEl) return;
+            if (activeSearchInput && activeSearchInput.parentElement) {
+                activeSearchInput.parentElement.appendChild(suggestionsEl);
+                activeSearchInput.setAttribute('aria-expanded', 'true');
+            }
             if (!results || results.length === 0) {
-                suggestionsEl.innerHTML = '<div class="map-suggestion-empty">No matching place found.</div>';
+                suggestionsEl.innerHTML = '<div class="map-suggestion-empty" role="status">No matching place found. Add the city or pin the venue on the map.</div>';
                 suggestionsEl.hidden = false;
                 return;
             }
             suggestionsEl.innerHTML = results.map(function (row, idx) {
-                return '<button type="button" class="map-suggestion-item" data-idx="' + idx + '">' +
+                return '<button type="button" role="option" class="map-suggestion-item" data-idx="' + idx + '">' +
                     escapeHtml(row.display_name) + '</button>';
             }).join('');
             suggestionsEl.hidden = false;
@@ -217,71 +269,98 @@
                 btn.addEventListener('click', function () {
                     var picked = results[parseInt(btn.getAttribute('data-idx'), 10)];
                     if (!picked) return;
-                    suggestionsEl.hidden = true;
-                    suggestionsEl.innerHTML = '';
-                    if (searchInput) searchInput.value = picked.display_name;
-                    var addressInput = document.getElementById(opts.addressId || 'event_location');
-                    if (addressInput) {
-                        addressInput.value = picked.display_name;
-                        addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                    if (landmarkInput && !landmarkInput.value.trim()) {
-                        // tiny convenience: city/municipality bilang unang landmark hint
-                        var parts = (picked.display_name || '').split(',');
-                        if (parts.length > 1) landmarkInput.value = parts[1].trim();
-                    }
+                    applyAddress(picked.display_name);
                     placePin(parseFloat(picked.lat), parseFloat(picked.lon), 16, false);
-                    setStatus(statusEl, 'Location pinned. Drag the pin to adjust.', false);
+                    setStatus(statusEl, 'Location pinned from search. Drag the pin to adjust — exact pin is required for the logistics fee.', false);
                 });
             });
         }
 
-        var searchSeq = 0;
         function runSearch(query) {
             var q = (query || '').trim();
             if (q.length < 3) {
-                if (suggestionsEl) { suggestionsEl.hidden = true; suggestionsEl.innerHTML = ''; }
+                hideSuggestions();
                 return;
             }
             var seq = ++searchSeq;
+            if (searchController) searchController.abort();
+            searchController = new AbortController();
             setStatus(statusEl, 'Searching places…', false);
-            var params = new URLSearchParams({
-                q: q, format: 'jsonv2', limit: String(SUGGESTION_LIMIT),
-                countrycodes: 'ph'
-            });
-            fetch(NOMINATIM_URL + '?' + params.toString(), {
-                headers: { 'Accept-Language': 'en-PH,en;q=0.9' }
-            })
+            var params = new URLSearchParams({ q: q });
+            fetch((opts.searchUrl || SEARCH_URL) + '?' + params.toString(), { signal: searchController.signal })
                 .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('search failed')); })
                 .then(function (rows) {
                     if (seq !== searchSeq) return; // outdated request
                     setStatus(statusEl, '', false);
-                    renderSuggestions(rows);
+                    renderSuggestions(rows.results || []);
                 })
                 .catch(function () {
                     if (seq !== searchSeq) return;
+                    if (suggestionsEl) {
+                        renderSuggestions([]);
+                        suggestionsEl.querySelector('.map-suggestion-empty').textContent = 'Search unavailable. Pin the venue on the map or try again.';
+                    }
                     setStatus(statusEl, 'Place search is unavailable right now. You can drop a pin on the map instead.', true);
                 });
         }
 
-        var debouncedSearch = debounce(runSearch, SEARCH_DEBOUNCE_MS);
-        if (searchInput) {
-            searchInput.addEventListener('input', function () {
-                debouncedSearch(searchInput.value);
+        var searchFields = [addressInput, searchInput].filter(function (field, idx, fields) {
+            return field && fields.indexOf(field) === idx;
+        });
+        searchFields.forEach(function (field) {
+            field.setAttribute('role', 'combobox');
+            field.setAttribute('aria-autocomplete', 'list');
+            field.setAttribute('aria-expanded', 'false');
+            if (suggestionsEl) {
+                field.setAttribute('aria-controls', suggestionsEl.id);
+                suggestionsEl.setAttribute('role', 'listbox');
+            }
+            field.parentElement.classList.add('location-address-wrap');
+            field.addEventListener('input', function () {
+                if (applyingAddress) return;
+                cancelSearch();
+                activeSearchInput = field;
+                clearPin();
+                if (field.value.trim().length < 3) {
+                    setStatus(statusEl, 'Type at least 3 characters, then choose a suggested place or pin the venue.', false);
+                    return;
+                }
+                setStatus(statusEl, 'Searching places…', false);
+                searchTimer = setTimeout(function () { runSearch(field.value); }, SEARCH_DEBOUNCE_MS);
             });
-            searchInput.addEventListener('keydown', function (e) {
+            field.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
-                    e.preventDefault(); // hindi pwedeng i-submit ang form mula dito
-                    runSearch(searchInput.value);
+                    e.preventDefault();
+                    clearTimeout(searchTimer);
+                    activeSearchInput = field;
+                    runSearch(field.value);
+                } else if (e.key === 'ArrowDown' && suggestionsEl && !suggestionsEl.hidden) {
+                    e.preventDefault();
+                    var first = suggestionsEl.querySelector('button');
+                    if (first) first.focus();
+                } else if (e.key === 'Escape') {
+                    cancelSearch();
+                }
+            });
+        });
+        if (suggestionsEl) {
+            suggestionsEl.addEventListener('keydown', function (e) {
+                var buttons = Array.prototype.slice.call(suggestionsEl.querySelectorAll('button'));
+                var idx = buttons.indexOf(document.activeElement);
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (buttons.length) buttons[(idx + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus();
+                } else if (e.key === 'Escape') {
+                    cancelSearch();
+                    if (activeSearchInput) activeSearchInput.focus();
                 }
             });
         }
         document.addEventListener('click', function (e) {
             if (!suggestionsEl) return;
-            if (suggestionsEl.hidden) return;
             if (suggestionsEl.contains(e.target)) return;
-            if (searchInput && searchInput.contains(e.target)) return;
-            suggestionsEl.hidden = true;
+            if (searchFields.indexOf(e.target) !== -1) return;
+            cancelSearch();
         });
 
         /* --- "Use my location" ------------------------------------------- */
@@ -292,10 +371,13 @@
                     return;
                 }
                 setStatus(statusEl, 'Finding your current location…', false);
+                cancelSearch();
+                var locationToken = ++reverseRequestToken;
                 useLocationBtn.disabled = true;
                 navigator.geolocation.getCurrentPosition(
                     function (pos) {
                         useLocationBtn.disabled = false;
+                        if (locationToken !== reverseRequestToken) return;
                         placePin(pos.coords.latitude, pos.coords.longitude, 16, true);
                     },
                     function () {
@@ -315,11 +397,22 @@
 
         // Inedit mode na may laman: huwag nang itago ang pin
         if (hasSavedPin) writeCoords(startLat, startLng);
+        if (addressInput && addressInput.form) {
+            addressInput.form.addEventListener('reset', function () {
+                cancelSearch();
+                reverseRequestToken++;
+                setTimeout(function () {
+                    clearPin();
+                    setStatus(statusEl, '', false);
+                }, 0);
+            });
+        }
 
         return {
             map: map,
             marker: marker,
             placePin: placePin,
+            clear: function () { cancelSearch(); clearPin(); },
             invalidate: function () { try { map.invalidateSize(); } catch (e) { /* noop */ } }
         };
     }
@@ -541,7 +634,11 @@
         initReadOnly: initReadOnly,
         // Para sa mga caller na nagbu-close ng modal (View Booking) —
         // siguraduhing hindi manatiling naka-fullscreen ang mapa.
-        collapse: collapseMap
+        collapse: collapseMap,
+        // 📍 Smart-required pin: tinatanong ng booking/edit forms kung buhay
+        // ang map (Leaflet loaded + initialized) at kung may pin na.
+        isMapReady: function () { return mapReady; },
+        hasPin: hasPin
     };
 })(window);
 

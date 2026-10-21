@@ -1,8 +1,8 @@
 {% extends "client/base.html" %}
-{% load static %}
+{% load static humanize %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261007a">
+<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261021changes">
 {% endblock %}
 
 {% block content %}
@@ -209,10 +209,13 @@
     <div class="cp-mb">
         <div class="cp-panel-head">
             <h2>Action Required</h2>
-            <p>Bookings that need a first payment or a re-upload. ({{ action_required_total_count }} total)</p>
+            <p>Initial payments, receipt re-uploads, and booking change payments to complete or track. ({{ action_required_total_count }} total)</p>
         </div>
         <div class="mp-card-list">
             {% for b in action_required_page_obj %}
+            {% if b.is_change_payment %}
+                {% include 'client/booking/_change_payment_card.html' with change=b %}
+            {% else %}
             <article class="mp-card mp-card--pending">
                 <div class="mp-card-head">
                     <div class="mp-card-info">
@@ -276,6 +279,7 @@
                     </div>
                 </div>
             </article>
+            {% endif %}
             {% empty %}
             <div class="mp-empty">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>
@@ -352,8 +356,8 @@
                                     data-package-type="{{ b.package_type|default:'None' }}"
                                     data-special-requests="{{ b.cleaned_special_requests|default:'None' }}"
                                     data-action-url="{% url 'payment_page' b.id %}"
-                                    data-action-label="Pay Balance"
-                                    data-action-disabled="false"
+                                    data-action-label="{{ b.payment_action_display }}"
+                                    data-action-disabled="{{ b.payment_action_disabled|lower }}"
                                     data-reference-images="{% if b.reference_image %}{{ b.reference_image.url }}{% endif %}{% for img in b.images.all %}{% if b.reference_image or not forloop.first %},{% endif %}{{ img.image.url }}{% endfor %}{% for design in b.designs.all %}{% if design.image %}{% if b.reference_image or b.images.all or not forloop.first %},{% endif %}{{ design.image.url }}{% endif %}{% endfor %}"
                                     data-pay-amount="{{ b.latest_pay_amount|floatformat:2 }}"
                                     data-pay-type="{{ b.latest_pay_type|default:'' }}"
@@ -369,7 +373,11 @@
                                     onclick="openBookingModal(this)">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </button>
+                        {% if b.payment_action_disabled %}
+                        <span class="mp-btn-pay is-disabled">{{ b.payment_action_display }}</span>
+                        {% else %}
                         <a href="{% url 'payment_page' b.id %}" class="mp-btn-pay">Pay Balance<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
+                        {% endif %}
                     </div>
                 </div>
             </article>
@@ -421,6 +429,7 @@
                     </div>
                 </div>
                 <div class="mp-card-meta">
+                    {% if pay.change_request_id %}<span class="mp-chip">Booking change #{{ pay.change_request_id }}</span>{% endif %}
                     {% if pay.is_failed_attempt %}
                     <span class="mp-status mp-status--rejected">{{ pay.failed_label }}</span>
                     {% elif pay.payment_status == 'verified' %}
@@ -431,6 +440,7 @@
                     <span class="mp-status mp-status--pending">{{ pay.get_payment_status_display }}</span>
                     {% endif %}
                 </div>
+                {% if pay.change_request_id and not pay.applied_to_booking %}<p class="mp-change-note">This payment is for a booking change. It is separate from your original booking balance until the changes are finalized.</p>{% endif %}
                 <div class="mp-card-foot">
                     <div class="mp-actions">
                         <button type="button" class="cp-btn-row cp-btn-view cp-btn-view-icon"
@@ -480,7 +490,7 @@
                         {% if pay.payment_status != 'verified' and pay.show_pending_info_button %}
                         <a href="{{ pay.pending_info_url }}" class="cp-btn-row cp-btn-pending-info">Payment Info</a>
                         {% endif %}
-                        {% if pay.is_failed_attempt %}
+                        {% if pay.is_failed_attempt and pay.can_retry %}
                         <a href="{{ pay.pending_info_url }}" class="cp-btn-row cp-btn-pending-info">Try Again</a>
                         {% endif %}
                     </div>

@@ -58,6 +58,48 @@ class Booking(models.Model):
         max_digits=9, decimal_places=6, null=True, blank=True,
         help_text='Longitude pin from the Step 3 location map.',
     )
+    # 🚚 Logistics snapshot — kinukuha sa create/edit at hindi na binabago
+    # pag nagbago ang admin config (para stable ang binayaran ng customer).
+    logistics_distance_km = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text='Straight-line km (Haversine) from shop to venue pin at booking time.',
+    )
+    logistics_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Computed logistics fee (base + distance) stored at booking time.',
+    )
+    logistics_fee_override = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Admin manual logistics fee — overrides the computed fee when set.',
+    )
+
+    # ⏱️ Duration & overtime snapshot — kinukuha sa create/edit at hindi na
+    # binabago pag nagbago ang SiteSettings overtime config mamaya.
+    event_end_date = models.DateField(
+        null=True, blank=True,
+        help_text='Actual end date (next day kapag umabot ng midnight / overnight).',
+    )
+    event_end_time = models.TimeField(
+        null=True, blank=True,
+        help_text='End time of the event. Falls back to the legacy "(End Time: HH:MM)" tag sa special_requests kapag blank.',
+    )
+    duration_minutes = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Total booked duration in minutes (start → end, +1 day kapag overnight).',
+    )
+    overtime_hours = models.PositiveIntegerField(
+        default=0,
+        help_text='Billable overtime hours beyond the included hours.',
+    )
+    overtime_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Overtime fee charged (overtime_hours × SiteSettings.booking_overtime_rate at booking time).',
+    )
+    fee_policy_snapshot = models.JSONField(
+        default=dict, blank=True,
+        help_text='Logistics base, notes, included hours and overtime rate used for the saved booking quote.',
+    )
+
     venue_landmark = models.CharField(
         max_length=255, blank=True, default='',
         help_text='Nearest landmark / floor / gate hint shown to the styling crew.',
@@ -90,6 +132,9 @@ class Booking(models.Model):
     admin_notif_hidden = models.BooleanField(default=False)
 
     payment_status = models.CharField(max_length=15, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    payment_due_at = models.DateTimeField(null=True, blank=True, help_text='Saved initial payment deadline; never later than the event start.')
+    design_due_at = models.DateTimeField(null=True, blank=True, help_text='Saved deadline for the team to deliver the event design.')
 
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -103,6 +148,43 @@ class Booking(models.Model):
         return f"Booking {self.id} by {self.user.username}"
 
 
+class BookingChangeRequest(models.Model):
+    ACTIVE_STATUSES = ('pending_review', 'quoted', 'awaiting_payment', 'manual_review')
+    STATUS_CHOICES = tuple((key, label) for key, label in (
+        ('pending_review', 'Awaiting team review'), ('quoted', 'Quote ready for your approval'),
+        ('awaiting_payment', 'Awaiting additional payment'), ('manual_review', 'Needs manual review'),
+        ('applied', 'Changes applied'), ('rejected', 'Request declined'),
+        ('withdrawn', 'Request withdrawn'), ('expired', 'Quote expired')))
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='change_requests')
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default='pending_review')
+    reason = models.TextField()
+    original = models.JSONField(default=dict)
+    proposed = models.JSONField(default=dict)
+    quote = models.JSONField(default=dict)
+    admin_notes = models.TextField(blank=True, default='')
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='booking_changes_reviewed')
+    downgrade_acknowledged = models.BooleanField(default=False)
+    original_total = models.DecimalField(max_digits=10, decimal_places=2)
+    quoted_total = models.DecimalField(max_digits=10, decimal_places=2)
+    additional_due = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    hold_start = models.DateTimeField(null=True, blank=True)
+    hold_end = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [models.UniqueConstraint(fields=['booking'], condition=models.Q(status__in=('pending_review', 'quoted', 'awaiting_payment', 'manual_review')), name='one_active_booking_change')]
+
+
+class BookingChangeImage(models.Model):
+    change_request = models.ForeignKey(BookingChangeRequest, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='booking_change_references/')
+
+
 class BookingImage(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='booking_references/')
@@ -110,6 +192,44 @@ class BookingImage(models.Model):
 
     def __str__(self):
         return f"Image for Booking {self.booking.id}"
+
+
+class BookingDeadlineNotice(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='deadline_notices')
+    key = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['booking', 'key'], name='unique_booking_deadline_notice')]
+
+
+# -----------------------------
+# 2️⃣a Booking Design Delivery (admin → client backdrop design)
+# -----------------------------
+class BookingDesignDelivery(models.Model):
+    """Backdrop/mock-up design na ina-upload ng admin PAGKATAPOS ng bayad
+    (status == 'confirmed'). Ito ang actual na susundin sa event — magkaiba
+    sa BookingImage (reference mula sa client) at sa Design (canvas asset).
+    """
+    booking = models.ForeignKey(
+        Booking, on_delete=models.CASCADE, related_name='design_deliveries'
+    )
+    image = models.ImageField(
+        upload_to='booking_design_deliveries/',
+        help_text='Backdrop design delivered to the customer (JPG/PNG/WEBP, max 5MB).',
+    )
+    caption = models.CharField(max_length=255, blank=True, default='')
+    uploaded_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='design_deliveries_uploaded',
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"Design delivery for Booking {self.booking.id}"
 
 
 # -----------------------------
@@ -176,6 +296,9 @@ class SiteSettings(models.Model):
         default=0,
         help_text='Minimum number of days between today and a booking date. 0 = no lead time requirement.',
     )
+    booking_payment_window_hours = models.PositiveIntegerField(default=24, help_text='Initial payment window after approval, capped at event start.')
+    booking_design_lead_hours = models.PositiveIntegerField(default=24, help_text='Hours before the event when a missing design becomes urgent.')
+    booking_change_cutoff_hours = models.PositiveIntegerField(default=48, help_text='Minimum hours before the event for a customer change request.')
     admin_emails_for_notifications = models.CharField(
         max_length=500,
         blank=True,
@@ -185,6 +308,24 @@ class SiteSettings(models.Model):
     email_notifications_enabled = models.BooleanField(
         default=True,
         help_text='Send email alerts to admin when new bookings, payments, or concerns come in.',
+    )
+
+    # ⏱️ Booking duration & overtime policy (admin-configurable).
+    booking_min_duration_hours = models.PositiveIntegerField(
+        default=2,
+        help_text='Minimum booking duration in hours (client cannot book shorter than this).',
+    )
+    booking_included_hours = models.PositiveIntegerField(
+        default=3,
+        help_text='Hours included in the base package price. Overtime starts after this.',
+    )
+    booking_overtime_rate = models.DecimalField(
+        max_digits=10, decimal_places=2, default=500,
+        help_text='Overtime charge per hour (or fraction) beyond the included hours.',
+    )
+    booking_max_duration_hours = models.PositiveIntegerField(
+        default=24,
+        help_text='Maximum booking duration in hours (allows overnight / 24-hour bookings).',
     )
     updated_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='site_settings_updates'
@@ -265,15 +406,19 @@ class Payment(models.Model):
         ('downpayment', 'Downpayment'),
         ('full', 'Full Payment'),
         ('balance', 'Balance'),
+        ('change_balance', 'Booking change payment'),
     )
 
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='payments')
+    change_request = models.ForeignKey('BookingChangeRequest', on_delete=models.RESTRICT, null=True, blank=True, related_name='payments')
+    applied_to_booking = models.BooleanField(default=True, help_text='False for change payments until the approved change is applied.')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=30, choices=PAYMENT_METHOD_CHOICES)
     payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='full')
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='pending')
     transaction_ref = models.CharField(max_length=100, unique=True)
     paid_at = models.DateTimeField(blank=True, null=True)
+    received_at = models.DateTimeField(blank=True, null=True, help_text='When manual proof was submitted or a successful provider payment was received; not checkout creation.')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True, null=True)
@@ -688,7 +833,32 @@ class AdditionalOnlyPreviewImage(models.Model):
 
 
 class ServiceChargeConfig(models.Model):
+    # Base fee na dati rati — ngayon ito ay ang CAVITE BASE logistics fee
+    # (sakop ng free radius sa ibaba).
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # 📏 Distance-based logistics (admin-configurable).
+    shop_lat = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        help_text='Shop/base latitude for distance computation (blank uses the business address in Site Settings).',
+    )
+    shop_lng = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        help_text='Shop/base longitude for distance computation.',
+    )
+    free_radius_km = models.DecimalField(
+        max_digits=6, decimal_places=2, default=15,
+        help_text='Included straight-line distance from the shop for outside-Cavite venues. Cavite venues always use the base fee.',
+    )
+    per_km_rate = models.DecimalField(
+        max_digits=10, decimal_places=2, default=30,
+        help_text='Outside-Cavite additional fee per kilometer beyond the included distance (minimum one billable kilometer).',
+    )
+    max_fee_cap = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Maximum total logistics fee (0 = no cap). Applied after base + distance fee.',
+    )
+
     notes = models.TextField(
         blank=True,
         default="Includes styling fee, toll fees, fuel, crew meals, and ingress/egress logistics.",

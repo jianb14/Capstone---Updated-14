@@ -7,10 +7,13 @@ import hashlib
 import io
 import json
 import logging
+import math
 import os
 import re
 import time
 import uuid
+from functools import lru_cache
+from pathlib import Path
 from calendar import monthrange
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -33,6 +36,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
+from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.contrib.staticfiles import finders
@@ -51,6 +55,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
+from ..geocoding import GeocodingUnavailable, search_places, valid_coordinates
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -66,6 +71,7 @@ from ..models import (
     AdminNotification,
     AuditLog,
     Booking,
+    BookingDesignDelivery,
     BookingImage,
     BookingStatusLog,
     BlockedDate,
@@ -355,7 +361,12 @@ def log_booking_status(booking, old_status, new_status, changed_by=None, notes="
 
 
 def _booking_time_bounds(booking):
-    """Return (start_dt, end_dt) datetimes for a booking, defaulting to a 4-hour span."""
+    """Return (start_dt, end_dt) datetimes for a booking.
+
+    Priority: bagong event_end_date/event_end_time snapshot → legacy
+    "(End Time: HH:MM)" tag sa special_requests → +4-hour default.
+    Kapag ang end ay hindi higit sa start (overnight), +1 day sa end date.
+    """
     start_dt = (
         datetime.combine(booking.event_date, booking.event_time)
         if booking.event_time
@@ -363,17 +374,190 @@ def _booking_time_bounds(booking):
     )
     end_dt = None
     if start_dt:
-        end_time_str = get_end_time_from_str(booking.special_requests or "")
-        if end_time_str:
-            try:
-                end_dt = datetime.combine(
-                    booking.event_date, datetime.strptime(end_time_str, "%H:%M").time()
-                )
-            except ValueError:
-                end_dt = None
+        # 1) Stored snapshot (bagong fields)
+        if booking.event_end_time:
+            end_date = booking.event_end_date or booking.event_date
+            end_dt = datetime.combine(end_date, booking.event_end_time)
+        # 2) Legacy tag sa special_requests
+        if end_dt is None:
+            end_time_str = get_end_time_from_str(booking.special_requests or "")
+            if end_time_str:
+                try:
+                    end_dt = datetime.combine(
+                        booking.event_date,
+                        datetime.strptime(end_time_str, "%H:%M").time(),
+                    )
+                except ValueError:
+                    end_dt = None
+        # 3) Default span
         if end_dt is None:
             end_dt = start_dt + timedelta(hours=4)
+        # Overnight: end <= start → susunod na araw
+        if end_dt <= start_dt:
+            end_dt += timedelta(days=1)
     return start_dt, end_dt
+
+
+# -----------------------------
+# ⏱️ Duration & overtime policy (SiteSettings-driven)
+# -----------------------------
+def get_booking_duration_policy():
+    """Shared duration/overtime policy (SiteSettings).
+
+    Returns dict: min_hours, included_hours, overtime_rate, max_hours.
+    Single source of truth para sa create/edit validation, price breakdown,
+    at booking-page JS payload — hindi na kailangang i-duplicate ang defaults.
+    """
+    try:
+        s = SiteSettings.load()
+        return {
+            "min_hours": int(s.booking_min_duration_hours or 2),
+            "included_hours": int(s.booking_included_hours or 3),
+            "overtime_rate": Decimal(str(s.booking_overtime_rate or Decimal("0"))),
+            "max_hours": int(s.booking_max_duration_hours or 24),
+        }
+    except Exception:
+        # Defensive: kahit may maling settings row, buhay pa rin ang defaults.
+        return {
+            "min_hours": 2,
+            "included_hours": 3,
+            "overtime_rate": Decimal("500"),
+            "max_hours": 24,
+        }
+
+
+def get_booking_form_availability():
+    """Shared picker data for edit forms, including overnight conflicts and self-exclusion."""
+    today = timezone.localdate()
+    records = []
+    for booking in Booking.objects.filter(
+        event_date__gte=today - timedelta(days=1),
+        status__in=["pending_payment", "confirmed", "completed"],
+    ):
+        start, end = _booking_time_bounds(booking)
+        if not start or not end:
+            continue
+        cursor = start.date()
+        while cursor <= end.date():
+            day = datetime.combine(cursor, datetime.min.time())
+            lower, upper = max(start, day), min(end, day + timedelta(days=1))
+            if upper > lower:
+                records.append({"bookingId": booking.pk, "date": cursor.isoformat(),
+                    "start": int((lower - day).total_seconds() // 60),
+                    "end": int((upper - day).total_seconds() // 60)})
+            cursor += timedelta(days=1)
+    from ..booking_changes import live_holds
+    for hold in live_holds():
+        start, end = timezone.localtime(hold.hold_start).replace(tzinfo=None), timezone.localtime(hold.hold_end).replace(tzinfo=None)
+        cursor = start.date()
+        while cursor <= end.date():
+            day = datetime.combine(cursor, datetime.min.time())
+            lower, upper = max(start, day), min(end, day + timedelta(days=1))
+            if upper > lower:
+                records.append({'bookingId':hold.booking_id, 'date':cursor.isoformat(), 'start':int((lower-day).total_seconds()//60), 'end':int((upper-day).total_seconds()//60), 'temporaryHold':True})
+            cursor += timedelta(days=1)
+    policy = get_booking_duration_policy()
+    ranges = {}
+    for row in records:
+        ranges.setdefault(row["date"], []).append([row["start"], row["end"]])
+    return {
+        "blockedDates": [{"date": row.date.isoformat(), "reason": row.reason or ""} for row in BlockedDate.objects.filter(date__gte=today)],
+        "rangeRecords": records, "bookedRanges": ranges, "todayIso": today.isoformat(),
+        "leadDays": SiteSettings.load().booking_lead_time_days or 0,
+        "minDurationHours": policy["min_hours"], "includedHours": policy["included_hours"],
+        "maxDurationHours": policy["max_hours"], "overtimeRate": str(policy["overtime_rate"]),
+    }
+
+
+def get_booking_logistics_config():
+    config = get_service_charge_config()
+    origin = get_logistics_origin(config)
+    return {"base": str(config.amount or "0"),
+        "shopLat": origin[0] if origin else None, "shopLng": origin[1] if origin else None,
+        "freeRadius": str(config.free_radius_km or "0"), "perKm": str(config.per_km_rate or "0"),
+        "maxCap": str(config.max_fee_cap or "0")}
+
+
+def get_booking_schedule(booking):
+    start, end = _booking_time_bounds(booking)
+    minutes = booking.duration_minutes
+    if minutes is None and start and end:
+        minutes = int((end - start).total_seconds() // 60)
+    return {"end_time": end.strftime("%H:%M") if end else "",
+        "end_date": end.date().isoformat() if end else "",
+        "duration_label": f"{minutes // 60}h {minutes % 60}m" if minutes is not None else "—"}
+
+
+def compute_overtime(start_time, end_time, start_date=None, policy=None):
+    """Compute duration + overtime mula sa start/end (dict result).
+
+    Overnight-aware: kapag end_time <= start_time, +1 day ang end.
+    Rules: duration < min_hours → error ('...' sa key na 'error');
+           duration <= included_hours → overtime_hours = 0;
+           lampas → ceil((duration - included) / 1h) × overtime_rate.
+
+    Returns: {
+        duration_minutes, duration_hours, overtime_hours, overtime_fee,
+        included_until (HH:MM str | None), error (str, '' kapag okay)
+    }
+    """
+    policy = policy or get_booking_duration_policy()
+    result = {
+        "duration_minutes": 0,
+        "duration_hours": Decimal("0"),
+        "overtime_hours": 0,
+        "overtime_fee": Decimal("0.00"),
+        "included_until": None,
+        "error": "",
+    }
+    if not start_time or not end_time:
+        result["error"] = "Start and end time are required."
+        return result
+    try:
+        st = datetime.strptime(str(start_time), "%H:%M").time()
+        et = datetime.strptime(str(end_time), "%H:%M").time()
+    except (ValueError, TypeError):
+        result["error"] = "Invalid time format."
+        return result
+
+    base_date = start_date or timezone.localdate()
+    start_dt = datetime.combine(base_date, st)
+    end_dt = datetime.combine(base_date, et)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)  # overnight / next-day end
+
+    duration = end_dt - start_dt
+    duration_minutes = int(duration.total_seconds() // 60)
+    result["duration_minutes"] = duration_minutes
+    result["duration_hours"] = (duration / timedelta(hours=1))
+
+    included_until_dt = start_dt + timedelta(hours=policy["included_hours"])
+    result["included_until"] = included_until_dt.strftime("%H:%M")
+
+    if duration_minutes < policy["min_hours"] * 60:
+        result["error"] = (
+            f"Please choose an end time that is at least "
+            f"{policy['min_hours']} hours after the start time."
+        )
+        return result
+
+    max_minutes = policy["max_hours"] * 60
+    if duration_minutes > max_minutes:
+        result["error"] = (
+            f"Maximum booking duration is {policy['max_hours']} hours only."
+        )
+        return result
+
+    if duration_minutes > policy["included_hours"] * 60:
+        overtime_minutes = duration_minutes - (policy["included_hours"] * 60)
+        # Ceil per hour: 3h01m → 1 billable hour
+        billable_hours = -(-overtime_minutes // 60)
+        result["overtime_hours"] = billable_hours
+        result["overtime_fee"] = (
+            Decimal(billable_hours) * policy["overtime_rate"]
+        ).quantize(Decimal("0.01"))
+    return result
+
 
 
 ACTIVE_BOOKING_STATUSES = ("pending_payment", "confirmed", "completed")
@@ -389,13 +573,14 @@ def find_active_booking_conflicts(booking):
         return Booking.objects.none()
 
     candidates = Booking.objects.filter(
-        event_date=booking.event_date,
+        event_date__range=(booking.event_date - timedelta(days=1), booking.event_date + timedelta(days=1)),
         status__in=ACTIVE_BOOKING_STATUSES,
     ).exclude(pk=booking.pk).select_related("user")
 
     if not booking.event_time:
         # No time info — treat any other active booking on the same date as a conflict.
-        return candidates
+        from ..booking_changes import hold_conflicts
+        return list(candidates.filter(event_date=booking.event_date)) + [h.booking for h in hold_conflicts(booking)]
 
     b_start, b_end = _booking_time_bounds(booking)
     if not b_start or not b_end:
@@ -404,12 +589,15 @@ def find_active_booking_conflicts(booking):
     conflicts = []
     for candidate in candidates:
         if not candidate.event_time:
-            conflicts.append(candidate)
+            day = datetime.combine(candidate.event_date, datetime.min.time())
+            if b_start < day + timedelta(days=1) and b_end > day:
+                conflicts.append(candidate)
             continue
         c_start, c_end = _booking_time_bounds(candidate)
         if c_start and c_end and b_start < c_end and b_end > c_start:
             conflicts.append(candidate)
-    return conflicts
+    from ..booking_changes import hold_conflicts
+    return conflicts + [h.booking for h in hold_conflicts(booking)]
 
 
 def get_service_charge_config():
@@ -421,6 +609,142 @@ def get_service_charge_config():
         },
     )
     return config
+
+
+def haversine_km(lat1, lng1, lat2, lng2):
+    """Straight-line distance sa kilometers (Haversine formula — libre, walang API key)."""
+    try:
+        lat1, lng1, lat2, lng2 = map(float, (lat1, lng1, lat2, lng2))
+    except (TypeError, ValueError):
+        return None
+    if not valid_coordinates(lat1, lng1) or not valid_coordinates(lat2, lng2):
+        return None
+    radius_km = 6371.0088  # mean Earth radius
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lng2 - lng1)
+    a = (
+        math.sin(d_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    )
+    a = max(0, min(1, a))
+    return radius_km * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+@lru_cache(maxsize=1)
+def get_cavite_geometry():
+    return json.loads((Path(settings.BASE_DIR) / "app/data/cavite.geojson").read_text(encoding="utf-8"))["geometry"]
+
+
+def is_cavite_location(lat, lng):
+    if not valid_coordinates(lat, lng):
+        return False
+    lat, lng = float(lat), float(lng)
+
+    def in_ring(ring):
+        inside = False
+        for first, second in zip(ring, ring[1:] + ring[:1]):
+            x1, y1 = first[:2]
+            x2, y2 = second[:2]
+            # Include locations exactly on the provincial boundary.
+            cross = (lng - x1) * (y2 - y1) - (lat - y1) * (x2 - x1)
+            if abs(cross) < 1e-12 and min(x1, x2) <= lng <= max(x1, x2) and min(y1, y2) <= lat <= max(y1, y2):
+                return True
+            if (y1 > lat) != (y2 > lat) and lng < (x2 - x1) * (lat - y1) / (y2 - y1) + x1:
+                inside = not inside
+        return inside
+
+    geometry = get_cavite_geometry()
+    polygons = geometry["coordinates"] if geometry["type"] == "MultiPolygon" else [geometry["coordinates"]]
+    return any(in_ring(polygon[0]) and not any(in_ring(hole) for hole in polygon[1:]) for polygon in polygons)
+
+
+def get_logistics_origin(config=None):
+    config = config or get_service_charge_config()
+    if valid_coordinates(config.shop_lat, config.shop_lng):
+        return float(config.shop_lat), float(config.shop_lng)
+    address = (SiteSettings.load().address or "").strip()
+    if not address:
+        return None
+    key = "booking-shop-origin:" + hashlib.sha256(address.encode()).hexdigest()
+    saved = cache.get(key)
+    if saved is not None:
+        return saved or None
+    try:
+        places = search_places(address)
+    except GeocodingUnavailable:
+        cache.set(key, False, 60)
+        return None
+    origin = (places[0]["lat"], places[0]["lon"]) if places else None
+    cache.set(key, origin or False, 86400 if origin else 60)
+    return origin
+
+
+def compute_logistics_quote(venue_lat, venue_lng):
+    """Buong logistics quote para sa venue pin.
+
+    Returns dict:
+      base        – Cavite base fee (ServiceChargeConfig.amount)
+      distance_km – Haversine km mula shop (None kapag hindi makompute)
+      extra       – distance surcharge outside Cavite (0 for Cavite venues)
+      total       – base + extra (naka-cap kung may max_fee_cap)
+      capped      – True kapag binawas ng cap ang extra
+    Cavite venues use the base fee. Outside Cavite: base + billable kilometers
+    beyond the configured included distance, with at least one billable kilometer.
+    """
+    config = get_service_charge_config()
+    base = Decimal(config.amount or Decimal("0.00"))
+    quote = {
+        "base": base,
+        "distance_km": None,
+        "extra": Decimal("0.00"),
+        "total": base,
+        "capped": False,
+        "in_cavite": None,
+        "configured": False,
+    }
+
+    if not valid_coordinates(venue_lat, venue_lng):
+        return quote
+    quote["in_cavite"] = is_cavite_location(venue_lat, venue_lng)
+    origin = get_logistics_origin(config)
+    if not origin:
+        quote["configured"] = quote["in_cavite"]
+        return quote
+    distance = haversine_km(*origin, venue_lat, venue_lng)
+    if distance is None:
+        return quote
+
+    quote["distance_km"] = Decimal(str(round(distance, 2)))
+    quote["configured"] = True
+    free_radius = Decimal(config.free_radius_km or Decimal("0"))
+    per_km = Decimal(config.per_km_rate or Decimal("0"))
+
+    if not quote["in_cavite"]:
+        extra_km = max(1, math.ceil(distance - float(free_radius)))
+        quote["extra"] = Decimal(extra_km) * per_km
+
+    total = base + quote["extra"]
+    cap = Decimal(config.max_fee_cap or Decimal("0"))
+    if cap > 0 and total > cap:
+        quote["capped"] = True
+        quote["extra"] = max(cap - base, Decimal("0.00"))
+        total = base + quote["extra"]
+    quote["total"] = total
+    return quote
+
+
+def get_booking_logistics_fee(booking):
+    """Kinuhang logistics fee ng booking — pagkakabahagi ng priority:
+    admin override > stored snapshot > live compute mula sa pin > base fee."""
+    if booking.logistics_fee_override is not None:
+        return booking.logistics_fee_override, booking.logistics_distance_km
+    if booking.logistics_fee is not None:
+        return booking.logistics_fee, booking.logistics_distance_km
+
+    # Legacy bookings (bago ang snapshot) — compute on the fly.
+    quote = compute_logistics_quote(booking.event_lat, booking.event_lng)
+    return quote["total"], quote["distance_km"]
 
 
 def normalize_package_part(value):
@@ -519,17 +843,113 @@ def get_booking_price_breakdown(booking):
             breakdown.append({"label": label, "amount": amount})
 
     service_charge = Decimal("0.00")
+    logistics_distance_km = None
     if parts:
-        service_charge = get_service_charge_config().amount or Decimal("0.00")
+        # Distance-based logistics: admin override > stored snapshot >
+        # live compute mula sa map pin > flat base fee.
+        service_charge, logistics_distance_km = get_booking_logistics_fee(booking)
 
-    computed_total = subtotal + service_charge
-    return {
+    # ⏱️ Overtime — stored snapshot fee (kinuha sa create/edit at hindi na
+    # nagbabago kung i-edit ang SiteSettings rate mamaya).
+    overtime_fee = booking.overtime_fee or Decimal("0.00")
+    computed_total = subtotal + service_charge + overtime_fee
+    result = {
         "items": breakdown,
         "subtotal": subtotal,
         "service_charge": service_charge,
+        "logistics_distance_km": logistics_distance_km,
+        "overtime_fee": overtime_fee,
+        "overtime_hours": booking.overtime_hours or 0,
         "computed_total": computed_total,
         "stored_total": booking.total_price or Decimal("0.00"),
     }
+    result.update(get_booking_fee_explanations(booking, service_charge))
+    return result
+
+
+def capture_booking_fee_policy(booking, quote=None, refresh_logistics=True):
+    """Store explanation inputs with the quote; viewing a booking never reprices it."""
+    config = get_service_charge_config()
+    policy = get_booking_duration_policy()
+    snapshot = dict(booking.fee_policy_snapshot or {})
+    if refresh_logistics or "logistics_base" not in snapshot:
+        snapshot.update({
+            "logistics_base": str(quote["base"] if quote else config.amount),
+            "logistics_notes": config.notes or "",
+            "logistics_capped": bool(quote and quote["capped"]),
+            "logistics_in_cavite": quote["in_cavite"] if quote else None,
+        })
+    snapshot.update({"included_hours": policy["included_hours"], "overtime_rate": str(policy["overtime_rate"])})
+    snapshot['catalog_items'] = [{'label':i['label'], 'amount':str(i['amount'])} for i in get_booking_price_breakdown(booking)['items']]
+    booking.fee_policy_snapshot = snapshot
+
+
+def get_booking_fee_explanations(booking, logistics_total):
+    snapshot = booking.fee_policy_snapshot or {}
+    config = get_service_charge_config()
+    policy = get_booking_duration_policy()
+    base = Decimal(str(snapshot.get("logistics_base", config.amount or 0)))
+    extra = max(logistics_total - base, Decimal("0.00"))
+    money = lambda value: f"₱{value:,.2f}"
+    notes = snapshot.get("logistics_notes", config.notes) or ""
+    in_cavite = snapshot.get("logistics_in_cavite")
+    if in_cavite is None and valid_coordinates(booking.event_lat, booking.event_lng):
+        in_cavite = is_cavite_location(booking.event_lat, booking.event_lng)
+    if booking.logistics_fee_override is not None:
+        logistics_note = f"Logistics fee: {money(logistics_total)} · Confirmed by our team."
+    elif logistics_total == 0:
+        logistics_note = "No logistics charge."
+    elif base > logistics_total:
+        logistics_note = f"Logistics fee: {money(logistics_total)} · Saved booking fee."
+    elif extra > 0:
+        label = "outside-Cavite distance fee" if in_cavite is False else "distance fee"
+        logistics_note = f"Logistics fee: {money(logistics_total)} · {money(base)} base + {money(extra)} {label}."
+    elif in_cavite:
+        logistics_note = f"Logistics fee: {money(logistics_total)} · Within Cavite, base fee only."
+    else:
+        logistics_note = f"Logistics fee: {money(logistics_total)} · {money(base)} base; no additional distance fee."
+    if snapshot.get("logistics_capped") and booking.logistics_fee_override is None:
+        logistics_note += " Maximum logistics fee applied."
+
+    hours = booking.overtime_hours or 0
+    rate = (booking.overtime_fee or Decimal("0")) / hours if hours else Decimal(str(snapshot.get("overtime_rate", policy["overtime_rate"])))
+    included = snapshot.get("included_hours")
+    if included is None and hours:
+        duration = booking.duration_minutes
+        if duration is None and (booking.event_end_time or get_end_time_from_str(booking.special_requests or "")):
+            start, end = _booking_time_bounds(booking)
+            if start and end:
+                duration = int((end - start).total_seconds() // 60)
+        if duration is not None:
+            inferred = -(-duration // 60) - hours
+            included = inferred if inferred > 0 else None
+    rate_label = f"{rate:,.2f}".rstrip("0").rstrip(".")
+    if hours and included:
+        overtime_note = f"{hours} hr(s) beyond the {included}-hour package × ₱{rate_label}/hr."
+    elif hours:
+        overtime_note = f"{hours} billable overtime hr(s) × ₱{rate_label}/hr."
+    else:
+        overtime_note = "No overtime charge."
+    return {"logistics_base": base, "logistics_extra": extra, "logistics_notes": notes,
+        "logistics_explanation": logistics_note, "overtime_explanation": overtime_note,
+        "included_hours": included, "overtime_rate": rate}
+
+
+def get_booking_display_breakdown(booking):
+    """Show recorded totals even if the current catalog prices have changed."""
+    breakdown = get_booking_price_breakdown(booking)
+    stored_subtotal = breakdown["stored_total"] - breakdown["service_charge"] - breakdown["overtime_fee"]
+    saved_items = (booking.fee_policy_snapshot or {}).get('catalog_items', [])
+    if saved_items and sum((Decimal(str(i['amount'])) for i in saved_items), Decimal('0')) == stored_subtotal:
+        breakdown['items'] = [{'label':i['label'], 'amount':Decimal(str(i['amount']))} for i in saved_items]
+        breakdown['subtotal'] = stored_subtotal
+        breakdown['computed_total'] = breakdown['stored_total']
+        return breakdown
+    if breakdown["stored_total"] > 0 and stored_subtotal >= 0 and breakdown["computed_total"] != breakdown["stored_total"]:
+        breakdown["items"] = [{"label": f"{booking.package_type or 'Package and extras'} (booked price)", "amount": stored_subtotal}]
+        breakdown["subtotal"] = stored_subtotal
+        breakdown["computed_total"] = breakdown["stored_total"]
+    return breakdown
 
 
 def build_booking_snapshot(booking):
@@ -643,77 +1063,9 @@ def _cleanup_legacy_booking_request_states():
 
 
 def check_booking_expirations():
-    """
-    Expire stale bookings.
-
-    Rules:
-    - Pending bookings expire after their event date passes without admin approval.
-    - Pending-payment bookings expire once the event date starts if no real payment
-      was received before the cutoff.
-    """
-    today = timezone.localdate()
-    now = timezone.now()
-
-    expired_pending_bookings = Booking.objects.filter(
-        status="pending", event_date__lt=today
-    ).select_related("user")
-    for booking in expired_pending_bookings:
-        booking.status = "expired"
-        booking.updated_at = now
-        booking.save(update_fields=["status", "updated_at"])
-        Notification.objects.create(
-            user=booking.user,
-            booking=booking,
-            message=(
-                f"Your booking #{booking.id} for {booking.event_date} has expired "
-                "because it was not confirmed in time."
-            ),
-        )
-
-    unpaid_due_bookings = (
-        Booking.objects.filter(status="pending_payment", event_date__lte=today)
-        .select_related("user")
-        .prefetch_related("payments")
-    )
-
-    for booking in unpaid_due_bookings:
-        has_payment_before_cutoff = False
-        for payment in booking.payments.all():
-            if payment.payment_status == "verified":
-                has_payment_before_cutoff = True
-                break
-
-            if payment.payment_status != "pending":
-                continue
-
-            # Manual GCash pending payments already represent a submitted proof.
-            if payment.payment_method == "gcash":
-                has_payment_before_cutoff = True
-                break
-
-            # PayMongo creates a pending row before checkout is actually paid.
-            # Only treat it as a real submitted payment after PayMongo marks it received.
-            if payment.payment_method.startswith("paymongo_") and (
-                payment.paymongo_payment_id
-                or "paid via paymongo" in (payment.notes or "").lower()
-            ):
-                has_payment_before_cutoff = True
-                break
-
-        if has_payment_before_cutoff:
-            continue
-
-        booking.status = "expired"
-        booking.updated_at = now
-        booking.save(update_fields=["status", "updated_at"])
-        Notification.objects.create(
-            user=booking.user,
-            booking=booking,
-            message=(
-                f"Your booking #{booking.id} for {booking.event_date} has expired "
-                "because no payment was received before the event date."
-            ),
-        )
+    """Shared deadline policy, also run every minute without page visits."""
+    from ..booking_lifecycle import process_booking_deadlines
+    return process_booking_deadlines()
 
 
 # Helper to format "HH:MM" or time object into readable 12-hour time.
@@ -751,14 +1103,22 @@ def get_booking_time_range(booking):
     if not booking.event_time:
         return ""
     start_str = format_time_12h(booking.event_time)
-    end_time_str = get_end_time_from_str(booking.special_requests or "")
-    if end_time_str:
-        try:
-            end_time_obj = datetime.strptime(end_time_str, "%H:%M").time()
-            end_str = format_time_12h(end_time_obj)
-            return f"{start_str} - {end_str}"
-        except ValueError:
-            pass
+    # Priority: bagong end snapshot → legacy "(End Time: HH:MM)" tag.
+    end_time_obj = None
+    if booking.event_end_time:
+        end_time_obj = booking.event_end_time
+        if booking.event_end_date and booking.event_end_date > booking.event_date:
+            # Overnight: may +1 day marker sa dulo ng range.
+            return f"{start_str} - {format_time_12h(end_time_obj)} (+1 day)"
+    else:
+        end_time_str = get_end_time_from_str(booking.special_requests or "")
+        if end_time_str:
+            try:
+                end_time_obj = datetime.strptime(end_time_str, "%H:%M").time()
+            except ValueError:
+                end_time_obj = None
+    if end_time_obj:
+        return f"{start_str} - {format_time_12h(end_time_obj)}"
     return start_str
 
 

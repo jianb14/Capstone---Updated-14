@@ -1,0 +1,11 @@
+{% if booking.status == 'pending_payment' %}
+<div class="booking-deadline-note" style="margin: 16px 0; padding: 14px 16px; border: 1px solid #d69c3666; border-radius: 10px; font-size: .82rem; line-height: 1.7;">
+    {% if lifecycle.awaiting_verification %}<strong>Payment submitted — awaiting admin verification</strong><p style="margin: 4px 0 0;">Your booking is held while our team reviews your submitted payment.</p>
+    {% elif lifecycle.payment_due_at %}<strong>Pay by {{ lifecycle.payment_due_at|date:"M d, Y — g:i A" }}</strong><p style="margin: 4px 0 0;">Submit your payment before this deadline to keep your reservation.</p>{% endif %}
+</div>
+{% endif %}
+{% if lifecycle.design_preparing %}
+<div class="booking-deadline-note" style="margin: 16px 0; padding: 14px 16px; border: 1px solid #10b98155; border-radius: 10px; font-size: .82rem; line-height: 1.7;">
+    <strong>{% if lifecycle.design_revision_pending %}Design revision in preparation{% else %}Design in preparation{% endif %}</strong><p style="margin: 4px 0 0;">Design due {{ lifecycle.design_due_at|date:"M d, Y — g:i A" }}.{% if lifecycle.design_overdue %} Our team has been alerted to deliver your design.{% else %} Your event design will appear here once uploaded by our team.{% endif %}</p>
+</div>
+{% endif %}

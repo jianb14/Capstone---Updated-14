@@ -1,0 +1,12 @@
+{% with display=payment_booking|default:booking %}
+<div class="pu-card">
+    <div class="pu-card-head">{% if is_change_payment %}Requested Booking Details{% else %}Booking Details{% endif %}</div>
+    <div class="pu-detail-row"><span class="pu-detail-label">Booking</span><span class="pu-detail-value">#{{ booking.id }}</span></div>
+    {% if is_change_payment %}<div class="pu-detail-row"><span class="pu-detail-label">Change Request</span><span class="pu-detail-value">#{{ change.id }}</span></div>{% endif %}
+    {% if display.package_type %}<div class="pu-detail-row"><span class="pu-detail-label">Package</span><span class="pu-detail-value">{{ display.package_type }}</span></div>{% endif %}
+    {% if display.event_type %}<div class="pu-detail-row"><span class="pu-detail-label">Event</span><span class="pu-detail-value">{{ display.event_type }}</span></div>{% endif %}
+    {% if display.event_date %}<div class="pu-detail-row"><span class="pu-detail-label">Date</span><span class="pu-detail-value">{{ display.event_date|date:"M d, Y" }}</span></div>{% endif %}
+    {% if display.time_range_display %}<div class="pu-detail-row"><span class="pu-detail-label">Time</span><span class="pu-detail-value">{{ display.time_range_display }}</span></div>{% endif %}
+    {% if display.event_location %}<div class="pu-detail-row"><span class="pu-detail-label">Location</span><span class="pu-detail-value">{{ display.event_location }}</span></div>{% endif %}
+</div>
+{% endwith %}

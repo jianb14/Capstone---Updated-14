@@ -103,6 +103,59 @@
     margin: 0 auto;
 }
 
+/* Calendar load-failure fallback (galing sa booking_calendar_guard.js) —
+   lilitaw kapag hindi nag-render ang FullCalendar (CDN failure o JS error),
+   para hindi nakatagan ang calendar area sa "Loading…". */
+.calendar-load-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem 1.25rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    color: var(--white);
+}
+
+.calendar-load-error i {
+    font-size: 1.6rem;
+    color: #f77f00;
+}
+
+.calendar-load-error p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #d1d5db;
+}
+
+.calendar-reload-btn {
+    padding: 0.5rem 1.1rem;
+    background: #0d6efd;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.calendar-reload-btn:hover {
+    background: #0b5ed7;
+}
+
+[data-theme="light"] .calendar-load-error {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+    color: #111827;
+}
+
+[data-theme="light"] .calendar-load-error p {
+    color: #4b5563;
+}
+
 /* FullCalendar Reverted Overrides */
 #booking-calendar .fc {
     font-family: 'Montserrat', sans-serif;
@@ -1104,7 +1157,7 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
 .booking-picker-legend .lp-blocked { background: #b91c1c; }
 .booking-picker-legend .lp-full { background: #f59e0b; }
 .booking-picker-time {
-    max-height: 240px;
+    max-height: 340px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -1132,6 +1185,21 @@ html:not([data-theme="light"]) #booking-calendar .fc .fc-daygrid-day.booking-day
 }
 .booking-picker-timeopt:hover { border-color: rgba(255,255,255,0.35); }
 .booking-picker-timeopt.is-selected { background: rgba(255,255,255,0.16); color: #fff; }
+.booking-time-group-label {
+    position: static;
+    flex-shrink: 0;
+    padding: 10px 8px;
+    background: #17241e;
+    color: #a7f3d0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.5;
+    border-radius: 5px;
+}
+.booking-time-group-label.is-overtime { background: #302316; color: #fcd9a1; margin-top: 8px; }
+.booking-picker-timeopt.is-overtime { border-left: 2px solid #b78136; }
+[data-theme="light"] .booking-time-group-label { background: #edf6ef; color: #24623e; }
+[data-theme="light"] .booking-time-group-label.is-overtime { background: #fff4df; color: #86550b; }
 /* Hint sa ilalim ng Start/End kapag hindi pa pwedeng buksan ang dropdown
    (walang date, unavailable, o walang start para sa End). */
 .booking-picker-timehint {
@@ -1530,22 +1598,23 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 .package-card.selected::before {
     content: '';
     position: absolute;
-    top: 14px;
-    right: 14px;
+    top: 12px;
+    right: 12px;
     /* Inverted check (dark mode): PUTI ang bg, itim ang check icon — walang shadow */
     background: #ffffff;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     display: block;
+    z-index: 2;
 }
 
 .package-card.selected::before {
-    top: 14px !important;
+    top: 12px !important;
     left: auto !important;
-    right: 14px !important;
+    right: 12px !important;
     inset-inline-start: auto !important;
-    inset-inline-end: 14px !important;
+    inset-inline-end: 12px !important;
     transform: none !important;
     z-index: 2;
 }
@@ -1556,20 +1625,18 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     font-family: 'Font Awesome 6 Free';
     font-weight: 900;
     position: absolute;
-    top: 14px;
-    right: 14px;
+    top: 12px;
+    right: 12px;
     inset-inline-start: auto;
-    inset-inline-end: 14px;
+    inset-inline-end: 12px;
     transform: none;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     line-height: 1;
-    /* Kapalan ang check icon — manipis kaya lumalabo sa maliit na laki */
-    -webkit-text-stroke: 0.6px currentColor;
     color: #111827;
     z-index: 2;
 }
@@ -1591,9 +1658,39 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
     text-align: left;
 }
 
+/* ⏱️ Overtime notice (Step 2) — dilaw na paalala kapag lampas sa included */
+.booking-overtime-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #92400e;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+}
+.booking-overtime-notice[hidden] {
+    display: none !important;
+}
+.booking-overtime-notice i {
+    margin-top: 2px;
+    color: #d97706;
+    flex-shrink: 0;
+}
+[data-theme="light"] .booking-overtime-notice {
+    color: #78350f;
+    background: #fffbeb;
+    border-color: #fcd34d;
+}
+
 .booking-field-error {
     display: none !important;
     margin-top: 6px !important;
+
     color: #ef4444 !important;
     font-size: 0.75rem !important;
     line-height: 1.25 !important;
@@ -1907,8 +2004,7 @@ input[data-custom-picker="date"]::-webkit-calendar-picker-indicator {
 }
 
 .summary-divider {
-    width: 100%;
-    height: 1px;
+    display: none;
     background: #333;
     margin: 0.5rem 0;
 }

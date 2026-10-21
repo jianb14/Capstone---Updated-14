@@ -1,0 +1,11 @@
+{% load humanize %}
+<div class="pu-sum-row"><span>Original Booking Total</span><span>&#8369;{{ change.original_total|floatformat:2|intcomma }}</span></div>
+<div class="pu-sum-row"><span>Revised Booking Total</span><span>&#8369;{{ change.quoted_total|floatformat:2|intcomma }}</span></div>
+<div class="pu-sum-row"><span>Previous Verified Payments</span><span>&#8369;{{ change_verified_paid|floatformat:2|intcomma }}</span></div>
+<div class="pu-sum-divider"></div>
+<div class="pu-sum-total">
+    <span class="pu-sum-total-label">{% if pending_payment %}Additional Payment Submitted{% else %}Additional Amount Due{% endif %}</span>
+    <span class="pu-sum-total-value">&#8369;{{ change.additional_due|floatformat:2|intcomma }}</span>
+</div>
+<p class="pu-change-note">This payment covers the price difference for request #{{ change.id }}. Your previous verified payments remain credited. Your original booking stays in place until the additional payment is verified.</p>
+{% if change_existing_balance > 0 %}<p class="pu-change-note">Your original unpaid balance of <strong>&#8369;{{ change_existing_balance|floatformat:2|intcomma }}</strong> remains separate and can be settled through My Payments.</p>{% endif %}

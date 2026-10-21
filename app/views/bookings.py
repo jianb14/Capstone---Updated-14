@@ -1,8 +1,38 @@
 """Booking creation, editing, tracking and admin booking management. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
+from django.http import FileResponse
+from PIL import Image, UnidentifiedImageError
+from requests.exceptions import RequestException
 from .common import _booking_time_bounds, _cleanup_legacy_booking_request_states  # noqa: F401
 from .payments import _is_abandoned_paymongo_payment  # noqa: F401
+from ..geocoding import GeocodingUnavailable, reverse_place, search_places, valid_coordinates
+from ..booking_lifecycle import event_start_at, lifecycle_display, process_booking, set_approval_deadlines
+from ..booking_changes import change_context, eligibility, schedule_atomic, ensure_available
+
+
+@login_required
+@require_GET
+def booking_place_search(request):
+    query = (request.GET.get("q") or "").strip()[:255]
+    if len(query) < 3:
+        return JsonResponse({"results": []})
+    try:
+        return JsonResponse({"results": search_places(query)})
+    except GeocodingUnavailable:
+        return JsonResponse({"error": "Place search is unavailable. Please pin the venue on the map."}, status=503)
+
+
+@login_required
+@require_GET
+def booking_place_reverse(request):
+    lat, lng = request.GET.get("lat"), request.GET.get("lng")
+    if not valid_coordinates(lat, lng):
+        return JsonResponse({"error": "Invalid map coordinates."}, status=400)
+    try:
+        return JsonResponse({"results": reverse_place(float(lat), float(lng))})
+    except GeocodingUnavailable:
+        return JsonResponse({"error": "Address lookup is unavailable. Your pin is saved; type the venue address."}, status=503)
 
 
 # -------------------------
@@ -35,6 +65,7 @@ def booking_page(request):
     active_addons = AddOn.objects.filter(is_active=True).prefetch_related("preview_images")
     active_additionals = AdditionalOnly.objects.all().prefetch_related("preview_images")
     service_charge_config = get_service_charge_config()
+    logistics_origin = get_logistics_origin(service_charge_config)
 
     # Admin-blocked dates: ipapasa bilang listahan sa template — ang buong day
     # cell ay magiging gray na "Unavailable" + ban icon (booking-day-blocked),
@@ -54,14 +85,25 @@ def booking_page(request):
         start_dt = (
             datetime.combine(b.event_date, b.event_time) if b.event_time else None
         )
-        end_time_str = get_end_time_from_str(b.special_requests or "")
         end_dt = None
-        if end_time_str:
-            try:
-                end_time_obj = datetime.strptime(end_time_str, "%H:%M").time()
-                end_dt = datetime.combine(b.event_date, end_time_obj)
-            except ValueError:
-                pass
+        if start_dt:
+            # Priority: bagong end snapshot → legacy "(End Time: HH:MM)" tag →
+            # +4h default. Overnight: +1 day kapag end <= start.
+            if b.event_end_time:
+                end_date = b.event_end_date or b.event_date
+                end_dt = datetime.combine(end_date, b.event_end_time)
+            else:
+                _legacy_end_str = get_end_time_from_str(b.special_requests or "")
+                if _legacy_end_str:
+                    try:
+                        _legacy_end_obj = datetime.strptime(_legacy_end_str, "%H:%M").time()
+                        end_dt = datetime.combine(b.event_date, _legacy_end_obj)
+                    except ValueError:
+                        end_dt = None
+                if end_dt is None:
+                    end_dt = start_dt + timedelta(hours=4)
+            if end_dt <= start_dt:
+                end_dt += timedelta(days=1)
 
         # Define event color (Client side: All blocked slots appear blue)
         event_color = "#3b82f6"  # Blue for confirmed, completed, and pending_payment
@@ -78,25 +120,49 @@ def booking_page(request):
         # Server-side booked ranges para sa decoupled availability module
         # (static/js/booking_availability.js) — mirror ng client-side na
         # getBookedRangesForDate: iki-clip sa 07:00-18:00, walang end time ay
-        # +240 min default gaya ng server overlap check.
+        # +240 min default gaya ng server overlap check. Overnight bookings
+        # (end <= start) ay humahati: [start → 18:00] ngayong araw +
+        # [07:00 → end] sa susunod na araw.
         if b.event_date:
             date_key = b.event_date.isoformat()
             if b.event_time:
                 start_minutes = b.event_time.hour * 60 + b.event_time.minute
-                if end_time_str:
-                    try:
-                        end_parsed = datetime.strptime(end_time_str, "%H:%M").time()
-                        end_minutes = end_parsed.hour * 60 + end_parsed.minute
-                    except ValueError:
-                        end_minutes = start_minutes + 240
+                end_minutes = None
+                if b.event_end_time:
+                    end_minutes = b.event_end_time.hour * 60 + b.event_end_time.minute
                 else:
+                    _legacy_str = get_end_time_from_str(b.special_requests or "")
+                    if _legacy_str:
+                        try:
+                            end_parsed = datetime.strptime(_legacy_str, "%H:%M").time()
+                            end_minutes = end_parsed.hour * 60 + end_parsed.minute
+                        except ValueError:
+                            end_minutes = None
+                if end_minutes is None:
                     end_minutes = start_minutes + 240
-                clipped_start = max(start_minutes, 7 * 60)
-                clipped_end = min(end_minutes, 18 * 60)
-                if clipped_end > clipped_start:
-                    booked_ranges.setdefault(date_key, []).append(
-                        [clipped_start, clipped_end]
-                    )
+                overnight = end_minutes <= start_minutes
+
+                if overnight:
+                    # Span sa petsa ng booking: start → 18:00 (clipped)
+                    clipped_start = max(start_minutes, 7 * 60)
+                    if 18 * 60 > clipped_start:
+                        booked_ranges.setdefault(date_key, []).append(
+                            [clipped_start, 18 * 60]
+                        )
+                    # Span sa susunod na araw: 07:00 → end (clipped)
+                    next_date_key = (b.event_date + timedelta(days=1)).isoformat()
+                    clipped_end = min(end_minutes, 18 * 60)
+                    if clipped_end > 7 * 60:
+                        booked_ranges.setdefault(next_date_key, []).append(
+                            [7 * 60, clipped_end]
+                        )
+                else:
+                    clipped_start = max(start_minutes, 7 * 60)
+                    clipped_end = min(end_minutes, 18 * 60)
+                    if clipped_end > clipped_start:
+                        booked_ranges.setdefault(date_key, []).append(
+                            [clipped_start, clipped_end]
+                        )
 
     # Booking Step 2 preview images — kung ano ang makikita ng client
     # depende sa package/add-on/additional na pinili nya sa Step 1.
@@ -115,12 +181,15 @@ def booking_page(request):
         },
     }
 
-    availability_data = {
-        "blockedDates": blocked_dates_payload,
-        "bookedRanges": booked_ranges,
-        "todayIso": timezone.localdate().isoformat(),
-        "leadDays": SiteSettings.load().booking_lead_time_days or 0,
-    }
+    # ⏱️ Duration/overtime policy — ipinapasa sa JS (inline sa availability
+    # payload) para ma-label ang End dropdown at ma-compute ang overtime fee.
+    duration_policy = get_booking_duration_policy()
+    availability_data = get_booking_form_availability()
+
+    from ..booking_changes import live_holds
+    for hold in live_holds():
+        calendar_events.append({'title':'Temporarily reserved', 'start':timezone.localtime(hold.hold_start).isoformat(),
+            'end':timezone.localtime(hold.hold_end).isoformat(), 'color':'#b88742'})
 
     return render(
         request,
@@ -136,7 +205,17 @@ def booking_page(request):
             "active_additionals": active_additionals,
             "global_service_charge": service_charge_config.amount,
             "global_service_charge_note": service_charge_config.notes,
+            "logistics_config": {
+                "base": str(service_charge_config.amount or "0"),
+                "shop_lat": str(logistics_origin[0]) if logistics_origin else "",
+                "shop_lng": str(logistics_origin[1]) if logistics_origin else "",
+                "free_radius_km": str(service_charge_config.free_radius_km or "0"),
+                "per_km_rate": str(service_charge_config.per_km_rate or "0"),
+                "max_fee_cap": str(service_charge_config.max_fee_cap or "0"),
+            },
             "prefilled_design": prefilled_design,
+            "duration_policy": duration_policy,
+            "cavite_boundary": get_cavite_geometry(),
         },
     )
 
@@ -166,14 +245,25 @@ def admin_calendar(request):
         start_dt = (
             datetime.combine(b.event_date, b.event_time) if b.event_time else None
         )
-        end_time_str = get_end_time_from_str(b.special_requests or "")
+        # Priority: bagong end snapshot → legacy "(End Time: HH:MM)" tag →
+        # +4h default. Overnight: +1 day kapag end <= start.
         end_dt = None
-        if end_time_str:
-            try:
-                end_time_obj = datetime.strptime(end_time_str, "%H:%M").time()
-                end_dt = datetime.combine(b.event_date, end_time_obj)
-            except ValueError:
-                pass
+        if start_dt:
+            if b.event_end_time:
+                end_date = b.event_end_date or b.event_date
+                end_dt = datetime.combine(end_date, b.event_end_time)
+            else:
+                end_time_str = get_end_time_from_str(b.special_requests or "")
+                if end_time_str:
+                    try:
+                        end_time_obj = datetime.strptime(end_time_str, "%H:%M").time()
+                        end_dt = datetime.combine(b.event_date, end_time_obj)
+                    except ValueError:
+                        end_dt = None
+                if end_dt is None:
+                    end_dt = start_dt + timedelta(hours=4)
+            if end_dt <= start_dt:
+                end_dt += timedelta(days=1)
 
         # Include client name and time range in the title
         client_name = b.user.first_name or b.user.username
@@ -202,6 +292,17 @@ def admin_calendar(request):
                 "total_price": str(b.total_price),
             }
         )
+
+    from ..booking_changes import live_holds
+    for hold in live_holds():
+        start, end = timezone.localtime(hold.hold_start), timezone.localtime(hold.hold_end)
+        calendar_events.append({'title':f'Change request #{hold.pk} · Temporarily reserved',
+            'start':start.isoformat(), 'end':end.isoformat(), 'color':'#b88742', 'booking_id':hold.booking_id,
+            'client_name':hold.booking.user.get_full_name() or hold.booking.user.username,
+            'event_type':'Proposed booking change', 'event_location':hold.proposed.get('event_location',''),
+            'package_type':hold.proposed.get('package_type',''), 'status':'Temporary hold', 'status_raw':'temporary_hold',
+            'time_range':f'{start:%I:%M %p} – {end:%I:%M %p}', 'event_date':start.strftime('%B %d, %Y'),
+            'total_price':str(hold.quoted_total)})
 
     # Blocked dates appear as red "Unavailable" events
     blocked_dates = BlockedDate.objects.select_related("created_by").all()
@@ -248,6 +349,7 @@ def admin_calendar(request):
 
 @login_required
 @require_POST
+@schedule_atomic
 def admin_blocked_date_create(request):
     """Create a blockout date that clients cannot book."""
     if request.user.role not in ["admin", "staff"]:
@@ -269,6 +371,11 @@ def admin_blocked_date_create(request):
     if blocked_date < timezone.localdate():
         messages.error(request, "Cannot block a date in the past.")
         return redirect("admin_calendar")
+
+    from ..booking_changes import live_holds
+    if any(timezone.localtime(hold.hold_start).date() <= blocked_date <= timezone.localtime(hold.hold_end - timedelta(microseconds=1)).date() for hold in live_holds()):
+        messages.error(request, 'This date has a temporary hold for an approved change quote. Resolve the quote before blocking this date.')
+        return redirect('admin_calendar')
 
     # 🔴 OPTION A — Conflict-aware block: pinapayagan nang i-block ang date na
     # may laman BASTA may explicit confirmation ("Block Anyway") ng admin.
@@ -365,7 +472,8 @@ def _parse_optional_coord(value):
     if not raw:
         return None
     try:
-        return Decimal(raw)
+        parsed = Decimal(raw)
+        return parsed if parsed.is_finite() else None
     except (InvalidOperation, ValueError):
         return None
 
@@ -400,6 +508,7 @@ def _validate_design_preferences(theme, palette):
 
 
 @login_required
+@schedule_atomic
 def create_booking(request):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
@@ -410,6 +519,7 @@ def create_booking(request):
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
         event_date = request.POST.get("event_date")
+        booking_date = None
         special_requests = request.POST.get("special_requests", "")
         special_requests = remove_end_time_tag(special_requests)  # Clean up
 
@@ -442,6 +552,7 @@ def create_booking(request):
         # Validation for past dates/times
         now = timezone.localtime(timezone.now())
         today = now.date()
+        overtime_info = None  # ma-i-init bago ang date block (kapag walang date)
 
         if event_date:
             booking_date = datetime.strptime(event_date, "%Y-%m-%d").date()
@@ -497,61 +608,36 @@ def create_booking(request):
                         messages.error(request, _past_msg)
                         return redirect("booking_page")
 
-            # 3. Minimum Duration Check (2 hours)
+            # 3. Duration & overtime policy (SiteSettings-driven):
+            #    min 2h (default), included 3h (default), lampas → +rate/hr,
+            #    max 24h (overnight allowed — end pwedeng lumagpas ng 6:00 PM).
+            overtime_info = None
             if start_time and end_time:
-                booking_start_dt = datetime.combine(
-                    today, datetime.strptime(start_time, "%H:%M").time()
+                overtime_info = compute_overtime(
+                    start_time, end_time, start_date=booking_date
                 )
-                booking_end_dt = datetime.combine(
-                    today, datetime.strptime(end_time, "%H:%M").time()
-                )
-
-                # Handle cases where end time is crossing midnight (though forms usually restrict this)
-                if booking_end_dt <= booking_start_dt:
-                    booking_end_dt += timedelta(days=1)
-
-                duration = booking_end_dt - booking_start_dt
-                if duration < timedelta(hours=2):
-                    error_msg = "Please choose an end time that is at least 2 hours after the start time."
+                if overtime_info["error"]:
+                    error_msg = overtime_info["error"]
                     if is_ajax:
                         return JsonResponse({"success": False, "message": error_msg})
                     messages.error(request, error_msg)
                     return redirect("booking_page")
 
-            # 3A. Validate Time Between 7:00 AM and 6:00 PM
-            if start_time and end_time:
+            # 3A. Start window: 7:00 AM – 6:00 PM (operating hours).
+            #     Ang END ay hindi na binobound sa 6:00 PM — pwedeng overnight
+            #     basta't hindi lalampas sa max duration (na-check sa itaas).
+            if start_time:
                 start_dt = datetime.strptime(start_time, "%H:%M")
-                end_dt = datetime.strptime(end_time, "%H:%M")
-                
-                start_hour = start_dt.hour
-                start_minute = start_dt.minute
-                end_hour = end_dt.hour
-                end_minute = end_dt.minute
-                
-                if start_hour < 7 or start_hour >= 18:
+
+                if start_dt.hour < 7 or start_dt.hour >= 18:
                     error_msg = "Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range."
                     if is_ajax:
                         return JsonResponse({"success": False, "message": error_msg})
                     messages.error(request, error_msg)
                     return redirect("booking_page")
-            
-                if end_hour < 7 or end_hour > 18 or (end_hour == 18 and end_minute != 0):
-                    error_msg = "Booking hours are 7:00 AM to 6:00 PM only. End time must be between 7:00 AM and 6:00 PM."
-                    if is_ajax:
-                        return JsonResponse({"success": False, "message": error_msg})
-                    messages.error(request, error_msg)
-                    return redirect("booking_page")
 
-                # Check for midnight crossing / reversed range after hours validation
-                crosses_midnight = (end_hour < start_hour) or (end_hour == start_hour and end_minute <= start_minute)
-                if crosses_midnight:
-                    error_msg = "End time must be later than start time on the same day."
-                    if is_ajax:
-                        return JsonResponse({"success": False, "message": error_msg})
-                    messages.error(request, error_msg)
-                    return redirect("booking_page")
 
-            # 4. Double Booking / Overlap Check
+            # 4. Double Booking / Overlap Check (overnight-aware)
             if start_time and end_time:
                 new_start = datetime.combine(
                     booking_date, datetime.strptime(start_time, "%H:%M").time()
@@ -559,10 +645,13 @@ def create_booking(request):
                 new_end = datetime.combine(
                     booking_date, datetime.strptime(end_time, "%H:%M").time()
                 )
+                if new_end <= new_start:
+                    new_end += timedelta(days=1)  # overnight booking
 
-                # Get active bookings for this date (Approved, confirmed, or completed bookings block new bookings)
+                # Kasama ang bookings sa susunod na araw — pwedeng masakop
+                # ng overnight booking ang madaling-araw ng katabing petsa.
                 existing_bookings = Booking.objects.filter(
-                    event_date=booking_date,
+                    event_date__in=[booking_date, booking_date + timedelta(days=1)],
                     status__in=["pending_payment", "confirmed", "completed"]
                 )
 
@@ -570,17 +659,11 @@ def create_booking(request):
                     if not b.event_time:
                         continue
 
-                    b_start = datetime.combine(booking_date, b.event_time)
-                    # Extract end time from stored string or default to +4 hours
-                    b_end_str = get_end_time_from_str(b.special_requests)
-                    if b_end_str:
-                        b_end = datetime.combine(
-                            booking_date, datetime.strptime(b_end_str, "%H:%M").time()
-                        )
-                    else:
-                        b_end = b_start + timedelta(
-                            hours=4
-                        )  # Default duration assumption
+                    # Galing sa shared helper: nasusundan ang stored end
+                    # snapshot + overnight (+1 day) rule.
+                    b_start, b_end = _booking_time_bounds(b)
+                    if not b_start or not b_end:
+                        continue
 
                     # Check for Overlap: (StartA < EndB) and (EndA > StartB)
                     if new_start < b_end and new_end > b_start:
@@ -596,6 +679,16 @@ def create_booking(request):
                             )
                         messages.error(request, error_msg)
                         return redirect("booking_page")
+
+        if booking_date and start_time and end_time:
+            try:
+                candidate = Booking(event_date=booking_date, event_time=datetime.strptime(start_time, '%H:%M').time(), event_end_time=datetime.strptime(end_time, '%H:%M').time())
+                ensure_available(candidate)
+            except ValidationError as exc:
+                if is_ajax:
+                    return JsonResponse({'success':False, 'message':' '.join(exc.messages)})
+                messages.error(request, ' '.join(exc.messages))
+                return redirect('booking_page')
 
         # 4. Validate total_price
         try:
@@ -620,7 +713,9 @@ def create_booking(request):
             messages.error(request, error_msg)
             return redirect("booking_page")
 
-        # Step 3 map coords (optional; kapag isa lang ang laman, pareho → None)
+        # Step 3 map coords (SMART-REQUIRED: kailangan may pin kapag buhay
+        # ang map — anti-tamper laban sa DevTools bypass ng frontend gate.
+        # Kapag patay ang map (map_available=0), tuloy sa base + admin review.)
         event_lat = _parse_optional_coord(request.POST.get("event_lat"))
         event_lng = _parse_optional_coord(request.POST.get("event_lng"))
         if (event_lat is None) != (event_lng is None):
@@ -630,7 +725,18 @@ def create_booking(request):
         if event_lng is not None and not Decimal("-180") <= event_lng <= Decimal("180"):
             event_lng = None
 
-        # Step 3 strength (map pa rin OPTIONAL): address min 10 chars para
+        # 📍 Smart-required pin (backend gate): kapag buhay ang map pero
+        # walang pin, i-reject — hindi pwedeng i-bypass sa DevTools.
+        # Kapag map_available=0 (CDN fail), tuloy sa base + admin review.
+        map_available = (request.POST.get("map_available") or "1").strip()
+        if (event_lat is None or event_lng is None) and map_available != "0":
+            error_msg = "Please drop a pin or pick from search so we can compute your exact logistics fee."
+            if is_ajax:
+                return JsonResponse({"success": False, "message": error_msg})
+            messages.error(request, error_msg)
+            return redirect("booking_page")
+
+        # Step 3 strength (smart-required pin sa itaas): address min 10 chars para
         # hindi makalusot ang one-word entries tulad ng "QC".
         event_location = (request.POST.get("event_location") or "").strip()
         if len(event_location) < 10:
@@ -650,10 +756,30 @@ def create_booking(request):
             messages.error(request, design_error)
             return redirect("booking_page")
 
+        quote = compute_logistics_quote(event_lat, event_lng)
+        if quote["in_cavite"] is False and not quote["configured"]:
+            error_msg = "We couldn't calculate logistics for this venue location. Please contact our team before continuing."
+            if is_ajax:
+                return JsonResponse({"success": False, "message": error_msg})
+            messages.error(request, error_msg)
+            return redirect("booking_page")
+
+        # ⏱️ I-parse ang event_date string → date object BAGO ang create.
+        # Django coerces ito sa DB write, pero ang Python-side attribute ay
+        # nananatiling string hangga't hindi nire-refresh mula sa DB — kaya
+        # kailangan itong date object para sa date-vs-date comparisons
+        # (hal. get_booking_time_range: event_end_date > event_date).
+        _event_date_obj = None
+        if event_date:
+            try:
+                _event_date_obj = datetime.strptime(event_date, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                _event_date_obj = None
+
         booking = Booking.objects.create(
             user=request.user,
             event_type=request.POST.get("event_type"),
-            event_date=event_date,
+            event_date=_event_date_obj or event_date,
             event_time=start_time,  # Save start time to event_time field
             event_location=event_location,
             package_type=request.POST.get("package_type"),
@@ -668,6 +794,52 @@ def create_booking(request):
             color_palette=color_palette,
             motto_text=_clean_optional_field(request.POST.get("motto_text"), 150),
         )
+
+        # ⏱️ Duration/overtime snapshot — galing sa validated compute_overtime
+        # (lahat ng validation sa itaas ay pumasa kung umabot dito). Ang
+        # _event_date_obj ay na-parse na bago ang create sa itaas.
+        if overtime_info is None and start_time and end_time:
+            overtime_info = compute_overtime(
+                start_time, end_time, start_date=_event_date_obj
+            )
+
+        # 🚚 Logistics quote (distance-based) — i-snapshot sa booking para
+        # hindi na magbago kung i-edit ni admin ang fee config mamaya.
+        booking.logistics_distance_km = quote["distance_km"]
+        booking.logistics_fee = quote["total"]
+
+        # ⏱️ Overtime snapshot + end datetime (overnight-aware)
+        if overtime_info and not overtime_info["error"]:
+            booking.duration_minutes = overtime_info["duration_minutes"]
+            booking.overtime_hours = overtime_info["overtime_hours"]
+            booking.overtime_fee = overtime_info["overtime_fee"]
+            if end_time:
+                _start_time_obj = (
+                    datetime.strptime(start_time, "%H:%M").time()
+                    if start_time else None
+                )
+                _end_time_obj = datetime.strptime(end_time, "%H:%M").time()
+                booking.event_end_time = _end_time_obj
+                if _event_date_obj and _start_time_obj is not None:
+                    booking.event_end_date = _event_date_obj + (
+                        timedelta(days=1) if _end_time_obj <= _start_time_obj
+                        else timedelta(days=0)
+                    )
+
+        # 🔒 Server-side total recompute (anti-tamper): kapag na-parse ang
+        # package parts, ang backend computation ang masusunod — hindi ang
+        # total na galing sa JS/DevTools. Fallback: posted total (custom
+        # bookings na walang kilalang package name).
+        capture_booking_fee_policy(booking, quote)
+        breakdown = get_booking_price_breakdown(booking)
+        if breakdown["subtotal"] > 0:
+            booking.total_price = breakdown["computed_total"]
+        booking.save(update_fields=[
+            "logistics_distance_km", "logistics_fee", "total_price",
+            "duration_minutes", "overtime_hours", "overtime_fee",
+            "event_end_date", "event_end_time",
+            "fee_policy_snapshot",
+        ])
 
         # Initial status history entry
         log_booking_status(
@@ -759,55 +931,109 @@ def create_booking(request):
 # -------------------------
 
 @login_required
+@require_GET
 def view_booking(request, id):
-    check_booking_expirations()
+    """Compatibility URL: customer booking details live only in My Bookings modals."""
     booking = get_object_or_404(Booking, id=id)
-
     if request.user != booking.user:
         return HttpResponseForbidden("Not allowed")
+    mode = "design" if request.GET.get("modal") == "design" else "details"
+    return redirect(f"{reverse('customer_profile')}?booking_id={booking.id}&modal={mode}")
 
+
+@login_required
+@require_GET
+def booking_modal_content(request, id):
+    """The single customer details/design renderer. Never reprice on read."""
+    booking = get_object_or_404(Booking, id=id)
+    if request.user.role != "customer" or request.user != booking.user:
+        return HttpResponseForbidden("Not allowed")
+    section = request.GET.get("section", "details")
+    if section not in ("details", "design"):
+        return HttpResponse("Unknown booking section.", status=400)
+    from .profiles import _sync_customer_booking_payment_states
+    _sync_customer_booking_payment_states(request.user)
+    check_booking_expirations()
+    booking = Booking.objects.prefetch_related("images", "designs", "design_deliveries", "payments", "change_requests__payments").get(pk=booking.pk)
     booking.time_range_display = get_booking_time_range(booking)
+    booking.schedule = get_booking_schedule(booking)
+    booking.price_breakdown = get_booking_display_breakdown(booking)
     payment_history = [
         pay
-        for pay in booking.payments.select_related("verified_by").order_by("-created_at")
+        for pay in booking.payments.all()
         if not _is_abandoned_paymongo_payment(pay)
     ]
     # payment_history ay Python list (filtered na), kaya hindi pwedeng
     # gamitin ang .filter() — i-sum na lang direkta ang verified amounts
     total_verified_paid = sum(
-        (pay.amount for pay in payment_history if pay.payment_status == "verified"),
+        (pay.amount for pay in payment_history if pay.payment_status == "verified" and pay.applied_to_booking),
         Decimal("0.00"),
     )
     remaining_balance = (booking.total_price or Decimal("0.00")) - total_verified_paid
     cleaned_requests = remove_end_time_tag(booking.special_requests or "")
-    source = (request.GET.get("from") or "").strip().lower()
-    if source == "my_payments":
-        back_url = reverse("my_payments")
-        back_label = "Back to My Payments"
-    else:
-        back_url = reverse("customer_profile")
-        back_label = "Back to Dashboard"
     tracker_steps, tracker_message, tracker_message_state, tracker_failed = build_booking_tracker(
         booking, has_verified_payment=total_verified_paid > 0
     )
+    lifecycle = lifecycle_display(booking)
+    if booking.status == 'pending_payment' and lifecycle['awaiting_verification']:
+        tracker_message = 'Your payment has been submitted. Our team is verifying it.'
+        tracker_message_state = 'info'
+        tracker_steps[1]['note'] = 'Awaiting verification'
 
-    return render(
+    response = render(
         request,
-        "client/booking/booking_detail.html",
+        "client/booking/_details_content.html" if section == "details" else "client/booking/_event_design.html",
         {
             "booking": booking,
             "payment_history": payment_history,
             "total_verified_paid": total_verified_paid,
             "remaining_balance": remaining_balance,
+            "overpaid_amount": max(-remaining_balance, Decimal("0.00")),
             "cleaned_requests": cleaned_requests,
-            "back_url": back_url,
-            "back_label": back_label,
             "tracker_steps": tracker_steps,
             "tracker_message": tracker_message,
             "tracker_message_state": tracker_message_state,
             "tracker_failed": tracker_failed,
+            "lifecycle": lifecycle,
+            **change_context(booking),
         },
     )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@require_GET
+def booking_design_download(request, id, design_id):
+    booking = get_object_or_404(Booking, id=id)
+    if request.user != booking.user:
+        return HttpResponseForbidden("Not allowed")
+    delivery = get_object_or_404(BookingDesignDelivery, id=design_id, booking=booking)
+    if not delivery.image:
+        raise Http404("Design image is no longer available.")
+    image_file = None
+    try:
+        image_file = delivery.image.open("rb")
+        image_format = Image.open(image_file).format
+        extension, content_type = {
+            "JPEG": ("jpg", "image/jpeg"),
+            "PNG": ("png", "image/png"),
+            "WEBP": ("webp", "image/webp"),
+        }[image_format]
+        image_file.seek(0)
+    except FileNotFoundError:
+        if image_file:
+            image_file.close()
+        raise Http404("Design image is no longer available.")
+    except (OSError, RequestException, UnidentifiedImageError, KeyError):
+        if image_file:
+            image_file.close()
+        logger.warning("Design download unavailable for delivery %s", delivery.id)
+        return HttpResponse("This design is temporarily unavailable. Please try again later.", status=503)
+    response = FileResponse(image_file, as_attachment=True,
+        filename=f"booking-{booking.id}-event-design-{delivery.id}.{extension}", content_type=content_type)
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 # -------------------------
@@ -815,13 +1041,16 @@ def view_booking(request, id):
 # -------------------------
 
 @login_required
+@schedule_atomic
 def edit_booking(request, id):
     booking = get_object_or_404(Booking, id=id)
 
     if request.user != booking.user:
         return HttpResponseForbidden("Not allowed")
 
-    # Confirmed bookings are final. Only pending bookings can still be edited.
+    if booking.status in ('pending_payment', 'confirmed'):
+        return redirect('request_booking_change', booking_id=booking.pk)
+    # Pending bookings retain direct editing; approved bookings use proposals.
     if booking.status != "pending":
         messages.error(
             request,
@@ -908,43 +1137,49 @@ def edit_booking(request, id):
                     return redirect("edit_booking", id=id)
 
         if start_time and end_time:
-            new_start = datetime.combine(
-                booking_date, datetime.strptime(start_time, "%H:%M").time()
+            # ⏱️ Duration & overtime policy (same rules sa create_booking):
+            # min/included/max hours + rate galing sa SiteSettings. Ang END
+            # ay hindi na bound sa 6:00 PM — pwedeng overnight hanggang max.
+            overtime_info = compute_overtime(
+                start_time, end_time, start_date=booking_date
             )
-            new_end = datetime.combine(
-                booking_date, datetime.strptime(end_time, "%H:%M").time()
-            )
+            if overtime_info["error"]:
+                messages.error(request, overtime_info["error"])
+                return redirect("edit_booking", id=id)
 
-            # Handle cases where end time is crossing midnight
-            booking_end_dt_calc = new_end
-            if booking_end_dt_calc <= new_start:
-                booking_end_dt_calc += timedelta(days=1)
-
-            if (booking_end_dt_calc - new_start) < timedelta(hours=2):
+            # Start window: 7:00 AM – 6:00 PM (operating hours).
+            start_dt_obj = datetime.strptime(start_time, "%H:%M")
+            if start_dt_obj.hour < 7 or start_dt_obj.hour >= 18:
                 messages.error(
                     request,
-                    "Please choose an end time that is at least 2 hours after the start time.",
+                    "Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.",
                 )
                 return redirect("edit_booking", id=id)
 
+            new_start = datetime.combine(booking_date, start_dt_obj.time())
+            new_end = datetime.combine(
+                booking_date, datetime.strptime(end_time, "%H:%M").time()
+            )
+            if new_end <= new_start:
+                new_end += timedelta(days=1)  # overnight
+
+            # Kasama ang bookings sa susunod na araw (overnight overlap).
             existing_bookings = (
-                Booking.objects.filter(event_date=booking_date)
+                Booking.objects.filter(
+                    event_date__in=[booking_date, booking_date + timedelta(days=1)]
+                )
                 .exclude(id=booking.id)
                 .filter(status__in=["pending_payment", "confirmed", "completed"])
             )
             for b in existing_bookings:
-                b_start = datetime.combine(booking_date, b.event_time)
-                b_end_str = get_end_time_from_str(b.special_requests)
-                b_end = (
-                    datetime.combine(
-                        booking_date, datetime.strptime(b_end_str, "%H:%M").time()
-                    )
-                    if b_end_str
-                    else b_start + timedelta(hours=4)
-                )
+                if not b.event_time:
+                    continue
+                b_start, b_end = _booking_time_bounds(b)
+                if not b_start or not b_end:
+                    continue
 
                 if new_start < b_end and new_end > b_start:
-                    existing_start = format_time_12h(b_start.time())
+                    existing_start = format_time_12h(b.event_time)
                     existing_end = format_time_12h(b_end.time())
                     messages.error(
                         request,
@@ -952,7 +1187,6 @@ def edit_booking(request, id):
                         f"Please choose a different time.",
                     )
                     return redirect("edit_booking", id=id)
-        # -----------------------------------------
 
         if end_time:
             special_requests = f"{special_requests}\n(End Time: {end_time})".strip()
@@ -972,10 +1206,21 @@ def edit_booking(request, id):
         booking.special_requests = special_requests
         booking.total_price = total_price_val
 
+        # ⏱️ Overtime + end snapshot (kahit grandfather/legacy submit — laging
+        # na-recompute mula sa napiling start/end, overnight-aware).
+        if start_time and end_time and not overtime_info["error"]:
+            booking.duration_minutes = overtime_info["duration_minutes"]
+            booking.overtime_hours = overtime_info["overtime_hours"]
+            booking.overtime_fee = overtime_info["overtime_fee"]
+            _start_t = datetime.strptime(start_time, "%H:%M").time()
+            _end_t = datetime.strptime(end_time, "%H:%M").time()
+            booking.event_end_time = _end_t
+            booking.event_end_date = booking_date + (
+                timedelta(days=1) if _end_t <= _start_t else timedelta(days=0)
+            )
+
         # 📍🎨 Bagong Step 3/4 fields — INA-UPDATE LAMANG kapag kasama sa POST.
-        # WIPE-GUARD: ang legacy booking_form.html (hindi pa na-upgrade na
-        # edit surface) ay walang mga field na ito — hindi nila dapat burahin
-        # ang lalong na-save na mapa/design data ng booking.
+        # Partial POSTs must preserve existing optional map/design fields.
         if "venue_landmark" in request.POST:
             booking.venue_landmark = _clean_optional_field(
                 request.POST.get("venue_landmark"), 255
@@ -1006,9 +1251,31 @@ def edit_booking(request, id):
                 new_lng = None
             booking.event_lat = new_lat
             booking.event_lng = new_lng
+            # 📍 Smart-required pin (edit gate): kapag binubuksan ang edit
+            # gamit ang bagong modal (may event_lat/lng keys) pero tinanggal
+            # ang pin, i-reject — legacy form na walang keys ay hindi apektado.
+            edit_map_flag = (request.POST.get("map_available") or "1").strip()
+            if (new_lat is None or new_lng is None) and edit_map_flag != "0":
+                messages.error(
+                    request,
+                    "Please drop a pin or pick from search so we can compute your exact logistics fee.",
+                )
+                return redirect("edit_booking", id=id)
+
+        if "event_lat" in request.POST or "event_lng" in request.POST:
+            quote = compute_logistics_quote(booking.event_lat, booking.event_lng)
+            if quote["in_cavite"] is False and not quote["configured"]:
+                messages.error(request, "We couldn't calculate logistics for this venue location. Please contact our team before continuing.")
+                return redirect("edit_booking", id=id)
 
         if request.FILES.get("reference_image"):
             booking.reference_image = request.FILES.get("reference_image")
+
+        try:
+            ensure_available(booking)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return redirect('edit_booking', id=id)
 
         # Remove deleted images
         remove_images = request.POST.getlist("remove_images[]")
@@ -1038,22 +1305,26 @@ def edit_booking(request, id):
         for img in new_images[:allowed_new]:
             BookingImage.objects.create(booking=booking, image=img)
 
+        # 🔒 Server-side total recompute (anti-tamper — pareho ng create):
+        # subtotal + logistics + overtime ang masusunod, hindi ang posted total.
+        if "event_lat" in request.POST or "event_lng" in request.POST:
+            quote = compute_logistics_quote(booking.event_lat, booking.event_lng)
+            booking.logistics_distance_km = quote["distance_km"]
+            booking.logistics_fee = quote["total"]
+        capture_booking_fee_policy(booking,
+            quote if "event_lat" in request.POST or "event_lng" in request.POST else None,
+            refresh_logistics="event_lat" in request.POST or "event_lng" in request.POST)
+        breakdown = get_booking_price_breakdown(booking)
+        if breakdown["subtotal"] > 0:
+            booking.total_price = breakdown["computed_total"]
+
         booking.save()
 
         log_action(request.user, f"Edited booking #{booking.id}.")
         messages.success(request, "Booking updated successfully!")
         return redirect("customer_profile")
 
-    lead_days, min_bookable_date = get_booking_lead_time_policy()
-    return render(
-        request,
-        "client/booking/booking_form.html",
-        {
-            "booking": booking,
-            "booking_lead_time_days": lead_days,
-            "min_bookable_date": min_bookable_date.isoformat(),
-        },
-    )
+    return redirect(f"{reverse('customer_profile')}?open_edit={booking.pk}")
 
 
 # -------------------------
@@ -1092,6 +1363,13 @@ def admin_booking_list(request):
     check_booking_expirations()
     _cleanup_legacy_booking_request_states()
 
+    from .change_management import change_queue_summary, request_list_context
+    change_summary = change_queue_summary()
+    if request.GET.get('tab') == 'requests':
+        response = render(request, 'admin/booking/admin_booking_list.html', request_list_context(request, change_summary))
+        response['Cache-Control'] = 'private, no-store'
+        return response
+
     booking_summary = {
         "total": Booking.objects.count(),
         "pending": Booking.objects.filter(status="pending").count(),
@@ -1103,7 +1381,7 @@ def admin_booking_list(request):
     }
 
     status_filter = request.GET.get("status")
-    bookings = Booking.objects.order_by("-created_at")
+    bookings = Booking.objects.order_by("-created_at").prefetch_related('payments', 'design_deliveries', 'change_requests')
 
     if status_filter:
         bookings = bookings.filter(status=status_filter)
@@ -1150,6 +1428,7 @@ def admin_booking_list(request):
     # Attach formatted time range for display
     for b in bookings_page:
         b.time_range_display = get_booking_time_range(b)
+        b.lifecycle = lifecycle_display(b)
 
     # Conflict badges: check page rows against active bookings (pending_payment/
     # confirmed/completed) on the same dates with overlapping time ranges.
@@ -1194,6 +1473,8 @@ def admin_booking_list(request):
             "date_from": date_from,
             "date_to": date_to,
             "booking_summary": booking_summary,
+            "active_tab": "bookings",
+            "change_summary": change_summary,
         },
     )
 
@@ -1212,10 +1493,17 @@ def admin_booking_detail(request, id):
 
     # Clean up special requests for display to hide the end time tag
     cleaned_requests = remove_end_time_tag(booking.special_requests or "")
-    price_breakdown = get_booking_price_breakdown(booking)
+    price_breakdown = get_booking_display_breakdown(booking)
+    original_logistics_fee = (booking.logistics_fee if booking.logistics_fee is not None
+        else compute_logistics_quote(booking.event_lat, booking.event_lng)["total"])
 
     # Status history timeline
     status_logs = booking.status_logs.select_related("changed_by").all()
+    request_context = change_context(booking)
+    if request_context['change_request']:
+        from .change_management import decorate_change
+        active_request = decorate_change(request_context['change_request'])
+        request_context['change_status_label'] = active_request.admin_status_label
 
     return render(
         request,
@@ -1224,9 +1512,201 @@ def admin_booking_detail(request, id):
             "booking": booking,
             "cleaned_requests": cleaned_requests,
             "price_breakdown": price_breakdown,
+            "original_logistics_fee": original_logistics_fee,
             "status_logs": status_logs,
+            "lifecycle": lifecycle_display(booking),
+            **request_context,
         },
     )
+
+
+# =========================
+# ADMIN — LOGISTICS FEE OVERRIDE (toll/traffic edge case)
+# =========================
+@login_required
+@require_POST
+@transaction.atomic
+def admin_booking_logistics_override(request, id):
+    """Admin/staff manual logistics fee — override/clear + recompute ng total."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
+    previous_fee, _ = get_booking_logistics_fee(booking)
+    if booking.change_requests.filter(status__in=('pending_review', 'quoted', 'awaiting_payment', 'manual_review')).exists():
+        messages.error(request, 'Resolve the active change request before changing the logistics fee, so its accepted quote stays accurate.')
+        return redirect('admin_booking_detail', id=booking.pk)
+    raw = (request.POST.get("logistics_fee_override") or "").strip()
+    clearing = request.POST.get("action") == "reset" or not raw
+    if clearing:
+        booking.logistics_fee_override = None
+        action_note = "cleared the logistics fee override"
+    else:
+        try:
+            override = Decimal(raw)
+        except (InvalidOperation, ValueError, TypeError):
+            messages.error(request, "Invalid logistics fee.")
+            return redirect("admin_booking_detail", id=booking.id)
+        if not override.is_finite() or override < 0 or override > Decimal("99999999.99") or override != override.quantize(Decimal("0.01")):
+            messages.error(request, "Logistics fee must be between 0 and 99,999,999.99.")
+            return redirect("admin_booking_detail", id=booking.id)
+        booking.logistics_fee_override = override
+        action_note = f"set the logistics fee override to PHP {override:,.2f}"
+
+    current_fee, _ = get_booking_logistics_fee(booking)
+    booking.total_price = booking.total_price - previous_fee + current_fee
+    booking.save(update_fields=["logistics_fee_override", "total_price"])
+    log_action(request.user, f"{request.user.username} {action_note} for booking #{booking.id}.")
+    log_booking_status(
+        booking, booking.status, booking.status,
+        changed_by=request.user, notes=f"Logistics fee override updated ({action_note}).",
+    )
+    messages.success(request, f"Override removed. Logistics fee restored to ₱{current_fee:,.2f}." if clearing else "Logistics fee updated.")
+    return redirect("admin_booking_detail", id=booking.id)
+
+
+# =========================
+# ADMIN — BACKDROP DESIGN DELIVERY (admin → customer, post-payment)
+# =========================
+DESIGN_DELIVERY_MAX_BYTES = 5 * 1024 * 1024  # 5MB (kapareho ng chat images)
+DESIGN_DELIVERY_MAX_IMAGES = 3
+DESIGN_DELIVERY_ALLOWED_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+DESIGN_DELIVERY_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def _validate_design_delivery_image(uploaded_file):
+    """Balik error message kapag invalid ang design delivery image, else ''."""
+    if not uploaded_file:
+        return "Please choose a design image to upload."
+
+    if uploaded_file.size > DESIGN_DELIVERY_MAX_BYTES:
+        return "Image must be 5MB or smaller."
+
+    content_type = (getattr(uploaded_file, "content_type", "") or "").lower()
+    extension = os.path.splitext(uploaded_file.name or "")[1].lower()
+    if (
+        content_type not in DESIGN_DELIVERY_ALLOWED_CONTENT_TYPES
+        or extension not in DESIGN_DELIVERY_ALLOWED_EXTENSIONS
+    ):
+        return "Only JPG, PNG, or WEBP images are allowed."
+
+    try:
+        position = uploaded_file.tell()
+    except Exception:
+        position = None
+
+    try:
+        width, height = get_image_dimensions(uploaded_file)
+    except Exception:
+        return "Upload a valid image file."
+    finally:
+        if position is not None:
+            try:
+                uploaded_file.seek(position)
+            except Exception:
+                pass
+
+    if not width or not height:
+        return "Upload a valid image file."
+    return ""
+
+
+@login_required
+@require_POST
+def admin_booking_design_upload(request, id):
+    """Admin/staff → mag-upload ng backdrop design MATAGAL na bayad
+    (status confirmed/completed lang, hindi pa-confirmed na pending)."""
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    booking = get_object_or_404(Booking, id=id)
+
+    if booking.status not in ("confirmed", "completed"):
+        messages.error(
+            request,
+            "Design can only be uploaded once the booking is paid/confirmed.",
+        )
+        return redirect("admin_booking_detail", id=booking.id)
+
+    if booking.design_deliveries.count() >= DESIGN_DELIVERY_MAX_IMAGES:
+        messages.error(
+            request,
+            f"Maximum of {DESIGN_DELIVERY_MAX_IMAGES} design images per booking. "
+            "Delete one first to replace it.",
+        )
+        return redirect("admin_booking_detail", id=booking.id)
+
+    uploaded = request.FILES.get("design_image")
+    error = _validate_design_delivery_image(uploaded)
+    if error:
+        messages.error(request, error)
+        return redirect("admin_booking_detail", id=booking.id)
+
+    caption = (request.POST.get("caption") or "").strip()[:255]
+    delivery = BookingDesignDelivery.objects.create(
+        booking=booking,
+        image=uploaded,
+        caption=caption,
+        uploaded_by=request.user,
+    )
+
+    # Audit + status log + notify customer na may design na siya
+    log_action(
+        request.user,
+        f"Uploaded backdrop design for booking #{booking.id} (design #{delivery.id}).",
+    )
+    log_booking_status(
+        booking,
+        booking.status,
+        booking.status,
+        changed_by=request.user,
+        notes="Backdrop design uploaded and delivered to customer.",
+    )
+    Notification.objects.create(
+        user=booking.user,
+        booking=booking,
+        message=(
+            f"Your backdrop design for booking #{booking.id} is ready! "
+            "Open your booking details to view and download it. 🎨"
+        ),
+    )
+
+    messages.success(request, "Backdrop design uploaded and sent to the customer.")
+    return redirect("admin_booking_detail", id=booking.id)
+
+
+@login_required
+@require_POST
+def admin_booking_design_delete(request, id, design_id):
+    if request.user.role not in ["admin", "staff"]:
+        return HttpResponseForbidden("Not allowed")
+
+    booking = get_object_or_404(Booking, id=id)
+    delivery = get_object_or_404(
+        BookingDesignDelivery, id=design_id, booking=booking
+    )
+
+    image_name = delivery.image.name if delivery.image else ""
+    delivery.delete()
+    # Burahin din ang file sa storage (Cloudinary/media) para hindi bakante.
+    if image_name:
+        try:
+            delivery_image_storage = default_storage
+            if delivery_image_storage.exists(image_name):
+                delivery_image_storage.delete(image_name)
+        except Exception:
+            pass
+
+    log_action(
+        request.user,
+        f"Deleted backdrop design #{design_id} from booking #{booking.id}.",
+    )
+    messages.success(request, "Design image deleted.")
+    return redirect("admin_booking_detail", id=booking.id)
 
 
 # =========================
@@ -1234,13 +1714,20 @@ def admin_booking_detail(request, id):
 # =========================
 
 @login_required
+@transaction.atomic
+@schedule_atomic
 def admin_booking_action(request, id, action):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
-    booking = get_object_or_404(Booking, id=id)
+    booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
+    process_booking(booking.pk)
+    booking.refresh_from_db()
 
     if action == "approve":
+        if event_start_at(booking) <= timezone.now():
+            messages.error(request, "This event has already started. Review or reschedule it before approval.")
+            return redirect('admin_booking_detail', id=booking.id)
         if booking.status != "pending":
             messages.error(request, "Only pending bookings can be approved.")
             return redirect("admin_booking_list")
@@ -1261,6 +1748,7 @@ def admin_booking_action(request, id, action):
 
         old_status = booking.status
         booking.status = "pending_payment"
+        set_approval_deadlines(booking)
         booking.admin_denial_reason = None
         booking.save()
         log_booking_status(
@@ -1329,7 +1817,7 @@ def admin_booking_action(request, id, action):
             booking=booking,
             message=(
                 f"Great news! Your booking #{booking.id} has been approved! 🎉 "
-                f"Please proceed to payment to confirm your slot."
+                f"Please proceed to payment by {timezone.localtime(booking.payment_due_at):%b %d, %Y at %I:%M %p} to confirm your slot."
             ),
         )
 
@@ -1367,6 +1855,9 @@ def admin_booking_action(request, id, action):
         )
 
     elif action == "confirm":
+        if booking.status not in ('pending_payment', 'confirmed') or not booking.payments.filter(payment_status='verified', applied_to_booking=True, amount__gt=0).exists():
+            messages.error(request, "A verified payment is required. Expired or cancelled bookings cannot be confirmed automatically.")
+            return redirect('admin_booking_detail', id=booking.id)
         old_status = booking.status
         booking.status = "confirmed"
         booking.admin_denial_reason = None
