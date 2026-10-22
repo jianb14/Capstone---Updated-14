@@ -2,6 +2,25 @@
 {% load static humanize %}
 
 {% block content %}
+<style>
+#packages .package-logistics { box-sizing: border-box; width: 100%; max-width: 1000px; justify-content: flex-start; gap: 12px; padding: 18px 22px; overflow-wrap: anywhere; }
+#packages .package-logistics > .note-icon { width: 18px; height: 18px; margin: 2px 0 0; color: var(--pkg-text-muted); }
+#packages .package-logistics-copy { flex: 1; min-width: 0; }
+#packages .package-logistics-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; margin-bottom: 7px; font-size: .85rem; line-height: 1.5; color: var(--pkg-text-muted); }
+#packages .package-logistics-heading > strong { color: #ededed; font-weight: 600; }
+[data-theme="light"] #packages .package-logistics-heading > strong { color: #171717; }
+#packages .package-logistics p { font-size: .8rem; line-height: 1.65; word-spacing: normal; }
+#packages .package-logistics p strong { color: inherit; font-weight: 500; }
+#packages .package-logistics-details { margin-top: 9px; font-size: .76rem; color: var(--pkg-text-muted); }
+#packages .package-logistics-details summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; }
+#packages .package-logistics-details summary::-webkit-details-marker { display: none; }
+#packages .package-logistics-details summary svg { width: 14px; height: 14px; transition: transform .18s ease; }
+#packages .package-logistics-details[open] summary svg { transform: rotate(180deg); }
+#packages .package-logistics-details summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 2px; }
+#packages .package-logistics-details > div { padding-top: 9px; }
+#packages .package-logistics-details p + p { margin-top: 6px; }
+@media(max-width:600px) { #packages .package-logistics { padding: 16px; } #packages .package-logistics-heading { flex-direction: column; } }
+</style>
 
 <!-- Thin outline info icon (manipis, hindi bold — hindi umaasa sa FA regular font) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
@@ -78,9 +97,7 @@
             <button class="carousel-btn next" aria-label="Next packages"><i class="fas fa-chevron-right"></i></button>
         </div>
 
-        <div class="service-charge-note-box">
-            <p><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
-        </div>
+        {% include 'components/package_logistics_note.html' %}
 
 
         <div class="addons-section">
@@ -128,9 +145,7 @@
             </div>
         </div>
 
-        <div class="service-charge-note-box">
-            <p><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
-        </div>
+        {% include 'components/package_logistics_note.html' %}
 
 
 
@@ -181,9 +196,7 @@
             </div>
         </div>
 
-        <div class="service-charge-note-box">
-            <p><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>Note: <strong>Service Charge & Logistics Fee (₱{{ service_charge_amount|floatformat:"-2"|intcomma }})</strong> {{ service_charge_notes|default:"will be added upon booking." }}</p>
-        </div>
+        {% include 'components/package_logistics_note.html' %}
 
     </section>
 </div>

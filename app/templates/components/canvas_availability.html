@@ -1,0 +1,14 @@
+<fieldset class="ca-availability">
+    <legend>Available for</legend>
+    <input type="hidden" name="availability_present" value="1">
+    <input type="hidden" name="kind" value="{{ selected_kind|default:'package' }}">
+    <p class="ca-field-help" id="availabilityHelp">Choose where this {{ object_label|default:'category' }} can be used. You can select more than one.</p>
+    <div class="ca-availability-options">
+        {% for choice in availability_choices %}
+        <label class="ca-availability-option">
+            <input class="ca-checkbox" type="checkbox" name="available_for" value="{{ choice.kind }}" aria-describedby="availabilityHelp" {% if choice.checked %}checked{% endif %}>
+            <span>{{ choice.label }}</span>
+        </label>
+        {% endfor %}
+    </div>
+</fieldset>

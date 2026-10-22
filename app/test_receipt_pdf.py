@@ -236,6 +236,38 @@ class ReceiptLogoPlacementTests(TestCase):
         self.assertIn("Payment Receipt", content)
         self.assertIn("Official Billing Statement", content)
 
+    def test_digital_receipt_identifies_payment_and_booking_amounts_separately(self):
+        reader = PdfReader(io.BytesIO(self._get_pdf()))
+        self.assertEqual(len(reader.pages), 1)
+        text = reader.pages[0].extract_text()
+        for value in ('PAYMENT VERIFIED', 'Amount paid', 'TRANSACTION DETAILS',
+                      'BOOKING SUMMARY', 'Total booking price', self.payment.transaction_ref):
+            self.assertIn(value, text)
+        self.assertEqual(reader.metadata.title, f'Payment Receipt | PAY-{self.payment.pk:06d}')
+
+    def test_long_references_and_names_are_preserved_across_pages(self):
+        self.payment.transaction_ref = 'LONGREFERENCE' * 18
+        self.payment.gcash_sender_name = 'Sender <Name> & Family ' * 10
+        self.payment.gcash_reference_number = '1234567890' * 10
+        self.payment.save()
+        self.booking.package_type = 'Package & extras ' * 20
+        self.booking.save()
+        reader = PdfReader(io.BytesIO(self._get_pdf()))
+        text = ''.join(page.extract_text() for page in reader.pages)
+        collapsed = ''.join(text.split())
+        self.assertIn(self.payment.transaction_ref, collapsed)
+        self.assertIn(''.join(self.payment.gcash_sender_name.split()), collapsed)
+        self.assertIn(''.join(self.booking.package_type.split()), collapsed)
+        self.assertIn('Total booking price', text)
+
+    def test_unverified_staff_receipt_does_not_claim_payment_is_verified(self):
+        from .payment_receipt import build_payment_receipt
+        self.payment.payment_status = 'pending'
+        data = build_payment_receipt(self.payment, '10:00 AM')
+        text = ''.join(page.extract_text() for page in PdfReader(io.BytesIO(data)).pages)
+        self.assertNotIn('PAYMENT VERIFIED', text)
+        self.assertIn('Amount submitted', text)
+
 
 class ReceiptPdfAccessControlTests(TestCase):
     """Only the owner (or admin/staff) may download a receipt."""

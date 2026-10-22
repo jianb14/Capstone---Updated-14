@@ -1,4 +1,8 @@
-﻿"""Admin: dashboard, content mgmt, users, analytics, gallery, reviews. (split from app/views.py)"""
+from ..logistics_settings import LogisticsSettingsForm
+from ..site_settings_form import SiteSettingsForm
+from ..design_admin import configure_design_offer, render_offer_form, store_offer_config
+from ..design_limits import DesignSettingsForm
+"""Admin: dashboard, content mgmt, users, analytics, gallery, reviews. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
 from .common import _cleanup_legacy_booking_request_states, _pdf_link_callback  # noqa: F401
@@ -40,6 +44,59 @@ def admin_site_settings(request):
 
     settings_obj = SiteSettings.load()
     service_charge_config = get_service_charge_config()
+    design_settings_form = DesignSettingsForm(instance=settings_obj)
+    logistics_settings_form = LogisticsSettingsForm(instance=service_charge_config)
+
+    if request.method == 'POST' and request.POST.get('settings_section') == 'all':
+        from django.db import transaction
+        site_form = SiteSettingsForm(request.POST, instance=settings_obj)
+        design_settings_form = DesignSettingsForm(request.POST, instance=settings_obj)
+        logistics_settings_form = LogisticsSettingsForm(request.POST, instance=service_charge_config)
+        valid = [form.is_valid() for form in (site_form, design_settings_form, logistics_settings_form)]
+        if all(valid):
+            with transaction.atomic():
+                settings_obj.updated_by = request.user
+                settings_obj.save()
+                config = logistics_settings_form.save(commit=False)
+                config.shop_lat = site_form.cleaned_data['shop_lat']
+                config.shop_lng = site_form.cleaned_data['shop_lng']
+                config.save()
+                log_action(request.user, 'Updated site settings, design allowance, and logistics rates.')
+            messages.success(request, 'All site settings saved successfully.')
+            return redirect('admin_site_settings')
+        return render(request, 'admin/settings/admin_site_settings.html', {
+            'settings': settings_obj, 'shop_origin': (request.POST.get('shop_lat', ''), request.POST.get('shop_lng', '')),
+            'site_form': site_form, 'design_settings_form': design_settings_form,
+            'logistics_settings_form': logistics_settings_form,
+        }, status=400)
+
+    if request.method == 'POST' and request.POST.get('settings_section') == 'logistics':
+        logistics_settings_form = LogisticsSettingsForm(request.POST, instance=service_charge_config)
+        if logistics_settings_form.is_valid():
+            config = logistics_settings_form.save(commit=False)
+            config.save(update_fields=[*LogisticsSettingsForm.Meta.fields, 'updated_at'])
+            log_action(request.user, f'Updated logistics rates: base {config.amount}, per km {config.per_km_rate}.')
+            messages.success(request, 'Logistics settings saved successfully.')
+            return redirect(reverse('admin_site_settings') + '#logistics-settings')
+        return render(request, 'admin/settings/admin_site_settings.html', {
+            'settings': settings_obj, 'shop_origin': get_logistics_origin(service_charge_config),
+            'design_settings_form': design_settings_form, 'logistics_settings_form': logistics_settings_form,
+        }, status=400)
+
+
+    if request.method == 'POST' and request.POST.get('settings_section') == 'design':
+        design_settings_form = DesignSettingsForm(request.POST, instance=settings_obj)
+        if design_settings_form.is_valid():
+            settings_obj.max_saved_designs = design_settings_form.cleaned_data['max_saved_designs']
+            settings_obj.updated_by = request.user
+            settings_obj.save(update_fields=['max_saved_designs', 'updated_by', 'updated_at'])
+            log_action(request.user, f'Updated saved design limit to {settings_obj.max_saved_designs} per customer.')
+            messages.success(request, 'Design settings saved successfully.')
+            return redirect(reverse('admin_site_settings') + '#design-settings')
+        return render(request, 'admin/settings/admin_site_settings.html', {
+            'settings': settings_obj, 'shop_origin': get_logistics_origin(service_charge_config),
+            'design_settings_form': design_settings_form, 'logistics_settings_form': logistics_settings_form,
+        }, status=400)
 
     if request.method == "POST":
         site_name = (request.POST.get("site_name") or "").strip()[:150]
@@ -133,7 +190,7 @@ def admin_site_settings(request):
     return render(
         request,
         "admin/settings/admin_site_settings.html",
-        {"settings": settings_obj, "shop_origin": get_logistics_origin(service_charge_config)},
+        {"settings": settings_obj, "shop_origin": get_logistics_origin(service_charge_config), "design_settings_form": design_settings_form, "logistics_settings_form": logistics_settings_form},
     )
 
 
@@ -441,6 +498,7 @@ def admin_audit_log_list(request):
 
 
 @login_required
+@configure_design_offer('package')
 def admin_package_create(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -449,18 +507,18 @@ def admin_package_create(request):
         features = request.POST.get("features", "").strip()
         if not features:
             messages.error(request, "Inclusions are required.")
-            return render(request, "admin/package/package_form.html")
+            return render_offer_form(request, "admin/package/package_form.html")
 
         try:
             price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return render(request, "admin/package/package_form.html")
+            return render_offer_form(request, "admin/package/package_form.html")
 
         MAX_PRICE = Decimal("99999999.99")
         if price < 0 or price > MAX_PRICE:
             messages.error(request, "Price must be between 0 and 99,999,999.99.")
-            return render(request, "admin/package/package_form.html")
+            return render_offer_form(request, "admin/package/package_form.html")
 
         package = Package.objects.create(
             name=request.POST.get("name"),
@@ -471,16 +529,19 @@ def admin_package_create(request):
             is_featured=bool(request.POST.get("is_featured")),
         )
 
+        store_offer_config(request, package, 'package')
+
         _handle_preview_images(request, package.preview_images)
 
         log_action(request.user, f"Created new package: '{package.name}'.")
         messages.success(request, "Package created successfully!")
         return redirect("admin_package_list")
 
-    return render(request, "admin/package/package_form.html")
+    return render_offer_form(request, "admin/package/package_form.html")
 
 
 @login_required
+@configure_design_offer('package')
 def admin_package_edit(request, id):
     package = get_object_or_404(Package, id=id)
 
@@ -488,7 +549,7 @@ def admin_package_edit(request, id):
         features = request.POST.get("features", "").strip()
         if not features:
             messages.error(request, "Inclusions are required.")
-            return render(
+            return render_offer_form(
                 request, "admin/package/package_form.html", {"package": package}
             )
 
@@ -496,14 +557,14 @@ def admin_package_edit(request, id):
             package.price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return render(
+            return render_offer_form(
                 request, "admin/package/package_form.html", {"package": package}
             )
 
         MAX_PRICE = Decimal("99999999.99")
         if package.price < 0 or package.price > MAX_PRICE:
             messages.error(request, "Price must be between 0 and 99,999,999.99.")
-            return render(
+            return render_offer_form(
                 request, "admin/package/package_form.html", {"package": package}
             )
 
@@ -514,13 +575,14 @@ def admin_package_edit(request, id):
         package.is_featured = bool(request.POST.get("is_featured"))
 
         package.save()
+        store_offer_config(request, package, 'package')
         _handle_preview_images(request, package.preview_images)
 
         log_action(request.user, f"Edited package: '{package.name}'.")
         messages.success(request, "Package updated successfully!")
         return redirect("admin_package_list")
 
-    return render(request, "admin/package/package_form.html", {"package": package})
+    return render_offer_form(request, "admin/package/package_form.html", {"package": package})
 
 
 @login_required
@@ -532,7 +594,6 @@ def admin_package_list(request):
     packages = Package.objects.all().order_by("-is_featured", "-created_at")
     addons = AddOn.objects.all().order_by("-created_at")
     additionals = AdditionalOnly.objects.all().order_by("-created_at")
-    service_charge_config = get_service_charge_config()
 
     return render(
         request,
@@ -541,88 +602,23 @@ def admin_package_list(request):
             "packages": packages,
             "addons": addons,
             "additionals": additionals,
-            "service_charge_config": service_charge_config,
         },
     )
 
 
 @login_required
 def admin_service_charge_update(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    if request.method != "POST":
-        return redirect("admin_package_list")
-
-    config = get_service_charge_config()
-    amount_raw = (request.POST.get("service_charge_amount") or "").strip()
-    notes = (request.POST.get("service_charge_notes") or "").strip()
-    shop_lat_raw = request.POST.get("shop_lat", str(config.shop_lat) if config.shop_lat is not None else "")
-    shop_lng_raw = request.POST.get("shop_lng", str(config.shop_lng) if config.shop_lng is not None else "")
-    free_radius_raw = (request.POST.get("free_radius_km") or "").strip()
-    per_km_raw = (request.POST.get("per_km_rate") or "").strip()
-    max_cap_raw = (request.POST.get("max_fee_cap") or "").strip()
-
-    if not notes:
-        messages.error(request, "Service charge notes are required.")
-        return redirect("admin_package_list")
-
-    if not amount_raw:
-        messages.error(request, "Service charge amount is required.")
-        return redirect("admin_package_list")
-
-    try:
-        amount = Decimal(amount_raw)
-    except InvalidOperation:
-        messages.error(request, "Invalid service charge amount.")
-        return redirect("admin_package_list")
-
-    max_price = Decimal("99999999.99")
-    if not amount.is_finite() or amount < 0 or amount > max_price:
-        messages.error(request, "Service charge must be between 0 and 99,999,999.99.")
-        return redirect("admin_package_list")
-
-    # Rates are maintained here; Site Settings owns the shop address/pin.
-    def _optional_decimal(raw, minimum=None, maximum=None):
-        raw = (raw or "").strip()
-        if not raw:
-            return None
-        try:
-            value = Decimal(raw)
-        except (InvalidOperation, ValueError, TypeError):
-            return "invalid"
-        if not value.is_finite():
-            return "invalid"
-        if minimum is not None and value < minimum:
-            return "invalid"
-        if maximum is not None and value > maximum:
-            return "invalid"
-        return value
-
-    shop_lat = _optional_decimal(shop_lat_raw, Decimal("-90"), Decimal("90"))
-    shop_lng = _optional_decimal(shop_lng_raw, Decimal("-180"), Decimal("180"))
-    free_radius = _optional_decimal(free_radius_raw, Decimal("0"), Decimal("1000"))
-    per_km = _optional_decimal(per_km_raw, Decimal("0"), max_price)
-    max_cap = _optional_decimal(max_cap_raw, Decimal("0"), max_price)
-    if "invalid" in (shop_lat, shop_lng, free_radius, per_km, max_cap):
-        messages.error(request, "Invalid logistics distance settings. Check shop coords, free radius, per-km rate, and cap.")
-        return redirect("admin_package_list")
-    if (shop_lat is None) != (shop_lng is None):
-        messages.error(request, "Shop latitude and longitude must both be set (or both be blank).")
-        return redirect("admin_package_list")
-
-    config.amount = amount
-    config.notes = notes
-    config.shop_lat = shop_lat
-    config.shop_lng = shop_lng
-    config.free_radius_km = free_radius if free_radius is not None else Decimal("0")
-    config.per_km_rate = per_km if per_km is not None else Decimal("0")
-    config.max_fee_cap = max_cap if max_cap is not None else Decimal("0")
-    config.save()
-
-    log_action(request.user, f"Updated global service charge to {config.amount} (logistics distance settings included).")
-    messages.success(request, "Service charge settings updated.")
-    return redirect("admin_package_list")
+    # Keep the old form URL working while all editing lives in Site Settings.
+    if request.user.role != 'admin':
+        return HttpResponseForbidden('Admins only')
+    if request.method != 'POST':
+        return redirect(reverse('admin_site_settings') + '#logistics-settings')
+    posted = request.POST.copy()
+    posted['settings_section'] = 'logistics'
+    posted['amount'] = posted.get('service_charge_amount', '')
+    posted['notes'] = posted.get('service_charge_notes', '')
+    request.POST = posted
+    return admin_site_settings(request)
 
 
 @login_required
@@ -663,6 +659,7 @@ def package(request):
             "additionals": additionals,
             "service_charge_amount": service_charge_config.amount,
             "service_charge_notes": service_charge_config.notes,
+            "logistics_config": service_charge_config,
         },
     )
 
@@ -671,6 +668,7 @@ from decimal import Decimal, InvalidOperation
 
 
 @login_required
+@configure_design_offer('entrance')
 def admin_addon_create(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -679,24 +677,24 @@ def admin_addon_create(request):
         features = request.POST.get("features", "").strip()
         if not features:
             messages.error(request, "Inclusions are required.")
-            return render(request, "admin/package/addon_form.html")
+            return render_offer_form(request, "admin/package/addon_form.html")
 
         solo_raw = request.POST.get("solo_price", "").strip()
         if not solo_raw:
             messages.error(request, "Solo price is required.")
-            return render(request, "admin/package/addon_form.html")
+            return render_offer_form(request, "admin/package/addon_form.html")
 
         try:
             price = Decimal(request.POST.get("price", ""))
             solo_price = Decimal(solo_raw)
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return render(request, "admin/package/addon_form.html")
+            return render_offer_form(request, "admin/package/addon_form.html")
 
         MAX_PRICE = Decimal("99999999.99")
         if price < 0 or price > MAX_PRICE or solo_price < 0 or solo_price > MAX_PRICE:
             messages.error(request, "Price must be between 0 and 99,999,999.99.")
-            return render(request, "admin/package/addon_form.html")
+            return render_offer_form(request, "admin/package/addon_form.html")
 
         addon = AddOn.objects.create(
             name=request.POST.get("name"),
@@ -705,13 +703,15 @@ def admin_addon_create(request):
             features=features,
         )
 
+        store_offer_config(request, addon, 'entrance')
+
         _handle_preview_images(request, addon.preview_images)
 
         log_action(request.user, f"Created new add-on: '{addon.name}'.")
         messages.success(request, "Add-on created successfully!")
         return redirect("admin_package_list")
 
-    return render(request, "admin/package/addon_form.html")
+    return render_offer_form(request, "admin/package/addon_form.html")
 
 
 @login_required
@@ -725,6 +725,7 @@ def admin_addon_detail(request, id):
 
 
 @login_required
+@configure_design_offer('entrance')
 def admin_addon_edit(request, id):
     addon = get_object_or_404(AddOn, id=id)
 
@@ -732,19 +733,19 @@ def admin_addon_edit(request, id):
         features = request.POST.get("features", "").strip()
         if not features:
             messages.error(request, "Inclusions are required.")
-            return render(request, "admin/package/addon_form.html", {"addon": addon})
+            return render_offer_form(request, "admin/package/addon_form.html", {"addon": addon})
 
         solo_raw = request.POST.get("solo_price", "").strip()
         if not solo_raw:
             messages.error(request, "Solo price is required.")
-            return render(request, "admin/package/addon_form.html", {"addon": addon})
+            return render_offer_form(request, "admin/package/addon_form.html", {"addon": addon})
 
         try:
             addon.price = Decimal(request.POST.get("price", ""))
             addon.solo_price = Decimal(solo_raw)
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return render(request, "admin/package/addon_form.html", {"addon": addon})
+            return render_offer_form(request, "admin/package/addon_form.html", {"addon": addon})
 
         MAX_PRICE = Decimal("99999999.99")
         if (
@@ -754,12 +755,13 @@ def admin_addon_edit(request, id):
             or addon.solo_price > MAX_PRICE
         ):
             messages.error(request, "Price must be between 0 and 99,999,999.99.")
-            return render(request, "admin/package/addon_form.html", {"addon": addon})
+            return render_offer_form(request, "admin/package/addon_form.html", {"addon": addon})
 
         addon.name = request.POST.get("name")
         addon.features = features
 
         addon.save()
+        store_offer_config(request, addon, 'entrance')
 
         _handle_preview_images(request, addon.preview_images)
 
@@ -767,7 +769,7 @@ def admin_addon_edit(request, id):
         messages.success(request, "Add-on updated successfully!")
         return redirect("admin_package_list")
 
-    return render(request, "admin/package/addon_form.html", {"addon": addon})
+    return render_offer_form(request, "admin/package/addon_form.html", {"addon": addon})
 
 
 @login_required
@@ -781,6 +783,7 @@ def admin_addon_delete(request, id):
 
 
 @login_required
+@configure_design_offer('stand')
 def admin_additional_create(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -789,18 +792,18 @@ def admin_additional_create(request):
         features = request.POST.get("features", "").strip()
         if not features:
             messages.error(request, "Inclusions are required.")
-            return render(request, "admin/package/additional_form.html")
+            return render_offer_form(request, "admin/package/additional_form.html")
 
         try:
             price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return render(request, "admin/package/additional_form.html")
+            return render_offer_form(request, "admin/package/additional_form.html")
 
         MAX_PRICE = Decimal("99999999.99")
         if price < 0 or price > MAX_PRICE:
             messages.error(request, "Price must be between 0 and 99,999,999.99.")
-            return render(request, "admin/package/additional_form.html")
+            return render_offer_form(request, "admin/package/additional_form.html")
 
         additional = AdditionalOnly.objects.create(
             name=request.POST.get("name"),
@@ -809,16 +812,19 @@ def admin_additional_create(request):
             notes=request.POST.get("notes"),
         )
 
+        store_offer_config(request, additional, 'stand')
+
         _handle_preview_images(request, additional.preview_images)
 
         log_action(request.user, f"Created new additional item: '{additional.name}'.")
         messages.success(request, "Additional created successfully!")
         return redirect("admin_package_list")
 
-    return render(request, "admin/package/additional_form.html")
+    return render_offer_form(request, "admin/package/additional_form.html")
 
 
 @login_required
+@configure_design_offer('stand')
 def admin_additional_edit(request, id):
     additional = get_object_or_404(AdditionalOnly, id=id)
 
@@ -826,7 +832,7 @@ def admin_additional_edit(request, id):
         features = request.POST.get("features", "").strip()
         if not features:
             messages.error(request, "Inclusions are required.")
-            return render(
+            return render_offer_form(
                 request,
                 "admin/package/additional_form.html",
                 {"additional": additional},
@@ -836,7 +842,7 @@ def admin_additional_edit(request, id):
             additional.price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
             messages.error(request, "Invalid price format.")
-            return render(
+            return render_offer_form(
                 request,
                 "admin/package/additional_form.html",
                 {"additional": additional},
@@ -845,7 +851,7 @@ def admin_additional_edit(request, id):
         MAX_PRICE = Decimal("99999999.99")
         if additional.price < 0 or additional.price > MAX_PRICE:
             messages.error(request, "Price must be between 0 and 99,999,999.99.")
-            return render(
+            return render_offer_form(
                 request,
                 "admin/package/additional_form.html",
                 {"additional": additional},
@@ -856,6 +862,7 @@ def admin_additional_edit(request, id):
         additional.notes = request.POST.get("notes")
 
         additional.save()
+        store_offer_config(request, additional, 'stand')
 
         _handle_preview_images(request, additional.preview_images)
 
@@ -863,7 +870,7 @@ def admin_additional_edit(request, id):
         messages.success(request, "Additional updated successfully!")
         return redirect("admin_package_list")
 
-    return render(
+    return render_offer_form(
         request, "admin/package/additional_form.html", {"additional": additional}
     )
 

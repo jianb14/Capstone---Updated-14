@@ -1,0 +1,16 @@
+{% load humanize %}
+<aside class="service-charge-note-box package-logistics" aria-label="Service charge and logistics">
+    <svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>
+    <div class="package-logistics-copy">
+        <div class="package-logistics-heading"><strong>Service Charge &amp; Logistics</strong><span>Base fee <strong>&#8369;{{ logistics_config.amount|floatformat:'-2'|intcomma }}</strong></span></div>
+        <p><strong>Within Cavite:</strong> base fee. <strong>Outside Cavite:</strong>{% if logistics_config.per_km_rate > 0 %} additional distance charges apply.{% else %} No additional distance charge currently applies.{% endif %} Your exact fee appears during booking after you pin your venue.</p>
+        <details class="package-logistics-details">
+            <summary>Fee details <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+            <div>
+                {% if logistics_config.notes %}<p>{{ logistics_config.notes }}</p>{% endif %}
+                {% if logistics_config.per_km_rate > 0 %}<p>Additional charge: &#8369;{{ logistics_config.per_km_rate|floatformat:'-2'|intcomma }}/km beyond the included {{ logistics_config.free_radius_km|floatformat:'-2'|intcomma }} km (rounded up, minimum of 1 billable km). Distance uses a straight line from our shop.</p>{% endif %}
+                {% if logistics_config.max_fee_cap > 0 %}<p>The total is capped at &#8369;{{ logistics_config.max_fee_cap|floatformat:'-2'|intcomma }}, without reducing the base fee.</p>{% endif %}
+            </div>
+        </details>
+    </div>
+</aside>

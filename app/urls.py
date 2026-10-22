@@ -1,4 +1,5 @@
 from django.urls import path
+from .views.designs import evaluate_user_design, user_design_preview
 from .views.changes import (request_booking_change, admin_booking_change_action,
     customer_booking_change_action, booking_change_payment)
 from .views.change_management import admin_booking_change_detail
@@ -184,6 +185,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("my-designs/evaluate/", evaluate_user_design, name="evaluate_user_design"),
     path("", HomePageView.as_view(), name="home"),
     path("about/", AboutPageView.as_view(), name="about"),
     path("services/", ServicesPageView.as_view(), name="services"),
@@ -200,6 +202,7 @@ urlpatterns = [
     path("gallery/", GalleryPageView.as_view(), name="gallery"),
     # My Designs Dashboard
     path("my-designs/", my_designs_page, name="my_designs"),
+    path("my-designs/<int:id>/preview/", user_design_preview, name="user_design_preview"),
     path("select-design/", select_design_type, name="select_design_type"),
     path("my-designs/save/", save_user_design, name="save_user_design"),
     path("my-designs/rename/<int:id>/", rename_user_design, name="rename_user_design"),

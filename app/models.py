@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 # -----------------------------
@@ -286,6 +287,10 @@ class BlockedDate(models.Model):
 # 2️⃣d Site Settings (singleton — central admin configuration)
 # -----------------------------
 class SiteSettings(models.Model):
+    max_saved_designs = models.PositiveIntegerField(
+        default=20, validators=[MinValueValidator(1), MaxValueValidator(2147483647)],
+        help_text='Maximum saved designs per customer, including drafts and ready-to-book designs.',
+    )
     site_name = models.CharField(max_length=150, default='Balloorina')
     contact_email = models.CharField(max_length=255, blank=True, default='')
     contact_phone = models.CharField(max_length=50, blank=True, default='')
@@ -335,6 +340,7 @@ class SiteSettings(models.Model):
     class Meta:
         verbose_name = 'Site Settings'
         verbose_name_plural = 'Site Settings'
+        constraints = [models.CheckConstraint(check=models.Q(max_saved_designs__gte=1), name='saved_design_limit_at_least_one')]
 
     def __str__(self):
         return f"Site Settings ({self.site_name})"
@@ -938,6 +944,7 @@ class UserDesign(models.Model):
     canvas_json = models.TextField(help_text="Fabric.js JSON state of the canvas")
     thumbnail = models.ImageField(upload_to='user_designs/thumbnails/', blank=True, null=True)
     base_package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='derived_designs')
+    design_offer = models.ForeignKey('DesignOffer', on_delete=models.SET_NULL, null=True, blank=True, related_name='designs')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -978,9 +985,14 @@ class GalleryImage(models.Model):
 
 
 class CanvasCategory(models.Model):
+    builtin_key = models.CharField(max_length=40, null=True, blank=True, unique=True, editable=False)
     name = models.CharField(max_length=120, unique=True)
     order = models.PositiveIntegerField(default=1, help_text="Lower number = shown first")
     is_active = models.BooleanField(default=True)
+    available_package = models.BooleanField(default=True)
+    available_entrance = models.BooleanField(default=False)
+    available_stand = models.BooleanField(default=False)
+    is_balloon = models.BooleanField(default=False, help_text='Use the shared balloon color limit for this category.')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1009,6 +1021,7 @@ class CanvasLabel(models.Model):
 
 
 class CanvasAsset(models.Model):
+    builtin_key = models.CharField(max_length=40, null=True, blank=True, unique=True, editable=False)
     category = models.ForeignKey(CanvasCategory, on_delete=models.CASCADE, related_name='assets')
     label_ref = models.ForeignKey(CanvasLabel, on_delete=models.SET_NULL, related_name='assets', null=True, blank=True)
     label = models.CharField(max_length=150)
@@ -1025,6 +1038,9 @@ class CanvasAsset(models.Model):
     height = models.PositiveIntegerField(default=150)
     sort_order = models.PositiveIntegerField(default=0, help_text="Lower number = shown first")
     is_active = models.BooleanField(default=True)
+    available_package = models.BooleanField(default=True)
+    available_entrance = models.BooleanField(default=False)
+    available_stand = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1033,6 +1049,76 @@ class CanvasAsset(models.Model):
 
     def __str__(self):
         return f"{self.label} ({self.category.name})"
+
+
+class DesignOffer(models.Model):
+    TYPES = [('package', 'Package'), ('entrance', 'Entrance Arch'), ('stand', 'Welcome Stand')]
+    kind = models.CharField(max_length=12, choices=TYPES)
+    package = models.OneToOneField(Package, on_delete=models.CASCADE, null=True, blank=True, related_name='design_configuration')
+    entrance = models.OneToOneField(AddOn, on_delete=models.CASCADE, null=True, blank=True, related_name='design_configuration')
+    stand = models.OneToOneField(AdditionalOnly, on_delete=models.CASCADE, null=True, blank=True, related_name='design_configuration')
+    is_enabled = models.BooleanField(default=False)
+    max_balloon_colors = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(check=(
+            models.Q(kind='package', package__isnull=False, entrance__isnull=True, stand__isnull=True) |
+            models.Q(kind='entrance', package__isnull=True, entrance__isnull=False, stand__isnull=True) |
+            models.Q(kind='stand', package__isnull=True, entrance__isnull=True, stand__isnull=False)
+        ), name='design_offer_one_matching_owner')]
+
+    @property
+    def item(self):
+        return getattr(self, self.kind)
+
+    @property
+    def name(self):
+        return self.item.name
+
+    @property
+    def price(self):
+        return self.item.solo_price if self.kind == 'entrance' else self.item.price
+
+    @property
+    def booking_label(self):
+        return f'{self.name} (Solo)' if self.kind == 'entrance' else self.name
+
+
+class DesignRequirement(models.Model):
+    offer = models.ForeignKey(DesignOffer, on_delete=models.CASCADE, related_name='requirements')
+    category = models.ForeignKey(CanvasCategory, on_delete=models.PROTECT, related_name='design_requirements')
+    required = models.BooleanField(default=False)
+    minimum = models.PositiveIntegerField(default=0)
+    maximum = models.PositiveIntegerField(null=True, blank=True)
+    display_name = models.CharField(max_length=500, blank=True, default='')
+
+    class Meta:
+        ordering = ['category__order', 'category__name']
+        constraints = [
+            models.UniqueConstraint(fields=['offer', 'category'], name='one_design_rule_per_category'),
+            models.CheckConstraint(check=(models.Q(required=True, minimum__gte=1) | models.Q(required=False, minimum=0)), name='design_rule_required_minimum'),
+            models.CheckConstraint(check=(models.Q(maximum__isnull=True) | models.Q(maximum__gte=models.F('minimum'))), name='design_rule_minimum_lte_maximum'),
+        ]
+
+
+class OfferInclusion(models.Model):
+    ROW_TYPES = [('item', 'Canvas item'), ('service', 'Service')]
+    offer = models.ForeignKey(DesignOffer, on_delete=models.CASCADE, related_name='inclusions')
+    row_type = models.CharField(max_length=10, choices=ROW_TYPES, default='item')
+    name = models.CharField(max_length=500)
+    quantity = models.PositiveIntegerField(null=True, blank=True)
+    category = models.ForeignKey(CanvasCategory, on_delete=models.PROTECT, null=True, blank=True, related_name='offer_inclusions')
+    required_minimum = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['offer', 'category'], condition=models.Q(category__isnull=False), name='one_inclusion_per_offer_category'),
+            models.CheckConstraint(check=models.Q(quantity__isnull=True) | models.Q(quantity__gte=1), name='positive_inclusion_quantity'),
+            models.CheckConstraint(check=models.Q(quantity__isnull=True) | models.Q(required_minimum__lte=models.F('quantity')), name='inclusion_minimum_lte_quantity'),
+            models.CheckConstraint(check=models.Q(row_type='item') | models.Q(row_type='service', category__isnull=True, required_minimum=0), name='valid_inclusion_row_type'),
+        ]
 
 
 class HomeContent(models.Model):

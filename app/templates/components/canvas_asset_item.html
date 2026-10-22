@@ -1,5 +1,6 @@
 {% load static %}
 <div class="draggable-item" draggable="true"
+     data-asset-id="{{ asset.id }}" data-category-id="{{ asset.category_id }}"
      data-type="{{ asset.item_type|default:'image' }}"
      data-category="{{ asset.category.name|lower }}"
      data-src="{% if asset.image %}{{ asset.image.url }}{% elif asset.static_path %}{% static asset.static_path %}{% endif %}"

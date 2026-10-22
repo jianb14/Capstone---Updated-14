@@ -69,6 +69,10 @@ if not DEBUG:
     X_FRAME_OPTIONS = "DENY"
 USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", False)
 
+# Canvas saves contain JSON and base64 image data in a single request body.
+# Django's default 2.5 MiB limit is too small for these designs.
+DATA_UPLOAD_MAX_MEMORY_SIZE = env_int("DATA_UPLOAD_MAX_MEMORY_SIZE", 25 * 1024 * 1024)
+
 
 # Application definition
 

@@ -8,44 +8,12 @@
 <!-- Page Header -->
 <div class="page-header">
     <h1>Package Management</h1>
-    <p class="page-subtitle">Manage packages, add-ons, additional items, and the global service charge.</p>
+    <p class="page-subtitle">Manage packages, add-ons, and additional items.</p>
 </div>
 
-<div class="table-container service-charge-card">
-    <form method="POST" action="{% url 'admin_service_charge_update' %}" class="service-charge-form">
-        {% csrf_token %}
-        <h2 class="service-charge-title">Logistics Fee &amp; Shop Location</h2>
-        <div class="service-charge-body">
-            <div class="service-charge-field service-charge-notes-col">
-                <label for="service_charge_notes">Notes (Shown to client)</label>
-                <textarea id="service_charge_notes" name="service_charge_notes" rows="3">{{ service_charge_config.notes|default:'' }}</textarea>
-                <p class="ss-help" style="margin-top:1rem;">Distance is measured from the Business Address in <a href="{% url 'admin_site_settings' %}#ss_address">Site Settings</a>. Update the address and shop pin there whenever you move.</p>
-            </div>
-            <div class="service-charge-side-col">
-                <div class="service-charge-field">
-                <label for="service_charge_amount">Amount (PHP) — Cavite base</label>
-                <input id="service_charge_amount" type="number" step="0.01" min="0" name="service_charge_amount" value="{{ service_charge_config.amount|default:'0' }}">
-                </div>
-                <div class="service-charge-field">
-                <label for="free_radius_km">Included distance from shop (km), outside Cavite</label>
-                <input id="free_radius_km" type="number" step="0.01" min="0" name="free_radius_km" value="{{ service_charge_config.free_radius_km|default:'0' }}" placeholder="e.g. 15">
-                </div>
-                <div class="service-charge-field">
-                <label for="per_km_rate">Outside-Cavite additional fee per km (₱)</label>
-                <input id="per_km_rate" type="number" step="0.01" min="0" name="per_km_rate" value="{{ service_charge_config.per_km_rate|default:'0' }}" placeholder="e.g. 30">
-                </div>
-                <div class="service-charge-field">
-                <label for="max_fee_cap">Max total cap (₱, 0 = walang cap)</label>
-                <input id="max_fee_cap" type="number" step="0.01" min="0" name="max_fee_cap" value="{{ service_charge_config.max_fee_cap|default:'0' }}" placeholder="e.g. 5000">
-                </div>
-                <p class="ss-help" style="margin-top:0.4rem;">Venues within Cavite pay the base fee. Outside Cavite: base + additional fee per km beyond the included distance (rounded up, minimum 1 billable km). Distance is measured in a straight line. Change these prices here whenever your rates change; existing bookings keep their saved quote. Set the exact shop pin to enable outside-Cavite quotes.</p>
-                <div class="service-btn-container">
-                    <button type="submit" class="action-create">Save Service Charge</button>
-                </div>
-            </div>
-        </div>
-    </form>
-</div>
+{% if request.user.role == 'admin' %}
+<p class="page-subtitle">Delivery rates are managed in <a href="{% url 'admin_site_settings' %}#logistics-settings">Site Settings &rarr; Logistics &amp; Delivery</a>.</p>
+{% endif %}
 
 <div class="page-header title-header">
     <h1>Packages</h1>

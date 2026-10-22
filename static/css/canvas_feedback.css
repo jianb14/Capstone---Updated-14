@@ -1,0 +1,53 @@
+/* Canvas feedback surfaces. The existing .toast transform/transition stays intact. */
+.canvas-toast-container, #upgradeModal {
+    --feedback-surface: #171717; --feedback-text: #ededed; --feedback-muted: #aaa;
+    --feedback-border: #363636; --feedback-soft: #222; --feedback-error: #f39a9a; --feedback-success: #8dd4a6;
+}
+[data-theme='light'] :is(.canvas-toast-container, #upgradeModal) {
+    --feedback-surface: #fff; --feedback-text: #171717; --feedback-muted: #626262;
+    --feedback-border: #dedede; --feedback-soft: #f7f7f7; --feedback-error: #b42318; --feedback-success: #20733e;
+}
+.canvas-toast-container[popover] {
+    position: fixed; inset: auto; top: calc(var(--canvas-nav-offset, 67px) + 12px); right: 12px;
+    width: min(390px, calc(100vw - 24px)); max-width: none; margin: 0; padding: 0; border: 0;
+    background: transparent; overflow: visible; pointer-events: none;
+}
+.canvas-toast-container .toast {
+    width: 100%; min-width: 0; padding: 14px; border: 1px solid var(--feedback-border); border-radius: 10px;
+    background: var(--feedback-surface); color: var(--feedback-text); box-shadow: 0 5px 20px #00000018;
+    pointer-events: auto; font-family: inherit; box-sizing: border-box;
+}
+.canvas-toast-container .toast-content { align-items: flex-start; gap: 10px; }
+.canvas-toast-icon { flex: 0 0 21px; width: 21px; height: 21px; margin-top: 1px; color: var(--feedback-muted); }
+.canvas-toast-container .toast-error .canvas-toast-icon { color: var(--feedback-error); }
+.canvas-toast-container .toast-success .canvas-toast-icon { color: var(--feedback-success); }
+.canvas-toast-copy { flex: 1; min-width: 0; }
+.canvas-toast-copy strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.canvas-toast-container .toast .canvas-toast-message { display: block; margin-top: 3px; color: var(--feedback-muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.canvas-toast-close { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; padding: 0; border: 0; border-radius: 5px; color: var(--feedback-muted); background: transparent; font-family: inherit; cursor: pointer; }
+.canvas-toast-close svg { width: 16px; height: 16px; }
+.canvas-toast-container[popover]:not(:popover-open), #upgradeModal[popover]:not(:popover-open) { display: none; }
+.canvas-toast-close:hover { background: var(--feedback-soft); color: var(--feedback-text); }
+.canvas-toast-close:focus-visible { outline: 2px solid var(--feedback-muted); outline-offset: 2px; }
+#upgradeModal[popover] { inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 12px; border: 0; box-sizing: border-box; overflow: auto; }
+#upgradeModal .canvas-modal-upgrade {
+    width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; box-sizing: border-box;
+    padding: 24px; text-align: left; background: var(--feedback-surface); color: var(--feedback-text); border-color: var(--feedback-border); font-family: inherit;
+}
+#upgradeModal .canvas-modal-upgrade-icon { width: 40px; height: 40px; margin: 0 0 16px; background: var(--feedback-soft); color: var(--feedback-text); border-radius: 8px; }
+#upgradeModal h3 { font-family: inherit; font-size: 19px; font-weight: 600; color: var(--feedback-text); }
+#upgradeModal .canvas-modal-sub, .canvas-upgrade-note { font-size: 13px; line-height: 1.6; color: var(--feedback-muted); }
+.canvas-upgrade-details { margin: 16px 0; padding: 14px; background: var(--feedback-soft); border: 1px solid var(--feedback-border); border-radius: 9px; }
+.canvas-upgrade-details > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 10px; font-size: 13px; line-height: 1.5; }
+.canvas-upgrade-details > div:last-child { margin-bottom: 0; }
+.canvas-upgrade-details dt { color: var(--feedback-muted); }
+.canvas-upgrade-details dd { margin: 0; max-width: 65%; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
+#upgradeModal .canvas-modal-actions { justify-content: stretch; gap: 8px; }
+#upgradeModal .canvas-modal-actions button { min-height: 46px; font-family: inherit; font-size: 13px; font-weight: 500; padding: 10px 12px; }
+#upgradeModal .canvas-modal-cancel { flex: 1; color: var(--feedback-text); border-color: var(--feedback-border); }
+#upgradeModal .canvas-modal-save { background: var(--feedback-text); color: var(--feedback-surface); border-color: transparent; }
+@media (max-width: 480px) {
+    .canvas-toast-close { width: 36px; height: 36px; flex-basis: 36px; }
+    #upgradeModal .canvas-modal-upgrade { padding: 20px; }
+    #upgradeModal .canvas-modal-actions { flex-direction: column-reverse; }
+}

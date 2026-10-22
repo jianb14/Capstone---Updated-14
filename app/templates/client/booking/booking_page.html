@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261022mono">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261023hover">
 <script defer src="{% static 'js/booking_form_ui.js' %}?v=20261022mono"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
@@ -111,7 +111,7 @@
                         <div class="step-label">Review &amp; Confirm</div>
                     </div>
                 </div>
-                <button type="button" class="close-btn" id="closeModalBtn">&times;</button>
+                <button type="button" class="close-btn" id="closeModalBtn" aria-label="Close booking form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
             </div>
 
             <form method="POST" action="{% url 'create_booking' %}" id="bookingForm" enctype="multipart/form-data"
@@ -1663,8 +1663,8 @@
             const btnPrevStep = document.getElementById('btnPrevStep');
             if (btnPrevStep) btnPrevStep.style.display = 'none';
 
-            selectedPackageName = "{{ prefilled_design.base_package.name|escapejs }}";
-            selectedPackagePrice = parseFloat("{{ prefilled_design.base_package.price|default:0 }}");
+            selectedPackageName = "{{ prefilled_offer.booking_label|escapejs }}";
+            selectedPackagePrice = parseFloat("{{ prefilled_offer.price|default:0 }}");
             
             // Re-add the preview thumbnail
             {% if prefilled_design.thumbnail %}

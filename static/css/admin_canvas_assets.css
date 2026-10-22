@@ -2096,3 +2096,291 @@ body.modal-open {
 [data-theme="light"] .table-container::-webkit-scrollbar-thumb:hover {
     background: #6b7280;
 }
+
+/* Canvas management controls share the catalog editor's neutral palette. */
+.canvas-admin {
+    --ca-surface: #121212;
+    --ca-input: #171717;
+    --ca-soft: #1b1b1b;
+    --ca-hover: #242424;
+    --ca-text: #f4f4f4;
+    --ca-muted: #a4a4a4;
+    --ca-line: #303030;
+    --ca-strong: #606060;
+    --ca-selected: #f4f4f4;
+    --ca-on-selected: #171717;
+    --ca-focus: #d4d4d4;
+    --light-text: var(--ca-text);
+    --light-text-sec: var(--ca-muted);
+    --light-border: var(--ca-line);
+    --light-surface: var(--ca-input);
+    color: var(--ca-text);
+    color-scheme: dark;
+    min-width: 0;
+}
+
+[data-theme="light"] .canvas-admin {
+    --ca-surface: #fff;
+    --ca-input: #fff;
+    --ca-soft: #f5f5f5;
+    --ca-hover: #ededed;
+    --ca-text: #171717;
+    --ca-muted: #666;
+    --ca-line: #dedede;
+    --ca-strong: #aaa;
+    --ca-selected: #171717;
+    --ca-on-selected: #fff;
+    --ca-focus: #404040;
+    color-scheme: light;
+}
+
+.canvas-admin *, .canvas-admin *::before, .canvas-admin *::after {
+    box-sizing: border-box;
+}
+
+.canvas-admin .ca-type-tabs {
+    display: flex;
+    width: 100%;
+    padding: 0;
+    margin: 0 0 30px;
+    gap: 26px;
+    border-bottom: 1px solid var(--ca-line);
+}
+
+.canvas-admin .ca-type-tabs a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    margin-bottom: -1px;
+    padding: 13px 2px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    font-size: .84rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: center;
+    text-decoration: none;
+    color: var(--ca-muted) !important;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+}
+
+.canvas-admin .ca-type-tabs a:hover {
+    color: var(--ca-text) !important;
+}
+
+.canvas-admin .ca-type-tabs a[aria-current="page"] {
+    border-bottom-color: var(--ca-text);
+    color: var(--ca-text) !important;
+}
+
+.canvas-admin .canvas-category-container { max-width: 720px; }
+.canvas-admin .canvas-category-card {
+    padding: 28px;
+    background: var(--ca-surface) !important;
+    border: 1px solid var(--ca-line) !important;
+    border-radius: 12px;
+}
+
+.canvas-admin .canvas-category-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+}
+.canvas-admin .canvas-category-grid > .span-6 { grid-column: 1 / -1; }
+.canvas-admin .form-group { min-width: 0; }
+.canvas-admin .form-group > label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ca-muted) !important;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.canvas-admin .form-group input:not([type="checkbox"]),
+.canvas-admin .form-group select,
+.canvas-admin .form-group .dropdown-trigger {
+    max-width: 100%;
+    min-height: 44px;
+    background: var(--ca-input) !important;
+    color: var(--ca-text) !important;
+    border: 1px solid var(--ca-line) !important;
+    border-radius: 7px;
+    box-shadow: none !important;
+}
+.canvas-admin .form-group.has-error input,
+.canvas-admin .form-group.has-error .dropdown-trigger {
+    border: 2px solid var(--ca-text) !important;
+}
+.canvas-admin .form-group .field-error { color: var(--ca-text) !important; }
+.canvas-admin .dropdown-options li[hidden] { display: none !important; }
+
+.canvas-admin .ca-availability {
+    min-width: 0;
+    padding: 0 0 24px;
+    margin: 0 0 24px;
+    border: 0;
+    border-bottom: 1px solid var(--ca-line);
+}
+.canvas-admin .ca-availability legend {
+    margin: 0 0 7px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ca-text);
+}
+.canvas-admin .ca-field-help {
+    margin: 0 0 14px;
+    color: var(--ca-muted) !important;
+    font-size: 11px;
+    line-height: 1.7;
+}
+.canvas-admin .ca-availability-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+}
+.canvas-admin .ca-availability-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    min-height: 54px;
+    padding: 12px;
+    border: 1px solid var(--ca-line);
+    border-radius: 8px;
+    background: var(--ca-input);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.canvas-admin .ca-availability-option > span {
+    color: var(--ca-muted) !important;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.canvas-admin .ca-availability-option:hover { border-color: var(--ca-strong); }
+.canvas-admin .ca-availability-option:has(input:checked) {
+    background: var(--ca-soft);
+    border-color: var(--ca-strong);
+}
+.canvas-admin .ca-availability-option:has(input:checked) > span { color: var(--ca-text) !important; }
+.canvas-admin .ca-availability-option:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+
+.canvas-admin input.ca-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-grid;
+    place-content: center;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    flex: none;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid var(--ca-strong) !important;
+    border-radius: 5px;
+    background: var(--ca-input) !important;
+    color: var(--ca-text) !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+.canvas-admin input.ca-checkbox:checked {
+    background: var(--ca-selected) !important;
+    border-color: var(--ca-selected) !important;
+}
+.canvas-admin input.ca-checkbox:checked::after {
+    content: "";
+    width: 10px;
+    height: 6px;
+    border: solid var(--ca-on-selected);
+    border-width: 0 0 2px 2px;
+    transform: translateY(-1px) rotate(-45deg);
+}
+.canvas-admin input.ca-checkbox:disabled { opacity: .4; cursor: not-allowed; }
+
+.canvas-admin .ca-settings {
+    padding: 0 16px;
+    border: 1px solid var(--ca-line);
+    border-radius: 9px;
+    background: var(--ca-input);
+}
+.canvas-admin .ca-setting {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 0;
+    padding: 16px 0;
+    cursor: pointer;
+}
+.canvas-admin .ca-setting + .ca-setting { border-top: 1px solid var(--ca-line); }
+.canvas-admin .ca-setting > input { margin-top: 1px !important; }
+.canvas-admin .ca-setting > span { min-width: 0; }
+.canvas-admin .ca-setting strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ca-text) !important;
+}
+.canvas-admin .ca-setting small {
+    display: block;
+    margin-top: 5px;
+    color: var(--ca-muted) !important;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.7;
+}
+
+.canvas-admin .form-actions {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--ca-line);
+    gap: 10px;
+}
+.canvas-admin .btn-save, .canvas-admin .btn-cancel {
+    min-height: 42px;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 7px;
+    text-align: center;
+}
+.canvas-admin .btn-save {
+    background: var(--ca-selected) !important;
+    border: 1px solid var(--ca-selected) !important;
+    color: var(--ca-on-selected) !important;
+}
+.canvas-admin .btn-save:hover { opacity: .85; }
+.canvas-admin .btn-cancel {
+    background: transparent !important;
+    border: 1px solid var(--ca-line) !important;
+    color: var(--ca-muted) !important;
+}
+.canvas-admin .btn-cancel:hover { background: var(--ca-hover) !important; color: var(--ca-text) !important; }
+
+/* The legacy light theme removes outlines globally; keep these controls visible. */
+.canvas-admin :is(a,button,input,select,summary,[tabindex]):focus-visible,
+[data-theme="light"] .canvas-admin :is(a,button,input,select,summary,[tabindex]):focus-visible {
+    outline: 2px solid var(--ca-focus) !important;
+    outline-offset: 3px !important;
+}
+.canvas-admin .form-group input:not([type="checkbox"]):focus {
+    background: var(--ca-input) !important;
+    border-color: var(--ca-strong) !important;
+}
+
+@media (max-width: 640px) {
+    .canvas-admin .ca-type-tabs { margin-bottom: 24px; gap: 16px; }
+    .canvas-admin .ca-type-tabs a { font-size: 12px; }
+    .canvas-admin .canvas-category-card { padding: 20px 16px; }
+    .canvas-admin .ca-availability-options { grid-template-columns: minmax(0, 1fr); }
+    .canvas-admin .ca-availability-option { min-height: 48px; }
+    .canvas-admin .ca-availability-option > span { font-size: 12px; }
+    .canvas-admin .form-actions { justify-content: space-between; }
+    .canvas-admin .canvas-category-container { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .canvas-admin .ca-type-tabs a, .canvas-admin .ca-availability-option { transition: none; }
+}

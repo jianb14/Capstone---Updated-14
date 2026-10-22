@@ -1,0 +1,19 @@
+<section id="logistics-settings" class="ss-card ss-logistics" aria-labelledby="ss_logistics_title">
+    <div class="ss-card-head">
+        <div class="ss-card-icon"><svg class="ss-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v12H3zM14 10h4l3 4v4h-7M3 18h2m4 0h6m4 0h2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div>
+        <div><h3 id="ss_logistics_title">Logistics &amp; Delivery</h3><p>Set the global base fee and distance charges for new booking quotes.</p></div>
+    </div>
+    <div class="ss-grid">
+        {% for field in logistics_settings_form %}
+        <div class="ss-field{% if field.name == 'notes' %} full{% endif %}{% if field.errors %} has-error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            <div class="ss-input-wrap">{{ field }}</div>
+            <p class="ss-error-msg" id="ss_logistics_{{ field.name }}_error">{{ field.errors.0 }}</p>
+            <p class="ss-help" id="ss_logistics_{{ field.name }}_help">{{ field.help_text }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="ss-design-settings-footer">
+        <p class="ss-help">Existing bookings keep their saved logistics quote. Manage the origin under <a href="#ss_address">Business Address</a>; update both the address and shop pin when the business moves.</p>
+    </div>
+</section>

@@ -2,7 +2,7 @@
 color split, styro centering).
 
 Sinasaklaw:
-- Save button: `fa-regular fa-floppy-disk` (hindi bold/solid), walang
+- Save button: outline SVG floppy disk, walang
   `prompt(`/`alert(` sa save flow — modal + SweetAlert toast ang gamit.
 - Design Summary title: walang `fa-receipt` icon.
 - Assets colors: hiwalay na Canvas Color (white/black/light gray + custom)
@@ -25,8 +25,8 @@ class DesignCanvasUiTests(TestCase):
         self.css = CSS.read_text(encoding="utf-8")
         self.js = JS.read_text(encoding="utf-8")
 
-    def test_save_button_uses_regular_floppy_icon(self):
-        self.assertIn("far fa-floppy-disk", self.html)
+    def test_save_button_uses_outline_floppy_icon(self):
+        self.assertIn("name='save'", self.html)
         self.assertNotIn("fas fa-floppy-disk", self.html)
 
     def test_save_flow_uses_modal_and_toast_not_prompt_alert(self):
@@ -153,15 +153,15 @@ class DesignCanvasUiTests(TestCase):
         self.assertIn("position: absolute", block)
 
     def test_layer_forward_backward_labels(self):
-        # Forward/backward = single-step chevrons with correct tooltips,
+        # Forward/backward = distinct outline layer icons with correct tooltips,
         # distinct from Bring to Front / Send to Back. Native `title`
         # tooltips are replaced by styled `data-tooltip` ones.
         self.assertIn('data-tooltip="Bring Forward"', self.html)
         self.assertIn('data-tooltip="Send Backward"', self.html)
         self.assertNotIn('title="Bring Forward"', self.html)
         self.assertNotIn('title="Send Backward"', self.html)
-        self.assertIn("fa-chevron-up", self.html)
-        self.assertIn("fa-chevron-down", self.html)
+        self.assertIn("name='layer-forward'", self.html)
+        self.assertIn("name='layer-backward'", self.html)
         self.assertIn("bringForward()", self.js)
         self.assertIn("sendBackwards()", self.js)
 
@@ -171,8 +171,8 @@ class DesignCanvasUiTests(TestCase):
         self.assertIn("border: 0 !important", self.css)
         self.assertIn("background: transparent !important", self.css)
         self.assertIn('[data-theme="light"] .panel-search:focus-within', self.css)
-        # CSS cache-buster must match JS version so the fix actually loads.
-        self.assertIn("?v=20261017t", self.html)
+        # Keep a versioned stylesheet URL without tying the check to an old release.
+        self.assertIn("css/design_canvas.css' %}?v=", self.html)
 
     def test_background_image_is_clipped_to_artboard(self):
         # Cover + clip: uploaded bg never overflows the artboard rect.
@@ -235,7 +235,7 @@ class DesignCanvasUiTests(TestCase):
         self.assertIn(".canvas-modal-upgrade", self.css)
         self.assertIn("border-radius: 16px", self.css)
         self.assertIn('[data-theme="light"] .canvas-modal-upgrade-icon', self.css)
-        self.assertIn("?v=20261017t", self.html)
+        self.assertIn("css/design_canvas.css' %}?v=", self.html)
 
     def test_layers_sidebar_tab_exists(self):
         # Rail button + panel + filter + list + empty state.
@@ -266,7 +266,7 @@ class DesignCanvasUiTests(TestCase):
         self.assertIn("!obj._isArtboard", self.js)
         self.assertIn("'_layerId'", self.js)
         self.assertIn("'_layerName'", self.js)
-        self.assertIn("fa-lock", self.js)
+        self.assertIn("'#ci-lock'", self.js)
         self.assertIn("Unlock the layer to reorder it.", self.js)
         self.assertIn("is-locked", self.js)
 

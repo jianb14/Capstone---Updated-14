@@ -1,78 +1,93 @@
 {% extends 'client/base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20261017t">
+<link rel="stylesheet" href="{% static 'css/design_workflow.css' %}">
+<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20261022builtin">
+<link rel="stylesheet" href="{% static 'css/canvas_inventory.css' %}?v=20261022toolbars">
+<link rel="stylesheet" href="{% static 'css/canvas_toolbars.css' %}?v=20261023guidance">
+<link rel="stylesheet" href="{% static 'css/canvas_mobile.css' %}?v=20261023guidance">
+<link rel="stylesheet" href="{% static 'css/canvas_feedback.css' %}?v=20261023upgrade2">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
     {% csrf_token %}
+    {% include 'components/canvas_inventory_icons.html' %}
 
     <div class="canvas-workspace-shell">
         <div class="design-layout">
             <div class="canvas-main-toolbar">
                 <a class="ctrl-btn icon-only" href="{% url 'my_designs' %}" data-tooltip="Go to My Designs" aria-label="Go to My Designs">
-                    <i class="fas fa-house"></i>
+                    {% include 'components/canvas_inventory_icon.html' with name='home' %}
+                    <span class="mobile-editor-only">Back</span>
                 </a>
 
                 <div class="topbar-group dimension-toolbar-group">
                     <span id="canvasSizeDisp" class="toolbar-status">Canvas: 1920 x 1080</span>
-                    <label for="canvasWidthInput">W</label>
+                    <label for="canvasWidthInput" aria-label="Canvas width">W</label>
                     <input type="number" id="canvasWidthInput" value="1920" min="100" max="5000" step="10">
-                    <label for="canvasHeightInput">H</label>
+                    <label for="canvasHeightInput" aria-label="Canvas height">H</label>
                     <input type="number" id="canvasHeightInput" value="1080" min="100" max="5000" step="10">
                     <button id="applySizeBtn" class="ctrl-btn icon-only" data-tooltip="Apply Canvas Size" aria-label="Apply Canvas Size">
-                        <i class="fas fa-check"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='check' %}
                     </button>
                 </div>
 
                 <div class="topbar-group zoom-toolbar-group">
                     <button id="zoomOutBtn" class="ctrl-btn icon-only" data-tooltip="Zoom Out (Ctrl+-)" aria-label="Zoom Out (Ctrl+-)">
-                        <i class="fas fa-minus"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='minus' %}
                     </button>
                     <input type="range" id="zoomRange" min="15" max="150" value="100" aria-label="Zoom level">
                     <span id="zoomLabel" class="zoom-pill">100%</span>
                     <button id="zoomInBtn" class="ctrl-btn icon-only" data-tooltip="Zoom In (Ctrl++)" aria-label="Zoom In (Ctrl++)">
-                        <i class="fas fa-plus"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='plus' %}
                     </button>
                 </div>
 
                 <div class="topbar-group">
                     <button id="undoBtn" class="ctrl-btn icon-only" data-tooltip="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)" disabled>
-                        <i class="fas fa-undo"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='undo' %}
+                        <span class="mobile-editor-only">Undo</span>
                     </button>
                     <button id="redoBtn" class="ctrl-btn icon-only" data-tooltip="Redo (Ctrl+Y)" aria-label="Redo (Ctrl+Y)" disabled>
-                        <i class="fas fa-redo"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='redo' %}
                     </button>
                     <button id="zoomResetBtn" class="ctrl-btn icon-only" data-tooltip="Fit to View (Ctrl+0)" aria-label="Fit to View (Ctrl+0)">
-                        <i class="fas fa-expand"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='fit-view' %}
                     </button>
                     <button id="clearBtn" class="ctrl-btn icon-only" data-tooltip="Clear Canvas" aria-label="Clear Canvas" disabled>
-                        <i class="fas fa-trash-can"></i>
+                        {% include 'components/canvas_inventory_icon.html' with name='trash' %}
                     </button>
                 </div>
 
+                <button type="button" id="mobileCanvasToolsBtn" class="ctrl-btn mobile-editor-only" aria-haspopup="dialog" aria-controls="mobileCanvasToolsDialog">
+                    {% include 'components/canvas_inventory_icon.html' with name='settings' %} Tools
+                </button>
                 <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
-                    <i class="far fa-floppy-disk"></i> Save
+                    {% include 'components/canvas_inventory_icon.html' with name='save' %} Save
                 </button>
             </div>
 
             <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
                 <button type="button" class="rail-btn" data-panel-target="elementsPanel" data-tooltip="Assets" aria-label="Assets">
-                    <i class="fas fa-shapes"></i>
+                    {% include 'components/canvas_inventory_icon.html' with name='shapes' %}
                     <span>Assets</span>
                 </button>
                 <button type="button" class="rail-btn" data-panel-target="textPanel" data-tooltip="Text" aria-label="Text">
-                    <i class="fas fa-font"></i>
+                    {% include 'components/canvas_inventory_icon.html' with name='text' %}
                     <span>Text</span>
                 </button>
                 <button type="button" class="rail-btn" data-panel-target="uploadsPanel" data-tooltip="Uploads" aria-label="Uploads">
-                    <i class="fas fa-cloud-upload-alt"></i>
+                    {% include 'components/canvas_inventory_icon.html' with name='upload' %}
                     <span>Uploads</span>
                 </button>
                 <button type="button" class="rail-btn" data-panel-target="layersPanel" data-tooltip="Layers" aria-label="Layers">
-                    <i class="fas fa-layer-group"></i>
+                    {% include 'components/canvas_inventory_icon.html' with name='layers' %}
                     <span>Layers</span>
+                </button>
+                <button type="button" class="rail-btn mobile-editor-only" id="mobileChecklistBtn" data-tooltip="Checklist" aria-haspopup="dialog" aria-controls="mobileChecklistDialog">
+                    {% include 'components/canvas_inventory_icon.html' with name='checklist' %}<span>Checklist</span>
+                    <span class="mobile-checklist-count" id="mobileChecklistCount" aria-hidden="true" hidden></span>
                 </button>
             </aside>
 
@@ -85,13 +100,14 @@
                         </div>
                     </div>
 
-                    <label class="panel-search" for="assetSearchInput">
-                        <i class="fas fa-search"></i>
-                        <input type="search" id="assetSearchInput" placeholder="Search images, icons, decor">
-                    </label>
+                    <div class="panel-search">
+                        {% include 'components/canvas_inventory_icon.html' with name='search' %}
+                        <input type="search" id="assetSearchInput" placeholder="Search assets..." aria-label="Search canvas assets" autocomplete="off" spellcheck="false">
+                        <button type="button" class="inventory-search-clear" id="clearAssetSearch" aria-label="Clear asset search" hidden>{% include 'components/canvas_inventory_icon.html' with name='close' %}</button>
+                    </div>
 
                     <div class="sidebar-section compact-section">
-                        <div class="section-label"><i class="fas fa-fill-drip"></i> Canvas Color</div>
+                        <div class="section-label">Canvas Color</div>
                         <div class="color-swatch-grid">
                             <div class="color-swatch" data-target="canvas" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
                             <div class="color-swatch" data-target="canvas" data-color="#000000" style="background:#000000;" title="Black"></div>
@@ -104,7 +120,7 @@
                     </div>
 
                     <div class="sidebar-section compact-section">
-                        <div class="section-label"><i class="fas fa-palette"></i> Object Color</div>
+                        <div class="section-label">Object Color</div>
                         <div class="color-swatch-grid">
                             <div class="color-swatch" data-target="object" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
                             <div class="color-swatch" data-target="object" data-color="#000000" style="background:#000000;" title="Black"></div>
@@ -123,35 +139,35 @@
                         </div>
                     </div>
 
-                    <div class="sidebar-section">
+                    <div class="sidebar-section" id="builtinStyroSection" data-builtin-category-id="{{ styro_asset.category_id }}" {% if not styro_asset %}hidden{% endif %}>
                         <div class="section-label title-assets">Styrofoam Name</div>
                         <div class="text-presets-grid">
                             <div class="draggable-item text-draggable text-preset-card"
                                  draggable="true"
                                  data-type="i-text"
-                                 data-category="styrofoam name"
+                                 data-category="{{ styro_asset.category.name|lower }}" data-asset-id="{{ styro_asset.id }}" data-category-id="{{ styro_asset.category_id }}" data-design-source="catalog"
                                  data-text="Styrofoam Name"
                                  data-font-family="Poppins"
                                  data-font-size="76"
                                  data-color="#111111"
                                  title="Styrofoam Name text">
                                 <div class="icon-label">
-                                    <i class="fas fa-font"></i>
-                                    <span>Name</span>
+                                    <span class="builtin-styro-preview" aria-hidden="true">Aa</span>
+                                    <span>Styrofoam Name</span>
                                 </div>
                             </div>
                         </div>
                         <label class="theme-decor-field" for="themeDecorInput">
-                            <span><i class="fas fa-wand-magic-sparkles"></i> Theme Decor</span>
+                            <span>Theme Decor</span>
                             <input type="text" id="themeDecorInput" maxlength="90" placeholder="Type desired theme decor">
                         </label>
                     </div>
 
                     {% for cat in canvas_categories %}
-                    <div class="inventory-category" data-category-name="{{ cat.name|default:'Category'|lower }}">
+                    <div class="inventory-category" data-category-name="{{ cat.name|default:'Category'|lower }}" data-category-id="{{ cat.id }}">
                         <button type="button" class="category-header is-open">
                             <span>{{ cat.name|default:'Category' }}</span>
-                            <i class="fas fa-chevron-down chevron"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='chevron' %}
                         </button>
                         <div class="category-items open">
                             {% for asset in cat.design_assets %}
@@ -165,7 +181,7 @@
                     <div class="inventory-category" data-category-name="no asset categories yet">
                         <button type="button" class="category-header">
                             <span>No asset categories yet</span>
-                            <i class="fas fa-chevron-down chevron"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='chevron' %}
                         </button>
                         <div class="category-items open">
                             <div class="empty-panel-note">Ask admin to add Canvas Categories and Assets in the admin panel.</div>
@@ -187,21 +203,21 @@
                             <span class="bg-fit-label" id="bgFitLabel">Image fit</span>
                             <div class="bg-fit-toggle" role="group" aria-labelledby="bgFitLabel">
                                 <button type="button" class="bg-fit-btn active" data-bg-fit="cover" aria-pressed="true">
-                                    <i class="fas fa-expand"></i> Fill
+                                    {% include 'components/canvas_inventory_icon.html' with name='fill' %} Fill
                                 </button>
                                 <button type="button" class="bg-fit-btn" data-bg-fit="contain" aria-pressed="false">
-                                    <i class="fas fa-compress"></i> Fit
+                                    {% include 'components/canvas_inventory_icon.html' with name='fit' %} Fit
                                 </button>
                             </div>
                             <p class="bg-fit-hint" id="bgFitHint">Fill covers the whole canvas; mismatched edges are cropped (centered).</p>
                         </div>
                         <div class="bg-image-actions">
                             <label class="bg-upload-btn">
-                                <i class="fas fa-upload"></i> Upload Background
+                                {% include 'components/canvas_inventory_icon.html' with name='upload' %} Upload Background
                                 <input type="file" id="bgImageUpload" accept="image/*" hidden>
                             </label>
                             <button class="bg-remove-btn" id="removeBgImage">
-                                <i class="fas fa-times"></i> Remove Background
+                                {% include 'components/canvas_inventory_icon.html' with name='close' %} Remove Background
                             </button>
                         </div>
                     </div>
@@ -209,16 +225,18 @@
                     <div class="sidebar-panel-header">
                         <div>
                             <h4>Uploads</h4>
-                            <p>Upload PNG/JPG decor elements, then click each uploaded item to place it on the canvas.</p>
+                            <p>Add your own reference photos to the canvas.</p>
                         </div>
                     </div>
 
-                    <label class="upload-dropzone">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span>Choose files</span>
-                        <small>Upload decor elements (PNG/JPG). Click to place after upload.</small>
+                    <div class="upload-dropzone" id="referenceUploadDropzone">
+                        {% include 'components/canvas_inventory_icon.html' with name='upload' %}
+                        <span>Drop images here</span>
+                        <small>or browse photos from your device</small>
+                        <button type="button" class="sidebar-primary-btn" id="browseReferenceFiles" aria-describedby="referenceUploadNote">Browse Files</button>
                         <input type="file" id="userUploadInput" accept="image/*" multiple hidden>
-                    </label>
+                    </div>
+                    <p class="upload-reference-note" id="referenceUploadNote">Reference photos do not count toward required items. Use assets for those.</p>
 
                     <div id="userUploadsGrid" class="user-uploads-grid"></div>
                 </div>
@@ -252,17 +270,17 @@
                     </div>
 
                     <div class="sidebar-section text-add-block">
-                        <div class="section-label"><i class="fas fa-plus-circle"></i> Add Text</div>
+                        <div class="section-label">Add Text</div>
                         <div class="text-add-row stacked">
                             <input type="text" id="quickTextInput" value="Your paragraph text" maxlength="90">
                             <button id="addTextBtn" type="button" class="sidebar-primary-btn">
-                                <i class="fas fa-text-width"></i> Add a Text Box
+                                {% include 'components/canvas_inventory_icon.html' with name='text' %} Add a Text Box
                             </button>
                         </div>
                     </div>
 
                     <div class="sidebar-section">
-                        <div class="section-label"><i class="fas fa-heading"></i> Quick Text</div>
+                        <div class="section-label">Quick Text</div>
                         <div class="text-presets-grid">
                             <div class="draggable-item text-draggable text-preset-card"
                                  draggable="true"
@@ -301,7 +319,7 @@
                     </div>
 
                     <div class="sidebar-section">
-                        <div class="section-label"><i class="fas fa-stars"></i> Presets</div>
+                        <div class="section-label">Presets</div>
                         <div class="text-presets-grid">
                         <div class="draggable-item text-draggable"
                              draggable="true"
@@ -311,7 +329,7 @@
                              data-color="#111111"
                              title="Happy Birthday text">
                             <div class="icon-label">
-                                <i class="fas fa-font"></i>
+                                {% include 'components/canvas_inventory_icon.html' with name='text' %}
                                 <span>Happy Birthday</span>
                             </div>
                         </div>
@@ -323,7 +341,7 @@
                              data-color="#111111"
                              title="Welcome Baby text">
                             <div class="icon-label">
-                                <i class="fas fa-feather-alt"></i>
+                                {% include 'components/canvas_inventory_icon.html' with name='script' %}
                                 <span>Script Style</span>
                             </div>
                         </div>
@@ -335,7 +353,7 @@
                              data-color="#111111"
                              title="Class of 2026 text">
                             <div class="icon-label">
-                                <i class="fas fa-graduation-cap"></i>
+                                {% include 'components/canvas_inventory_icon.html' with name='graduate' %}
                                 <span>Class Theme</span>
                             </div>
                         </div>
@@ -347,6 +365,10 @@
                 </div>
             </aside>
 
+            <section class="mobile-editor-guide mobile-editor-only" id="mobileEditorGuide" aria-label="Booking requirements">
+                <div role="status" aria-live="polite" aria-atomic="true"><strong id="mobileRequirementsTitle">Before you book</strong><p id="mobileRequirementsCopy">Complete the required items. You can save a draft anytime.</p></div>
+                <button type="button" class="mobile-editor-primary" id="mobileRequiredItemsBtn" aria-haspopup="dialog" aria-controls="mobileChecklistDialog">View checklist</button>
+            </section>
             <main class="canvas-area">
                 <div id="canvasDropZone">
                     <div class="selection-toolbar" id="selectionToolbar" aria-hidden="true">
@@ -356,7 +378,7 @@
                                     <span id="fontFamilyDropdownText">Font</span>
                                     <span class="dropdown-caret" aria-hidden="true"></span>
                                 </div>
-                                <ul class="dropdown-options" id="fontFamilyOptions"></ul>
+                                <ul class="dropdown-options" id="fontFamilyOptions" popover="manual"></ul>
                                 <select id="fontFamilySelect" class="filter-select" data-tooltip="Font Family" aria-label="Font Family">
                                     <option value="">Font</option>
                                     <option value="Montserrat">Montserrat</option>
@@ -377,34 +399,34 @@
                                 </select>
                             </div>
                             <input type="number" id="fontSizeInput" value="42" min="8" max="300" step="1" data-tooltip="Font Size" aria-label="Font Size">
-                            <button type="button" class="ctrl-btn icon-only" id="textBoldBtn" data-tooltip="Bold" aria-label="Bold"><i class="fas fa-bold"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textItalicBtn" data-tooltip="Italic" aria-label="Italic"><i class="fas fa-italic"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textUnderlineBtn" data-tooltip="Underline" aria-label="Underline"><i class="fas fa-underline"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" data-tooltip="Align Left" aria-label="Align Left"><i class="fas fa-align-left"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" data-tooltip="Align Center" aria-label="Align Center"><i class="fas fa-align-center"></i></button>
-                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" data-tooltip="Align Right" aria-label="Align Right"><i class="fas fa-align-right"></i></button>
+                            <button type="button" class="ctrl-btn icon-only" id="textBoldBtn" data-tooltip="Bold" aria-label="Bold">{% include 'components/canvas_inventory_icon.html' with name='bold' %}</button>
+                            <button type="button" class="ctrl-btn icon-only" id="textItalicBtn" data-tooltip="Italic" aria-label="Italic">{% include 'components/canvas_inventory_icon.html' with name='italic' %}</button>
+                            <button type="button" class="ctrl-btn icon-only" id="textUnderlineBtn" data-tooltip="Underline" aria-label="Underline">{% include 'components/canvas_inventory_icon.html' with name='underline' %}</button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignLeftBtn" data-tooltip="Align Left" aria-label="Align Left">{% include 'components/canvas_inventory_icon.html' with name='align-left' %}</button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignCenterBtn" data-tooltip="Align Center" aria-label="Align Center">{% include 'components/canvas_inventory_icon.html' with name='align-center' %}</button>
+                            <button type="button" class="ctrl-btn icon-only" id="textAlignRightBtn" data-tooltip="Align Right" aria-label="Align Right">{% include 'components/canvas_inventory_icon.html' with name='align-right' %}</button>
                         </div>
 
                         <div class="toolbar-group" data-toolbar-group="appearance">
                             <input type="color" id="itemColorPicker" value="#ffffff" disabled data-tooltip="Color" aria-label="Color">
-                            <label for="elemWidthInput">W</label>
+                            <label for="elemWidthInput" aria-label="Object width">W</label>
                             <input type="number" id="elemWidthInput" value="0" min="1" max="5000" step="1">
-                            <label for="elemHeightInput">H</label>
+                            <label for="elemHeightInput" aria-label="Object height">H</label>
                             <input type="number" id="elemHeightInput" value="0" min="1" max="5000" step="1">
                         </div>
 
                         <div class="toolbar-group" data-toolbar-group="arrange">
-                            <button id="layerForwardBtn" class="ctrl-btn icon-only" data-tooltip="Bring Forward" aria-label="Bring Forward" disabled><i class="fas fa-chevron-up"></i></button>
-                            <button id="layerBackwardBtn" class="ctrl-btn icon-only" data-tooltip="Send Backward" aria-label="Send Backward" disabled><i class="fas fa-chevron-down"></i></button>
-                            <button id="toFrontBtn" class="ctrl-btn icon-only" data-tooltip="Bring to Front" aria-label="Bring to Front" disabled><i class="fas fa-angles-up"></i></button>
-                            <button id="toBackBtn" class="ctrl-btn icon-only" data-tooltip="Send to Back" aria-label="Send to Back" disabled><i class="fas fa-angles-down"></i></button>
+                            <button id="layerForwardBtn" class="ctrl-btn icon-only" data-tooltip="Bring Forward" aria-label="Bring Forward" disabled>{% include 'components/canvas_inventory_icon.html' with name='layer-forward' %}</button>
+                            <button id="layerBackwardBtn" class="ctrl-btn icon-only" data-tooltip="Send Backward" aria-label="Send Backward" disabled>{% include 'components/canvas_inventory_icon.html' with name='layer-backward' %}</button>
+                            <button id="toFrontBtn" class="ctrl-btn icon-only" data-tooltip="Bring to Front" aria-label="Bring to Front" disabled>{% include 'components/canvas_inventory_icon.html' with name='layer-front' %}</button>
+                            <button id="toBackBtn" class="ctrl-btn icon-only" data-tooltip="Send to Back" aria-label="Send to Back" disabled>{% include 'components/canvas_inventory_icon.html' with name='layer-back' %}</button>
                         </div>
 
                         <div class="toolbar-group" data-toolbar-group="transform">
-                            <button id="flipXBtn" class="ctrl-btn icon-only" data-tooltip="Flip Horizontal" aria-label="Flip Horizontal" disabled><i class="fas fa-left-right"></i></button>
-                            <button id="flipYBtn" class="ctrl-btn icon-only" data-tooltip="Flip Vertical" aria-label="Flip Vertical" disabled><i class="fas fa-up-down"></i></button>
-                            <button id="skewLeftBtn" class="ctrl-btn icon-only" data-tooltip="Skew Left" aria-label="Skew Left" disabled><i class="fas fa-caret-left"></i></button>
-                            <button id="skewRightBtn" class="ctrl-btn icon-only" data-tooltip="Skew Right" aria-label="Skew Right" disabled><i class="fas fa-caret-right"></i></button>
+                            <button id="flipXBtn" class="ctrl-btn icon-only" data-tooltip="Flip Horizontal" aria-label="Flip Horizontal" disabled>{% include 'components/canvas_inventory_icon.html' with name='flip-horizontal' %}</button>
+                            <button id="flipYBtn" class="ctrl-btn icon-only" data-tooltip="Flip Vertical" aria-label="Flip Vertical" disabled>{% include 'components/canvas_inventory_icon.html' with name='flip-vertical' %}</button>
+                            <button id="skewLeftBtn" class="ctrl-btn icon-only" data-tooltip="Skew Left" aria-label="Skew Left" disabled>{% include 'components/canvas_inventory_icon.html' with name='skew-left' %}</button>
+                            <button id="skewRightBtn" class="ctrl-btn icon-only" data-tooltip="Skew Right" aria-label="Skew Right" disabled>{% include 'components/canvas_inventory_icon.html' with name='skew-right' %}</button>
                         </div>
                     </div>
 
@@ -416,29 +438,34 @@
 
                     <div class="object-context-toolbar" id="objectContextToolbar" aria-hidden="true">
                         <button type="button" class="ctx-btn" id="contextLockBtn" data-tooltip="Lock / Unlock" aria-label="Lock / Unlock">
-                            <i class="fas fa-lock-open"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='unlock' %}
                         </button>
                         <button type="button" class="ctx-btn" id="contextMoveUpBtn" data-tooltip="Move Up" aria-label="Move Up">
-                            <i class="fas fa-arrow-up"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='arrow-up' %}
                         </button>
                         <button type="button" class="ctx-btn" id="contextMoveDownBtn" data-tooltip="Move Down" aria-label="Move Down">
-                            <i class="fas fa-arrow-down"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='arrow-down' %}
                         </button>
                         <button type="button" class="ctx-btn" id="contextMoveLeftBtn" data-tooltip="Move Left" aria-label="Move Left">
-                            <i class="fas fa-arrow-left"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='arrow-left' %}
                         </button>
                         <button type="button" class="ctx-btn" id="contextMoveRightBtn" data-tooltip="Move Right" aria-label="Move Right">
-                            <i class="fas fa-arrow-right"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='arrow-right' %}
                         </button>
                         <button type="button" class="ctx-btn" id="contextDuplicateBtn" data-tooltip="Duplicate" aria-label="Duplicate">
-                            <i class="far fa-copy"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='duplicate' %}
                         </button>
                         <button type="button" class="ctx-btn danger" id="contextDeleteBtn" data-tooltip="Delete" aria-label="Delete">
-                            <i class="far fa-trash-alt"></i>
+                            {% include 'components/canvas_inventory_icon.html' with name='trash' %}
                         </button>
                     </div>
                 </div>
             </main>
+            <div class="mobile-editor-selection mobile-editor-only" id="mobileSelectionBar" hidden>
+                <div><strong id="mobileSelectionName">Item selected</strong><span>Drag to move, or edit below.</span></div>
+                <button type="button" id="mobileEditItemBtn" class="mobile-editor-primary" aria-haspopup="dialog" aria-controls="mobileEditItemDialog">Edit item</button>
+                <button type="button" id="mobileDeselectBtn" class="mobile-editor-secondary" aria-label="Deselect item">{% include 'components/canvas_inventory_icon.html' with name='close' %}</button>
+            </div>
 
             <button type="button" class="summary-float-btn active" id="summaryFloatBtn" aria-label="Toggle design summary" data-tooltip="Design Summary" aria-expanded="true">
                 <i class="fas fa-chevron-left btn-icon"></i>
@@ -449,48 +476,73 @@
                 </div>
                 <div class="cart-body" id="cartBody">
                     <div class="cart-base-package">
-                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                            <span><strong>Base:</strong> <span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}No Package Selected{% endif %}</span></span>
-                            <span id="cartBasePrice" style="font-weight: 600;">{% if base_package %}P{{ base_package.price }}{% endif %}</span>
-                        </div>
+                        <p class="design-summary-label">Selected offer</p>
+                        <div class="cart-offer-line"><span id="cartBaseName">{% if base_package %}{{ base_package.name }}{% else %}No Offer Selected{% endif %}</span><span id="cartBasePrice">{% if base_package %}₱{{ base_package.price|floatformat:'-2'|intcomma }}{% endif %}</span></div>
                     </div>
 
-                    {% if base_package %}
                     <div class="cart-section" id="cartInclusionsArea">
-                        <div class="section-title">Package Inclusions</div>
-                        <ul class="cart-list" id="cartInclusionsList"></ul>
+                        <div id="designOverallState" class="design-overall-state" role="status" aria-live="polite"></div>
+                        <div id="designRequiredGroup"><h3 class="design-summary-label">{% if base_package %}Required to book{% else %}Included items{% endif %}</h3><ul class="cart-list" id="cartInclusionsList"></ul></div>
+                        <div class="design-optional-items" id="designOptionalItems" hidden><h3 class="design-optional-heading">Optional items <span id="designOptionalCount"></span></h3><p class="design-summary-help">Included in your offer. Add them if you'd like.</p><ul class="cart-list" id="cartOptionalList"></ul></div>
+                        <div class="design-review-items" id="designReviewItems" hidden><h3 class="design-summary-label">Items to review</h3><ul id="designReviewList"></ul></div>
+                        <p class="design-summary-help design-reference-help">Uploaded photos are references and do not count toward required items.</p>
                     </div>
-                    {% endif %}
+                    {% if not base_package %}<a href="{% url 'select_design_type' %}{% if design %}?design_id={{ design.id }}{% endif %}">Choose a design offer</a>{% endif %}
                 </div>
             </div>
         </div>
     </div>
-    <script id="allPackagesData" type="application/json">
-        [
-            {% for pkg in all_packages %}
-            {
-                "id": "{{ pkg.id }}",
-                "name": "{{ pkg.name }}",
-                "price": "{{ pkg.price }}"
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ]
-    </script>
+    <dialog class="mobile-editor-sheet" id="mobileInventoryDialog" aria-labelledby="mobileInventoryTitle">
+        <header><div><h2 id="mobileInventoryTitle">Add an item</h2><p>Tap an item to add it to your design.</p></div><button type="button" data-mobile-close>Done</button></header>
+        <div class="mobile-editor-sheet-body" id="mobileInventoryBody"></div>
+    </dialog>
+    <dialog class="mobile-editor-sheet" id="mobileEditItemDialog" aria-labelledby="mobileEditTitle">
+        <header><div><h2 id="mobileEditTitle">Edit item</h2><p>See your changes on the canvas as you edit.</p></div><button type="button" data-mobile-close>Done</button></header>
+        <div class="mobile-edit-sections" role="group" aria-label="Choose item controls">
+            <button type="button" data-edit-section="text" aria-pressed="false" aria-controls="mobileEditControls">Text</button>
+            <button type="button" data-edit-section="adjust" aria-pressed="true" aria-controls="mobileEditControls">Size &amp; tilt</button>
+            <button type="button" data-edit-section="position" aria-pressed="false" aria-controls="mobileEditControls">Position</button>
+        </div>
+        <div class="mobile-editor-sheet-body" id="mobileEditControls">
+            <p class="mobile-editor-note" id="mobileLockedNote" hidden>This item is locked. Open Position and choose Unlock item to make changes.</p>
+            <label class="mobile-editor-text-field" id="mobileTextField">Your text<textarea id="mobileObjectText" rows="2" maxlength="500" placeholder="Enter your text"></textarea></label>
+            <fieldset id="mobileSelectionTools" aria-label="Item appearance"></fieldset>
+            <details id="mobileMoreColors"><summary>More item colors{% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='mobile-details-chevron' %}</summary><div id="mobileObjectColors"></div></details>
+            <div id="mobilePositionControls"><p class="mobile-editor-note">Use the arrows for small, precise movements.</p><div id="mobileObjectActions"></div></div>
+        </div>
+    </dialog>
+    <dialog class="mobile-editor-sheet" id="mobileCanvasToolsDialog" aria-labelledby="mobileCanvasToolsTitle">
+        <header><div><h2 id="mobileCanvasToolsTitle">Canvas tools</h2><p>Adjust your view and canvas.</p></div><button type="button" data-mobile-close>Done</button></header>
+        <div class="mobile-editor-sheet-body">
+            <h3>Zoom</h3><div id="mobileZoomTools"></div>
+            <h3>Design actions</h3><div class="mobile-editor-action-grid" id="mobileCanvasActions"></div>
+            <details><summary>Canvas background color{% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='mobile-details-chevron' %}</summary><div id="mobileCanvasColors"></div></details>
+            <details><summary>Background image (optional){% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='mobile-details-chevron' %}</summary><div id="mobileCanvasBackground"></div></details>
+            <details><summary>Canvas size (advanced){% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='mobile-details-chevron' %}</summary><p class="mobile-editor-note">The standard size works for most designs.</p><div id="mobileCanvasSize"></div></details>
+        </div>
+    </dialog>
+    <dialog class="mobile-editor-sheet" id="mobileChecklistDialog" aria-labelledby="mobileChecklistTitle">
+        <header><div><h2 id="mobileChecklistTitle">Design checklist</h2><p>Check what your design needs before booking.</p></div><button type="button" data-mobile-close>Done</button></header>
+        <div class="mobile-editor-sheet-body" id="mobileChecklistBody"></div>
+    </dialog>
+    {{ all_packages_data|json_script:"allPackagesData" }}
 </section>
 
 <!-- Package Upgrade Confirmation Modal (shared canvas-modal pattern) -->
-<div id="upgradeModal" class="canvas-modal-overlay" aria-hidden="true">
+<div id="upgradeModal" class="canvas-modal-overlay" popover="manual" aria-hidden="true">
     <div class="canvas-modal-content canvas-modal-upgrade" role="dialog" aria-modal="true" aria-labelledby="upgradeModalTitle">
         <div class="canvas-modal-upgrade-icon">
-            <i class="fas fa-arrow-up"></i>
+            <svg class="inventory-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V4m-6 6 6-6 6 6M5 20h14"/></svg>
         </div>
         <h3 id="upgradeModalTitle">Upgrade Package?</h3>
         <p id="upgradeModalMessage" class="canvas-modal-sub">
             You've reached the limit for this package. Would you like to upgrade to a higher package?
         </p>
+        <dl class="canvas-upgrade-details" id="upgradeDetails"></dl>
+        <p class="canvas-upgrade-note">Your current design will be kept. The new package requirements will apply.</p>
         <div class="canvas-modal-actions">
             <button type="button" class="canvas-modal-cancel" id="cancelUpgradeBtn">
-                Not Now
+                Keep current package
             </button>
             <button type="button" class="canvas-modal-save" id="confirmUpgradeBtn">
                 Upgrade
@@ -525,6 +577,9 @@
 </div>
 
 {{ canvas_assets_payload_obj|json_script:"canvas-assets-payload" }}
+{{ design_offer_payload|json_script:"design-offer-payload" }}
+{{ all_design_offers|json_script:"all-design-offers" }}
+{{ saved_canvas_state|json_script:"saved-canvas-state" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const floatBtn = document.getElementById('summaryFloatBtn');
@@ -585,13 +640,15 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
     {% if design %}
         window.currentDesignId = "{{ design.id }}";
-        window.savedCanvasJson = `{{ design.canvas_json|safe }}`;
+        window.savedCanvasJson = JSON.stringify(JSON.parse(document.getElementById("saved-canvas-state").textContent));
     {% else %}
         window.currentDesignId = null;
         window.savedCanvasJson = null;
     {% endif %}
 
-    window.basePackageId = "{{ base_package.id|default:'' }}";
+    window.basePackageId = "{{ base_package_id|default:'' }}";
+    window.designOffer = JSON.parse(document.getElementById("design-offer-payload").textContent);
+    window.allDesignOffers = JSON.parse(document.getElementById("all-design-offers").textContent);
     window.basePackagePrice = parseFloat("{{ base_package.price|default:0 }}");
     window.packageQuotas = JSON.parse('{{ package_quotas|escapejs|default:"{}" }}');
     window.allPackageQuotas = JSON.parse('{{ all_package_quotas|escapejs|default:"{}" }}');
@@ -607,5 +664,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 </script>
-<script src="{% static 'js/design_canvas.js' %}?v=20261017t"></script>
+<script src="{% static 'js/design_rules.js' %}?v=20261022"></script>
+<script src="{% static 'js/design_upgrades.js' %}?v=20261023upgrade"></script>
+<script src="{% static 'js/canvas_mobile.js' %}?v=20261023guidance"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20261023upgrade2"></script>
 {% endblock content %}

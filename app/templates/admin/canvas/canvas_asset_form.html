@@ -2,24 +2,27 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+{{ category_types|json_script:"category-types" }}
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}?v=20261022d">
+<div class="canvas-admin">
 
 <div class="page-header detail-page-header">
     <div>
         <h1>{% if canvas_asset %}Edit Canvas Asset{% else %}Add Canvas Asset{% endif %}</h1>
         <div class="breadcrumb">
-            <a href="{% url 'admin_canvas_assets' %}">Canvas Assets</a>
+            <a href="{% url 'admin_canvas_assets' %}?kind={{ selected_kind }}">Canvas Assets</a>
             <span class="separator">/</span>
             <span>{% if canvas_asset %}Edit{% else %}Add{% endif %} Asset</span>
         </div>
     </div>
-    <a href="{% url 'admin_canvas_assets' %}" class="btn-top-back"><i class="fas fa-arrow-left"></i> Back to Canvas Assets</a>
+    <a href="{% url 'admin_canvas_assets' %}?kind={{ selected_kind }}" class="btn-top-back"><i class="fas fa-arrow-left"></i> Back to Canvas Assets</a>
 </div>
 
 <div class="form-container canvas-category-container canvas-asset-container">
     <div class="form-card canvas-category-card canvas-asset-card">
-        <form method="POST" enctype="multipart/form-data" class="canvas-asset-form" id="canvasAssetForm" data-require-image="{% if canvas_asset and canvas_asset.image or canvas_asset and canvas_asset.static_path %}false{% else %}true{% endif %}" novalidate>
+        <form method="POST" enctype="multipart/form-data" class="canvas-asset-form" id="canvasAssetForm" data-require-image="{% if canvas_asset and canvas_asset.image or canvas_asset and canvas_asset.static_path or canvas_asset.item_type == 'i-text' %}false{% else %}true{% endif %}" novalidate>
             {% csrf_token %}
+            {% include "components/canvas_availability.html" with object_label="asset" %}
             {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
             {% if scroll_target %}<input type="hidden" name="scroll_target" value="{{ scroll_target }}">{% endif %}
 
@@ -80,21 +83,21 @@
                     </div>
                 </div>
 
-                <div class="form-group span-6">
-                    <label for="is_active">Status</label>
-                    <label for="is_active" class="active-toggle-box image-active-row">
-                        <input type="checkbox" name="is_active" id="is_active" {% if canvas_asset %}{% if canvas_asset.is_active %}checked{% endif %}{% else %}checked{% endif %}>
-                        <span>Active (visible on design canvas)</span>
+                <div class="ca-settings span-6">
+                    <label for="is_active" class="ca-setting">
+                        <input class="ca-checkbox" type="checkbox" name="is_active" id="is_active" {% if canvas_asset %}{% if canvas_asset.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+                        <span><strong>Active in designer</strong><small>Make this asset available in Create Design.</small></span>
                     </label>
                 </div>
             </div>
 
             <div class="form-actions">
-                <a href="{% url 'admin_canvas_assets' %}" class="btn-cancel">Cancel</a>
+                <a href="{% url 'admin_canvas_assets' %}?kind={{ selected_kind }}" class="btn-cancel">Cancel</a>
                 <button type="submit" class="btn-save">{% if canvas_asset %}Update{% else %}Create{% endif %}</button>
             </div>
         </form>
     </div>
+</div>
 </div>
 <script>
     (function () {
@@ -318,4 +321,23 @@
         });
     })();
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const node = document.getElementById('category-types'); if (!node) return;
+    const types = JSON.parse(node.textContent), select = document.getElementById('category');
+    const update = () => {
+        const selected = Array.from(document.querySelectorAll('[name="available_for"]:checked')).map(input => input.value);
+        document.querySelectorAll('#category option[value], #assetCategoryDropdown li[data-value]').forEach(option => {
+            const id = option.dataset.value || option.value;
+            if (!id) return;
+            const allowed = selected.every(kind => (types[id] || []).includes(kind));
+            option.hidden = !allowed; if (option.tagName === 'OPTION') option.disabled = !allowed;
+        });
+        if (select.selectedOptions[0]?.disabled) { select.value = ''; document.getElementById('assetCategoryDropdownText').textContent = 'Select Category'; }
+    };
+    document.querySelectorAll('[name="available_for"]').forEach(input => input.addEventListener('change', update)); update();
+});
+</script>
+
 {% endblock %}

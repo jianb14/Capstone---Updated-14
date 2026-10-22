@@ -10,8 +10,8 @@
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <!-- Shared components ng Step 3 map card + Step 4 Design Preferences -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261022mono">
-<link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261022mono">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261023hover">
+<link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261023checkbox">
 <script defer src="{% static 'js/booking_form_ui.js' %}?v=20261022mono"></script>
 <!-- Leaflet (edit modal Step 2 location map) — free OSM tiles, no API key.
      Graceful degradation: text location stays required if this fails. -->
@@ -155,10 +155,18 @@
                             <td data-label="Event Type">{{ b.event_type }}</td>
                             <td data-label="Event Date">{{ b.event_date|date:"F d, Y" }}</td>
                             <td data-label="Status">
+                                <div class="booking-row-status">
                                 <span class="status-badge {{ b.status }}">{{ b.get_status_display }}</span>
-                                {% if b.status == 'pending_payment' %}<div style="font-size: .72rem; margin-top: 6px;">{% if b.lifecycle.awaiting_verification %}Awaiting payment verification{% else %}Pay by {{ b.payment_due_at|date:"M d, g:i A" }}{% endif %}</div>{% endif %}
-                                {% if b.lifecycle.design_preparing %}<div style="font-size: .72rem; margin-top: 6px;">Design in preparation</div>{% endif %}
-                                {% if b.lifecycle.design_revision_pending %}<br><span class="event-design-ready">Design Revision Pending</span>{% elif b.design_deliveries.all %}<br><span class="event-design-ready">Design Ready</span>{% endif %}
+                                {% if b.status == 'pending_payment' %}
+                                    <span class="booking-row-update">{% if b.lifecycle.awaiting_verification %}Awaiting payment verification{% else %}Pay by {{ b.payment_due_at|date:"M d, g:i A" }}{% endif %}</span>
+                                {% elif b.lifecycle.design_revision_pending %}
+                                    <span class="booking-row-update">Design revision requested</span>
+                                {% elif b.lifecycle.design_preparing %}
+                                    <span class="booking-row-update">Design in preparation</span>
+                                {% elif b.lifecycle.design_ready %}
+                                    <span class="booking-row-update">Design ready</span>
+                                {% endif %}
+                                </div>
                             </td>
                             <td data-label="Actions">
                                 <div class="action-buttons">
@@ -278,7 +286,7 @@
                     <div class="step-label">Review &amp; Confirm</div>
                 </div>
             </div>
-            <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            <button type="button" class="close-btn" onclick="closeEditModal()" aria-label="Close edit booking form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
 
         <form id="editBookingForm" method="POST" action="" enctype="multipart/form-data" novalidate>

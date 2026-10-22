@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const dropHint = byId('dropHint');
     const selectionToolbar = byId('selectionToolbar');
     const contextToolbar = byId('objectContextToolbar');
+    let mobileEditor = null;
 
     const undoBtn = byId('undoBtn');
     const redoBtn = byId('redoBtn');
@@ -148,6 +149,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const quickTextInput = byId('quickTextInput');
     const addTextBtn = byId('addTextBtn');
     const assetSearchInput = byId('assetSearchInput');
+    const clearAssetSearch = byId('clearAssetSearch');
+    if (assetSearchInput && clearAssetSearch) {
+        assetSearchInput.addEventListener('input', () => {
+            clearAssetSearch.hidden = !assetSearchInput.value;
+            const builtinSection = byId('builtinStyroSection');
+            if (builtinSection && !builtinSection.hidden) {
+                builtinSection.style.display = !assetSearchInput.value.trim() || 'styrofoam name'.includes(assetSearchInput.value.trim().toLowerCase()) ? '' : 'none';
+            }
+        });
+        clearAssetSearch.addEventListener('click', () => {
+            assetSearchInput.value = '';
+            assetSearchInput.dispatchEvent(new Event('input', {bubbles: true}));
+            assetSearchInput.focus();
+        });
+    }
     const themeDecorInput = byId('themeDecorInput');
 
     const userUploadInput = byId('userUploadInput');
@@ -181,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const draftPackageId = urlParams.get('package_id') || window.basePackageId || 'none';
     const draftDesignId = window.currentDesignId || 'new';
     const isFreshCanvasRequest = !window.currentDesignId && urlParams.get('fresh') === '1';
-    const DRAFT_STORAGE_KEY = `${DRAFT_STORAGE_PREFIX}:design-${draftDesignId}:pkg-${draftPackageId}`;
+    const DRAFT_STORAGE_KEY = `${DRAFT_STORAGE_PREFIX}:design-${draftDesignId}:kind-${window.designOffer?.kind || "unassigned"}:offer-${window.designOffer?.id || draftPackageId}`;
 
     const canvas = new fabric.Canvas('designCanvas', {
         width: dropZone.clientWidth,
@@ -605,6 +621,11 @@ document.addEventListener('DOMContentLoaded', function() {
         item.setAttribute('data-width', `${asset.width || 150}`);
         item.setAttribute('data-height', `${asset.height || 150}`);
         item.setAttribute('title', asset.label || 'Asset');
+        item.dataset.assetId = asset.id;
+        item.dataset.assetToken = asset.token;
+        item.dataset.categoryId = asset.category_id;
+        item.dataset.designSource = 'catalog';
+        if (asset.type === 'i-text') { item.dataset.text = asset.label; item.dataset.fontSize = '76'; item.dataset.fontFamily = 'Poppins'; }
 
         const preview = document.createElement('div');
         preview.className = 'item-preview-img-wrapper';
@@ -618,6 +639,8 @@ document.addEventListener('DOMContentLoaded', function() {
             img.loading = 'lazy';
             ensureAssetPreviewFallback(img);
             preview.appendChild(img);
+        } else if (asset.type === 'i-text') {
+            preview.textContent = 'Aa';
         } else {
             const emptyText = document.createElement('span');
             emptyText.className = 'empty-panel-note';
@@ -650,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 category.dataset.categoryName ||
                 '';
             const categoryKey = normalizeCategoryName(category.dataset.categoryName || headerLabel);
-            const categoryAssets = getCategoryAssetsFromPayload(payload, categoryKey);
+            const categoryAssets = getCategoryAssetsFromPayload(payload, categoryKey).filter(asset => asset.builtin_key !== 'styrofoam_name');
             const existingItems = Array.from(list.querySelectorAll('.draggable-item'));
             const shouldHydrateFromPayload = categoryAssets.length > 0;
 
@@ -685,10 +708,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        const builtinButton = document.querySelector('#builtinStyroSection [data-asset-id]');
+        const builtinAsset = Object.values(payload).flat().find(asset => asset.builtin_key === 'styrofoam_name');
+        if (builtinButton && builtinAsset) {
+            builtinButton.dataset.assetToken = builtinAsset.token;
+            builtinButton.dataset.src = builtinAsset.src || '';
+        }
         document.querySelectorAll('.item-preview-img').forEach(ensureAssetPreviewFallback);
     }
 
     function filterAssetsByPackage() {
+        if (window.designOffer) {
+            document.querySelectorAll('.inventory-category').forEach(category => {
+                const rule = window.designOffer.requirements.find(row => Number(row.category_id) === Number(category.dataset.categoryId));
+                category.style.display = rule ? '' : 'none';
+                const header = category.querySelector('.category-header');
+                header?.querySelector('.design-badge')?.remove();
+                if (rule?.required && header) { const badge = document.createElement('small'); badge.className = 'design-badge inventory-required'; badge.textContent = 'Required'; header.insertBefore(badge, header.querySelector('.chevron')); }
+            });
+            const styroSection = byId('builtinStyroSection');
+            if (styroSection) {
+                const rule = window.designOffer.requirements.find(row => Number(row.category_id) === Number(styroSection.dataset.builtinCategoryId));
+                styroSection.hidden = !rule;
+                styroSection.style.display = rule ? '' : 'none';
+                styroSection.querySelector('.theme-decor-field')?.setAttribute('hidden', '');
+            }
+            updateSidebarGroupsBadge(Array.from(document.querySelectorAll('.inventory-category')).filter(c => c.style.display !== 'none').length);
+            syncVisibleCategoryAccordions(); return;
+        }
         const categories = Array.from(document.querySelectorAll('.inventory-category'));
         if (!categories.length) return;
 
@@ -823,6 +870,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 1. Update global state
                 window.basePackageId = pkgId;
+                window.designOffer = window.allDesignOffers?.[pkgId] || window.designOffer;
                 window.basePackagePrice = pkgPrice;
                 if (window.allPackageQuotas && window.allPackageQuotas[pkgId]) {
                     window.packageQuotas = window.allPackageQuotas[pkgId];
@@ -836,7 +884,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 3. Update summary panel info
                 if (cartBaseName) cartBaseName.textContent = pkgName;
-                if (cartBasePrice) cartBasePrice.textContent = `P${pkgPrice.toFixed(2)}`;
+                if (cartBasePrice) cartBasePrice.textContent = formatSummaryPrice(pkgPrice);
                 if (cartInclusionsArea) cartInclusionsArea.style.display = 'block';
 
                 // 4. Update asset visibility based on new quotas
@@ -1075,6 +1123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 '_isColorableSVG',
                 '_isLocked',
                 '_packageCategory',
+                '_assetId', '_assetToken', '_assetSource', '_categoryId', '_designSource',
                 '_isBgImage',
                 '_bgFitMode',
                 '_currentColor',
@@ -1148,11 +1197,15 @@ document.addEventListener('DOMContentLoaded', function() {
         node.className = 'draggable-item';
         node.draggable = true;
         node.dataset.type = 'image';
+        node.dataset.designSource = 'reference';
         node.dataset.src = dataUrl;
         node.dataset.width = '180';
         node.dataset.height = '180';
         node.title = name || 'upload';
-        node.innerHTML = `<div class="item-preview-img-wrapper"><img class="item-preview-img" src="${dataUrl}" alt="${node.title}"></div>`;
+        const wrapper = document.createElement('div'); wrapper.className = 'item-preview-img-wrapper';
+        const preview = document.createElement('img'); preview.className = 'item-preview-img'; preview.src = dataUrl; preview.alt = node.title;
+        wrapper.appendChild(preview); node.appendChild(wrapper);
+        const tag = document.createElement('small'); tag.className = 'design-reference-tag'; tag.textContent = 'Reference only'; node.appendChild(tag);
         bindDraggableItem(node);
         if (placeFirst && userUploadsGrid.firstChild) {
             userUploadsGrid.insertBefore(node, userUploadsGrid.firstChild);
@@ -1179,6 +1232,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!raw) return null;
             const payload = JSON.parse(raw);
             if (!payload || typeof payload.canvas_json !== 'string') return null;
+            const upgraded = Object.entries(window.allDesignOffers || {}).find(([, offer]) => Number(offer.id) === Number(payload.design_offer_id) && offer.enabled);
+            if (upgraded && Number(window.designOffer?.id) !== Number(payload.design_offer_id)) applyPackage(upgraded[0]);
             return payload.canvas_json;
         } catch (error) {
             console.warn('Failed to read canvas draft:', error);
@@ -1200,7 +1255,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const payload = {
                 canvas_json: getCurrentState(),
                 saved_at: Date.now(),
-                base_package_id: window.basePackageId || null
+                base_package_id: window.basePackageId || null,
+                    design_offer_id: window.designOffer?.id || null
             };
             localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
         } catch (error) {
@@ -1223,9 +1279,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (redoBtn) redoBtn.disabled = redoStack.length === 0;
     }
 
-    function saveState() {
+    function saveState(snapshot = getCurrentState()) {
         if (isLoadingState) return;
-        undoStack.push(getCurrentState());
+        if (undoStack[undoStack.length - 1] !== snapshot) undoStack.push(snapshot);
         if (undoStack.length > MAX_UNDO) undoStack.shift();
         redoStack.length = 0;
         updateUndoRedoBtnState();
@@ -1633,7 +1689,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function isOutlineColor(colorStr) {
-        if (!colorStr || colorStr === 'none' || colorStr === 'transparent') return false;
+        if (typeof colorStr !== 'string' || !colorStr || colorStr === 'none' || colorStr === 'transparent') return false;
         const value = colorStr.toLowerCase();
         return (
             value === '#000000' ||
@@ -1721,6 +1777,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function setTextButtonState(btn, active) {
         if (!btn) return;
         btn.classList.toggle('is-active', !!active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
 
     function defaultLayerName(obj) {
@@ -1737,12 +1794,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return obj.type ? obj.type.charAt(0).toUpperCase() + obj.type.slice(1) : 'Object';
     }
 
+    function inventoryIconHtml(name) {
+        return `<svg class="inventory-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ci-${name}"/></svg>`;
+    }
     function layerIconHtml(obj) {
-        if (isTextObject(obj)) return '<i class="fas fa-font"></i>';
-        if (obj.type === 'image') return '<i class="fas fa-image"></i>';
+        if (isTextObject(obj)) return inventoryIconHtml('text');
+        if (obj.type === 'image') return inventoryIconHtml('image');
         const fill = resolveObjectColorHex(obj);
         if (fill) return `<span class="layer-swatch" style="background:${fill}"></span>`;
-        return '<i class="fas fa-shapes"></i>';
+        return inventoryIconHtml('shapes');
     }
 
     function getLayerObjects() {
@@ -1826,6 +1886,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function clearLayerDropMarkers() {
         if (!layersList) return;
+        layersList.classList.remove('drop-at-end');
         layersList.querySelectorAll('.drop-before,.drop-after').forEach((n) => n.classList.remove('drop-before', 'drop-after'));
     }
 
@@ -1845,7 +1906,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const eyeBtn = document.createElement('button');
         eyeBtn.type = 'button';
         eyeBtn.className = `layer-action-btn${obj.visible === false ? '' : ' is-on'}`;
-        eyeBtn.innerHTML = `<i class="fas fa-eye${obj.visible === false ? '-slash' : ''}"></i>`;
+        eyeBtn.innerHTML = inventoryIconHtml(obj.visible === false ? 'eye-off' : 'eye');
         eyeBtn.setAttribute('data-tooltip', obj.visible === false ? 'Show' : 'Hide');
         eyeBtn.setAttribute('aria-label', eyeBtn.getAttribute('data-tooltip'));
         eyeBtn.addEventListener('click', (event) => {
@@ -1858,7 +1919,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const lockRowBtn = document.createElement('button');
         lockRowBtn.type = 'button';
         lockRowBtn.className = 'layer-action-btn';
-        lockRowBtn.innerHTML = `<i class="fas fa-lock${isLocked ? '' : '-open'}"></i>`;
+        lockRowBtn.innerHTML = inventoryIconHtml(isLocked ? 'lock' : 'unlock');
         lockRowBtn.setAttribute('data-tooltip', isLocked ? 'Unlock' : 'Lock');
         lockRowBtn.setAttribute('aria-label', lockRowBtn.getAttribute('data-tooltip'));
         lockRowBtn.addEventListener('click', (event) => {
@@ -1875,7 +1936,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.className = 'layer-action-btn';
-        delBtn.innerHTML = '<i class="fas fa-trash-can"></i>';
+        delBtn.innerHTML = inventoryIconHtml('trash');
         delBtn.setAttribute('data-tooltip', 'Delete');
         delBtn.setAttribute('aria-label', 'Delete layer');
         delBtn.addEventListener('click', (event) => {
@@ -1945,11 +2006,13 @@ document.addEventListener('DOMContentLoaded', function() {
             startLayerRename(li, obj);
         });
         li.addEventListener('dragover', (event) => {
-            if (!layerDragId || layerDragId === obj._layerId) return;
+            if (!layerDragId) return;
+            clearLayerDropMarkers();
+            if (layerDragId === obj._layerId) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
             const rect = li.getBoundingClientRect();
-            const before = (event.clientY - rect.top) < rect.height / 2;
+            const before = isBg || (event.clientY - rect.top) < rect.height / 2;
             li.classList.toggle('drop-before', before);
             li.classList.toggle('drop-after', !before);
         });
@@ -1962,13 +2025,13 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault();
             const dragged = getLayerObjects().find((o) => o._layerId === layerDragId);
             layerDragId = null;
-            li.classList.remove('drop-before', 'drop-after');
+            clearLayerDropMarkers();
             if (!dragged || dragged._isLocked || dragged._isBgImage) {
                 if (dragged && dragged._isLocked) showCanvasToast('info', 'Unlock the layer to reorder it.');
                 return;
             }
             const rect = li.getBoundingClientRect();
-            const before = (event.clientY - rect.top) < rect.height / 2;
+            const before = isBg || (event.clientY - rect.top) < rect.height / 2;
             moveLayerObjectToRow(dragged, obj, before);
         });
         return li;
@@ -2006,6 +2069,9 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
             clearLayerDropMarkers();
+            const backgroundRow = layersList.querySelector('.layer-row.is-bg');
+            if (backgroundRow) backgroundRow.classList.add('drop-before');
+            else layersList.classList.add('drop-at-end');
         });
         layersList.addEventListener('drop', (event) => {
             if (!layerDragId) return;
@@ -2031,7 +2097,7 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshLayersPanel();
         });
         layersList.addEventListener('dragleave', (event) => {
-            if (event.target === layersList) clearLayerDropMarkers();
+            if (!layersList.contains(event.relatedTarget)) clearLayerDropMarkers();
         });
     }
 
@@ -2213,14 +2279,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (contextMoveRightBtn) contextMoveRightBtn.disabled = !hasSelection || !hasUnlockedSelection;
         if (contextDeleteBtn) contextDeleteBtn.disabled = !hasSelection;
 
-        if (lockBtn) {
-            const lockIcon = lockBtn.querySelector('i');
-            if (lockIcon) lockIcon.className = allLocked ? 'fas fa-lock' : 'fas fa-lock-open';
-        }
-        if (contextLockBtn) {
-            const contextIcon = contextLockBtn.querySelector('i');
-            if (contextIcon) contextIcon.className = allLocked ? 'fas fa-lock' : 'fas fa-lock-open';
-        }
+        [lockBtn, contextLockBtn].filter(Boolean).forEach((button) => {
+            const icon = button.querySelector('svg use');
+            if (icon) icon.setAttribute('href', allLocked ? '#ci-lock' : '#ci-unlock');
+            const label = allLocked ? 'Unlock selection' : 'Lock selection';
+            button.setAttribute('aria-label', label);
+            button.setAttribute('data-tooltip', label);
+            button.setAttribute('aria-pressed', allLocked ? 'true' : 'false');
+        });
 
         if (itemColorPicker) {
             itemColorPicker.disabled = !hasSelection;
@@ -2238,6 +2304,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateElementSizeInputs();
         updateTextControlsUI();
+        if (mobileEditor) mobileEditor.sync();
         updateSelectionToolbarPosition();
         if (isObjectTransforming) {
             hideContextToolbar();
@@ -2290,20 +2357,41 @@ document.addEventListener('DOMContentLoaded', function() {
         return '#' + lifted.join('');
     }
 
-    function applyColorToObject(obj, color) {
+    function colorPreview(objects, color) {
+        const current = canvas.getObjects();
+        const all = [...current, ...objects.filter(obj => !current.includes(obj))];
+        return all.map(obj => objects.includes(obj) ? {...obj, type: obj.type, _currentColor: color, fill: color} : obj);
+    }
+    function applyObjectColors(objects, color) {
+        const targets = objects.filter(obj => !obj._isLocked && canvas.getObjects().includes(obj));
+        if (!targets.length) return false;
+        const preview = () => colorPreview(targets, color);
+        const limit = window.designOffer?.max_balloon_colors ?? Infinity;
+        if (window.designOffer && window.DesignUpgrades.colors(preview(), window.designOffer, catalogById()) > limit) {
+            handleColorUpgrade(limit, preview, () => applyObjectColors(targets, color));
+            updateControlsState();
+            return false;
+        }
+        saveState();
+        targets.forEach(obj => applyColorToObject(obj, color, {skipLimit: true}));
+        canvas.renderAll(); updateControlsState(); updateVisualCart(); scheduleDraftPersist();
+        return true;
+    }
+    function applyColorToObject(obj, color, {skipLimit = false, resume = null} = {}) {
         if (!obj || !color) return;
 
         const normalizedCat = normalizeCategoryName(obj._packageCategory);
-        const isBalloon = normalizedCat === 'balloons' || normalizedCat === 'balloon';
+        const isBalloon = isBalloonCategory(obj._packageCategory, obj._categoryId);
 
         if (isBalloon) {
             // Check if applying this color would exceed the unique color limit
-            const potentialColors = getUniqueBalloonColors(obj, color);
-            const limit = window.packageQuotas ? (window.packageQuotas.balloon_color_limit || 2) : 2;
+            const limit = window.designOffer ? (window.designOffer.max_balloon_colors ?? Infinity) : (window.packageQuotas?.balloon_color_limit || 2);
+            const preview = () => colorPreview([obj], color);
+            const potentialCount = window.designOffer ? window.DesignUpgrades.colors(preview(), window.designOffer, catalogById()) : getUniqueBalloonColors(obj, color).length;
             
-            if (potentialColors.length > limit) {
-                handleColorUpgrade(limit);
-                return; // RESTRICT: Do not apply the color
+            if (!skipLimit && potentialCount > limit) {
+                handleColorUpgrade(limit, preview, resume || (() => applyObjectColors([obj], color)));
+                return false;
             }
             lastBalloonColor = color; // Track last balloon color
         }
@@ -2348,12 +2436,20 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (obj.fill && obj.fill !== 'none') {
             obj.set('fill', color);
         }
+        return true;
+    }
+
+    function isBalloonCategory(category, categoryId) {
+        if (window.designOffer) {
+            return window.designOffer.requirements.some(rule => rule.is_balloon && (Number(rule.category_id) === Number(categoryId) || (!categoryId && normalizeCategoryName(rule.name) === normalizeCategoryName(category))));
+        }
+        return ['balloons', 'balloon'].includes(normalizeCategoryName(category));
     }
 
     function getUniqueBalloonColors(pendingObj = null, pendingColor = null) {
         const balloons = canvas.getObjects().filter((obj) => {
             const cat = normalizeCategoryName(obj._packageCategory);
-            return (cat === 'balloons' || cat === 'balloon') && !obj._isArtboard && !obj._isBgImage;
+            return isBalloonCategory(obj._packageCategory, obj._categoryId) && !obj._isArtboard && !obj._isBgImage;
         });
         const colors = new Set();
         balloons.forEach((obj) => {
@@ -2385,11 +2481,16 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
 
+    function retryShape(data, point) {
+        const offset = point ? {x: point.x - artboard.left, y: point.y - artboard.top} : null;
+        return () => addShapeToCanvas({...data}, offset ? {x: artboard.left + offset.x, y: artboard.top + offset.y} : null);
+    }
     function addRasterImage(data, pointer) {
         fabric.Image.fromURL(
             data.src,
             (img) => {
                 if (!img) return;
+                if (data.designSource === 'catalog' && !checkQuota(data.category, data.categoryId, retryShape(data, pointer))) return;
                 const desiredW = data.width || 180;
                 const desiredH = data.height || 180;
                 const scale = Math.min(desiredW / img.width, desiredH / img.height);
@@ -2402,8 +2503,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     scaleY: scale
                 });
                 img._packageCategory = data.category || 'custom';
+                attachCatalogIdentity(img, data);
                 if (data.fill) {
-                    applyColorToObject(img, data.fill);
+                    if (applyColorToObject(img, data.fill, {resume: retryShape(data, pointer)}) === false) return;
                 }
                 canvas.add(img);
                 canvas.setActiveObject(img);
@@ -2423,6 +2525,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const validObjects = objects.filter(Boolean);
+            if (data.designSource === 'catalog' && !checkQuota(data.category, data.categoryId, retryShape(data, pointer))) return;
             const grouped = fabric.util.groupSVGElements(validObjects, options);
             const desiredW = data.width || 180;
             const desiredH = data.height || 180;
@@ -2438,6 +2541,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             grouped._isColorableSVG = true;
             grouped._packageCategory = data.category || 'custom';
+            attachCatalogIdentity(grouped, data);
             // Freeze which shapes count as outlines using the ORIGINAL fills,
             // before any user recolor. Recoloring must never mistake a black
             // body fill (user picked black) for an outline — see isOutlineColor().
@@ -2450,7 +2554,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             grouped._outlineShapeIndexes = outlineShapeIndexes;
             if (data.fill) {
-                applyColorToObject(grouped, data.fill);
+                if (applyColorToObject(grouped, data.fill, {resume: retryShape(data, pointer)}) === false) return;
             }
             canvas.add(grouped);
             canvas.setActiveObject(grouped);
@@ -2466,10 +2570,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // 1. Validation: Check if we are over the limit for package inclusions
         if (window.packageQuotas) {
             const category = (data.category || 'custom').toLowerCase();
-            if (!checkQuota(category)) return;
+            if (!checkQuota(category, data.categoryId, retryShape(data, pointer))) return;
 
             // Check balloon color limit when adding
-            if (category === 'balloons' || category === 'balloon') {
+            if (isBalloonCategory(category, data.categoryId)) {
                 // If the user has already picked a color, use it as the default for new drags
                 if (lastBalloonColor) {
                     data.fill = lastBalloonColor;
@@ -2516,6 +2620,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!obj) return;
         obj._packageCategory = data.category || 'custom';
+        attachCatalogIdentity(obj, data);
         applyInteractionCursors(obj);
         canvas.add(obj);
         canvas.setActiveObject(obj);
@@ -2524,7 +2629,24 @@ document.addEventListener('DOMContentLoaded', function() {
         updateVisualCart();
     }
 
-    function checkQuota(category) {
+    function attachCatalogIdentity(obj, data) {
+        obj._assetId = data.assetId || null; obj._assetToken = data.assetToken || '';
+        obj._assetSource = data.src || ''; obj._categoryId = data.categoryId || null;
+        obj._designSource = data.designSource || (data.assetId ? 'catalog' : 'reference');
+    }
+
+    function checkQuota(category, categoryId = null, resume = null) {
+        if (window.designOffer) {
+            const rule = window.designOffer.requirements.find(row => categoryId ? Number(row.category_id) === Number(categoryId) : normalizeCategoryName(row.name) === normalizeCategoryName(category));
+            if (!rule || rule.maximum === null) return true;
+            const used = canvas.getObjects().filter(obj => !obj._isArtboard && !obj._isBgImage && obj._designSource === 'catalog' && Number(obj._categoryId) === Number(rule.category_id)).length;
+            if (used >= rule.maximum) {
+                if (resume && window.designOffer.kind === 'package' && window.DesignUpgrades.isPanel(rule)) handlePackageUpgrade(rule.category_id, rule.maximum, resume);
+                else showToast(`Included limit: ${rule.maximum}. Remove an existing item before adding another.`, 'error', `${rule.name} limit reached`);
+                return false;
+            }
+            return true;
+        }
         if (!window.packageQuotas) return true;
         
         const normalized = normalizeCategoryName(category);
@@ -2559,7 +2681,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentCount >= limit) {
                 // If it's a panel, show upgrade modal
                 if (quotaKey === 'panels' || quotaKey === 'panel' || quotaKey === 'backdrop' || quotaKey === 'backdrops') {
-                    handlePackageUpgrade(quotaKey, limit);
+                    showToast(`Your package includes up to ${limit} panels. Choose a design offer to check upgrade options.`, 'error', 'Panel limit reached');
                 } else {
                     const label = generateCartLabel(quotaKey);
                     showToast(`Limit reached for ${label}. You can only have ${limit} ${label}(s) in this package.`, 'error');
@@ -2570,144 +2692,79 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    let pendingUpgrade = null;
+    let upgradeReturnFocus = null;
     function openUpgradeModal() {
-        const upgradeModal = byId('upgradeModal');
-        if (!upgradeModal) return;
-        upgradeModal.classList.add('show');
-        upgradeModal.setAttribute('aria-hidden', 'false');
+        const modal = byId('upgradeModal');
+        if (modal.matches(':popover-open')) return;
+        upgradeReturnFocus = document.activeElement;
+        if (mobileEditor) mobileEditor.closeSheets();
+        closeFontFamilyDropdown();
+        hideSelectionToolbarTooltip();
+        document.querySelector('.canvas-workspace-shell').inert = true;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        modal.showPopover();
+        requestAnimationFrame(() => byId('cancelUpgradeBtn').focus());
     }
-
     function closeUpgradeModal() {
-        const upgradeModal = byId('upgradeModal');
-        if (!upgradeModal) return;
-        upgradeModal.classList.remove('show');
-        upgradeModal.setAttribute('aria-hidden', 'true');
+        const modal = byId('upgradeModal');
+        pendingUpgrade = null;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        if (modal.matches(':popover-open')) modal.hidePopover();
+        document.querySelector('.canvas-workspace-shell').inert = false;
+        if (upgradeReturnFocus?.isConnected && upgradeReturnFocus.getClientRects().length) upgradeReturnFocus.focus({preventScroll: true});
     }
-
-    function handlePackageUpgrade(quotaKey, currentLimit) {
-        const upgradeModal = byId('upgradeModal');
-        const upgradeMessage = byId('upgradeModalMessage');
-        const confirmBtn = byId('confirmUpgradeBtn');
-        const cancelBtn = byId('cancelUpgradeBtn');
-
-        if (!upgradeModal || !upgradeMessage || !confirmBtn || !cancelBtn) return;
-
-        // Find a package that allows more of this quotaKey
-        const currentPrice = window.basePackagePrice || 0;
-        const allPackages = JSON.parse(document.getElementById('allPackagesData').textContent || '[]');
-        
-        // Filter packages that have a higher limit for this quotaKey and are more expensive
-        let nextPackage = null;
-        for (const pkg of allPackages) {
-            const pkgQuotas = window.allPackageQuotas[pkg.id] || {};
-            const pkgLimit = pkgQuotas[quotaKey] || 0;
-            
-            if (pkgLimit > currentLimit && parseFloat(pkg.price) > currentPrice) {
-                if (!nextPackage || parseFloat(pkg.price) < parseFloat(nextPackage.price)) {
-                    nextPackage = pkg;
-                }
-            }
+    function requestUpgrade(request, objects, resume, message) {
+        const current = window.designOffer;
+        const next = window.DesignUpgrades.find(window.allDesignOffers, current, objects(), catalogById(), request);
+        if (!next) {
+            showToast(message + (current?.kind === 'package' ? ' No compatible higher package is available.' : ''), 'error', request.type === 'colors' ? 'Balloon color limit reached' : 'Panel limit reached');
+            return;
         }
-
-        if (nextPackage) {
-            upgradeMessage.innerHTML = `You've used all <strong>${currentLimit} ${quotaKey}(s)</strong> included in your current package. <br><br>Upgrade to <strong>${nextPackage.name}</strong> (P${nextPackage.price}) to use up to <strong>${window.allPackageQuotas[nextPackage.id][quotaKey]} ${quotaKey}(s)</strong>?`;
-
-            openUpgradeModal();
-
-            const onConfirm = () => {
-                applyPackage(nextPackage.id);
-                closeUpgradeModal();
-                showToast(`Upgraded to ${nextPackage.name}!`, 'success');
-                confirmBtn.removeEventListener('click', onConfirm);
-                cancelBtn.removeEventListener('click', onCancel);
-            };
-
-            const onCancel = () => {
-                closeUpgradeModal();
-                confirmBtn.removeEventListener('click', onConfirm);
-                cancelBtn.removeEventListener('click', onCancel);
-            };
-
-            confirmBtn.addEventListener('click', onConfirm);
-            cancelBtn.addEventListener('click', onCancel);
-        } else {
-            showToast(`Limit reached for ${quotaKey}. No higher package available.`, 'error');
-        }
+        pendingUpgrade = {current, next, request, objects, resume};
+        byId('upgradeModalTitle').textContent = request.type === 'colors' ? 'Need more balloon colors?' : 'Need another panel?';
+        byId('upgradeModalMessage').textContent = message + ' You can switch to the following package to continue.';
+        const details = byId('upgradeDetails');
+        details.replaceChildren();
+        const rule = next.requirements.find(row => Number(row.category_id) === Number(request.categoryId));
+        const allowance = request.type === 'colors' ? next.max_balloon_colors === null ? 'Unlimited balloon colors' : `Up to ${next.max_balloon_colors} balloon colors` : rule.maximum === null ? 'Unlimited panels' : `Up to ${rule.maximum} panels`;
+        [['New package', next.name], ['Package price', formatSummaryPrice(next.price)], ['Price increase', formatSummaryPrice(Number(next.price) - Number(current.price))], ['Allowance', allowance]].forEach(([label, value]) => {
+            const row = document.createElement('div');
+            const term = document.createElement('dt'); term.textContent = label;
+            const description = document.createElement('dd'); description.textContent = value;
+            row.append(term, description); details.appendChild(row);
+        });
+        openUpgradeModal();
     }
-
-    function handleColorUpgrade(currentLimit) {
-        const upgradeModal = byId('upgradeModal');
-        const upgradeMessage = byId('upgradeModalMessage');
-        const confirmBtn = byId('confirmUpgradeBtn');
-        const cancelBtn = byId('cancelUpgradeBtn');
-
-        if (!upgradeModal || !upgradeMessage || !confirmBtn || !cancelBtn) return;
-
-        const currentPrice = window.basePackagePrice || 0;
-        const allPackages = JSON.parse(document.getElementById('allPackagesData').textContent || '[]');
-        
-        let nextPackage = null;
-        for (const pkg of allPackages) {
-            const pkgQuotas = window.allPackageQuotas[pkg.id] || {};
-            const pkgColorLimit = pkgQuotas.balloon_color_limit || 0;
-            
-            if (pkgColorLimit > currentLimit && parseFloat(pkg.price) > currentPrice) {
-                if (!nextPackage || parseFloat(pkg.price) < parseFloat(nextPackage.price)) {
-                    nextPackage = pkg;
-                }
-            }
-        }
-
-        if (nextPackage) {
-            upgradeMessage.innerHTML = `You've used all <strong>${currentLimit} colors</strong> for balloons included in your current package. <br><br>Upgrade to <strong>${nextPackage.name}</strong> (P${nextPackage.price}) to use up to <strong>${window.allPackageQuotas[nextPackage.id].balloon_color_limit} colors</strong>?`;
-            
-            openUpgradeModal();
-
-            const onConfirm = () => {
-                applyPackage(nextPackage.id);
-                closeUpgradeModal();
-                showToast(`Upgraded to ${nextPackage.name}!`, 'success');
-                confirmBtn.removeEventListener('click', onConfirm);
-                cancelBtn.removeEventListener('click', onCancel);
-            };
-
-            const onCancel = () => {
-                closeUpgradeModal();
-                confirmBtn.removeEventListener('click', onConfirm);
-                cancelBtn.removeEventListener('click', onCancel);
-            };
-
-            confirmBtn.addEventListener('click', onConfirm);
-            cancelBtn.addEventListener('click', onCancel);
-        } else {
-            showToast(`Color limit reached. No higher package available with more colors.`, 'error');
-        }
+    function handlePackageUpgrade(categoryId, currentLimit, resume) {
+        const rule = window.designOffer?.requirements.find(row => Number(row.category_id) === Number(categoryId));
+        const asset = Object.values(catalogById()).find(item => Number(item.category_id) === Number(categoryId));
+        if (!rule || !asset) { showToast('The item limit for this package has been reached.', 'error'); return; }
+        const future = {_assetId: asset.id, _assetToken: asset.token, _designSource: 'catalog', type: asset.type, text: 'Panel'};
+        const objects = () => [...canvas.getObjects(), future];
+        const used = canvas.getObjects().filter(obj => obj._designSource === 'catalog' && Number(obj._categoryId) === Number(categoryId)).length;
+        requestUpgrade({type: 'panel', categoryId, needed: used + 1}, objects, resume, `This package includes up to ${currentLimit} ${currentLimit === 1 ? 'panel' : 'panels'}.`);
     }
-
-    function applyPackage(pkgId) {
-        const packageCards = document.querySelectorAll('.package-selection-card');
-        const targetCard = Array.from(packageCards).find(card => card.dataset.packageId == pkgId);
-        
-        if (targetCard) {
-            targetCard.click(); // Use the existing logic
-        } else {
-            // Fallback if card not found (though it should be)
-            const allPackages = JSON.parse(document.getElementById('allPackagesData').textContent || '[]');
-            const pkg = allPackages.find(p => p.id == pkgId);
-            if (pkg) {
-                window.basePackageId = pkg.id;
-                window.basePackagePrice = parseFloat(pkg.price);
-                window.packageQuotas = window.allPackageQuotas[pkg.id] || {};
-                
-                const cartBaseName = byId('cartBaseName');
-                const cartBasePrice = byId('cartBasePrice');
-                if (cartBaseName) cartBaseName.textContent = pkg.name;
-                if (cartBasePrice) cartBasePrice.textContent = `P${parseFloat(pkg.price).toFixed(2)}`;
-                
-                filterAssetsByPackage();
-                updateVisualCart();
-            }
-        }
+    function handleColorUpgrade(currentLimit, objects, resume) {
+        requestUpgrade({type: 'colors', needed: window.DesignUpgrades.colors(objects(), window.designOffer, catalogById())}, objects, resume, `This package allows up to ${currentLimit} balloon ${currentLimit === 1 ? 'color' : 'colors'}.`);
+    }
+    function applyPackage(packageId) {
+        const offer = window.allDesignOffers?.[packageId];
+        if (!offer?.enabled || offer.kind !== 'package') return false;
+        window.designOffer = offer;
+        window.basePackageId = String(packageId);
+        window.basePackagePrice = Number(offer.price);
+        window.packageQuotas = window.allPackageQuotas?.[packageId] || {};
+        document.querySelectorAll('.package-selection-card').forEach(card => card.classList.toggle('selected', card.dataset.packageId === String(packageId)));
+        if (byId('cartBaseName')) byId('cartBaseName').textContent = offer.name;
+        if (byId('cartBasePrice')) byId('cartBasePrice').textContent = formatSummaryPrice(offer.price);
+        filterAssetsByPackage();
+        updateVisualCart();
+        updateControlsState();
+        scheduleDraftPersist();
+        return true;
     }
 
     function normalizeCategoryName(cat) {
@@ -2720,32 +2777,56 @@ document.addEventListener('DOMContentLoaded', function() {
             .trim();
     }
 
-    function showToast(message, type = 'info') {
-        // Simple toast implementation or use existing one if available
-        // Based on the UI, it seems there's no built-in toast, but I can alert for now
-        // or check if there's a toast container.
-        const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+    function showToast(message, type = 'info', heading = null) {
+        const container = document.querySelector('.canvas-toast-container') || createToastContainer();
+        // A toast opened from a native mobile dialog must live inside that
+        // dialog to remain interactive; its popover still draws above it.
+        const parent = document.querySelector('dialog:modal') || document.body;
+        if (container.parentElement !== parent) {
+            if (container.matches(':popover-open')) container.hidePopover();
+            parent.appendChild(container);
+            if (parent.tagName === 'DIALOG') parent.addEventListener('close', () => {
+                if (container.parentElement !== parent) return;
+                const visible = container.matches(':popover-open');
+                if (visible) container.hidePopover();
+                document.body.appendChild(container);
+                if (visible && container.childElementCount) container.showPopover();
+            }, {once: true});
+        }
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        toast.innerHTML = `
-            <div class="toast-content">
-                <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                <span>${message}</span>
-            </div>
-        `;
-        toastContainer.appendChild(toast);
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        const content = document.createElement('div'); content.className = 'toast-content';
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('fill', 'none'); icon.setAttribute('stroke', 'currentColor');
+        icon.setAttribute('stroke-width', '1.6'); icon.setAttribute('stroke-linecap', 'round'); icon.setAttribute('stroke-linejoin', 'round'); icon.setAttribute('aria-hidden', 'true');
+        icon.classList.add('canvas-toast-icon');
+        icon.innerHTML = type === 'success' ? '<path d="m5 12 4 4L19 6"/>' : '<circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/>';
+        const copy = document.createElement('div'); copy.className = 'canvas-toast-copy';
+        const title = document.createElement('strong'); title.textContent = heading || (type === 'error' ? 'Limit reached' : 'Design notice');
+        const text = document.createElement('span'); text.className = 'canvas-toast-message'; text.textContent = message;
+        copy.append(title, text);
+        const close = document.createElement('button'); close.type = 'button'; close.className = 'canvas-toast-close'; close.setAttribute('aria-label', 'Dismiss notification'); close.innerHTML = inventoryIconHtml('close');
+        content.append(icon, copy, close); toast.appendChild(content); container.appendChild(toast);
+        if (!container.matches(':popover-open')) container.showPopover();
+        const dismiss = () => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+                if (!container.childElementCount && container.matches(':popover-open')) container.hidePopover();
+            }, 300);
+        };
+        close.addEventListener('click', dismiss);
+        // Keep the existing slide/bounce transition and its original timings.
         setTimeout(() => {
             toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            setTimeout(dismiss, 3000);
         }, 100);
     }
-
     function createToastContainer() {
         const container = document.createElement('div');
-        container.className = 'toast-container';
+        container.className = 'toast-container canvas-toast-container';
+        container.setAttribute('popover', 'manual');
         document.body.appendChild(container);
         return container;
     }
@@ -2753,6 +2834,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function getDraggableItemPayload(item) {
         if (!item) return null;
         return {
+            assetId: item.dataset.assetId || null, assetToken: item.dataset.assetToken || '', categoryId: item.dataset.categoryId || null, designSource: item.dataset.designSource || (item.dataset.assetId ? 'catalog' : 'reference'),
             type: item.getAttribute('data-type') || 'image',
             category: item.getAttribute('data-category') || 'custom',
             src: item.getAttribute('data-src') || '',
@@ -2879,11 +2961,11 @@ document.addEventListener('DOMContentLoaded', function() {
         scheduleLayersRefresh();
     }
 
-    function duplicateSingleSelectedObject() {
-        const activeObj = getSingleActiveObject();
-        if (!activeObj || activeObj._isLocked) return;
+    function duplicateSingleSelectedObject(source = null) {
+        const activeObj = source || getSingleActiveObject();
+        if (!activeObj || activeObj._isLocked || !canvas.getObjects().includes(activeObj)) return;
 
-        if (!checkQuota(activeObj._packageCategory || 'custom')) return;
+        if (!checkQuota(activeObj._packageCategory || 'custom', activeObj._categoryId, () => duplicateSingleSelectedObject(activeObj))) return;
 
         // Fabric's clone() only copies standard props, so the custom color
         // flags must be listed explicitly or a duplicated SVG loses them
@@ -2892,6 +2974,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // selected or duplicated anyway (selectable: false).
         activeObj.clone(
             (cloned) => {
+                if (!checkQuota(activeObj._packageCategory || 'custom', activeObj._categoryId, () => duplicateSingleSelectedObject(activeObj))) return;
                 saveState();
                 canvas.discardActiveObject();
                 cloned.set({
@@ -2912,6 +2995,7 @@ document.addEventListener('DOMContentLoaded', function() {
             [
                 '_isColorableSVG',
                 '_packageCategory',
+                '_assetId', '_assetToken', '_assetSource', '_categoryId', '_designSource',
                 '_isLocked',
                 '_currentColor',
                 '_outlineShapeIndexes'
@@ -3127,7 +3211,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (undoBtn) {
         undoBtn.addEventListener('click', () => {
-            if (!undoStack.length) return;
+            if (isLoadingState || !undoStack.length) return;
             redoStack.push(getCurrentState());
             const previous = undoStack.pop();
             restoreCanvasState(previous);
@@ -3136,7 +3220,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (redoBtn) {
         redoBtn.addEventListener('click', () => {
-            if (!redoStack.length) return;
+            if (isLoadingState || !redoStack.length) return;
             undoStack.push(getCurrentState());
             const next = redoStack.pop();
             restoreCanvasState(next);
@@ -3175,11 +3259,10 @@ document.addEventListener('DOMContentLoaded', function() {
         itemColorPicker.addEventListener('input', (event) => {
             const selected = getSelectableActiveObjects();
             if (!selected.length) return;
-            selected.forEach((obj) => applyColorToObject(obj, event.target.value));
+            applyObjectColors(selected, event.target.value);
             canvas.renderAll();
             updateControlsState();
         });
-        itemColorPicker.addEventListener('change', () => saveState());
     }
 
     function showCanvasToast(icon, title) {
@@ -3211,6 +3294,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const color = swatch.dataset.color;
             const target = swatch.dataset.target || 'auto';
             if (target === 'canvas') {
+                saveState();
                 artboard.set('fill', color);
             } else if (target === 'object') {
                 const selected = getSelectableActiveObjects();
@@ -3218,19 +3302,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     showCanvasToast('info', 'Select an object first to change its color.');
                     return;
                 }
-                selected.forEach((obj) => applyColorToObject(obj, color));
+                applyObjectColors(selected, color);
             } else {
                 const selected = getSelectableActiveObjects();
                 if (selected.length) {
-                    selected.forEach((obj) => applyColorToObject(obj, color));
+                    applyObjectColors(selected, color);
                 } else {
+                    saveState();
                     artboard.set('fill', color);
                 }
             }
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
             updateControlsState();
-            saveState();
+            scheduleDraftPersist();
         });
     });
 
@@ -3248,7 +3333,7 @@ document.addEventListener('DOMContentLoaded', function() {
         customObjectColor.addEventListener('input', (event) => {
             const selected = getSelectableActiveObjects();
             if (!selected.length) return;
-            selected.forEach((obj) => applyColorToObject(obj, event.target.value));
+            applyObjectColors(selected, event.target.value);
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
             updateControlsState();
@@ -3259,7 +3344,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showCanvasToast('info', 'Select an object first to change its color.');
                 return;
             }
-            saveState();
+            scheduleDraftPersist();
         });
     }
 
@@ -3465,16 +3550,101 @@ document.addEventListener('DOMContentLoaded', function() {
     // admin pages: trigger + caret + options list, with the hidden
     // <select> kept as the single source of truth).
     // ============================================================
+    const selectionToolbarTooltip = document.createElement('div');
+    selectionToolbarTooltip.className = 'selection-toolbar-tooltip';
+    selectionToolbarTooltip.setAttribute('popover', 'manual');
+    selectionToolbarTooltip.setAttribute('role', 'tooltip');
+    if (selectionToolbar) selectionToolbar.closest('.design-canvas-section').appendChild(selectionToolbarTooltip);
+
+    function hideSelectionToolbarTooltip() {
+        if (selectionToolbarTooltip.matches(':popover-open')) selectionToolbarTooltip.hidePopover();
+    }
+
+    [selectionToolbar, document.querySelector('.canvas-main-toolbar'), document.querySelector('.canvas-tool-rail'), contextToolbar, byId('layersList')].filter(Boolean).forEach((root) => {
+        const showTooltip = (event) => {
+            const mobile = window.matchMedia('(max-width: 1024px)').matches;
+            // These controls already have visible labels in the mobile sheets.
+            if (mobile && root.closest('.mobile-editor-sheet')) return;
+            const control = event.target.closest('[data-tooltip]');
+            if (!control || control.disabled || fontFamilyDropdown.classList.contains('open')) return;
+            if (event.relatedTarget && control.contains(event.relatedTarget)) return;
+            selectionToolbarTooltip.textContent = control.dataset.tooltip;
+            selectionToolbarTooltip.showPopover();
+            const rect = control.getBoundingClientRect();
+            const tipRect = selectionToolbarTooltip.getBoundingClientRect();
+            const viewport = window.visualViewport;
+            const leftEdge = (viewport?.offsetLeft || 0) + 8;
+            const topEdge = (viewport?.offsetTop || 0) + 8;
+            const rightEdge = leftEdge + (viewport?.width || innerWidth) - 16;
+            const bottomEdge = topEdge + (viewport?.height || innerHeight) - 16;
+            const isRail = root.classList.contains('canvas-tool-rail');
+            let placement = isRail ? mobile ? 'top' : 'right' : root === contextToolbar || root.id === 'layersList' ? 'top' : 'bottom';
+            let left = rect.left + (rect.width - tipRect.width) / 2;
+            let top = placement === 'top' ? rect.top - tipRect.height - 8 : rect.bottom + 8;
+            if (placement === 'right') {
+                left = rect.right + 8;
+                top = rect.top + (rect.height - tipRect.height) / 2;
+                if (left + tipRect.width > rightEdge) { placement = 'left'; left = rect.left - tipRect.width - 8; }
+            } else if (placement === 'bottom' && top + tipRect.height > bottomEdge) {
+                placement = 'top'; top = rect.top - tipRect.height - 8;
+            }
+            selectionToolbarTooltip.dataset.placement = placement;
+            selectionToolbarTooltip.style.left = `${Math.max(leftEdge, Math.min(left, rightEdge - tipRect.width))}px`;
+            selectionToolbarTooltip.style.top = `${Math.max(topEdge, Math.min(top, bottomEdge - tipRect.height))}px`;
+        };
+        const leaveTooltip = (event) => {
+            const control = event.target.closest('[data-tooltip]');
+            if (!control || !event.relatedTarget || !control.contains(event.relatedTarget)) hideSelectionToolbarTooltip();
+        };
+        root.addEventListener('mouseover', showTooltip);
+        root.addEventListener('focusin', showTooltip);
+        root.addEventListener('mouseout', leaveTooltip);
+        root.addEventListener('focusout', leaveTooltip);
+        root.addEventListener('mousedown', hideSelectionToolbarTooltip);
+        root.addEventListener('click', hideSelectionToolbarTooltip);
+        root.addEventListener('scroll', hideSelectionToolbarTooltip, { passive: true });
+    });
+    window.addEventListener('resize', hideSelectionToolbarTooltip);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', hideSelectionToolbarTooltip);
+
     function closeFontFamilyDropdown() {
         if (!fontFamilyDropdown) return;
+        if (fontFamilyOptionsList && fontFamilyOptionsList.matches(':popover-open')) fontFamilyOptionsList.hidePopover();
         fontFamilyDropdown.classList.remove('open');
         const trigger = fontFamilyDropdown.querySelector('.dropdown-trigger');
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
         if (selectionToolbar) selectionToolbar.classList.remove('font-dropdown-open');
     }
 
+    function positionFontFamilyOptions() {
+        if (!fontFamilyDropdown || !fontFamilyOptionsList || !fontFamilyDropdown.classList.contains('open')) return;
+        const trigger = fontFamilyDropdown.querySelector('.dropdown-trigger');
+        if (!trigger) return;
+        const rect = trigger.getBoundingClientRect();
+        const toolbarRect = selectionToolbar.getBoundingClientRect();
+        if (rect.right <= toolbarRect.left || rect.left >= toolbarRect.right) {
+            closeFontFamilyDropdown();
+            return;
+        }
+        const viewport = window.visualViewport;
+        const viewportTop = viewport ? viewport.offsetTop : 0;
+        const viewportLeft = viewport ? viewport.offsetLeft : 0;
+        const viewportWidth = viewport ? viewport.width : window.innerWidth;
+        const viewportHeight = viewport ? viewport.height : window.innerHeight;
+        const width = Math.min(Math.max(rect.width, 170), viewportWidth - 24);
+        const below = viewportTop + viewportHeight - rect.bottom - 18;
+        const above = rect.top - viewportTop - 18;
+        const opensAbove = below < 160 && above > below;
+        const height = Math.min(264, Math.max(0, opensAbove ? above : below));
+        fontFamilyOptionsList.style.width = `${width}px`;
+        fontFamilyOptionsList.style.maxHeight = `${height}px`;
+        fontFamilyOptionsList.style.left = `${Math.max(viewportLeft + 12, Math.min(rect.left, viewportLeft + viewportWidth - width - 12))}px`;
+        fontFamilyOptionsList.style.top = `${opensAbove ? rect.top - fontFamilyOptionsList.offsetHeight - 6 : rect.bottom + 6}px`;
+    }
+
     function openFontFamilyDropdown() {
         if (!fontFamilyDropdown) return;
+        hideSelectionToolbarTooltip();
         document
             .querySelectorAll('.selection-toolbar .custom-filter-dropdown.open')
             .forEach((dropdown) => {
@@ -3486,8 +3656,10 @@ document.addEventListener('DOMContentLoaded', function() {
             trigger.setAttribute('aria-expanded', 'true');
         }
         fontFamilyDropdown.classList.add('open');
-        // Lift the overflow clip so the options panel is not cut off.
+        // The top layer keeps font choices outside the toolbar's scroll clip.
         if (selectionToolbar) selectionToolbar.classList.add('font-dropdown-open');
+        fontFamilyOptionsList.showPopover();
+        positionFontFamilyOptions();
     }
 
     function addFontOptionItem(value, label) {
@@ -3560,6 +3732,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closeFontFamilyDropdown();
         });
+        if (selectionToolbar) selectionToolbar.addEventListener('scroll', positionFontFamilyOptions, { passive: true });
+        window.addEventListener('resize', positionFontFamilyOptions);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', positionFontFamilyOptions);
 
         syncFontFamilyDropdown();
     }
@@ -3669,19 +3844,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (userUploadInput && userUploadsGrid) {
         loadUploadCacheForDesign();
-        userUploadInput.addEventListener('change', (event) => {
-            Array.from(event.target.files).forEach((file) => {
-                if (!file.type.startsWith('image/')) return;
+        const referenceUploadDropzone = byId('referenceUploadDropzone');
+        const browseReferenceFiles = byId('browseReferenceFiles');
+        const uploadReferenceFiles = (files) => {
+            const images = Array.from(files || []);
+            if (images.some((file) => !file.type.startsWith('image/'))) {
+                showCanvasToast('error', 'Please choose image files only.');
+            }
+            images.filter((file) => file.type.startsWith('image/')).forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = (loadEvent) => {
                     addUploadNode(file.name, loadEvent.target.result, true);
                     persistUploadsNow();
                 };
+                reader.onerror = () => showCanvasToast('error', 'This image could not be read. Please try another file.');
                 reader.readAsDataURL(file);
             });
-
+        };
+        userUploadInput.addEventListener('change', (event) => {
+            uploadReferenceFiles(event.target.files);
             userUploadInput.value = '';
         });
+        if (browseReferenceFiles) browseReferenceFiles.addEventListener('click', () => userUploadInput.click());
+        if (referenceUploadDropzone) {
+            ['dragenter', 'dragover'].forEach((type) => referenceUploadDropzone.addEventListener(type, (event) => {
+                if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = 'copy';
+                referenceUploadDropzone.classList.add('is-file-over');
+            }));
+            referenceUploadDropzone.addEventListener('dragleave', (event) => {
+                if (!referenceUploadDropzone.contains(event.relatedTarget)) referenceUploadDropzone.classList.remove('is-file-over');
+            });
+            referenceUploadDropzone.addEventListener('drop', (event) => {
+                referenceUploadDropzone.classList.remove('is-file-over');
+                if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+                event.preventDefault();
+                event.stopPropagation();
+                uploadReferenceFiles(event.dataTransfer.files);
+            });
+        }
     }
 
     const clearCanvasModal = byId('clearCanvasModal');
@@ -3725,11 +3928,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Upgrade modal: shared .show pattern + backdrop/Escape dismiss (same as
-    // Clear Canvas modal). Confirm/Cancel listeners are wired per-open by
-    // handlePackageUpgrade()/handleColorUpgrade() via onConfirm/onCancel.
+    // One confirmation handler consumes the pending panel or color upgrade.
     const upgradeModalEl = byId('upgradeModal');
     if (upgradeModalEl) {
+        byId('cancelUpgradeBtn').addEventListener('click', closeUpgradeModal);
+        byId('confirmUpgradeBtn').addEventListener('click', () => {
+            const pending = pendingUpgrade;
+            if (!pending) return;
+            if (window.designOffer !== pending.current || !window.DesignUpgrades.fits(pending.next, pending.current, pending.objects(), catalogById(), pending.request)) {
+                closeUpgradeModal();
+                showToast('Please try adding the item again to check the available packages.', 'info', 'Your design has changed');
+                return;
+            }
+            closeUpgradeModal();
+            if (applyPackage(pending.next.packageId)) {
+                pending.resume?.();
+                persistDraftNow();
+                showToast(`Now using ${pending.next.name}. Package price: ${formatSummaryPrice(pending.next.price)}.`, 'success', 'Package upgraded');
+            }
+        });
+        upgradeModalEl.addEventListener('keydown', event => {
+            event.stopPropagation();
+            if (event.key === 'Escape') { event.preventDefault(); closeUpgradeModal(); }
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                const target = document.activeElement === byId('cancelUpgradeBtn') ? byId('confirmUpgradeBtn') : byId('cancelUpgradeBtn');
+                target.focus();
+            }
+        });
         upgradeModalEl.addEventListener('click', (event) => {
             if (event.target === upgradeModalEl) closeUpgradeModal();
         });
@@ -3778,6 +4004,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function persistDesign(designName) {
+        if (saveDesignBtn.disabled) return;
         const nonArtboard = canvas.getObjects().filter((obj) => !obj._isArtboard);
         if (!nonArtboard.length) {
             showCanvasToast('error', 'The canvas is empty. Add some elements first.');
@@ -3789,29 +4016,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
         persistUploadsNow();
 
-        const originalVpt = canvas.viewportTransform.slice();
-        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-        canvas.renderAll();
-
-        const thumbnail = canvas.toDataURL({
-            format: 'png',
-            quality: 0.8,
-            multiplier: 2,
-            left: artboard.left,
-            top: artboard.top,
-            width: ARTBOARD_W,
-            height: ARTBOARD_H
-        });
-
-        canvas.setViewportTransform(originalVpt);
-        canvas.renderAll();
-
         const originalHtml = saveDesignBtn.innerHTML;
-        saveDesignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        saveDesignBtn.innerHTML = inventoryIconHtml('spinner') + ' Saving...';
+        saveDesignBtn.setAttribute('aria-busy', 'true');
         saveDesignBtn.disabled = true;
         if (saveDesignConfirmBtn) saveDesignConfirmBtn.disabled = true;
 
         try {
+            // Bound the preview dimensions; editable objects keep their original data.
+            // PNG ignores quality, so reduce dimensions instead of exporting at 2x.
+            const originalVpt = canvas.viewportTransform.slice();
+            let thumbnail;
+            try {
+                canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+                canvas.renderAll();
+                thumbnail = canvas.toDataURL({
+                    format: 'png',
+                    multiplier: Math.min(1, 1280 / Math.max(ARTBOARD_W, ARTBOARD_H)),
+                    enableRetinaScaling: false,
+                    left: artboard.left,
+                    top: artboard.top,
+                    width: ARTBOARD_W,
+                    height: ARTBOARD_H
+                });
+            } finally {
+                canvas.setViewportTransform(originalVpt);
+                canvas.renderAll();
+            }
+
             const csrfTokenNode = document.querySelector('[name=csrfmiddlewaretoken]');
             const csrfToken = csrfTokenNode ? csrfTokenNode.value : '';
 
@@ -3826,15 +4058,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: designName,
                     canvas_json: getCurrentState(),
                     thumbnail: thumbnail,
-                    base_package_id: window.basePackageId || null
+                    base_package_id: window.basePackageId || null,
+                    design_offer_id: window.designOffer?.id || null
                 })
             });
 
+            // Hosting proxies can return a non-JSON response for oversized requests.
+            if (response.status === 413) {
+                showCanvasToast('error', 'This design is too large to save. Try smaller uploaded images or fewer image copies.');
+                return;
+            }
+
             const result = await response.json();
+            if (result.code === 'design_limit_reached') {
+                // Keep the canvas, local draft, and entered name intact on a quota conflict.
+                showCanvasToast('error', result.message);
+                return;
+            }
             if (result.status === 'success') {
                 clearDraftState();
                 closeSaveDesignModal();
-                showCanvasToast('success', 'Design saved successfully!');
+                showCanvasToast('success', result.can_book ? 'Design saved - ready to book!' : 'Draft saved. Complete the required elements before booking.');
                 setTimeout(() => {
                     window.location.href = '/my-designs/';
                 }, 1200);
@@ -3847,6 +4091,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showCanvasToast('error', 'Network error. Could not save design.');
         } finally {
             saveDesignBtn.innerHTML = originalHtml;
+            saveDesignBtn.removeAttribute('aria-busy');
             saveDesignBtn.disabled = false;
             if (saveDesignConfirmBtn) saveDesignConfirmBtn.disabled = false;
         }
@@ -3910,7 +4155,108 @@ document.addEventListener('DOMContentLoaded', function() {
         return category.charAt(0).toUpperCase() + category.slice(1);
     }
 
+    let evaluationTimer = null;
+    let evaluationSequence = 0;
+    function catalogById() {
+        return Object.fromEntries(Object.values(window.canvasAssetsPayload || {}).flat().map(asset => [String(asset.id), asset]));
+    }
+    function formatSummaryPrice(value) {
+        return new Intl.NumberFormat('en-PH', {style: 'currency', currency: 'PHP', minimumFractionDigits: 0, maximumFractionDigits: 2}).format(Number(value) || 0);
+    }
+    function summaryStatusIcon(type) {
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('fill', 'none'); icon.setAttribute('stroke', 'currentColor');
+        icon.setAttribute('stroke-width', '1.8'); icon.setAttribute('stroke-linecap', 'round'); icon.setAttribute('stroke-linejoin', 'round'); icon.setAttribute('aria-hidden', 'true');
+        const path = document.createElementNS(icon.namespaceURI, 'path');
+        path.setAttribute('d', type === 'check' ? 'm5 12 4 4L19 6' : type === 'alert' ? 'M12 8v5m0 3h.01M12 3 2 21h20L12 3Z' : 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2');
+        icon.appendChild(path); return icon;
+    }
+    let lastDesignEvaluationKey = '';
+    let latestDesignEvaluation = null;
+    function renderDesignEvaluation(evaluation) {
+        latestDesignEvaluation = evaluation;
+        if (mobileEditor) mobileEditor.updateRequirements(evaluation);
+        if (!cartInclusionsList) return;
+        const optionalList = byId('cartOptionalList');
+        const rows = evaluation.rows || [];
+        const requiredRows = rows.filter(row => row.required);
+        const optionalRows = rows.filter(row => !row.required);
+        const completeRequirements = requiredRows.filter(row => !row.missing && !row.over_limit).length;
+        const issues = evaluation.invalid_items || [];
+        // A matching server check must not replace the checklist while someone
+        // is reading, scrolling, or focusing its actions on a small screen.
+        const renderKey = JSON.stringify([
+            window.designOffer?.id, window.designOffer?.max_balloon_colors, !!evaluation.can_book, issues,
+            rows.map(row => [Number(row.category_id), row.name, !!row.required, Number(row.used), Number(row.minimum), row.maximum == null ? null : Number(row.maximum), Number(row.missing) || 0, !!row.over_limit])
+        ]);
+        if (renderKey === lastDesignEvaluationKey && cartInclusionsList.childElementCount + (optionalList?.childElementCount || 0) === rows.length) return;
+        lastDesignEvaluationKey = renderKey;
+        cartInclusionsList.replaceChildren();
+        optionalList?.replaceChildren();
+        rows.forEach(row => {
+            const complete = !row.over_limit && (row.required ? row.used >= row.minimum : row.maximum !== null && row.used === row.maximum);
+            const li = document.createElement('li'); li.className = `design-completion-row ${row.over_limit ? 'is-invalid' : complete ? 'is-complete' : row.missing ? 'is-missing' : ''}`;
+            li.dataset.categoryId = row.category_id;
+            const heading = document.createElement('div'); heading.className = 'design-row-name';
+            const name = document.createElement('span'); name.textContent = row.name;
+            const count = document.createElement('span'); count.className = 'design-row-count'; count.textContent = row.required ? `${Math.min(row.used, row.minimum)}/${row.minimum} required` : row.maximum === null ? `${row.used} placed` : `${row.used}/${row.maximum}`;
+            heading.append(name, count); li.appendChild(heading);
+            const detail = document.createElement('div'); detail.className = 'design-row-detail';
+            const status = document.createElement('span'); status.className = 'design-row-status';
+            if (complete) status.appendChild(summaryStatusIcon('check'));
+            const statusText = document.createElement('span');
+            statusText.textContent = row.over_limit ? `Remove ${row.used - row.maximum} to stay within the limit` : complete ? 'Complete' : row.missing ? `Add ${row.missing} more to complete` : 'Optional inclusion';
+            status.appendChild(statusText); detail.appendChild(status);
+            const allowance = document.createElement('span'); allowance.className = 'design-row-allowance';
+            allowance.textContent = row.maximum === null ? `${row.used} placed · Unlimited included` : row.required && row.maximum === row.minimum ? `Max ${row.maximum} included` : `${row.used}/${row.maximum} included`;
+            detail.appendChild(allowance);
+            const balloonRule = window.designOffer?.requirements?.find(rule => Number(rule.category_id) === Number(row.category_id) && rule.is_balloon);
+            if (balloonRule && window.designOffer.max_balloon_colors) {
+                const colors = document.createElement('span'); colors.className = 'design-row-allowance'; colors.textContent = `Up to ${window.designOffer.max_balloon_colors} balloon colors`; detail.appendChild(colors);
+            }
+            li.appendChild(detail);
+            if (row.missing) { const add = document.createElement('button'); add.type = 'button'; add.className = 'design-add-missing'; add.textContent = 'Add missing items'; add.addEventListener('click', () => {
+                const assetsTab = document.querySelector('[data-panel-target="elementsPanel"]');
+                if (assetsTab && !assetsTab.classList.contains('active')) assetsTab.click();
+                const category = document.querySelector(`.inventory-category[data-category-id="${row.category_id}"]`);
+                const builtinSection = document.querySelector(`[data-builtin-category-id="${row.category_id}"]`);
+                const header = category?.querySelector('.category-header'); if (header && !header.classList.contains('is-open')) header.click();
+                if (window.matchMedia('(max-width: 1024px)').matches && byId('summaryFloatPanel')?.classList.contains('open')) byId('summaryFloatBtn')?.click();
+                (builtinSection || category)?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }); li.appendChild(add); }
+            (row.required ? cartInclusionsList : optionalList || cartInclusionsList).appendChild(li);
+        });
+        if (byId('designRequiredGroup')) byId('designRequiredGroup').hidden = !requiredRows.length;
+        if (byId('designOptionalItems')) byId('designOptionalItems').hidden = !optionalRows.length;
+        if (byId('designOptionalCount')) byId('designOptionalCount').textContent = `(${optionalRows.length})`;
+        const reviewList = byId('designReviewList');
+        reviewList?.replaceChildren();
+        issues.forEach(issue => { const item = document.createElement('li'); item.textContent = issue; reviewList?.appendChild(item); });
+        if (byId('designReviewItems')) byId('designReviewItems').hidden = !issues.length;
+        const overall = byId('designOverallState');
+        if (overall) {
+            const heading = document.createElement('div'); heading.className = 'design-summary-state';
+            heading.appendChild(summaryStatusIcon(evaluation.can_book ? 'check' : issues.length ? 'alert' : 'clock'));
+            const title = document.createElement('strong'); title.textContent = evaluation.can_book ? 'Ready to book' : issues.length ? 'Needs review' : 'Draft'; heading.appendChild(title);
+            const description = document.createElement('p'); description.textContent = `${completeRequirements} of ${requiredRows.length} requirements complete.${issues.length ? ' Review the flagged items below.' : ''}`;
+            const progress = document.createElement('progress'); progress.max = Math.max(requiredRows.length, 1); progress.value = completeRequirements; progress.setAttribute('aria-label', 'Required categories complete');
+            overall.replaceChildren(heading, description, progress); overall.classList.toggle('design-ready', evaluation.can_book);
+        }
+    }
     function updateVisualCart() {
+        if (window.designOffer && window.DesignRules) {
+            renderDesignEvaluation(window.DesignRules.evaluate(canvas.getObjects(), window.designOffer, catalogById()));
+            if (cartTotalPrice) cartTotalPrice.textContent = `P${window.designOffer.price}`;
+            clearTimeout(evaluationTimer); const sequence = ++evaluationSequence;
+            evaluationTimer = setTimeout(async () => {
+                try {
+                    const state = JSON.parse(getCurrentState());
+                    state.objects = state.objects.filter(obj => !obj._isArtboard && !obj._isBgImage && obj._designSource !== 'reference');
+                    const response = await fetch('/my-designs/evaluate/', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''}, body: JSON.stringify({design_offer_id: window.designOffer.id, canvas_json: state})});
+                    if (response.ok && sequence === evaluationSequence) renderDesignEvaluation(await response.json());
+                } catch (error) { console.warn('Design evaluation unavailable; eligibility will be checked when saving.', error); }
+            }, 450); return;
+        }
         const objects = canvas.getObjects().filter((obj) => !obj._isArtboard && !obj._isBgImage);
         const counts = {};
         objects.forEach((obj) => {
@@ -4031,7 +4377,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        if (obj && obj.type === 'path') {
+        if (obj && obj.type === 'path' && !obj._isColorableSVG && obj._designSource !== 'catalog') {
             obj._packageCategory = 'custom';
             obj.set({
                 fill: '',
@@ -4047,7 +4393,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (!isLoadingState && obj && !obj._isArtboard) {
-            saveState();
+            // object:added fires after insertion; undo needs the preceding state.
+            const previous = JSON.parse(getCurrentState());
+            const addedIndex = canvas.getObjects().indexOf(obj);
+            previous.objects.splice(addedIndex, 1);
+            saveState(JSON.stringify(previous));
             updateHintVisibility();
             updateVisualCart();
             updateControlsState();
@@ -4152,6 +4502,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     canvas.on('text:editing:entered', (event) => {
         const target = (event && event.target) || canvas.getActiveObject();
+        if (target && !target._isLocked) saveState();
         if (target && target._isLocked && typeof target.exitEditing === 'function') {
             try { target.exitEditing(); } catch (editError) { /* ignore */ }
             canvas.requestRenderAll();
@@ -4165,8 +4516,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     canvas.on('object:removed', scheduleLayersRefresh);
     canvas.on('path:created', () => scheduleDraftPersist());
-    canvas.on('text:changed', () => scheduleDraftPersist());
+    canvas.on('text:changed', () => { scheduleDraftPersist(); updateVisualCart(); });
 
+    canvas.on('before:transform', () => saveState());
     canvas.on('object:modified', (event) => {
         if (event.target && event.target._isArtboard) {
             commitArtboardResizeFromTransform();
@@ -4174,7 +4526,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (!isLoadingState && event.target && !event.target._isArtboard) {
-            saveState();
             updateVisualCart();
             updateControlsState();
             scheduleLayersRefresh();
@@ -4321,6 +4672,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 100);
 
+    if (typeof window.setupCanvasMobileEditor === 'function') {
+        mobileEditor = window.setupCanvasMobileEditor({
+            canvas,
+            selected: getSelectableActiveObjects,
+            layers: getLayerObjects,
+            label: (object) => {
+                const current = object._layerName || '';
+                if (isTextObject(object) && (!current || current.startsWith('Text \u2014 '))) return defaultLayerName(object);
+                const asset = catalogById()[String(object._assetId)];
+                if (asset && (!current || ['Shape', 'Image', 'Rectangle', 'Circle'].includes(current))) return asset.label;
+                return current || defaultLayerName(object);
+            },
+            isText: isTextObject,
+            evaluation: () => latestDesignEvaluation,
+            isRestoring: () => isLoadingState,
+            reorder: moveLayerObjectToRow,
+            saveState,
+            closeFontMenu: () => { closeFontFamilyDropdown(); hideSelectionToolbarTooltip(); },
+            refresh: () => { updateControlsState(); updateVisualCart(); scheduleDraftPersist(); },
+            resize: ({ fit = false } = {}) => {
+                if (!fit && canvas.getWidth() === dropZone.clientWidth && canvas.getHeight() === dropZone.clientHeight) return;
+                canvas.setWidth(dropZone.clientWidth);
+                canvas.setHeight(dropZone.clientHeight);
+                // Layout changes move the view, not the design's objects. This
+                // also preserves relative positions inside an active selection.
+                const zoom = fit ? getMinAllowedZoom() : canvas.getZoom();
+                canvas.setZoom(zoom);
+                const viewport = canvas.viewportTransform.slice();
+                viewport[4] = (canvas.getWidth() - ARTBOARD_W * zoom) / 2 - artboard.left * zoom;
+                viewport[5] = (canvas.getHeight() - ARTBOARD_H * zoom) / 2 - artboard.top * zoom;
+                canvas.setViewportTransform(viewport);
+                canvas.calcOffset();
+                canvas.requestRenderAll();
+                updateZoomLabel();
+                updateSelectionToolbarPosition();
+                updateContextToolbar();
+            }
+        });
+    }
     updateUndoRedoBtnState();
     updateHintVisibility();
     updateControlsState();

@@ -1,3 +1,4 @@
+from ..design_validation import evaluate_saved_design, evaluation_message, design_offer
 """Booking creation, editing, tracking and admin booking management. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
@@ -47,10 +48,11 @@ def booking_page(request):
     design_id = request.GET.get('design_id')
     prefilled_design = None
     if design_id:
-        try:
-            prefilled_design = UserDesign.objects.select_related('base_package').get(id=design_id, user=request.user)
-        except UserDesign.DoesNotExist:
-            pass
+        prefilled_design = get_object_or_404(UserDesign, id=design_id, user=request.user)
+        evaluation = evaluate_saved_design(prefilled_design)
+        if not evaluation['can_book']:
+            messages.warning(request, evaluation_message(evaluation))
+            return redirect(reverse('design_canvas') + f'?id={prefilled_design.pk}')
 
     # Prepare Calendar Events (Client side: ONLY show approved, confirmed, or completed bookings)
     all_bookings = Booking.objects.filter(
@@ -214,6 +216,7 @@ def booking_page(request):
                 "max_fee_cap": str(service_charge_config.max_fee_cap or "0"),
             },
             "prefilled_design": prefilled_design,
+            "prefilled_offer": design_offer(prefilled_design) if prefilled_design else None,
             "duration_policy": duration_policy,
             "cavite_boundary": get_cavite_geometry(),
         },
@@ -516,6 +519,27 @@ def create_booking(request):
     is_ajax = request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
 
     if request.method == "POST":
+        selected_design = None
+        selected_offer = None
+        if request.POST.get("user_design_id"):
+            try:
+                selected_design = UserDesign.objects.select_for_update().get(pk=request.POST["user_design_id"], user=request.user)
+            except (UserDesign.DoesNotExist, ValueError, TypeError):
+                if is_ajax:
+                    return JsonResponse({"success": False, "message": "Design not found."}, status=404)
+                raise Http404("Design not found")
+            evaluation = evaluate_saved_design(selected_design)
+            if not evaluation["can_book"]:
+                if is_ajax:
+                    return JsonResponse({"success": False, "message": evaluation_message(evaluation), "evaluation": evaluation}, status=400)
+                messages.error(request, evaluation_message(evaluation))
+                return redirect(reverse('design_canvas') + f'?id={selected_design.pk}')
+            selected_offer = design_offer(selected_design)
+            # The linked design determines the booked offer and catalog price.
+            request.POST = request.POST.copy()
+            request.POST['package_type'] = selected_offer.booking_label
+            request.POST['total_price'] = str(selected_offer.price)
+
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
         event_date = request.POST.get("event_date")
@@ -699,7 +723,7 @@ def create_booking(request):
                 return JsonResponse({"success": False, "message": error_msg})
             messages.error(request, error_msg)
             return redirect("booking_page")
-        if total_price_val <= 0:
+        if total_price_val <= 0 and not selected_offer:
             error_msg = "Total price must be greater than 0."
             if is_ajax:
                 return JsonResponse({"success": False, "message": error_msg})
@@ -832,7 +856,7 @@ def create_booking(request):
         # bookings na walang kilalang package name).
         capture_booking_fee_policy(booking, quote)
         breakdown = get_booking_price_breakdown(booking)
-        if breakdown["subtotal"] > 0:
+        if selected_offer or breakdown["subtotal"] > 0:
             booking.total_price = breakdown["computed_total"]
         booking.save(update_fields=[
             "logistics_distance_km", "logistics_fee", "total_price",
@@ -861,7 +885,7 @@ def create_booking(request):
                     style=user_design.name,
                     color_palette="Custom",
                     image=user_design.thumbnail, # Use the thumbnail as the design image
-                    price_estimate=total_price_val,
+                    price_estimate=booking.total_price,
                     status='finalized'
                 )
             except UserDesign.DoesNotExist:

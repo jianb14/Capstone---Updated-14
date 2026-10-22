@@ -448,8 +448,7 @@ def my_payments(request):
 
 @login_required
 def download_payment_receipt_pdf(request, payment_id):
-    from reportlab.lib.pagesizes import A4
-    from reportlab.pdfgen import canvas as rl_canvas
+    from ..payment_receipt import build_payment_receipt
 
     payment = get_object_or_404(Payment, id=payment_id)
 
@@ -468,128 +467,10 @@ def download_payment_receipt_pdf(request, payment_id):
     elif request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
-    buffer = io.BytesIO()
-    p = rl_canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    # Logo
-    from django.contrib.staticfiles import finders
-    from django.conf import settings
-    import os
-    
-    logo_path = finders.find('images/BalloorinaBlack.png')
-    if not logo_path:
-        # Fallback to direct path
-        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'BalloorinaBlack.png')
-        
-    if os.path.exists(logo_path):
-        # Position the logo at the top LEFT of the header.
-        # NOTE: reportlab's drawImage anchors on the image *centre* by default
-        # and treats a missing `height` as the image's pixel height. With only
-        # `width` supplied (and a 956x261 source) the vertical centring shifted
-        # the logo ~113pt upwards, landing it fully above the A4 page -- so the
-        # receipt rendered without a visible logo. Always pass the real,
-        # aspect-correct width/height and pin the bottom-left corner instead.
-        from reportlab.lib.utils import ImageReader
-
-        logo = ImageReader(logo_path)
-        logo_w = 130
-        logo_h = logo_w * logo.getSize()[1] / logo.getSize()[0]
-        p.drawImage(
-            logo,
-            50,
-            height - 45 - logo_h,
-            width=logo_w,
-            height=logo_h,
-            anchor='sw',
-            mask='auto',
-        )
-
-    # Header stack, all left-aligned under the top-left logo:
-    # logo -> "Payment Receipt" -> billing statement line -> divider.
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(50, height - 100, "Payment Receipt")
-    p.setFont("Helvetica", 10)
-    p.drawString(50, height - 117, "Balloorina.ph – Official Billing Statement")
-
-    # Divider (light gray so it reads as a subtle separator).
-    p.setStrokeColorRGB(0.85, 0.85, 0.85)
-    p.setLineWidth(1)
-    p.line(50, height - 135, width - 50, height - 135)
-
-    y = height - 165
-    line_height = 22
-
-    def draw_row(label, value):
-        nonlocal y
-        p.setFont("Helvetica-Bold", 11)
-        p.drawString(50, y, f"{label}:")
-        p.setFont("Helvetica", 11)
-        p.drawString(220, y, str(value))
-        y -= line_height
-
-    draw_row("Receipt #", f"PAY-{payment.id:06d}")
-    draw_row("Booking ID", f"#{payment.booking.id}")
-    draw_row(
-        "Customer",
-        payment.booking.user.get_full_name() or payment.booking.user.username,
+    response = HttpResponse(
+        build_payment_receipt(payment, get_booking_time_range(payment.booking)),
+        content_type="application/pdf",
     )
-    
-    # Event Information
-    draw_row("Event Type", payment.booking.event_type or "—")
-    draw_row("Event Date", payment.booking.event_date.strftime("%B %d, %Y"))
-    draw_row("Event Time", get_booking_time_range(payment.booking))
-    if payment.booking.package_type:
-        draw_row("Package", payment.booking.package_type)
-    
-    draw_row("Total Booking Price", f"PHP {payment.booking.total_price:,.2f}")
-    draw_row("Amount Paid", f"PHP {payment.amount:,.2f}")
-    draw_row("Payment Method", payment.get_payment_method_display())
-    draw_row("Payment Type", payment.get_payment_type_display())
-    draw_row("Status", payment.get_payment_status_display())
-    draw_row("Transaction Ref", payment.transaction_ref or "—")
-    if payment.gcash_reference_number:
-        draw_row("GCash Reference #", payment.gcash_reference_number)
-    if payment.gcash_sender_name:
-        draw_row("GCash Sender Name", payment.gcash_sender_name)
-    draw_row("Date Submitted", payment.created_at.strftime("%B %d, %Y %I:%M %p"))
-    if payment.paid_at:
-        draw_row("Date Verified", payment.paid_at.strftime("%B %d, %Y %I:%M %p"))
-
-    y -= 30
-    p.setDash(1, 2)
-    p.setStrokeColorRGB(0.7, 0.7, 0.7)
-    p.line(50, y + 20, width - 50, y + 20)
-    p.setDash()
-    
-    p.setFont("Helvetica-Bold", 9)
-    p.setFillColorRGB(0.2, 0.2, 0.2)
-    p.drawString(50, y, "Terms and Conditions:")
-    
-    p.setFont("Helvetica", 8)
-    p.setFillColorRGB(0.4, 0.4, 0.4)
-    y -= 12
-    p.drawString(50, y, "1. This receipt serves as an official acknowledgment of the payment amount stated above.")
-    y -= 10
-    p.drawString(50, y, "2. Payments are non-refundable but may be transferable subject to management approval.")
-    y -= 10
-    p.drawString(50, y, "3. Please keep this document for future reference and verification during ingress/egress.")
-    
-    y -= 20
-    p.setFont("Helvetica-Oblique", 8)
-    p.drawString(50, y, "Thank you for choosing Balloorina.ph! We look forward to making your event magical.")
-    
-    y -= 15
-    p.setFont("Helvetica-Bold", 8)
-    p.drawString(50, y, "Contact Us:")
-    p.setFont("Helvetica", 8)
-    p.drawString(105, y, "balloorina.ph@gmail.com | +63 967 233 6222")
-
-    p.showPage()
-    p.save()
-
-    buffer.seek(0)
-    response = HttpResponse(buffer.read(), content_type="application/pdf")
     response["Content-Disposition"] = (
         f'attachment; filename="receipt_PAY{payment.id:06d}.pdf"'
     )

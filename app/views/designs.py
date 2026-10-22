@@ -1,6 +1,14 @@
 """AI design canvas and user design management. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
+from django.core.exceptions import RequestDataTooBig
+from ..design_admin import configure_canvas_availability, render_canvas_form
+from ..models import DesignOffer
+from ..design_validation import EvaluationCatalog, design_card_status
+from ..design_previews import preview_bytes, preview_version
+from ..design_limits import DesignLimitReached, create_saved_design, saved_design_usage
+from ..canvas_builtins import STYRO_NAME, BUILTIN_MESSAGE
+from ..design_validation import (KINDS, selection_groups, design_offer, offer_is_ready, offer_payload, eligible_assets, asset_payload, evaluate_design, evaluate_saved_design, evaluation_message, restore_catalog_metadata)
 
 
 @login_required
@@ -8,11 +16,20 @@ def select_design_type(request):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
+    existing_design_id = request.GET.get('design_id', '')
+    if existing_design_id:
+        get_object_or_404(UserDesign, pk=existing_design_id, user=request.user)
+    else:
+        usage = saved_design_usage(request.user)
+        if usage['at_limit']:
+            messages.warning(request, str(DesignLimitReached(usage)))
+            return redirect('my_designs')
+
     # Get active packages to display as options
     active_packages = Package.objects.filter(is_active=True).order_by("price")
 
     return render(
-        request, "client/select_design_type.html", {"packages": active_packages}
+        request, "client/select_design_type.html", {"packages": active_packages, "design_groups": selection_groups(), "existing_design_id": existing_design_id}
     )
 
 
@@ -22,7 +39,7 @@ def my_designs_page(request):
         return HttpResponseForbidden("Not allowed")
 
     # Order by updated_at descending so newest are first
-    designs_list = UserDesign.objects.filter(user=request.user).order_by("-updated_at")
+    designs_list = UserDesign.objects.filter(user=request.user).select_related('base_package').order_by("-updated_at")
 
     # Search by design name (?q=)
     search_query = request.GET.get("q", "").strip()
@@ -42,18 +59,25 @@ def my_designs_page(request):
     page_number = request.GET.get("page")
     designs = paginator.get_page(page_number)
 
+    catalog = EvaluationCatalog(designs)
+    for design in designs:
+        design.display_offer = design_offer(design, catalog)
+        design.eligibility = evaluate_saved_design(design, catalog)
+        design.card_status = design_card_status(design.eligibility)
+        if not design.display_offer or not offer_is_ready(design.display_offer, catalog):
+            design.card_status = {'message': 'Choose an available starting point in the editor before booking.', 'items': [], 'more': False}
+        design.preview_version = preview_version(design.thumbnail.name) if design.thumbnail else ''
+
     # Get active packages for the "Create New Design" modal
     active_packages = Package.objects.filter(is_active=True).order_by("price")
 
     # Stats bar (bottom of page) — computed from ALL designs, hindi lang
     # ang nasa current page para tama ang counters
     all_designs = UserDesign.objects.filter(user=request.user)
-    total_designs = all_designs.count()
     month_start = timezone.localtime().replace(
         day=1, hour=0, minute=0, second=0, microsecond=0
     )
-    created_this_month = all_designs.filter(created_at__gte=month_start).count()
-    last_edited = all_designs.order_by("-updated_at").first()
+    stats = all_designs.aggregate(total=Count('pk'), month=Count('pk', filter=Q(created_at__gte=month_start)), last=Max('updated_at'))
 
     return render(
         request,
@@ -61,13 +85,41 @@ def my_designs_page(request):
         {
             "designs": designs,
             "packages": active_packages,
+            "design_groups": selection_groups(catalog),
             "search_query": search_query,
             "sort_filter": sort_filter,
-            "total_designs": total_designs,
-            "created_this_month": created_this_month,
-            "last_edited": last_edited,
+            "total_designs": stats['total'],
+            "design_usage": saved_design_usage(request.user, total=stats['total']),
+            "created_this_month": stats['month'],
+            "last_edited": {'updated_at': stats['last']} if stats['last'] else None,
         },
     )
+
+
+@login_required
+@require_GET
+def user_design_preview(request, id):
+    from django.http import HttpResponseNotModified
+    from django.utils.cache import patch_vary_headers
+    from PIL import UnidentifiedImageError, Image
+    if request.user.role != 'customer':
+        return HttpResponseForbidden('Not allowed')
+    design = get_object_or_404(UserDesign.objects.only('thumbnail', 'user_id'), pk=id, user=request.user)
+    if not design.thumbnail:
+        raise Http404('No preview available')
+    etag = '"' + preview_version(design.thumbnail.name) + '"'
+    if request.headers.get('If-None-Match') == etag:
+        response = HttpResponseNotModified()
+    else:
+        try:
+            response = HttpResponse(preview_bytes(design.thumbnail), content_type='image/webp')
+        except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
+            raise Http404('No preview available')
+    response['ETag'] = etag
+    response['Cache-Control'] = 'private, max-age=86400'
+    response['X-Content-Type-Options'] = 'nosniff'
+    patch_vary_headers(response, ['Cookie'])
+    return response
 
 
 @login_required
@@ -78,9 +130,13 @@ def save_user_design(request):
 
     try:
         data = json.loads(request.body)
+        if not isinstance(data, dict):
+            return JsonResponse({"status": "error", "message": "Invalid design data."}, status=400)
         design_id = data.get("id")
         name = data.get("name", "Untitled Design")
         canvas_json = data.get("canvas_json")
+        if isinstance(canvas_json, dict):
+            canvas_json = json.dumps(canvas_json)
         thumbnail_data = data.get("thumbnail")  # Base64 string
         base_package_id = data.get("base_package_id")
 
@@ -88,6 +144,18 @@ def save_user_design(request):
             return JsonResponse(
                 {"status": "error", "message": "Canvas data is required"}, status=400
             )
+
+        offer = None
+        if data.get("design_offer_id"):
+            offer = get_object_or_404(DesignOffer, pk=data["design_offer_id"])
+        elif base_package_id:
+            offer = DesignOffer.objects.filter(package_id=base_package_id).first()
+        elif design_id:
+            existing = get_object_or_404(UserDesign, id=design_id, user=request.user)
+            offer = design_offer(existing)
+        evaluation = evaluate_design(canvas_json, offer)
+        if evaluation["invalid_items"] == ["Canvas data is invalid."]:
+            return JsonResponse({"status": "error", "message": "Canvas data is invalid."}, status=400)
 
         # Handle thumbnail image (Base64)
         import base64
@@ -109,11 +177,14 @@ def save_user_design(request):
             if name:
                 design.name = name
             design.canvas_json = canvas_json
+            if offer:
+                design.design_offer = offer
+                design.base_package = offer.package if offer.kind == "package" else None
             if image_file:
                 design.thumbnail = image_file
             
             # Maintain or update base package
-            if base_package_id:
+            if base_package_id and not offer:
                 try:
                     design.base_package = Package.objects.get(id=base_package_id)
                 except Package.DoesNotExist:
@@ -124,18 +195,19 @@ def save_user_design(request):
         else:
             # Create new
             base_package = None
-            if base_package_id:
+            if base_package_id and not offer:
                 try:
                     base_package = Package.objects.get(id=base_package_id)
                 except Package.DoesNotExist:
                     pass
 
-            design = UserDesign.objects.create(
+            design = create_saved_design(
                 user=request.user,
                 name=name,
                 canvas_json=canvas_json,
                 thumbnail=image_file,
-                base_package=base_package,
+                base_package=offer.package if offer and offer.kind == "package" else base_package,
+                design_offer=offer,
             )
             log_action(request.user, f"Created new custom design #{design.id}.")
 
@@ -144,7 +216,27 @@ def save_user_design(request):
                 "status": "success",
                 "id": design.id,
                 "message": "Design saved successfully",
+                "evaluation": evaluation,
+                "can_book": evaluation["can_book"],
             }
+        )
+    except DesignLimitReached as exc:
+        return JsonResponse({'status': 'error', 'code': 'design_limit_reached', 'message': str(exc),
+                             'design_usage': exc.usage}, status=409)
+    except Http404:
+        return JsonResponse({"status": "error", "message": "Design or offer not found."}, status=404)
+    except (ValueError, TypeError):
+        return JsonResponse({"status": "error", "message": "Invalid design data."}, status=400)
+    except RequestDataTooBig:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": (
+                    "This design exceeds the save size limit. "
+                    "Try smaller uploaded images or fewer image copies, then save again."
+                ),
+            },
+            status=413,
         )
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
@@ -204,149 +296,67 @@ def design_canvas_page(request):
         return HttpResponseForbidden("Not allowed")
 
     context = {}
-
-    # 1. Check if we're editing an existing design
     design_id = request.GET.get("id")
-    package_id = request.GET.get("package_id")
-    is_custom = request.GET.get("custom") == "true"
-
+    offer_id = request.GET.get("design_offer_id")
+    offer = None
+    design = None
     if design_id:
         design = get_object_or_404(UserDesign, id=design_id, user=request.user)
         context["design"] = design
-        if design.base_package:
-            context["base_package"] = design.base_package
-    elif package_id:
-        # Starting a new design from a package
-        base_package = get_object_or_404(Package, id=package_id)
-        context["base_package"] = base_package
-        # We don't save a UserDesign yet, we just pass the info to the frontend
-    elif is_custom:
-        # Starting a blank custom design
-        pass
+        offer = design_offer(design)
     else:
-        # No ID and no package_id and no custom flag -> Redirect to selection
+        usage = saved_design_usage(request.user)
+        if usage['at_limit']:
+            messages.warning(request, str(DesignLimitReached(usage)))
+            return redirect('my_designs')
+    if offer_id:
+        offer = get_object_or_404(DesignOffer, pk=offer_id)
+        if not offer_is_ready(offer):
+            messages.warning(request, "This design offer is temporarily unavailable.")
+            return redirect("select_design_type")
+    elif not design and request.GET.get("package_id"):
+        offer = get_object_or_404(DesignOffer, package_id=request.GET["package_id"])
+        if not offer_is_ready(offer):
+            messages.warning(request, "This design offer is temporarily unavailable.")
+            return redirect("select_design_type")
+    elif not design and request.GET.get("custom") != "true":
         return redirect("select_design_type")
 
-    # 2. Extract quotas for all packages
-    all_packages = Package.objects.all().order_by("price")
-    all_package_quotas = {}
-    all_categories = list(CanvasCategory.objects.values_list('name', flat=True))
-
-    for pkg in all_packages:
-        quotas = {}
-        for feature in pkg.feature_list():
-            feature_text = feature.strip()
-            if not feature_text:
-                continue
-
-            # Case 1: "1 Backdrop", "50 Balloons"
-            match = re.search(r"^(\d+)\s+(.+)$", feature_text, re.IGNORECASE)
-            if match:
-                qty = int(match.group(1))
-                item_name = match.group(2).strip().lower()
-                
-                mapped_cat = None
-                for cat_name in all_categories:
-                    cat_lower = cat_name.lower()
-                    if cat_lower in item_name or item_name in cat_lower or \
-                       cat_lower.rstrip('s') in item_name or item_name.rstrip('s') in cat_lower:
-                        mapped_cat = cat_lower
-                        break
-                
-                if mapped_cat:
-                    quotas[mapped_cat] = qty
-                else:
-                    quotas[item_name] = qty
-
-                # NEW: Extract balloon color limit if present in this feature
-                if "balloon" in feature_text.lower() and "color" in feature_text.lower():
-                    color_match = re.search(r"max\s+(\d+)\s+colors", feature_text, re.IGNORECASE)
-                    if color_match:
-                        quotas["balloon_color_limit"] = int(color_match.group(1))
-            else:
-                feature_lower = feature_text.lower()
-                
-                # NEW: Extract balloon color limit for non-numeric features too
-                if "balloon" in feature_lower and "color" in feature_lower:
-                    color_match = re.search(r"max\s+(\d+)\s+colors", feature_text, re.IGNORECASE)
-                    if color_match:
-                        quotas["balloon_color_limit"] = int(color_match.group(1))
-
-                mapped_cat = None
-                for cat_name in all_categories:
-                    cat_lower = cat_name.lower()
-                    if cat_lower in feature_lower or feature_lower in cat_lower or \
-                       cat_lower.rstrip('s') in feature_lower or feature_lower.rstrip('s') in cat_lower:
-                        mapped_cat = cat_lower
-                        break
-                
-                if mapped_cat:
-                    quotas[mapped_cat] = 999
-                else:
-                    quotas[feature_text] = -1
-        all_package_quotas[pkg.id] = quotas
-
-    context["all_packages"] = all_packages
-    context["all_package_quotas"] = json.dumps(all_package_quotas)
-
-    # Set initial quotas for current base package
-    if "base_package" in context:
-        context["package_quotas"] = json.dumps(all_package_quotas.get(context["base_package"].id, {}))
-    else:
-        context["package_quotas"] = json.dumps({})
-
-    # 3. Fetch AddOn prices to calculate visual cart
-    addons = AddOn.objects.filter(is_active=True)
-    addon_prices = {}
-    for addon in addons:
-        addon_prices[addon.name.lower()] = str(addon.price)
-
-    context["addon_prices"] = json.dumps(addon_prices)
-
-    categories = ["Backdrops", "Balloons", "Furniture", "Decorations"]
-    context["categories"] = categories
-    active_canvas_assets = list(
-        CanvasAsset.objects.filter(is_active=True, category__is_active=True)
-        .select_related("category")
-        .order_by("category__order", "category__name", "label_ref__order", "subgroup", "sort_order", "id")
-    )
-    canvas_categories = list(CanvasCategory.objects.filter(is_active=True).order_by("order", "name"))
-
-    assets_by_category = {}
-    for asset in active_canvas_assets:
-        assets_by_category.setdefault(asset.category_id, []).append(asset)
-
-    # Attach explicit resolved assets per category so template rendering does not depend on prefetch state.
-    for category in canvas_categories:
-        category.design_assets = assets_by_category.get(category.id, [])
-
-    context["canvas_categories"] = canvas_categories
-
-    # Fallback payload for client-side hydration when sidebar cards are empty.
-    canvas_assets_payload = {}
-    for category in canvas_categories:
-        category_key = category.name.lower().strip()
-        items = []
-        for asset in category.design_assets:
-            src = ""
-            if asset.image:
-                src = asset.image.url
-            elif asset.static_path:
-                src = static(asset.static_path)
-            items.append(
-                {
-                    "id": asset.id,
-                    "label": asset.label or "Asset",
-                    "src": src,
-                    "category": category_key,
-                    "type": asset.item_type or "image",
-                    "width": int(asset.width or 150),
-                    "height": int(asset.height or 150),
-                }
-            )
-        canvas_assets_payload[category_key] = items
-    context["canvas_assets_payload"] = json.dumps(canvas_assets_payload)
-    context["canvas_assets_payload_obj"] = canvas_assets_payload
+    ready_packages = [o for o in DesignOffer.objects.filter(kind="package", is_enabled=True).select_related("package") if offer_is_ready(o)]
+    all_quotas = {}
+    for candidate in ready_packages:
+        all_quotas[candidate.package_id] = {
+            r.category.name.lower(): r.maximum if r.maximum is not None else 999
+            for r in candidate.requirements.select_related("category")
+        }
+        if candidate.max_balloon_colors:
+            all_quotas[candidate.package_id]["balloon_color_limit"] = candidate.max_balloon_colors
+    context.update({
+        "base_package": offer, "base_package_id": offer.package_id if offer and offer.kind == "package" else "",
+        "design_offer_payload": offer_payload(offer) if offer else None,
+        "all_design_offers": {str(o.package_id): offer_payload(o) for o in ready_packages},
+        "all_packages": [o.package for o in ready_packages] if not offer or offer.kind == "package" else [],
+        "all_packages_data": [{"id": str(o.package_id), "name": o.name, "price": str(o.price)} for o in ready_packages] if not offer or offer.kind == "package" else [],
+        "all_package_quotas": json.dumps(all_quotas), "addon_prices": "{}",
+        "package_quotas": json.dumps({r.category.name.lower(): r.maximum if r.maximum is not None else 999 for r in offer.requirements.select_related("category")} if offer else {}),
+        "saved_canvas_state": restore_catalog_metadata(design.canvas_json, offer) if design else None,
+    })
+    if offer and offer.max_balloon_colors:
+        quotas = json.loads(context["package_quotas"])
+        quotas["balloon_color_limit"] = offer.max_balloon_colors
+        context["package_quotas"] = json.dumps(quotas)
+    assets = list(eligible_assets(offer).select_related("category").order_by("category__order", "sort_order", "id")) if offer else []
+    # Load all categories for this type so changing a package can reveal its assets.
+    category_ids = {a.category_id for a in assets}
+    categories = list(CanvasCategory.objects.filter(pk__in=category_ids).order_by("order", "name"))
+    payload = {}
+    for category in categories:
+        category.design_assets = [a for a in assets if a.category_id == category.pk and a.builtin_key != STYRO_NAME]
+        payload[category.name.lower().strip()] = [asset_payload(a) for a in assets if a.category_id == category.pk]
+    context["canvas_categories"] = [category for category in categories if category.design_assets]
+    context["canvas_assets_payload_obj"] = payload
+    context["canvas_assets_payload"] = json.dumps(payload)
+    context["styro_asset"] = next((a for a in assets if a.builtin_key == STYRO_NAME), None)
 
     return render(request, "client/design_canvas.html", context)
 
@@ -356,9 +366,12 @@ def admin_canvas_assets(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
 
-    categories = CanvasCategory.objects.order_by("order", "name")
+    selected_kind = request.GET.get("kind", "package")
+    if selected_kind not in KINDS:
+        selected_kind = "package"
+    categories = CanvasCategory.objects.filter(**{"available_" + selected_kind: True}).order_by("order", "name")
     selected_asset_category = request.GET.get("asset_category", "all")
-    canvas_assets = CanvasAsset.objects.select_related("category").all()
+    canvas_assets = CanvasAsset.objects.select_related("category").filter(**{"available_" + selected_kind: True, "category__available_" + selected_kind: True})
 
     if selected_asset_category != "all":
         try:
@@ -381,11 +394,14 @@ def admin_canvas_assets(request):
             "categories_page": categories_page,
             "canvas_assets": canvas_assets,
             "selected_asset_category": selected_asset_category,
+            "selected_kind": selected_kind,
+            "design_kinds": KINDS.items(),
         },
     )
 
 
 @login_required
+@configure_canvas_availability(False)
 def admin_canvas_category_create(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -395,17 +411,18 @@ def admin_canvas_category_create(request):
         is_active = request.POST.get("is_active") == "on"
         if not name:
             messages.warning(request, "Please enter a category name before saving.")
-            return render(request, "admin/canvas/canvas_category_form.html")
+            return render_canvas_form(request, "admin/canvas/canvas_category_form.html")
         CanvasCategory.objects.create(
-            name=name, order=parse_non_negative_int(order, 1), is_active=is_active
+            name=name, order=parse_non_negative_int(order, 1), is_active=is_active, is_balloon=request.POST.get("is_balloon") == "on", **request.canvas_availability
         )
         log_action(request.user, f"Created canvas category '{name}'.")
         messages.success(request, "Canvas category created successfully.")
         return redirect("admin_canvas_assets")
-    return render(request, "admin/canvas/canvas_category_form.html")
+    return render_canvas_form(request, "admin/canvas/canvas_category_form.html")
 
 
 @login_required
+@configure_canvas_availability(False)
 def admin_canvas_category_edit(request, id):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -416,7 +433,7 @@ def admin_canvas_category_edit(request, id):
         is_active = request.POST.get("is_active") == "on"
         if not name:
             messages.warning(request, "Please enter a category name before saving.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_category_form.html",
                 {"category": category},
@@ -424,11 +441,15 @@ def admin_canvas_category_edit(request, id):
         category.name = name
         category.order = parse_non_negative_int(order, 1)
         category.is_active = is_active
+        for field, value in request.canvas_availability.items():
+            setattr(category, field, value)
+        if "balloon_category_present" in request.POST:
+            category.is_balloon = request.POST.get("is_balloon") == "on"
         category.save()
         log_action(request.user, f"Updated canvas category '{name}'.")
         messages.success(request, "Canvas category updated successfully.")
         return redirect("admin_canvas_assets")
-    return render(
+    return render_canvas_form(
         request, "admin/canvas/canvas_category_form.html", {"category": category}
     )
 
@@ -439,6 +460,17 @@ def admin_canvas_category_delete(request, id):
         return HttpResponseForbidden("Not allowed")
     category = get_object_or_404(CanvasCategory, id=id)
     cat_name = category.name
+    if category.builtin_key:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'message': BUILTIN_MESSAGE}, status=400)
+        messages.warning(request, BUILTIN_MESSAGE)
+        return redirect('admin_canvas_assets')
+    if category.design_requirements.exists() or category.offer_inclusions.exists():
+        message = "Remove this category from its offer requirements before deleting it."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'message': message}, status=400)
+        messages.warning(request, message)
+        return redirect('admin_canvas_assets')
     category.delete()
     log_action(request.user, f"Deleted canvas category '{cat_name}'.")
     messages.success(request, "Canvas category deleted successfully.")
@@ -540,6 +572,7 @@ def admin_canvas_label_delete(request, id):
 
 
 @login_required
+@configure_canvas_availability(True)
 def admin_canvas_asset_create(request):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -557,7 +590,7 @@ def admin_canvas_asset_create(request):
 
         if not category_id:
             messages.warning(request, "Please select a category for this asset.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -565,7 +598,7 @@ def admin_canvas_asset_create(request):
 
         if not label:
             messages.warning(request, "Please enter an asset name before saving.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -573,7 +606,7 @@ def admin_canvas_asset_create(request):
 
         if not image:
             messages.warning(request, "Please upload an image file for this asset.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -586,7 +619,7 @@ def admin_canvas_asset_create(request):
             messages.warning(
                 request, "Default width and height must be valid whole numbers."
             )
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -594,7 +627,7 @@ def admin_canvas_asset_create(request):
 
         if width_val < 1:
             messages.warning(request, "Default width must be at least 1.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -602,7 +635,7 @@ def admin_canvas_asset_create(request):
 
         if height_val < 1:
             messages.warning(request, "Default height must be at least 1.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -614,7 +647,7 @@ def admin_canvas_asset_create(request):
                 request,
                 "Selected category could not be found. Please choose another category.",
             )
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {"categories": categories},
@@ -637,13 +670,13 @@ def admin_canvas_asset_create(request):
             width=width_val,
             height=height_val,
             sort_order=next_sort,
-            is_active=is_active,
+            is_active=is_active, **request.canvas_availability,
         )
         log_action(request.user, f"Added canvas asset '{label}' to '{category.name}'.")
         messages.success(request, "Canvas asset added successfully.")
         return redirect("admin_canvas_assets")
 
-    return render(
+    return render_canvas_form(
         request,
         "admin/canvas/canvas_asset_form.html",
         {"categories": categories},
@@ -651,6 +684,7 @@ def admin_canvas_asset_create(request):
 
 
 @login_required
+@configure_canvas_availability(True)
 def admin_canvas_asset_edit(request, id):
     if request.user.role not in ["admin", "staff"]:
         return HttpResponseForbidden("Not allowed")
@@ -674,7 +708,7 @@ def admin_canvas_asset_edit(request, id):
 
         if not category_id:
             messages.warning(request, "Please select a category for this asset.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -687,7 +721,7 @@ def admin_canvas_asset_edit(request, id):
 
         if not label:
             messages.warning(request, "Please enter an asset name before saving.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -698,9 +732,9 @@ def admin_canvas_asset_edit(request, id):
                 },
             )
 
-        if not new_image and not canvas_asset.image and not canvas_asset.static_path:
+        if not new_image and not canvas_asset.image and not canvas_asset.static_path and canvas_asset.item_type != 'i-text':
             messages.warning(request, "Please upload an image file for this asset.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -718,7 +752,7 @@ def admin_canvas_asset_edit(request, id):
             messages.warning(
                 request, "Default width and height must be valid whole numbers."
             )
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -731,7 +765,7 @@ def admin_canvas_asset_edit(request, id):
 
         if width_val < 1:
             messages.warning(request, "Default width must be at least 1.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -744,7 +778,7 @@ def admin_canvas_asset_edit(request, id):
 
         if height_val < 1:
             messages.warning(request, "Default height must be at least 1.")
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -761,7 +795,7 @@ def admin_canvas_asset_edit(request, id):
                 request,
                 "Selected category could not be found. Please choose another category.",
             )
-            return render(
+            return render_canvas_form(
                 request,
                 "admin/canvas/canvas_asset_form.html",
                 {
@@ -783,6 +817,8 @@ def admin_canvas_asset_edit(request, id):
         canvas_asset.is_active = is_active
         if new_image:
             canvas_asset.image = new_image
+        for field, value in request.canvas_availability.items():
+            setattr(canvas_asset, field, value)
         canvas_asset.save()
 
         log_action(request.user, f"Updated canvas asset #{canvas_asset.id}.")
@@ -794,7 +830,7 @@ def admin_canvas_asset_edit(request, id):
             return redirect(next_url)
         return redirect("admin_canvas_assets")
 
-    return render(
+    return render_canvas_form(
         request,
         "admin/canvas/canvas_asset_form.html",
         {
@@ -846,7 +882,29 @@ def admin_canvas_asset_delete(request, id):
 
     canvas_asset = get_object_or_404(CanvasAsset, id=id)
     asset_id = canvas_asset.id
+    if canvas_asset.builtin_key:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'message': BUILTIN_MESSAGE}, status=400)
+        messages.warning(request, BUILTIN_MESSAGE)
+        return redirect('admin_canvas_assets')
     canvas_asset.delete()
     log_action(request.user, f"Deleted canvas asset #{asset_id}.")
     messages.success(request, "Canvas asset deleted successfully.")
     return redirect("admin_canvas_assets")
+
+
+@login_required
+@require_POST
+def evaluate_user_design(request):
+    if request.user.role != "customer":
+        return JsonResponse({"message": "Not allowed"}, status=403)
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict):
+            return JsonResponse({"message": "Invalid design data."}, status=400)
+        offer = get_object_or_404(DesignOffer, pk=data.get("design_offer_id")) if data.get("design_offer_id") else None
+        return JsonResponse(evaluate_design(data.get("canvas_json"), offer))
+    except RequestDataTooBig:
+        return JsonResponse({"message": "Design evaluation is too large."}, status=413)
+    except (ValueError, TypeError):
+        return JsonResponse({"message": "Invalid design data."}, status=400)

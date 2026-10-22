@@ -1,0 +1,91 @@
+/* Use the inventory's type scale, outline icons, and neutral surfaces. */
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar, .object-context-toolbar) {
+    font-family: inherit;
+    color: var(--inventory-label);
+    background: var(--inventory-surface);
+    border-color: var(--inventory-border);
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar, .object-context-toolbar) .inventory-icon {
+    width: 18px; height: 18px; flex: 0 0 18px;
+    pointer-events: none;
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) :is(label, .toolbar-status, .zoom-pill) {
+    font-family: inherit; font-size: .76rem; font-weight: 500; line-height: 1.5;
+    text-transform: none; letter-spacing: 0;
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) label { color: var(--inventory-muted); }
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) :is(.toolbar-status, .zoom-pill) {
+    background: var(--inventory-section); border-color: var(--inventory-border); color: var(--inventory-label);
+    font-variant-numeric: tabular-nums;
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) .ctrl-btn,
+.design-canvas-section .object-context-toolbar .ctx-btn {
+    font-family: inherit; font-size: .78rem; font-weight: 500;
+    flex-shrink: 0;
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) .ctrl-btn:not(.ctrl-btn-primary),
+.design-canvas-section .object-context-toolbar .ctx-btn {
+    background: var(--inventory-section); border-color: var(--inventory-border); color: var(--inventory-label);
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) .ctrl-btn:not(.ctrl-btn-primary):hover:not(:disabled),
+.design-canvas-section .object-context-toolbar .ctx-btn:hover:not(:disabled) {
+    background: var(--inventory-hover); border-color: var(--inventory-focus-border); color: var(--editor-text);
+}
+.design-canvas-section .selection-toolbar .ctrl-btn.is-active {
+    background: var(--inventory-selected); border-color: var(--inventory-focus-border); color: var(--editor-text);
+}
+.design-canvas-section .object-context-toolbar .ctx-btn:disabled { opacity: .38; cursor: not-allowed; }
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) input[type="number"],
+.design-canvas-section .selection-toolbar .font-family-dropdown .dropdown-trigger {
+    font-family: inherit; font-size: .78rem; font-weight: 500;
+    background: var(--inventory-section); color: var(--inventory-label); border-color: var(--inventory-border);
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar) input[type="number"] { font-variant-numeric: tabular-nums; }
+.design-canvas-section .canvas-main-toolbar .dimension-toolbar-group input[type="number"] { min-width: 72px; }
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar, .object-context-toolbar) [data-tooltip]::after {
+    font-family: inherit; font-size: .7rem; font-weight: 500;
+}
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar, .object-context-toolbar) :is(button, a, input, [role="button"]):focus-visible {
+    outline: 2px solid var(--inventory-focus-border); outline-offset: 2px;
+}
+.design-canvas-section .selection-toolbar .toolbar-group { border-color: var(--inventory-border); }
+.design-canvas-section .selection-toolbar[data-selection-type="text"] [data-toolbar-group="arrange"] {
+    border-right: 0; padding-right: 0; margin-right: 0;
+}
+.design-canvas-section .selection-toolbar[data-selection-type="text"] [data-toolbar-group="transform"] { display: none; }
+/* Contain long tool rows at any canvas width, including an open sidebar. */
+.design-canvas-section .selection-toolbar,
+.design-canvas-section .selection-toolbar.font-dropdown-open {
+    max-width: calc(100% - 24px); overflow-x: auto; overflow-y: hidden;
+    flex-wrap: nowrap; scrollbar-width: thin; scrollbar-color: var(--inventory-border) transparent;
+}
+.design-canvas-section .selection-toolbar .font-family-dropdown .dropdown-options[popover] {
+    position: fixed; inset: auto; margin: 0; transform: none;
+    max-width: calc(100vw - 24px); box-sizing: border-box;
+}
+/* One tooltip in the top layer stays above guidance and scrolling controls. */
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar, .canvas-tool-rail, .object-context-toolbar, .layers-list) [data-tooltip]:hover::before,
+.design-canvas-section :is(.canvas-main-toolbar, .selection-toolbar, .canvas-tool-rail, .object-context-toolbar, .layers-list) [data-tooltip]:hover::after { display: none; }
+.selection-toolbar-tooltip[popover] {
+    position: fixed; inset: auto; margin: 0; padding: 6px 9px; pointer-events: none;
+    max-width: calc(100vw - 24px); border: 1px solid var(--inventory-border); border-radius: 6px;
+    background: var(--inventory-surface); color: var(--inventory-label);
+    font-family: inherit; font-size: .7rem; font-weight: 500; line-height: 1.5;
+}
+.design-canvas-section .selection-toolbar .font-family-dropdown .dropdown-caret { border-width: 0 1.6px 1.6px 0; }
+.design-canvas-section .selection-toolbar .font-family-dropdown .dropdown-options {
+    background: var(--inventory-surface); border-color: var(--inventory-border);
+    scrollbar-width: thin; scrollbar-color: var(--inventory-border) transparent;
+}
+.design-canvas-section .selection-toolbar .font-family-dropdown .dropdown-options li {
+    font-size: .8rem; font-weight: 400; color: var(--inventory-label);
+}
+.design-canvas-section .selection-toolbar .font-family-dropdown .dropdown-options li:is(:hover, .selected) {
+    background: var(--inventory-selected); color: var(--editor-text);
+}
+.design-canvas-section #saveDesignBtn { gap: 8px; padding-inline: 14px; font-weight: 600; }
+.design-canvas-section #saveDesignBtn[aria-busy="true"] .inventory-icon { animation: canvas-save-spin .9s linear infinite; }
+@keyframes canvas-save-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .design-canvas-section #saveDesignBtn[aria-busy="true"] .inventory-icon { animation: none; }
+}

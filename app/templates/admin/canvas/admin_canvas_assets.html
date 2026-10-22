@@ -2,16 +2,20 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_canvas_assets.css' %}?v=20261022d">
+<div class="canvas-admin">
 
 <div class="page-header">
     <h1>Canvas Asset Management</h1>
     <p class="page-subtitle">Manage canvas categories, labels, and design assets for the builder.</p>
 </div>
 
+<nav class="ca-type-tabs" aria-label="Canvas design type">
+    {% for kind, label in design_kinds %}<a href="?kind={{ kind }}" {% if kind == selected_kind %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
 <div class="page-header title-header" id="canvas-assets-section">
     <h1>Canvas Categories</h1>
-    <a href="{% url 'admin_canvas_category_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Category</a>
+    <a href="{% url 'admin_canvas_category_create' %}?kind={{ selected_kind }}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Create Category</a>
 </div>
 
 <div class="table-container canvas-categories-container">
@@ -39,8 +43,9 @@
                 </td>
                 <td data-label="Assets">{{ cat.assets.count }}</td>
                 <td data-label="Actions">
+                    {% if cat.builtin_key %}<span title="Built-in counting category. Configure its quantities in the offer editor.">Built-in</span>{% else %}
                     <div class="action-buttons">
-                        <a href="{% url 'admin_canvas_category_edit' cat.id %}" title="Edit"><i class="far fa-edit"></i></a>
+                        <a href="{% url 'admin_canvas_category_edit' cat.id %}?kind={{ selected_kind }}" title="Edit"><i class="far fa-edit"></i></a>
                         <a href="{% url 'admin_canvas_category_delete' cat.id %}"
                            title="Delete"
                            data-swal-confirm="true"
@@ -48,6 +53,7 @@
                            data-swal-text="Delete this category and all linked canvas assets?"
                            data-swal-confirm-text="Yes, delete category"><i class="far fa-trash-alt"></i></a>
                     </div>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}
@@ -61,7 +67,7 @@
 <div class="pagination" id="canvasCategoriesPaginationContainer">
     {% if categories_page.has_other_pages %}
         {% if categories_page.has_previous %}
-        <a href="?cat_page={{ categories_page.previous_page_number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        <a href="?kind={{ selected_kind }}&amp;cat_page={{ categories_page.previous_page_number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
         {% endif %}
@@ -69,7 +75,7 @@
         <span class="current-page">Page {{ categories_page.number }} of {{ categories_page.paginator.num_pages }}</span>
 
         {% if categories_page.has_next %}
-        <a href="?cat_page={{ categories_page.next_page_number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        <a href="?kind={{ selected_kind }}&amp;cat_page={{ categories_page.next_page_number }}&page={{ canvas_assets.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
         {% endif %}
@@ -81,7 +87,7 @@
 <div class="page-header title-header">
     <h1>Canvas Assets</h1>
     <div class="gallery-images-toolbar">
-        <form method="GET" class="gallery-filter-form" id="canvasAssetFilterForm">
+        <form method="GET" class="gallery-filter-form" id="canvasAssetFilterForm"><input type="hidden" name="kind" value="{{ selected_kind }}">
             <div class="custom-filter-dropdown" id="canvasAssetCategoryDropdown">
                 <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
                     <span id="canvasAssetCategoryDropdownText">
@@ -110,7 +116,7 @@
             </div>
         </form>
 
-        <a href="{% url 'admin_canvas_asset_create' %}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add Asset</a>
+        <a href="{% url 'admin_canvas_asset_create' %}?kind={{ selected_kind }}" class="action-create"><span class="plus-icon" aria-hidden="true">+</span> Add Asset</a>
     </div>
 </div>
 
@@ -151,13 +157,15 @@
                 <td data-label="Actions">
                     <div class="action-buttons">
                         <a href="{% url 'admin_canvas_asset_detail' asset.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=canvas-assets-list-section" class="view-btn" title="View"><i class="far fa-eye"></i></a>
-                        <a href="{% url 'admin_canvas_asset_edit' asset.id %}?next={{ request.get_full_path|urlencode }}&scroll_target=canvas-assets-list-section" class="edit-btn" title="Edit"><i class="far fa-edit"></i></a>
+                        {% if asset.builtin_key %}<span title="Built-in preset. Available across devices and protected from deletion.">Built-in</span>{% else %}
+                        <a href="{% url 'admin_canvas_asset_edit' asset.id %}?kind={{ selected_kind }}&amp;next={{ request.get_full_path|urlencode }}&amp;scroll_target=canvas-assets-list-section" class="edit-btn" title="Edit"><i class="far fa-edit"></i></a>
                         <a href="{% url 'admin_canvas_asset_delete' asset.id %}" class="delete-btn"
                            title="Delete"
                            data-swal-confirm="true"
                            data-swal-title="Delete canvas asset?"
                            data-swal-text="Delete this canvas asset record?"
                            data-swal-confirm-text="Yes, delete asset"><i class="far fa-trash-alt"></i></a>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -173,7 +181,7 @@
 <div class="pagination" id="canvasAssetsPaginationContainer">
     {% if canvas_assets.has_other_pages %}
         {% if canvas_assets.has_previous %}
-        <a href="?page={{ canvas_assets.previous_page_number }}&cat_page={{ categories_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
+        <a href="?kind={{ selected_kind }}&amp;page={{ canvas_assets.previous_page_number }}&cat_page={{ categories_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
         {% endif %}
@@ -181,11 +189,12 @@
         <span class="current-page">Page {{ canvas_assets.number }} of {{ canvas_assets.paginator.num_pages }}</span>
 
         {% if canvas_assets.has_next %}
-        <a href="?page={{ canvas_assets.next_page_number }}&cat_page={{ categories_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
+        <a href="?kind={{ selected_kind }}&amp;page={{ canvas_assets.next_page_number }}&cat_page={{ categories_page.number }}{% if selected_asset_category and selected_asset_category != 'all' %}&asset_category={{ selected_asset_category }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
         {% else %}
         <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
         {% endif %}
     {% endif %}
+</div>
 </div>
 <script>
     (function () {
@@ -386,12 +395,13 @@
 
             const runDelete = function () {
                 fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function () {
+                    .then(async function (response) {
+                        if (!response.ok) { const data = await response.json(); throw new Error(data.message || 'Could not delete this item.'); }
                         return refreshCanvasAssetsPage(new URL(window.location.href));
                     })
                     .then(function () {
                         showToast('Item deleted successfully.', 'success');
-                    });
+                    }).catch(function (error) { showToast(error.message, 'error'); });
             };
 
             if (typeof Swal !== 'undefined') {

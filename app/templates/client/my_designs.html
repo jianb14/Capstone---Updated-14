@@ -2,8 +2,12 @@
 {% load static %}
 {% load humanize %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/my_designs.css' %}?v=20261022f">
+<link rel="stylesheet" href="{% static 'css/design_workflow.css' %}?v=20261022b">
+<link rel="stylesheet" href="{% static 'css/design_library.css' %}?v=20261023draft">
+{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_designs.css' %}?v=20261013e">
 
 <!-- Thin outline icon sprite (same stroke style as the home/about icons) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
@@ -30,7 +34,7 @@
     </symbol>
 </svg>
 
-<section class="my-designs-section" style="animation: fadeInPage 0.5s ease forwards;">
+<section class="my-designs-section">
     <div class="container my-designs-container">
         
         <div class="designs-header">
@@ -38,13 +42,15 @@
                 <h2>My Designs</h2>
                 <p>Review your saved layouts, continue editing, or book your chosen setup&nbsp;anytime.</p>
             </div>
-            <a href="#" class="create-new-btn" onclick="openModal('selectPackageModal'); return false;">
+            <button type="button" class="create-new-btn" onclick="openModal('selectPackageModal')" {% if design_usage.at_limit %}disabled aria-describedby="designLimitNote"{% endif %}>
                 <i class="fas fa-plus"></i> Create New Design
-            </a>
+            </button>
         </div>
+        {% if design_usage.at_limit %}<div class="design-limit-note" id="designLimitNote" role="note"><strong>Saved design limit reached</strong><p>Your limit is {{ design_usage.limit }} saved designs. Remove unused designs to make room for a new one. You can still edit and save your existing designs.</p></div>{% endif %}
 
         <!-- Search + Sort Toolbar (same dropdown style as the reviews page) -->
         <form method="GET" action="{% url 'my_designs' %}" class="designs-filter-group" id="designsFilterForm">
+            <p class="design-storage-count" id="designStorageCount"><strong>{{ design_usage.used }}/{{ design_usage.limit }}</strong> designs saved <span>Includes Draft and Ready to book designs.</span></p>
             <div class="designs-search-wrapper">
                 <svg class="designs-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"/>
@@ -66,9 +72,9 @@
                     <li data-value="name" class="{% if sort_filter == 'name' %}selected{% endif %}">Name A-Z</li>
                 </ul>
                 <select name="sort" id="sort-filter" class="filter-select">
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="name">Name A-Z</option>
+                    <option value="newest" {% if sort_filter != 'oldest' and sort_filter != 'name' %}selected{% endif %}>Newest First</option>
+                    <option value="oldest" {% if sort_filter == 'oldest' %}selected{% endif %}>Oldest First</option>
+                    <option value="name" {% if sort_filter == 'name' %}selected{% endif %}>Name A-Z</option>
                 </select>
             </div>
         </form>
@@ -79,7 +85,7 @@
                 <div class="design-card">
                     <div class="design-thumbnail-wrapper">
                         {% if design.thumbnail %}
-                            <img src="{{ design.thumbnail.url }}" alt="{{ design.name }}" class="design-thumbnail">
+                            <img src="{% url 'user_design_preview' design.id %}?v={{ design.preview_version }}" alt="{{ design.name }}" class="design-thumbnail" loading="lazy" decoding="async">
                         {% else %}
                             <div class="design-thumbnail-placeholder">
                                 <i class="fas fa-image"></i>
@@ -88,9 +94,9 @@
                         {% endif %}
 
                         <!-- Package badge (kung may base package ang design) -->
-                        {% if design.base_package %}
+                        {% if design.display_offer or design.base_package %}
                         <span class="design-package-badge">
-                            <svg class="pkg-badge-icon" aria-hidden="true"><use href="#ic-package"/></svg> {{ design.base_package.name }}
+                            <svg class="pkg-badge-icon" aria-hidden="true"><use href="#ic-package"/></svg> {% if design.display_offer %}{{ design.display_offer.name }}{% else %}{{ design.base_package.name }}{% endif %}
                         </span>
                         {% endif %}
 
@@ -118,13 +124,20 @@
                     <div class="design-info">
                         <h4 class="design-title" id="title-{{ design.id }}">{{ design.name }}</h4>
                         <p class="design-date" title="Updated {{ design.updated_at|date:'M d, Y h:i A' }}">Updated {{ design.updated_at|naturaltime }}</p>
+                        <div class="design-readiness">
+                            {% if design.eligibility.can_book %}<span class="design-badge design-ready"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Ready to book</span>
+                            {% else %}<span class="design-badge design-draft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Draft</span>{% endif %}
+                            <p class="design-status-copy">{{ design.card_status.message }}</p>
+                            {% if design.card_status.items %}<ul class="design-next-steps">{% for item in design.card_status.items %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+                            {% if design.card_status.more %}<p class="design-status-more">See all remaining items in the editor.</p>{% endif %}
+                        </div>
                         <div class="design-actions">
                             <a href="{% url 'design_canvas' %}?id={{ design.id }}" class="overlay-btn edit-btn">
-                                <svg class="mi"><use href="#ic-pencil"/></svg> Edit
+                                <svg class="mi"><use href="#ic-pencil"/></svg> {% if design.eligibility.can_book %}Edit{% else %}Continue Editing{% endif %}
                             </a>
-                            <a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
+                            {% if design.eligibility.can_book %}<a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
                                 <svg class="mi"><use href="#ic-calendar-check"/></svg> Book Now
-                            </a>
+                            </a>{% endif %}
                         </div>
                     </div>
                 </div>
@@ -228,59 +241,15 @@
 </div>
 
 <!-- Design Type Selection Modal -->
-<div class="modal-overlay" id="selectPackageModal">
-    <div class="pkg-select-box">
+<div class="modal-overlay" id="selectPackageModal" role="dialog" aria-modal="true" aria-labelledby="startingPointTitle">
+    <div class="pkg-select-box" tabindex="-1">
         <div class="pkg-select-header">
-            <h2>Select Your Starting Point</h2>
-            <button type="button" onclick="closeModal('selectPackageModal')" class="pkg-close-btn">&times;</button>
+            <div class="pkg-select-heading"><h2 id="startingPointTitle">Select Your Starting Point</h2><p class="pkg-select-subtitle">Choose a Package, Entrance Arch, or Welcome Stand.</p></div>
+            <button type="button" onclick="closeModal('selectPackageModal')" class="pkg-close-btn" aria-label="Close starting point selection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
-        <p class="pkg-select-subtitle">Choose a base package to customize for your design.</p>
-        
-        <div class="pkg-cards-grid">
-            
-            <!-- Active Packages -->
-            {% for package in packages %}
-            <div class="pkg-card">
-                <div>
-                    <h4 class="pkg-card-title">{{ package.name }}</h4>
-                    <div class="pkg-card-price has-features">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
-                    <button type="button" onclick="openModal('featureModal{{ package.id }}'); closeModal('selectPackageModal');" class="pkg-feat-btn">
-                        <i class="fas fa-list"></i> View Inclusions
-                    </button>
-                </div>
-                <button type="button" onclick="openModal('featureModal{{ package.id }}'); closeModal('selectPackageModal');" class="pkg-modal-btn">
-                    Select Design
-                </button>
-            </div>
-            {% endfor %}
-        </div>
+        {% include 'components/design_offer_picker.html' with design_picker_styles_loaded=True %}
     </div>
 </div>
-
-<!-- Feature modals for each package -->
-{% for package in packages %}
-<div class="modal-overlay feature-modal-overlay" id="featureModal{{ package.id }}">
-    <div class="feature-modal-box">
-        <div class="feature-modal-header">
-            <h3>{{ package.name }} Inclusions</h3>
-            <button type="button" onclick="closeModal('featureModal{{ package.id }}'); openModal('selectPackageModal');" class="pkg-close-btn">&times;</button>
-        </div>
-        <ul class="feature-list">
-            {% for feature in package.feature_list %}
-            <li>
-                <i class="fas fa-check"></i>
-                <span>{{ feature }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-        <p class="feature-confirm-note">Kindly review what's included first. This package will be your design's starting point, and you can still customize it inside the canvas.</p>
-        <div class="feature-modal-actions">
-            <button type="button" onclick="closeModal('featureModal{{ package.id }}'); openModal('selectPackageModal');" class="feature-modal-back"><i class="fas fa-arrow-left"></i> Back</button>
-            <a href="{% url 'design_canvas' %}?package_id={{ package.id }}&fresh=1" class="feature-modal-btn">Continue to Design</a>
-        </div>
-    </div>
-</div>
-{% endfor %}
 
 <script>
     let currentDesignId = null;
@@ -311,13 +280,34 @@
     });
 
     // Modal Helpers
+    const modalOpeners = new Map();
     function openModal(modalId) {
-        document.getElementById(modalId).classList.add('show');
+        const modal = document.getElementById(modalId);
+        modalOpeners.set(modalId, document.activeElement);
+        modal.classList.add('show');
+        document.documentElement.classList.add('design-modal-open');
+        (modal.querySelector('input, button, [tabindex]') || modal).focus({preventScroll: true});
     }
     
     function closeModal(modalId) {
-        document.getElementById(modalId).classList.remove('show');
+        const modal = document.getElementById(modalId);
+        modal.querySelector('dialog[open]')?.close();
+        modal.classList.remove('show');
+        if (!document.querySelector('.modal-overlay.show, .dl-offer-dialog[open]')) document.documentElement.classList.remove('design-modal-open');
+        modalOpeners.get(modalId)?.focus({preventScroll: true});
     }
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
+        modal.addEventListener('keydown', event => {
+            if (modal.querySelector('dialog[open]')) return;
+            if (event.key === 'Escape') { event.preventDefault(); closeModal(modal.id); }
+            if (event.key !== 'Tab') return;
+            const targets = [...modal.querySelectorAll('a[href], button, input, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
+            const first = targets[0], last = targets[targets.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        });
+    });
 
     // Rename flow
     function openRenameModal(id, currentName) {

@@ -45,12 +45,14 @@
 
             <div class="action-buttons detail-buttons">
                 <a href="{{ next_url }}" class="btn-back detail"><i class="fas fa-arrow-left"></i> Back</a>
+                {% if canvas_asset.builtin_key %}<p>Built-in preset. Manage its inclusion and quantity in the offer editor.</p>{% else %}
                 <a href="{% url 'admin_canvas_asset_edit' canvas_asset.id %}?next={{ next_url|urlencode }}&scroll_target=canvas-assets-list-section" class="btn-edit detail"><i class="far fa-edit"></i> Edit</a>
                 <a href="{% url 'admin_canvas_asset_delete' canvas_asset.id %}" class="btn-delete detail"
                     data-swal-confirm="true"
                     data-swal-title="Delete canvas asset?"
                     data-swal-text="Delete this canvas asset record?"
                     data-swal-confirm-text="Yes, delete asset"><i class="far fa-trash-alt"></i> Delete</a>
+                {% endif %}
             </div>
         </div>
     </div>

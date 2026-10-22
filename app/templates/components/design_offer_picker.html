@@ -1,0 +1,47 @@
+{% load static humanize %}
+{% if not design_picker_styles_loaded %}
+<link rel="stylesheet" href="{% static 'css/design_workflow.css' %}?v=20261022b">
+<link rel="stylesheet" href="{% static 'css/design_library.css' %}?v=20261022g">
+{% endif %}
+<div class="design-offer-picker">
+    <div class="design-tabs" role="tablist" aria-label="Design type">
+        {% for group in design_groups %}<button type="button" role="tab" id="offer-tab-{{ group.kind }}" aria-controls="offer-panel-{{ group.kind }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" data-design-tab="{{ group.kind }}">{{ group.label }}</button>{% endfor %}
+    </div>
+    {% for group in design_groups %}
+    <section class="design-offer-panel" id="offer-panel-{{ group.kind }}" role="tabpanel" aria-labelledby="offer-tab-{{ group.kind }}" data-design-panel="{{ group.kind }}" {% if not forloop.first %}hidden{% endif %}>
+        <div class="pkg-cards-grid">
+            {% for offer in group.offers %}<article class="pkg-card">
+                <h4 class="pkg-card-title">{{ offer.name }}</h4>
+                <div class="pkg-card-price">₱{{ offer.price|floatformat:'-2'|intcomma }}{% if group.kind == 'entrance' %} <small>Solo</small>{% endif %}</div>
+                <div class="dl-card-overview">
+                    <p class="dl-card-label">Included in this offer</p>
+                    <ul class="dl-card-inclusions">{% for feature in offer.item.feature_list|slice:':3' %}<li><svg class="dl-inclusion-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>{{ feature }}</span></li>{% empty %}<li>Review the inclusions and required design items.</li>{% endfor %}</ul>
+                    {% if offer.item.feature_list|length > 3 %}<p class="dl-card-more">+{{ offer.item.feature_list|length|add:'-3' }} more inclusions</p>{% endif %}
+                </div>
+                <button type="button" class="pkg-modal-btn" data-offer-open="{{ offer.id }}" aria-haspopup="dialog" aria-controls="designOfferDetailsModal"><span>View Inclusions &amp; Select</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></button>
+                <template data-offer-content="{{ offer.id }}">
+                    <p class="dl-detail-price">₱{{ offer.price|floatformat:'-2'|intcomma }}{% if group.kind == 'entrance' %} <small>Solo price</small>{% endif %}</p>
+                    <p class="dl-detail-intro">Review what's included and the items your design needs before booking.</p>
+                    <div class="dl-detail-columns">
+                        <section><h3>What's included</h3><ul class="dl-inclusion-list">{% for feature in offer.item.feature_list %}<li><svg class="dl-inclusion-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>{{ feature }}</span></li>{% empty %}<li>See the required design items for this offer.</li>{% endfor %}</ul></section>
+                        <section><h3>Required before booking</h3><ul class="dl-requirement-list">{% for rule in offer.required_rules %}<li><span>{{ rule.display_name|default:rule.category.name }}</span><strong>{{ rule.minimum }} required</strong>{% if rule.maximum and rule.maximum != rule.minimum %}<small>Up to {{ rule.maximum }} included</small>{% elif not rule.maximum %}<small>No quantity limit</small>{% endif %}</li>{% endfor %}</ul>{% if offer.max_balloon_colors %}<p class="dl-detail-help">Maximum balloon colors: <strong>{{ offer.max_balloon_colors }}</strong></p>{% endif %}<p class="dl-detail-help">Use items from the canvas asset list. Uploaded photos are references and do not count toward requirements.</p></section>
+                    </div>
+                    <div class="dl-confirm-note"><strong>You can save a draft anytime.</strong><p>To book, add all required items and stay within this offer's item and balloon color limits. Optional items do not need to be added.</p></div>
+                    <div class="dl-detail-actions"><button type="button" class="dl-back-btn" data-offer-close>Back to offers</button><a href="{% url 'design_canvas' %}?design_offer_id={{ offer.id }}{% if existing_design_id %}&amp;id={{ existing_design_id|urlencode }}{% else %}&amp;fresh=1{% endif %}" class="feature-modal-btn">Continue to Design</a></div>
+                </template>
+            </article>{% empty %}
+            <div class="design-empty-offers">
+                <div class="dl-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">{% if group.kind == 'entrance' %}<path d="M3 21V10a9 9 0 0 1 18 0v11M7 21V10a5 5 0 0 1 10 0v11M1 21h8m6 0h8"/>{% elif group.kind == 'stand' %}<rect x="5" y="2" width="14" height="15" rx="2"/><path d="M12 17v5m-5 0h10M9 7h6m-6 4h4"/>{% else %}<path d="m12 3 9 5-9 5-9-5 9-5Zm9 5v9l-9 5-9-5V8m9 5v9M7.5 5.5l9 5"/>{% endif %}</svg></div>
+                <h3>No {{ group.label|lower }} offers yet</h3>
+                <p>Choose another design type or check back later for available offers.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+    <dialog class="dl-offer-dialog" id="designOfferDetailsModal" aria-labelledby="designOfferDetailsTitle">
+        <div class="dl-dialog-header"><h2 id="designOfferDetailsTitle"></h2><button type="button" class="dl-close-btn" data-offer-close aria-label="Close offer details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <div class="dl-dialog-body" data-offer-modal-body></div>
+    </dialog>
+</div>
+<script src="{% static 'js/design_selection.js' %}?v=20261022b" defer></script>
