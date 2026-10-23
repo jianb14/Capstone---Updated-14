@@ -191,8 +191,9 @@ class EmailVerificationFlowTests(TestCase):
         second = self.client.post(
             reverse("resend_verification"), {"email": self.unverified.email}
         )
-        self.assertEqual(second.status_code, 200)
-        self.assertContains(second, "Please wait")
+        self.assertEqual(second.status_code, 429)
+        self.assertIn('Retry-After', second)
+        self.assertContains(second, "Please wait", status_code=429)
         self.assertEqual(len(mail.outbox), 1)
 
     @override_settings(
@@ -212,8 +213,8 @@ class EmailVerificationFlowTests(TestCase):
         blocked = self.client.post(
             reverse("resend_verification"), {"email": self.unverified.email}
         )
-        self.assertEqual(blocked.status_code, 200)
-        self.assertContains(blocked, "Too many verification email requests")
+        self.assertEqual(blocked.status_code, 429)
+        self.assertContains(blocked, "Too many verification email requests", status_code=429)
         self.assertEqual(len(mail.outbox), 2)
 
 

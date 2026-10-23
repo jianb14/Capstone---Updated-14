@@ -11,5 +11,10 @@ STORAGES = {
 }
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 SECURE_SSL_REDIRECT = False
+AI_WORKER_AUTOSTART = False
+# Storage/transport regression suites isolate the legacy execution adapter.
+# The conversation suite explicitly enables both production-default features.
+AI_SMART_ROUTING_ENABLED = False
+AI_RELEVANCE_CHECK_ENABLED = False
 _test_media = TemporaryDirectory(prefix='balloorina-tests-')
 MEDIA_ROOT = _test_media.name

@@ -3,3 +3,5 @@ def post_worker_init(worker):
     # unique notices make multiple workers safe; no visitor is needed for expiry.
     from app.deadline_worker import start_deadline_worker
     start_deadline_worker()
+    from app.ai_worker import start_ai_worker
+    start_ai_worker()

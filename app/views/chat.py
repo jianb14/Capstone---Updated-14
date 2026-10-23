@@ -2,39 +2,14 @@
 
 import logging
 
-from django.core.cache import cache
 from django.db.models import Q
-from django.http import StreamingHttpResponse
+from ..models import AiImageFeedback
 
 from .common import *  # noqa: F401,F403
 from .common import _get_primary_admin_user, _is_admin_user  # noqa: F401
-from ..services import (
-    AI_REQUEST_TIMEOUT,
-    DEFAULT_IMAGE_MODEL,
-    InferenceClient,
-    analyze_inspiration_image,
-    build_image_generation_prompt,
-    build_image_negative_prompt,
-    detect_frustration,
-    get_chatbot_response,
-    stream_chatbot_events,
-    suggested_followups,
-)
-from ..services import (  # noqa: F401  (private helpers used by image tools)
-    _extract_image_prompt_block,
-    _generate_image_with_fallback,
-    _image_success_reply,
-    _save_generated_image,
-    _strip_prompt_blocks,
-    _without_dead_local_proxy,
-)
+from ..services import detect_frustration
 
 logger = logging.getLogger(__name__)
-
-# Simple per-user throttle for the AI chat endpoint (seconds between messages).
-# Prevents runaway request loops from draining HuggingFace quota/credits.
-AI_CHAT_THROTTLE_SECONDS = 4
-
 
 def _chat_object_reactions_json(message, current_user):
     """Summarize reactions on a message as {emoji: count} + my emojis."""
@@ -375,116 +350,11 @@ def chat_api(request):
         if detect_frustration(user_message):
             return _escalate_to_admin_support(request, session, user_message)
 
-        # Cache-based throttle so the AI endpoint cannot be spammed.
-        ai_throttle_key = f"ai_chat_throttle_{request.user.id}"
-        if not cache.add(ai_throttle_key, "1", AI_CHAT_THROTTLE_SECONDS):
-            return JsonResponse(
-                {
-                    "error": (
-                        "You're sending messages too quickly. Please wait "
-                        f"{AI_CHAT_THROTTLE_SECONDS} seconds and try again."
-                    )
-                },
-                status=429,
-            )
-
-        # --- 1. FETCH CONTEXT (HISTORY) FIRST ---
-        history = []
-        if session:
-            recent_msgs = ChatMessage.objects.filter(session=session).order_by("-sent_at")[
-                :8
-            ]
-
-            # Reorder to chronological (oldest to newest) for the AI
-            for msg in reversed(recent_msgs):
-                role = "user" if msg.sender == request.user else "assistant"
-                history.append({"role": role, "content": msg.message})
-
-        # Get AI Response with History
-        ai_result = get_chatbot_response(
-            user_message,
-            conversation_history=history,
-            user=request.user,
-        )
-
-        # ai_result includes moderation metadata and response text.
-        ai_text = ai_result.get("text", "")
-        is_warning = ai_result.get("is_warning", False)
-        is_banned = ai_result.get("is_banned", False)
-        ban_remaining_seconds = int(ai_result.get("ban_remaining_seconds") or 0)
-        moderation_action = ai_result.get("moderation_action", "")
-        strike_count = int(ai_result.get("strike_count") or 0)
-        should_save = ai_result.get("should_save", not is_warning)
-
-        if should_save:
-            # Default receiver for AI bot
-            admin_user = _get_primary_admin_user()
-            if not admin_user:
-                return JsonResponse(
-                    {"error": "System misconfiguration (no admin found)"}, status=500
-                )
-
-            if not session:
-                title = (
-                    user_message[:30] + "..." if len(user_message) > 30 else user_message
-                )
-                session = ChatSession.objects.create(user=request.user, title=title)
-                is_new_session = True
-
-            ChatMessage.objects.create(
-                session=session,
-                sender=request.user,
-                receiver=admin_user,
-                message=user_message,
-                is_flagged=is_warning,
-            )
-
-            ChatMessage.objects.create(
-                session=session,
-                sender=admin_user,
-                receiver=request.user,
-                message=ai_text,
-            )
-            session.save(update_fields=["updated_at"])
-        elif ai_text and session:
-            # Persist moderation/system assistant messages in the active session so
-            # chat history remains consistent after reload.
-            admin_user = _get_primary_admin_user()
-            if admin_user:
-                ChatMessage.objects.create(
-                    session=session,
-                    sender=admin_user,
-                    receiver=request.user,
-                    message=ai_text,
-                    is_flagged=True,
-                )
-                session.save(update_fields=["updated_at"])
-
-        return JsonResponse(
-            {
-                "response": ai_text,
-                "is_warning": is_warning,
-                "is_banned": is_banned,
-                "ban_remaining_seconds": ban_remaining_seconds,
-                "moderation_action": moderation_action,
-                "strike_count": strike_count,
-                "session_id": session.id if session else None,
-                "is_new_session": is_new_session,
-                "session_title": session.title if session else "",
-                "suggestions": suggested_followups(ai_text),
-                "retry_available": (
-                    "usable image" in ai_text.lower()
-                    or "credits" in ai_text.lower()
-                ),
-            }
-        )
-
+        from .ai import legacy_ai_response
+        return legacy_ai_response(request)
     except Exception:
         logger.exception("Chat API Error")
-        return JsonResponse(
-            {"error": "Something went wrong on our end. Please try again later."},
-            status=500,
-        )
+        return JsonResponse({"error": "Something went wrong on our end. Please try again later."}, status=500)
 
 
 @login_required
@@ -575,7 +445,7 @@ def chat_history(request):
         ChatMessage.objects.filter(session=session)
         .select_related("sender", "reply_to", "reply_to__sender")
         .prefetch_related("reactions")
-        .order_by("-sent_at")[:50]
+        .order_by("-sent_at", "-pk")[:50]
     )
 
     # The messages reached the client's device — mark inbound (admin-sent)
@@ -590,12 +460,27 @@ def chat_history(request):
         is_delivered=True, delivered_at=timezone.now()
     )
     messages_list = []
-    for msg in reversed(list(recent_msgs)):
-        messages_list.append(_chat_message_json(msg, request.user))
+    from ..models import AiGeneratedImage, AiRequest
+    from ..ai_conversation import gallery_cards
+    recent_msgs = list(recent_msgs)
+    artifacts = {}
+    galleries = {}
+    for job in AiRequest.objects.filter(assistant_message_id__in=[msg.pk for msg in recent_msgs]):
+        ids = [card.get('id') for card in job.result.get('gallery', []) if isinstance(card, dict)]
+        if ids:
+            galleries[job.assistant_message_id] = gallery_cards(ids=ids)
+    for image in AiGeneratedImage.objects.filter(request__assistant_message_id__in=[msg.pk for msg in recent_msgs]).select_related('request'):
+        artifacts.setdefault(image.request.assistant_message_id, []).append({'id': str(image.pk), 'url': image.image.url})
+    for msg in reversed(recent_msgs):
+        item = _chat_message_json(msg, request.user)
+        item['ai_images'] = artifacts.get(msg.pk, [])
+        item['ai_gallery'] = galleries.get(msg.pk, [])
+        messages_list.append(item)
 
     return JsonResponse(
         {
             "messages": messages_list,
+            "has_design_brief": bool(session.design_brief),
             "pinned_messages": _pinned_messages_json(session),
             "media_count": len(_media_files_json(session)),
             "session": {
@@ -1367,35 +1252,6 @@ def admin_chat_unread_poll(request):
 # AI CHAT: persistence + escalation + streaming + image tools
 # ────────────────────────────────────────────────────────────────
 
-def _persist_ai_exchange(user, session, user_message, ai_text, is_warning):
-    """Save the user message + AI reply (same rules as chat_api)."""
-    admin_user = _get_primary_admin_user()
-    if not admin_user:
-        return session, False
-    created_new = False
-    if not session:
-        title = (
-            user_message[:30] + "..." if len(user_message) > 30 else user_message
-        )
-        session = ChatSession.objects.create(user=user, title=title)
-        created_new = True
-    ChatMessage.objects.create(
-        session=session,
-        sender=user,
-        receiver=admin_user,
-        message=user_message,
-        is_flagged=is_warning,
-    )
-    ChatMessage.objects.create(
-        session=session,
-        sender=admin_user,
-        receiver=user,
-        message=ai_text,
-    )
-    session.save(update_fields=["updated_at"])
-    return session, created_new
-
-
 def _notify_admins_new_chat_request(session, requester):
     try:
         admin_accounts = User.objects.filter(
@@ -1496,135 +1352,8 @@ def _escalate_to_admin_support(request, session, user_message):
 @login_required
 @require_POST
 def chat_api_stream(request):
-    """SSE endpoint: streams AI text replies token-by-token."""
-    try:
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON body"}, status=400)
-
-        user_message = (data.get("message") or "").strip()
-        session_id = data.get("session_id")
-        if not user_message:
-            return JsonResponse({"error": "Message is required"}, status=400)
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Authentication required"}, status=403)
-
-        session = None
-        if session_id:
-            try:
-                session = ChatSession.objects.get(id=session_id, user=request.user)
-            except ChatSession.DoesNotExist:
-                pass
-
-        if session and session.is_admin_support and session.status != "ai":
-            return JsonResponse(
-                {"error": "This session is handled by an admin."}, status=400
-            )
-
-        ai_throttle_key = f"ai_chat_throttle_{request.user.id}"
-        if not cache.add(ai_throttle_key, "1", AI_CHAT_THROTTLE_SECONDS):
-            return JsonResponse(
-                {
-                    "error": (
-                        "You're sending messages too quickly. Please wait "
-                        f"{AI_CHAT_THROTTLE_SECONDS} seconds and try again."
-                    )
-                },
-                status=429,
-            )
-
-        history = []
-        if session:
-            recent_msgs = ChatMessage.objects.filter(session=session).order_by(
-                "-sent_at"
-            )[:8]
-            for msg in reversed(recent_msgs):
-                role = "user" if msg.sender == request.user else "assistant"
-                history.append({"role": role, "content": msg.message})
-
-        def sse(payload):
-            return "data: %s\n\n" % json.dumps(payload)
-
-        def event_stream():
-            is_warning = False
-            final_data = None
-            saved_session = session
-            created_new = False
-            try:
-                for event in stream_chatbot_events(
-                    user_message,
-                    conversation_history=history,
-                    user=request.user,
-                ):
-                    if event.get("type") == "final":
-                        final_data = event.get("data") or {}
-                        is_warning = bool(final_data.get("is_warning"))
-                        continue
-                    yield sse(event)
-
-                if final_data is None:
-                    final_data = {"text": "", "should_save": False}
-                should_save = final_data.get("should_save", not is_warning)
-                ai_text = final_data.get("text", "")
-
-                if should_save and ai_text:
-                    saved_session, created_new = _persist_ai_exchange(
-                        request.user, session, user_message, ai_text, is_warning
-                    )
-                elif is_warning and session and ai_text:
-                    admin_user = _get_primary_admin_user()
-                    if admin_user:
-                        ChatMessage.objects.create(
-                            session=session,
-                            sender=admin_user,
-                            receiver=request.user,
-                            message=ai_text,
-                            is_flagged=True,
-                        )
-                        session.save(update_fields=["updated_at"])
-
-                reply_lower = (ai_text or "").lower()
-                yield sse({
-                    "type": "final",
-                    "data": {
-                        "response": ai_text,
-                        "is_warning": bool(final_data.get("is_warning")),
-                        "is_banned": bool(final_data.get("is_banned")),
-                        "ban_remaining_seconds": int(
-                            final_data.get("ban_remaining_seconds") or 0
-                        ),
-                        "moderation_action": final_data.get("moderation_action", ""),
-                        "strike_count": int(final_data.get("strike_count") or 0),
-                        "session_id": saved_session.id if saved_session else None,
-                        "is_new_session": created_new,
-                        "session_title": saved_session.title if saved_session else "",
-                        "suggestions": suggested_followups(ai_text),
-                        "retry_available": (
-                            "usable image" in reply_lower
-                            or "credits" in reply_lower
-                        ),
-                    },
-                })
-            except Exception:
-                logger.exception("Chat Stream Error")
-                yield sse({
-                    "type": "error",
-                    "message": "Something went wrong on our end. Please try again later.",
-                })
-
-        response = StreamingHttpResponse(
-            event_stream(), content_type="text/event-stream"
-        )
-        response["Cache-Control"] = "no-cache"
-        response["X-Accel-Buffering"] = "no"
-        return response
-    except Exception:
-        logger.exception("Chat Stream API Error")
-        return JsonResponse(
-            {"error": "Something went wrong on our end. Please try again later."},
-            status=500,
-        )
+    from .ai import legacy_ai_response
+    return legacy_ai_response(request, stream=True)
 
 
 @login_required
@@ -1643,8 +1372,11 @@ def chat_image_feedback(request):
             return JsonResponse(
                 {"error": "image_url and rating (-1 or 1) are required"}, status=400
             )
-        if not image_url.startswith(settings.MEDIA_URL):
-            return JsonResponse({"error": "Invalid image reference"}, status=400)
+        from ..ai_images import owned_image_name
+        try:
+            owned_image_name(request.user, image_url)
+        except ValueError as error:
+            return JsonResponse({'error': str(error)}, status=400)
         AiImageFeedback.objects.update_or_create(
             user=request.user,
             image_url=image_url,
@@ -1670,16 +1402,17 @@ def chat_save_design(request):
         data = json.loads(request.body)
         image_url = (data.get("image_url") or "").strip()
         prompt = str(data.get("prompt") or "")[:1000]
-        if not image_url or not image_url.startswith(settings.MEDIA_URL):
+        if not image_url:
             return JsonResponse({"error": "Invalid image reference"}, status=400)
-
-        rel_path = image_url[len(settings.MEDIA_URL):].lstrip("/\\")
-        source_path = os.path.join(settings.MEDIA_ROOT, *rel_path.split("/"))
-        if not os.path.exists(source_path):
-            return JsonResponse({"error": "Image not found"}, status=404)
-
-        with open(source_path, "rb") as fh:
-            image_bytes = fh.read()
+        from ..ai_images import owned_image_name
+        try:
+            source_name = owned_image_name(request.user, image_url)
+        except ValueError as error:
+            return JsonResponse({'error': str(error)}, status=400)
+        with default_storage.open(source_name, 'rb') as source:
+            image_bytes = source.read(20 * 1024 * 1024 + 1)
+        if len(image_bytes) > 20 * 1024 * 1024:
+            return JsonResponse({'error': 'The image is too large to save.'}, status=400)
 
         short_prompt = prompt[:40] + ("..." if len(prompt) > 40 else "")
         design_name = f"AI Design — {short_prompt or 'Balloorina concept'}"
@@ -1708,102 +1441,8 @@ def chat_save_design(request):
         return JsonResponse({"error": "Something went wrong."}, status=500)
 
 
-# Marker phrases produced by analyze_inspiration_image() when the vision
-# model is unavailable (no provider, quota, auth or read failure).
-_VISION_FAILURE_MARKERS = (
-    "couldn't analyze that photo",
-    "photo analysis is temporarily unavailable",
-    "ai authentication failed",
-    "configuration error",
-    "couldn't read that image",
-)
-
-
-def _looks_like_vision_failure(text):
-    lowered = (text or "").lower()
-    return any(marker in lowered for marker in _VISION_FAILURE_MARKERS)
-
-
 @login_required
 @require_POST
 def chat_analyze_image(request):
-    """Analyze an uploaded inspiration photo and (when possible) generate a
-    matching Balloorina design right away."""
-    if request.user.role != "customer":
-        return JsonResponse({"error": "Not allowed"}, status=403)
-    try:
-        uploaded = request.FILES.get("image")
-        if not uploaded:
-            return JsonResponse({"error": "Image file is required"}, status=400)
-        image_error = _validate_chat_image(uploaded)
-        if image_error:
-            return JsonResponse({"error": image_error}, status=400)
-
-        note = request.POST.get("note") or ""
-        reply_text = analyze_inspiration_image(uploaded, note)
-
-        # If the vision model produced an image prompt, generate the design
-        # immediately so the user gets a full analyze → design experience.
-        prompt_text, _intro_text, _outro_text = _extract_image_prompt_block(reply_text)
-        if not prompt_text and _looks_like_vision_failure(reply_text):
-            note_stripped = note.strip()
-            if note_stripped:
-                # Vision analysis is unavailable (e.g. no vision provider on
-                # the account). Fall back to the user's typed note through
-                # the normal chat pipeline so they still get a design (or a
-                # clear explanation) instead of a dead end.
-                fallback = get_chatbot_response(
-                    note_stripped, conversation_history=[], user=request.user
-                )
-                fallback_text = fallback.get("text", "") if isinstance(fallback, dict) else str(fallback)
-                return JsonResponse({
-                    "response": fallback_text,
-                    "suggestions": suggested_followups(fallback_text),
-                })
-            return JsonResponse({
-                "response": (
-                    "I can't view photos right now because our AI photo-analysis service "
-                    "is temporarily unavailable. Please type what design you'd like "
-                    "(event type, colors, theme) and I'll create it for you!"
-                ),
-                "suggestions": ["Suggest a design", "Our packages"],
-            })
-        if prompt_text:
-            try:
-                enhanced_prompt = build_image_generation_prompt(prompt_text, "")
-                api_key = getattr(settings, "HUGGINGFACE_API_KEY", "")
-                if api_key:
-                    with _without_dead_local_proxy():
-                        try:
-                            client = InferenceClient(
-                                token=api_key, timeout=AI_REQUEST_TIMEOUT
-                            )
-                        except TypeError:
-                            client = InferenceClient(token=api_key)
-                    image_model = getattr(
-                        settings,
-                        "HUGGINGFACE_IMAGE_MODEL_ID",
-                        DEFAULT_IMAGE_MODEL,
-                    )
-                    generated_image = _generate_image_with_fallback(
-                        client,
-                        enhanced_prompt,
-                        negative_prompt=build_image_negative_prompt(prompt_text),
-                        requested_model=image_model,
-                    )
-                    img_url = _save_generated_image(generated_image)
-                    visible_text = _strip_prompt_blocks(reply_text)
-                    reply_text = (
-                        f"{visible_text}\n\n"
-                        f"{_image_success_reply(img_url, enhanced_prompt)}".strip()
-                    )
-            except Exception as image_error:
-                print(f"Analyze Image Generation Error: {image_error}")
-
-        return JsonResponse({
-            "response": reply_text,
-            "suggestions": ["Our packages", "How to book?"],
-        })
-    except Exception:
-        logger.exception("Chat Analyze Image Error")
-        return JsonResponse({"error": "Something went wrong."}, status=500)
+    from .ai import legacy_ai_response
+    return legacy_ai_response(request)

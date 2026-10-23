@@ -1,5 +1,7 @@
 from django.urls import path
 from .views.designs import evaluate_user_design, user_design_preview
+from .views.ai_health import ai_health
+from .views.ai import ai_design_brief
 from .views.changes import (request_booking_change, admin_booking_change_action,
     customer_booking_change_action, booking_change_payment)
 from .views.change_management import admin_booking_change_detail
@@ -110,6 +112,9 @@ from .views import (
     change_password,
     check_date_availability,
     chat_api,
+    ai_request_create,
+    ai_request_status,
+    ai_request_active,
     chat_api_stream,
     chat_analyze_image,
     chat_clear,
@@ -219,6 +224,7 @@ urlpatterns = [
     ),
     path("logout/", user_logout, name="logout"),
     path("dashboard/", dashboard, name="dashboard"),
+    path("dashboard/ai-health/", ai_health, name="ai_health"),
     path(
         "customer/", customer_profile, name="customer_profile"
     ),  # This will act as My Bookings
@@ -516,6 +522,10 @@ urlpatterns = [
         name="admin_additional_detail",
     ),
     # AI Features
+    path("api/ai/requests/", ai_request_create, name="ai_request_create"),
+    path("api/ai/sessions/<int:session_id>/brief/", ai_design_brief, name="ai_design_brief"),
+    path("api/ai/requests/active/", ai_request_active, name="ai_request_active"),
+    path("api/ai/requests/<uuid:request_id>/", ai_request_status, name="ai_request_status"),
     path("api/chat/", chat_api, name="chat_api"),
     path("api/chat/history/", chat_history, name="chat_history"),
     path("api/chat/sessions/", chat_sessions, name="chat_sessions"),

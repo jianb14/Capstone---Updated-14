@@ -2,6 +2,7 @@ from ..design_validation import evaluate_saved_design, evaluation_message, desig
 """Booking creation, editing, tracking and admin booking management. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
+from ..request_protection import deduplicate_submission
 from django.http import FileResponse
 from PIL import Image, UnidentifiedImageError
 from requests.exceptions import RequestException
@@ -511,6 +512,7 @@ def _validate_design_preferences(theme, palette):
 
 
 @login_required
+@deduplicate_submission
 @schedule_atomic
 def create_booking(request):
     if request.user.role != "customer":
@@ -931,6 +933,7 @@ def create_booking(request):
             ),
         )
 
+        request._submission_succeeded = True
         if is_ajax:
             # Build event data so frontend can add to calendar dynamically
             event_title = (

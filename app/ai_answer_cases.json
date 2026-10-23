@@ -1,0 +1,48 @@
+[
+  {
+    "id": "booking-form-walkthrough",
+    "message": "paano fill upan yung mga booking form ninyo nalilito kasi ako pwede mo ba akong turuan?",
+    "patterns": ["event type|uri ng", "event date|petsa", "start|simula", "end|tapos", "location|venue|address|lokasyon", "theme", "palette|kulay", "optional|opsyonal"],
+    "minimum_matches": 7,
+    "forbidden": ["package\\s+\\d", "(?:PHP|₱)\\s*[\\d,]+"]
+  },
+  {
+    "id": "one-field-followup",
+    "message": "Sa step 3, yung venue address lang ang hindi ko maintindihan. Ano ang ilalagay ko doon?",
+    "history": [
+      {"role": "user", "content": "How to book?"},
+      {"role": "assistant", "content": "To book a setup:\n1. Open the Events Calendar and choose an available date.\n2. Choose your package and optional extras.\n3. Fill in the event details and review your request.\n4. Submit it for admin approval.\n5. After approval, follow the payment instructions."}
+    ],
+    "patterns": ["venue|address|lokasyon", "map|pin|suggestion|mungkahi"],
+    "minimum_matches": 2,
+    "forbidden": ["open the events calendar"]
+  },
+  {
+    "id": "pending-payment-no-duplicate",
+    "message": "Pending yung payment ko, kailangan ko bang magbayad ulit?",
+    "patterns": ["review|verif|suri|my payments", "(?:huwag|wag|don't|do not|avoid|hindi|no need).{0,70}(?:bayad|pay|duplicate|ulit)"],
+    "minimum_matches": 2,
+    "forbidden": ["(?:iyong|your).{0,35}pending_payment", "(?:send|i-send).{0,50}screenshot.{0,70}messenger"]
+  },
+  {
+    "id": "package-color-meaning",
+    "message": "What does maximum balloon colors mean in a package?",
+    "patterns": ["colou?r", "limit|up to|at most|maximum", "different|palette|shade|distinct|two|three"],
+    "minimum_matches": 3,
+    "forbidden": ["without counting", "do not count", "does not count"]
+  },
+  {
+    "id": "canvas-reference-vs-required-items",
+    "message": "Nag upload na ako ng reference photo sa My Designs, bakit Draft pa rin at may missing items?",
+    "patterns": ["reference|photo", "hindi|not|doesn't|don't", "asset|required|missing|item"],
+    "minimum_matches": 3,
+    "forbidden": ["kailangan.{0,70}event type"]
+  },
+  {
+    "id": "guide-help-me-choose",
+    "message": "Sa Design guide, para saan ang Help me choose at bakit tatlo lang ang nakikita kong choices?",
+    "patterns": ["theme|palette|kulay", "three|3|tatlo", "Show more ideas"],
+    "minimum_matches": 3,
+    "forbidden": ["37", "Get more suggestions", "Show more suggestions"]
+  }
+]

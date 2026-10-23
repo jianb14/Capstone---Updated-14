@@ -311,7 +311,11 @@ def resend_verification(request):
         )
         if is_limited:
             messages.error(request, rate_limit_message)
-            return render(request, "auth/resend_verification.html", {"email": email})
+            response = render(request, "auth/resend_verification.html", {"email": email},
+                              status=getattr(request, '_email_limit_status', 429))
+            response['Retry-After'] = str(request._email_retry_after)
+            response['Cache-Control'] = 'no-store'
+            return response
 
         try:
             user = User.objects.get(email__iexact=email)
@@ -342,7 +346,11 @@ def forgot_password_request(request):
         is_limited, rate_limit_message = _is_reset_request_rate_limited(request, email)
         if is_limited:
             messages.error(request, rate_limit_message)
-            return render(request, "auth/forgot_password.html")
+            response = render(request, "auth/forgot_password.html",
+                              status=getattr(request, '_email_limit_status', 429))
+            response['Retry-After'] = str(request._email_retry_after)
+            response['Cache-Control'] = 'no-store'
+            return response
 
         try:
             user = User.objects.get(email__iexact=email)

@@ -1,0 +1,23 @@
+{% extends 'admin/admin_base.html' %}
+{% load static humanize %}
+{% block title %}AI Health — Balloorina{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ai_health.css' %}">{% endblock %}
+{% block content %}
+<main class="ai-health">
+    <header class="ah-header"><div><p class="ah-eyebrow">Assistant operations</p><h1>AI health</h1><p>Reliability, response quality and recorded usage.</p></div>
+        <form method="get"><label for="ah-days">Period</label><select id="ah-days" name="days"><option value="1" {% if days == 1 %}selected{% endif %}>Last 24 hours</option><option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option><option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option></select><button type="submit">Update</button></form>
+    </header>
+    <section class="ah-model" aria-label="Configured provider"><span class="ah-dot" aria-hidden="true"></span><div><strong>{{ model }}</strong><p>Routing: {{ provider }} · Last refreshed {{ checked_at|date:"M j, H:i" }}</p></div><span class="ah-note">Based on recorded requests; no paid health probes.</span></section>
+    {% for alert in alerts %}<p class="ah-alert" role="status">{{ alert }}</p>{% endfor %}
+    <section class="ah-metrics" aria-label="Request metrics">
+        <article><span>Requests</span><strong>{{ total|intcomma }}</strong><small>{{ active }} active · {{ failed }} failed</small></article>
+        <article><span>Success rate</span><strong>{% if success_rate != None %}{{ success_rate }}%{% else %}—{% endif %}</strong><small>Completed requests in this period</small></article>
+        <article><span>Average response</span><strong>{% if average_seconds != None %}{{ average_seconds }}s{% else %}—{% endif %}</strong><small>Recent completed sample · p95 {% if p95 != None %}{{ p95 }}s{% else %}—{% endif %}</small></article>
+        <article><span>Reply quality</span><strong>{{ repairs }}</strong><small>Repaired replies · {{ quality_failed }} clarification fallbacks</small></article>
+    </section>
+    <div class="ah-grid"><section class="ah-panel"><h2>Request activity</h2><p>All requests in the selected period.</p><div class="ah-chart" aria-label="Requests per day">{% for day in daily %}<div title="{{ day.day }}: {{ day.n }} requests"><span>{{ day.n }}</span><i style="height:{{ day.height }}%"></i><small>{{ day.day|date:"M j" }}</small></div>{% empty %}<p class="ah-empty">No AI requests recorded yet.</p>{% endfor %}</div></section>
+        <section class="ah-panel"><h2>Recorded text usage</h2><dl><div><dt>Input tokens</dt><dd>{{ input_tokens|intcomma }}</dd></div><div><dt>Output tokens</dt><dd>{{ output_tokens|intcomma }}</dd></div><div><dt>Estimated USD</dt><dd>{% if estimate != None %}${{ estimate }}{% else %}—{% endif %}</dd></div></dl><p class="ah-note">Usage returned for {{ known_calls }} of {{ calls_count }} calls in the latest {{ sample_count }} requests. {{ priced_calls }} calls have configured price estimates. Image charges and unreported usage are excluded. This is not the provider invoice.</p></section></div>
+    <section class="ah-panel"><h2>Error categories</h2><div class="ah-errors">{% for error in errors %}<span><code>{{ error.error_code }}</code><strong>{{ error.n }}</strong></span>{% empty %}<p class="ah-empty">No failures recorded in this period.</p>{% endfor %}</div></section>
+    <section class="ah-panel"><h2>Recent requests</h2><p>Operational metadata only. Customer messages are not shown here.</p><div class="ah-table-wrap"><table><thead><tr><th>Request</th><th>Created</th><th>Action</th><th>Status</th><th>Error</th><th>Quality</th></tr></thead><tbody>{% for row in recent %}<tr><td><code>{{ row.pk|stringformat:"s"|slice:":8" }}</code></td><td>{{ row.created_at|date:"M j, H:i" }}</td><td>{{ row.kind }}</td><td><span class="ah-state">{{ row.get_state_display }}</span></td><td>{{ row.error_code|default:"—" }}</td><td>{% if row.metrics.quality.checked %}{% if row.metrics.quality.passed %}Checked{% else %}Clarified{% endif %}{% else %}Direct / unavailable{% endif %}</td></tr>{% empty %}<tr><td colspan="6" class="ah-empty">Requests will appear here when customers use the assistant.</td></tr>{% endfor %}</tbody></table></div></section>
+</main>
+{% endblock %}

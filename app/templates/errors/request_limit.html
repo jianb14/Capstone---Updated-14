@@ -1,0 +1,7 @@
+{% load static %}
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Please try again shortly | Balloorina</title><script src="{% static 'js/theme-toggle.js' %}"></script>
+<style>
+body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#111;color:#f5f5f5;font:16px/1.6 sans-serif}main{margin:24px;max-width:440px;padding:28px;border:1px solid #444;border-radius:14px}h1{font-size:22px;margin:0 0 12px}p{color:#bbb}a{color:inherit;display:inline-block;padding:8px 0}html[data-theme=light] body{background:#fafafa;color:#202020}html[data-theme=light] main{border-color:#ddd}html[data-theme=light] p{color:#555}
+</style></head><body><main><h1>{% if oversized %}Please use smaller files{% else %}Please try again shortly{% endif %}</h1><p>{{ message }}</p><p>Your request was not submitted.{% if not oversized %} Wait before trying again.{% endif %}</p><a href="javascript:history.back()">Go back</a></main></body></html>

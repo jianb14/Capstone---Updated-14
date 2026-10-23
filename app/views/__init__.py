@@ -11,6 +11,7 @@ from .bookings import *  # noqa: F401,F403
 from .payments import *  # noqa: F401,F403
 from .changes import *  # noqa: F401,F403
 from .chat import *  # noqa: F401,F403
+from .ai import *  # noqa: F401,F403
 from .designs import *  # noqa: F401,F403
 from .notifications import *  # noqa: F401,F403
 from .admin import *  # noqa: F401,F403

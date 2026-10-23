@@ -1,6 +1,7 @@
 """Payments: PayMongo checkout/webhooks, GCash config, receipts. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
+from ..request_protection import deduplicate_submission
 from ..booking_lifecycle import deadline_notice, lifecycle_display, process_booking, payment_was_received
 from ..booking_changes import schedule_atomic, change_payment_state
 from ..models import BookingChangeRequest
@@ -686,12 +687,13 @@ def payment_page(request, booking_id):
 
 
 @login_required
+@deduplicate_submission
 @transaction.atomic
 def submit_payment(request, booking_id):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
-    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    booking = get_object_or_404(Booking.objects.select_for_update(), id=booking_id, user=request.user)
     process_booking(booking.pk)
     booking.refresh_from_db()
 
@@ -828,6 +830,7 @@ def submit_payment(request, booking_id):
     messages.success(
         request, "Payment submitted successfully! We will verify it within 24 hours."
     )
+    request._submission_succeeded = True
     return redirect(f'{reverse("my_payments")}?tab=payment_history')
 
 
@@ -1495,12 +1498,13 @@ def admin_send_payment_reminder(request, booking_id):
 
 
 @login_required
+@deduplicate_submission
 @transaction.atomic
 def create_paymongo_checkout(request, booking_id):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
-    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    booking = get_object_or_404(Booking.objects.select_for_update(), id=booking_id, user=request.user)
     process_booking(booking.pk)
     booking.refresh_from_db()
 
@@ -1573,6 +1577,7 @@ def create_paymongo_checkout(request, booking_id):
         None,
     )
     if resumable_pending:
+        request._submission_succeeded = True
         return redirect(resumable_pending.paymongo_checkout_url)
 
     (
@@ -1663,6 +1668,7 @@ def create_paymongo_checkout(request, booking_id):
         paymongo_checkout_url=checkout_url,
     )
 
+    request._submission_succeeded = True
     log_action(request.user, f"Created PayMongo checkout session for Booking #{booking.id}.")
     return redirect(checkout_url)
 

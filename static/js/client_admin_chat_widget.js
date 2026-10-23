@@ -660,6 +660,9 @@
     });
 
     if (imageInput) {
+        document.getElementById("adminChatAttach")?.addEventListener("click", () => {
+            if (!imageInput.disabled) imageInput.click();
+        });
         imageInput.addEventListener("change", function () {
             setError("");
             const files = validateImages(imageInput.files);

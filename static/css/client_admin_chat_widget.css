@@ -107,7 +107,7 @@
     color: var(--white);
     border: 1px solid var(--light-gray);
     border-radius: 12px;
-    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -196,12 +196,16 @@
 
 
 .admin-chat-close {
-    width: 32px;
-    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: var(--dark-gray);
+    color: var(--white);
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
@@ -210,9 +214,15 @@
 }
 
 .admin-chat-close:hover {
-    background: transparent;
+    background: rgba(255,255,255,.05);
     color: var(--white);
 }
+.admin-chat-close svg { width: 22px; height: 22px; }
+.admin-chat-close:focus-visible, .admin-chat-attach:focus-visible, .admin-chat-send:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+html[data-theme="light"] .admin-chat-close:hover { background: rgba(0,0,0,.035); }
 
 /* Messages — same bubble style as the AI chat */
 .admin-chat-messages {
@@ -321,7 +331,7 @@
     text-align: right;
 }
 
-/* Input — pill-shaped like the AI input area, with white circular send button */
+/* Compact composer matching the AI assistant controls. */
 .admin-chat-form {
     /* Hindi lumiit/lumalabas sa panel kahit nag-o-overflow ang messages */
     flex-shrink: 0;
@@ -366,18 +376,23 @@
 .admin-chat-input-row {
     display: flex;
     align-items: flex-end;
-    padding: 0.4rem 0.4rem;
-    background-color: var(--gray);
-    border: 1px solid #3a3a3a;
-    border-radius: 28px;
+    padding: 0.3rem 0.5rem;
+    gap: 8px;
+    background-color: #242424;
+    border: 1px solid #383838;
+    border-radius: 10px;
 }
+.admin-chat-input-row:focus-within { border-color: #b0b0b0; }
 
 .admin-chat-attach {
     width: 34px;
     height: 34px;
     min-width: 34px;
-    border-radius: 50%;
-    color: #d4d4d8;
+    border-radius: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--white);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -389,18 +404,21 @@
     background: rgba(255,255,255,0.08);
     color: #ffffff;
 }
+.admin-chat-attach svg { width: 18px; height: 18px; }
 
 .admin-chat-input {
     flex: 1;
+    min-width: 0;
     min-height: 24px;
     max-height: 110px;
     resize: none;
     border: none;
     background: transparent;
     color: var(--white);
-    padding: 6px 12px 6px 4px;
+    padding: 6px 2px;
+    margin: 0;
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     line-height: 1.5;
     outline: none;
 }
@@ -438,7 +456,8 @@
     height: 34px;
     min-width: 34px;
     border: none;
-    border-radius: 50%;
+    border-radius: 6px;
+    padding: 0;
     background-color: var(--white);
     color: var(--black);
     cursor: pointer;
@@ -781,13 +800,13 @@ html[data-theme="light"] .admin-chat-toggle {
     border-color: #111827;
 }
 html[data-theme="light"] .admin-chat-messages::-webkit-scrollbar-thumb { background-color: #d1d5db; }
-html[data-theme="light"] .admin-chat-input-row { border-color: #d1d5db; }
+html[data-theme="light"] .admin-chat-input-row { border-color: #dedede; background: #f5f5f5; }
 html[data-theme="light"] .admin-chat-input { color: #111827; scrollbar-color: rgba(17, 24, 39, 0.22) transparent; }
 html[data-theme="light"] .admin-chat-input::placeholder { color: #9ca3af; }
 html[data-theme="light"] .admin-chat-input::-webkit-scrollbar-thumb { background: rgba(17, 24, 39, 0.22); }
-html[data-theme="light"] .admin-chat-attach { color: #4b5563; }
+html[data-theme="light"] .admin-chat-attach { color: var(--white); }
 html[data-theme="light"] .admin-chat-attach:hover { background: rgba(17, 24, 39, 0.06); color: #111827; }
-html[data-theme="light"] .admin-chat-input-row:focus-within { border-color: #9ca3af; }
+html[data-theme="light"] .admin-chat-input-row:focus-within { border-color: #6b6b6b; }
 
 /* Header icon: black circle + white icon in light mode */
 html[data-theme="light"] .admin-chat-title-icon { background: #111827; border-color: #111827; color: #ffffff; }

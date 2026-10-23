@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -519,6 +521,8 @@ class ChatSession(models.Model):
     admin_typing_until = models.DateTimeField(null=True, blank=True)
     client_last_active_at = models.DateTimeField(null=True, blank=True)
     admin_last_active_at = models.DateTimeField(null=True, blank=True)
+    design_brief = models.JSONField(default=dict, blank=True)
+    design_brief_version = models.PositiveIntegerField(default=0)
 
     @property
     def has_unread_for_admin(self):
@@ -588,6 +592,51 @@ class MessageReaction(models.Model):
 
     class Meta:
         unique_together = ("message", "user", "emoji")
+
+
+class AiRequest(models.Model):
+    """Durable AI work, keyed by a customer-generated idempotency UUID."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_requests')
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='ai_requests', null=True)
+    user_message = models.ForeignKey(ChatMessage, on_delete=models.SET_NULL, null=True, related_name='ai_requests')
+    assistant_message = models.ForeignKey(ChatMessage, on_delete=models.SET_NULL, null=True, related_name='ai_responses')
+    retry_of = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='retries')
+    reference = models.ForeignKey('AiGeneratedImage', on_delete=models.SET_NULL, null=True, blank=True, related_name='revisions')
+    fingerprint = models.CharField(max_length=64)
+    input_text = models.TextField()
+    kind = models.CharField(max_length=16, default='advice')
+    state = models.CharField(max_length=16, default='queued', db_index=True,
+        choices=[(value, value.title()) for value in ('queued', 'running', 'succeeded', 'failed')])
+    stage = models.CharField(max_length=32, default='queued')
+    partial_text = models.TextField(blank=True)
+    result = models.JSONField(default=dict)
+    plan = models.JSONField(default=dict, blank=True)
+    metrics = models.JSONField(default=dict, blank=True)
+    error_code = models.CharField(max_length=40, blank=True)
+    seed = models.PositiveBigIntegerField(default=0)
+    lease_token = models.UUIDField(null=True, blank=True)
+    lease_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    provider_started_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user'], condition=models.Q(state__in=['queued', 'running']),
+                                                name='one_active_ai_request_per_user')]
+        indexes = [models.Index(fields=['state', 'created_at'], name='ai_request_queue_idx')]
+
+
+class AiGeneratedImage(models.Model):
+    """An owned image artifact; revisions read this file, never a client-supplied URL."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request = models.ForeignKey(AiRequest, on_delete=models.CASCADE, related_name='images')
+    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
+    image = models.ImageField(upload_to='ai_generated/')
+    prompt = models.TextField()
+    seed = models.PositiveBigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class AiImageFeedback(models.Model):
@@ -1289,6 +1338,22 @@ class AboutJourneyItem(models.Model):
 
     def __str__(self):
         return self.caption or self.title
+
+
+class RequestRateBucket(models.Model):
+    """Shared, atomic request counters; keys contain HMACs, never raw identities."""
+    key = models.CharField(max_length=64, primary_key=True)
+    count = models.PositiveBigIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+
+class SubmissionReceipt(models.Model):
+    """Short-lived response receipts for identical booking/payment submissions."""
+    key = models.CharField(max_length=64, primary_key=True)
+    expires_at = models.DateTimeField(db_index=True)
+    status_code = models.PositiveSmallIntegerField(default=0)
+    body = models.TextField(blank=True)
+    headers = models.JSONField(default=dict)
 
 
 class GuidelinePageContent(models.Model):

@@ -97,6 +97,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'app.request_limits.RequestLimitsMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -283,6 +284,29 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 # Timeout (seconds) for HuggingFace requests — prevents hung calls from
 # stalling Django worker threads.
 HUGGINGFACE_TIMEOUT = int(os.getenv("HUGGINGFACE_TIMEOUT", "90"))
+HUGGINGFACE_MODEL_ID = os.getenv('HUGGINGFACE_MODEL_ID', 'Qwen/Qwen3-Next-80B-A3B-Instruct').strip()
+HUGGINGFACE_TEXT_PROVIDER = os.getenv('HUGGINGFACE_TEXT_PROVIDER', 'auto').strip() or 'auto'
+HUGGINGFACE_TEXT_FALLBACK_MODELS = tuple(value.strip() for value in os.getenv(
+    'HUGGINGFACE_TEXT_FALLBACK_MODELS', 'Qwen/Qwen3-4B-Instruct-2507').split(',') if value.strip())
+HUGGINGFACE_TEXT_TIMEOUT = env_int('HUGGINGFACE_TEXT_TIMEOUT', 25)
+AI_TEXT_RESPONSE_TIMEOUT_SECONDS = env_int('AI_TEXT_RESPONSE_TIMEOUT_SECONDS', 45)
+AI_TEXT_JOB_TIMEOUT_SECONDS = env_int('AI_TEXT_JOB_TIMEOUT_SECONDS', 60)
+AI_SMART_ROUTING_ENABLED = env_bool('AI_SMART_ROUTING_ENABLED', True)
+AI_RELEVANCE_CHECK_ENABLED = env_bool('AI_RELEVANCE_CHECK_ENABLED', True)
+# Optional, manually maintained rates per million tokens. No assumed provider bill.
+AI_TEXT_PRICING_JSON = os.getenv('AI_TEXT_PRICING_JSON', '{}')
+HUGGINGFACE_IMAGE_MODEL_ID = os.getenv('HUGGINGFACE_IMAGE_MODEL_ID', 'black-forest-labs/FLUX.1-schnell')
+HUGGINGFACE_VISION_MODEL_ID = os.getenv('HUGGINGFACE_VISION_MODEL_ID', '')
+# Revisions use the original image through an image-editing model.
+AI_IMAGE_EDIT_MODEL_ID = os.getenv('AI_IMAGE_EDIT_MODEL_ID', 'black-forest-labs/FLUX.1-Kontext-dev')
+AI_IMAGE_EDIT_PROVIDER = os.getenv('AI_IMAGE_EDIT_PROVIDER', 'auto')
+AI_WORKER_AUTOSTART = env_bool('AI_WORKER_AUTOSTART', True)
+AI_JOB_LEASE_SECONDS = env_int('AI_JOB_LEASE_SECONDS', 60)
+AI_JOB_TIMEOUT_SECONDS = env_int('AI_JOB_TIMEOUT_SECONDS', 900)
+AI_MAX_MESSAGE_CHARS = env_int('AI_MAX_MESSAGE_CHARS', 4000)
+AI_IMAGE_DAILY_LIMIT = env_int('AI_IMAGE_DAILY_LIMIT', 30)
+AI_IMAGE_COOLDOWN_SECONDS = env_int('AI_IMAGE_COOLDOWN_SECONDS', 15)
+AI_CHAT_COOLDOWN_SECONDS = env_int('AI_CHAT_COOLDOWN_SECONDS', 4)
 
 # PayMongo Config
 PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "")
@@ -318,6 +342,31 @@ VERIFICATION_RESEND_RATE_LIMIT_PER_IP = env_int("VERIFICATION_RESEND_RATE_LIMIT_
 VERIFICATION_RESEND_RATE_LIMIT_PER_EMAIL = env_int("VERIFICATION_RESEND_RATE_LIMIT_PER_EMAIL", 3)
 VERIFICATION_RESEND_RATE_LIMIT_WINDOW_SECONDS = env_int("VERIFICATION_RESEND_RATE_LIMIT_WINDOW_SECONDS", 3600)
 VERIFICATION_RESEND_COOLDOWN_SECONDS = env_int("VERIFICATION_RESEND_COOLDOWN_SECONDS", 60)
+
+# Shared database-backed abuse protection. A zero count disables an individual rule.
+REQUEST_RATE_LIMITING_ENABLED = env_bool('REQUEST_RATE_LIMITING_ENABLED', True)
+RATE_LIMIT_TRUSTED_PROXY_CIDRS = env_list('RATE_LIMIT_TRUSTED_PROXY_CIDRS', [])
+SUBMISSION_REPLAY_SECONDS = env_int('SUBMISSION_REPLAY_SECONDS', 120)
+UPLOAD_MAX_REQUEST_BYTES = env_int('UPLOAD_MAX_REQUEST_BYTES', 32 * 1024 * 1024)
+REQUEST_RATE_LIMITS = {
+    name: (env_int(f'RATE_LIMIT_{name.upper()}_COUNT', count),
+           env_int(f'RATE_LIMIT_{name.upper()}_WINDOW_SECONDS', window))
+    for name, (count, window) in {
+        'login_account': (10, 900), 'login_ip': (60, 900),
+        'registration': (10, 3600), 'password_reset_submit': (10, 900),
+        'password_change': (10, 900), 'booking_create': (5, 600), 'booking_daily': (20, 86400),
+        'booking_change': (10, 600), 'payment_submit': (5, 600),
+        'chat_send': (30, 60), 'support_request': (5, 600),
+        'concern': (5, 3600), 'review_submit': (5, 3600), 'review_edit': (20, 3600),
+        'reaction': (30, 60), 'design_save': (30, 600),
+        'upload_requests': (20, 60), 'upload_bytes': (128 * 1024 * 1024, 86400),
+        'report_export': (10, 600), 'receipt_download': (20, 600),
+        'ai_chat': (30, 60), 'ai_analysis': (5, 60),
+        'ai_chat_cooldown': (1, AI_CHAT_COOLDOWN_SECONDS),
+        'ai_image_cooldown': (1, AI_IMAGE_COOLDOWN_SECONDS),
+        'ai_image_daily': (AI_IMAGE_DAILY_LIMIT, 86400),
+    }.items()
+}
 
 
 

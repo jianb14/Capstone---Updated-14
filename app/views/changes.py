@@ -1,5 +1,6 @@
 """Customer proposals and team quotes; separate from direct pending-booking edits."""
 from .common import *
+from ..request_protection import deduplicate_submission
 from ..models import BookingChangeImage, BookingChangeRequest
 from ..booking_changes import (apply_change, audit, change_payment_summary, check_current, eligibility,
     expire_change, issue_quote, notify, pending_proof, prepare_proposal, proposed_booking, schedule_atomic, snapshot)
@@ -17,6 +18,7 @@ def _locked_change(request, booking_id, change_id, staff=False):
 
 
 @login_required
+@deduplicate_submission
 @schedule_atomic
 def request_booking_change(request, booking_id):
     booking = get_object_or_404(Booking.objects.select_for_update(), pk=booking_id, user=request.user)
@@ -74,6 +76,7 @@ def request_booking_change(request, booking_id):
             return JsonResponse({'success':False, 'message':' '.join(exc.messages)}, status=400)
         messages.error(request, ' '.join(exc.messages))
         return redirect(f'{reverse("customer_profile")}?open_edit={booking.pk}')
+    request._submission_succeeded = True
     messages.success(request, 'Change request submitted. Your original booking stays reserved while our team reviews it.')
     url = f'{reverse("customer_profile")}?booking_id={booking.pk}&modal=details'
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -187,6 +190,7 @@ def customer_booking_change_action(request, booking_id, change_id, action):
 
 
 @login_required
+@deduplicate_submission
 @schedule_atomic
 def booking_change_payment(request, booking_id, change_id):
     try:
@@ -216,6 +220,7 @@ def booking_change_payment(request, booking_id, change_id):
                 resumable = next((payment for payment in change.payments.filter(payment_status='pending', received_at__isnull=True).exclude(paymongo_checkout_url='')
                     if _is_incomplete_paymongo_payment(payment) and not _is_abandoned_paymongo_payment(payment)), None)
                 if resumable:
+                    request._submission_succeeded = True
                     return redirect(resumable.paymongo_checkout_url)
                 checkout = create_paymongo_checkout_session(amount=int(change.additional_due*100), booking_id=booking.pk,
                     success_url=request.build_absolute_uri(reverse('paymongo_success', kwargs={'booking_id':booking.pk})+f'?change_request={change.pk}'),
@@ -228,6 +233,7 @@ def booking_change_payment(request, booking_id, change_id):
                 Payment.objects.create(booking=booking, change_request=change, applied_to_booking=False,
                     amount=change.additional_due, payment_type='change_balance', payment_method='paymongo_gcash',
                     transaction_ref=uuid.uuid4().hex[:16].upper(), paymongo_checkout_session_id=session_id, paymongo_checkout_url=checkout_url)
+                request._submission_succeeded = True
                 return redirect(checkout_url)
             reference, sender = request.POST.get('gcash_reference_number','').strip(), request.POST.get('gcash_sender_name','').strip()
             receipt = request.FILES.get('receipt_image')
@@ -245,6 +251,7 @@ def booking_change_payment(request, booking_id, change_id):
                 gcash_reference_number=reference, gcash_sender_name=sender, receipt_image=receipt)
             notify(change, f'Additional payment #{payment.pk} submitted. Verify it to finalize the accepted changes.', admin=True)
             messages.success(request, 'Additional payment submitted. Your original booking remains until verification is complete.')
+            request._submission_succeeded = True
             return redirect(f'{reverse("customer_profile")}?booking_id={booking_id}&modal=details')
     except ValidationError as exc:
         error = ' '.join(exc.messages)

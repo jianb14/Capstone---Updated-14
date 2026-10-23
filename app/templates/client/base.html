@@ -14,7 +14,8 @@
         rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261012i">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
-<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261004b">
+    <link rel="stylesheet" href="{% static 'css/ai_design_guide.css' %}?v=20261023-ai6">
+<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261023-chat1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="{% static 'js/theme-toggle.js' %}?v=20261012a"></script>
     {% block extra_css %}{% endblock %}
@@ -463,7 +464,7 @@
             background-color: var(--black);
             border: 1px solid var(--light-gray);
             border-radius: 12px;
-            box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
             display: flex;
             flex-direction: row;
             z-index: 9998;
@@ -492,7 +493,7 @@
 
         .ai-new-chat-btn {
             margin: 0.4rem;
-            padding: 0.3rem 0.5rem;
+            padding: 0.55rem 0.5rem;
             background-color: var(--white);
             color: var(--black);
             flex-shrink: 0;
@@ -1985,7 +1986,7 @@
 
         <div class="ai-sidebar">
             <button class="ai-new-chat-btn" id="ai-new-chat">
-                <span style="font-size: 1.2rem; margin-right: 4px;">+</span> New Chat
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg> New Chat
             </button>
             <div class="ai-recent-chats">
                 <h4>Recent Chats</h4>
@@ -1996,7 +1997,8 @@
         </div>
 
         <div class="ai-main-chat">
-            <div class="ai-chat-header">
+            <div class="ai-chat-header ai-design-header">
+                <div class="ai-design-header-main">
                 <button class="ai-menu-btn" id="ai-menu" aria-label="Open chats menu" aria-expanded="false">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -2005,13 +2007,25 @@
                     </svg>
                 </button>
                 <div class="ai-chat-header-info">
-                    <h3>Design Assistant</h3>
-                    <p>Balloorina Premium Planning</p>
+                    <h3>Balloorina AI</h3>
+                    <p>Backdrop ideas &amp; event help</p>
                 </div>
-                <button class="ai-close-btn" id="ai-close">&times;</button>
+                <button type="button" class="ai-close-btn" id="ai-close" aria-label="Close assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+                </div>
+                <div class="ai-guide-launcher" aria-label="Design tools">
+                    <button type="button" id="ai-guide-open" aria-controls="ai-design-guide" aria-expanded="false">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-2H4z"></path><path d="M13 7a3 3 0 0 1 3-3h4v15h-3a4 4 0 0 0-4 2"></path></svg>
+                        <span>Design guide</span>
+                        <svg class="ai-guide-launch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+                    </button>
+                    <button type="button" id="ai-guide-example">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg>
+                        <span>Sample description</span>
+                    </button>
+                </div>
             </div>
 
-            <div class="ai-chat-box" id="ai-chat-box">
+            <div class="ai-chat-box" id="ai-chat-box" tabindex="-1" aria-label="Conversation with assistant">
                 <div class="ai-message-bubble ai-bot-msg">
                     Hello! I'm your virtual event planning assistant. I can answer questions about our packages or
                     generate
@@ -2024,7 +2038,7 @@
                 </div>
             </div>
 
-            <div class="ai-ban-overlay" id="ai-ban-overlay">
+            <div class="ai-ban-overlay" id="ai-ban-overlay" role="region" aria-labelledby="ai-ban-title" aria-describedby="ai-ban-reason">
                 <div class="ai-ban-card">
                     <div class="ai-ban-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2033,19 +2047,27 @@
                             <line x1="12" y1="16" x2="12.01" y2="16"></line>
                         </svg>
                     </div>
-                    <h4 class="ai-ban-title">Temporarily Banned</h4>
+                    <h4 class="ai-ban-title" id="ai-ban-title">Chat temporarily paused</h4>
                     <p class="ai-ban-reason" id="ai-ban-reason">
                         You are temporarily banned due to repeated violations.
                     </p>
-                    <div class="ai-ban-timer" id="ai-ban-timer">00:00:00</div>
+                    <div class="ai-ban-countdown-panel">
+                        <span class="ai-ban-timer-label">Time remaining</span>
+                        <div class="ai-ban-timer" id="ai-ban-timer" role="timer" aria-live="off">00:00:00</div>
+                    </div>
+                    <p class="ai-ban-help">Please keep future messages respectful.</p>
                 </div>
             </div>
+
+            {% include 'components/ai_design_guide.html' %}
 
             <div class="ai-suggestion-chips" id="ai-suggestion-chips">
                 <!-- Suggestion chips will be injected here -->
             </div>
 
             <div class="ai-input-area">
+                <div class="ai-composer-media" id="ai-composer-media" hidden></div>
+                <div class="ai-composer-controls">
                 <button id="ai-widget-photo" aria-label="Upload inspiration photo" title="Upload an inspiration photo">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -2068,10 +2090,15 @@
                         <polyline points="5 12 12 5 19 12"></polyline>
                     </svg>
                 </button>
+                </div>
             </div>
         </div>
     </div>
 
+    <script src="{% static 'js/ai_design_guide.js' %}?v=20261023-ai3"></script>
+    <script src="{% static 'js/ai_markdown.js' %}?v=20261023-ai3"></script>
+    <script src="{% static 'js/ai_requests.js' %}?v=20261023-ai5"></script>
+    <script src="{% static 'js/ai_request_ui.js' %}?v=20261023-ai5"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const fab = document.getElementById('ai-fab');
@@ -2107,12 +2134,24 @@
 
             const chatBox = document.getElementById('ai-chat-box');
             const chatInput = document.getElementById('ai-widget-input');
+            let requestUi = null;
+            let selectedReferenceId = null;
+            let selectedPhotoId = null;
+            const composerDraftKey = 'balloorina-ai-composer:{{ request.user.pk }}';
+            const editDraftKey = 'balloorina-ai-edit:{{ request.user.pk }}';
+            let savedEditSelection = null;
+            try { savedEditSelection = JSON.parse(localStorage.getItem(editDraftKey) || 'null'); } catch (_) {}
             const sendBtn = document.getElementById('ai-widget-send');
             const typingIndicator = document.getElementById('ai-typing');
             const suggestionContainer = document.getElementById('ai-suggestion-chips');
             const banOverlay = document.getElementById('ai-ban-overlay');
             const banOverlayReason = document.getElementById('ai-ban-reason');
             const banOverlayTimer = document.getElementById('ai-ban-timer');
+            const assistantHeader = widget.querySelector('.ai-chat-header');
+            const assistantMain = widget.querySelector('.ai-main-chat');
+            const syncBanOverlayTop = () => assistantMain.style.setProperty('--ai-header-height', assistantHeader.offsetHeight + 'px');
+            syncBanOverlayTop();
+            new ResizeObserver(syncBanOverlayTop).observe(assistantHeader);
             const CHAT_SESSION_STORAGE_KEY = 'balloorina_ai_session_id';
 
             let currentSessionId = null;
@@ -2291,7 +2330,7 @@
                 };
 
                 if (banOverlayReason) {
-                    banOverlayReason.textContent = 'You are temporarily banned due to repeated violations. Please wait until the timer ends before sending another message.';
+                    banOverlayReason.textContent = 'Repeated language violations have paused your access to the assistant. You can chat again when the countdown ends.';
                 }
                 if (banOverlay) {
                     banOverlay.classList.add('active');
@@ -2363,6 +2402,17 @@
             // ---- Markdown-to-HTML Formatter ----
             function formatMarkdown(text) {
                 text = String(text == null ? '' : text);
+                // Preserve quoted names inside image attributes before legacy entity decoding.
+                const trustedImages = [];
+                function extractImages(match, src, prompt) {
+                    trustedImages.push({ src, prompt });
+                    return '\u0000AIIMG' + (trustedImages.length - 1) + '\u0000';
+                }
+                text = text.replace(AI_TRUSTED_IMG_RE, extractImages);
+                function decodeAttribute(value) {
+                    return value.replace(/&quot;/gi, '"').replace(/&#x27;|&#39;|&apos;/gi, "'")
+                        .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&amp;/gi, '&');
+                }
 
                 // Decode HTML entities that may arrive pre-escaped from the
                 // server (legacy stored replies) so they don't show as
@@ -2379,13 +2429,13 @@
 
                 // Whitelist exact moderation templates verbatim (server-generated only)
                 const isTrustedModeration = AI_TRUSTED_MODERATION_RES.some(re => re.test(text));
+                if (isTrustedModeration) {
+                    // Mark only server-whitelisted notices, including messages loaded from history.
+                    text = text.replace(/^<div>/, '<div class="ai-moderation-content">');
+                }
 
                 // Extract trusted AI image tags into placeholders
-                const trustedImages = [];
-                text = text.replace(AI_TRUSTED_IMG_RE, function (match, src, prompt) {
-                    trustedImages.push({ src: src, prompt: prompt });
-                    return '\u0000AIIMG' + (trustedImages.length - 1) + '\u0000';
-                });
+                text = text.replace(AI_TRUSTED_IMG_RE, extractImages);
 
                 // Escape ALL remaining HTML — kahit i-echo ng AI ang user HTML,
                 // hindi ito mag-e-execute (stored XSS protection)
@@ -2394,17 +2444,20 @@
                     // I-restore ang server-generated line breaks (dating <br>) na na-escape
                     // ng XSS guard — luma man o bagong message, safe ang <br> (walang attributes)
                     text = text.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+                    text = window.renderAiMarkdown(text);
                 }
 
                 // Restore whitelisted image tags (rebuilt with escaped attributes)
                 let html = text.replace(/\u0000AIIMG(\d+)\u0000/g, function (match, idx) {
                     const tag = trustedImages[Number(idx)];
                     if (!tag) return '';
-                    return '<img src="' + escapeAiHtml(tag.src) + '" alt="Balloorina Design Concept" data-ai-prompt="' + escapeAiHtml(tag.prompt) + '" style="max-width:100%; border-radius:8px; margin-top:6px;">';
+                    return '<img src="' + escapeAiHtml(decodeAttribute(tag.src)) + '" alt="Balloorina Design Concept" data-ai-prompt="' + escapeAiHtml(decodeAttribute(tag.prompt)) + '" style="max-width:100%; border-radius:8px; margin-top:6px;">';
                 });
 
-                // Simple check if it's already complex HTML (like an image response)
-                if (html.includes('<img ') || html.includes('<div') || html.includes('<strong>âš ï¸')) {
+                if (isTrustedModeration) return html.replace(/\n/g, '<br>');
+
+                // Text and image responses share the same list renderer.
+                if (trustedImages.length) {
                     // Fix img alt text and add onerror handler for broken images.
                     // AI image: i-wrap sa .ai-image-wrap + overlay download icon (top-right ng image)
                     html = html.replace(/<img\s+src="([^"]+)"\s+alt="([^"]*)"([^>]*)>/g, function (match, src, alt, rest) {
@@ -2422,65 +2475,10 @@
                             '</button></div>';
                     });
 
-                    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-                    html = html.replace(/(?<![\w<])\*([^*<>]+?)\*(?![\w>])/g, '<em>$1</em>');
-                    return html.replace(/\n/g, '<br>');
+                    return html;
                 }
 
-                // Normal Chat Markdown
-                html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-
-                html = html.replace(/(?<!\w|\*)\*([^*]+?)\*(?!\w|\*)/g, '<em>$1</em>');
-                html = html.replace(/(?<!\w|_)_([^_]+?)_(?!\w|_)/g, '<em>$1</em>');
-
-                const lines = html.split('\n');
-                let result = [];
-                let inList = false;
-                let listType = null; // 'ul' or 'ol'
-
-                for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i].trim();
-
-                    const ulMatch = line.match(/^[-*]\s+(.+)/);
-                    const olMatch = line.match(/^\d+\.\s+(.+)/);
-
-                    if (ulMatch) {
-                        if (!inList || listType !== 'ul') {
-                            if (inList) result.push(listType === 'ol' ? '</ol>' : '</ul>');
-                            result.push('<ul style="margin:6px 0; padding-left:20px;">');
-                            inList = true;
-                            listType = 'ul';
-                        }
-                        result.push('<li>' + ulMatch[1] + '</li>');
-                    } else if (olMatch) {
-                        if (!inList || listType !== 'ol') {
-                            if (inList) result.push(listType === 'ol' ? '</ol>' : '</ul>');
-                            result.push('<ol style="margin:6px 0; padding-left:20px;">');
-                            inList = true;
-                            listType = 'ol';
-                        }
-                        result.push('<li>' + olMatch[1] + '</li>');
-                    } else {
-                        if (inList) {
-                            result.push(listType === 'ol' ? '</ol>' : '</ul>');
-                            inList = false;
-                            listType = null;
-                        }
-                        if (line === '') {
-                            result.push('<br>');
-                        } else {
-                            result.push(line + '<br>');
-                        }
-                    }
-                }
-
-                if (inList) {
-                    result.push(listType === 'ol' ? '</ol>' : '</ul>');
-                }
-
-                let final = result.join('');
-                final = final.replace(/(<br>)+$/, '');
+                let final = html;
 
                 // Add Copy Button
                 final += `
@@ -2585,12 +2583,11 @@
                             li.dataset.sessionId = session.id;
 
                             // Delete button
-                            const delBtn = document.createElement('span');
-                            delBtn.innerHTML = '&times;';
-                            delBtn.style.color = '#ff6b6b';
-                            delBtn.style.padding = '2px 4px';
-                            delBtn.style.flexShrink = '0';
-                            delBtn.style.fontSize = '1.1rem';
+                            const delBtn = document.createElement('button');
+                            delBtn.type = 'button';
+                            delBtn.className = 'ai-recent-chat-delete';
+                            delBtn.setAttribute('aria-label', 'Delete chat: ' + session.title);
+                            delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>';
                             delBtn.onclick = async (e) => {
                                 e.stopPropagation();
                                 AppToast.confirm({
@@ -2628,6 +2625,7 @@
 
                             li.onclick = () => {
                                 if (currentSessionId && Number(currentSessionId) === Number(session.id)) return;
+                                clearPendingPhoto();
                                 document.querySelectorAll('.ai-recent-chat-item').forEach(el => el.classList.remove('active'));
                                 li.classList.add('active');
                                 currentSessionId = session.id;
@@ -2655,12 +2653,19 @@
                                 // Optional: only load if history is empty
                                 const historyMsgs = chatBox.querySelectorAll('.ai-history-msg');
                                 if (historyMsgs.length === 0) {
-                                    loadChatHistory(currentSessionId);
+                                    await loadChatHistory(currentSessionId);
                                 }
                             }
                         }
                     } else {
-                        startNewChat();
+                        // A slow initial sidebar response must not discard a
+                        // photo or draft the customer has already attached.
+                        if (!isGenerating && !pendingPhotoFile && !chatInput.value.trim() && currentSessionId) {
+                            startNewChat();
+                        } else if (!currentSessionId) {
+                            renderSuggestionChips(starterChips);
+                            ensureIntroMessage();
+                        }
                     }
                 } catch (e) {
                     console.error('Failed to load sessions', e);
@@ -2671,12 +2676,15 @@
             // ---- Load Chat History (Messages) ----
             async function loadChatHistory(sessionId) {
                 if (!sessionId) return;
+                selectedReferenceId = null;
+                requestUi?.clearEdit();
 
                 try {
                     const response = await fetch(`/api/chat/history/?session_id=${sessionId}`, {
                         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
                     });
                     const data = await response.json();
+                    if (Number(currentSessionId) !== Number(sessionId)) return;
                     if (data.is_banned) {
                         applyBanUiState(true, data.ban_remaining_seconds || 0);
                     } else {
@@ -2691,18 +2699,22 @@
                     if (data.messages && data.messages.length > 0) {
                         data.messages.forEach(function (msg) {
                             const div = document.createElement('div');
+                            if (msg.id) div.dataset.messageId = msg.id;
                             if (msg.role === 'user') {
                                 div.className = 'ai-message-bubble ai-user-msg ai-history-msg';
-                                div.textContent = msg.content;
+                                requestUi.renderUser(div, msg.content, msg.image_url, msg.id);
                             } else {
                                 div.className = 'ai-message-bubble ai-bot-msg ai-history-msg';
                                 div.innerHTML = formatMarkdown(msg.content);
                                 bindGeneratedImageFallbacks(div);
                                 attachAiFeedback(div, msg.content);
                                 bindBanCountdowns(div);
+                                requestUi?.bindHistory(div, msg.ai_images || [], msg.ai_gallery || []);
                             }
                             chatBox.insertBefore(div, typingIndicator);
                         });
+                        requestUi?.setHasBrief(data.has_design_brief);
+                        requestUi?.attach();
                         chatBox.scrollTop = chatBox.scrollHeight;
                     }
                 } catch (e) {
@@ -2712,7 +2724,7 @@
 
             function ensureIntroMessage() {
                 const existingIntro = Array.from(chatBox.querySelectorAll('.ai-message-bubble.ai-bot-msg'))
-                    .find(el => (el.textContent || '').trim() === aiIntroText);
+                    .find(el => (el.textContent || '').replace(/\s+/g, ' ').trim() === aiIntroText);
                 
                 if (existingIntro) {
                     // Always show chips if we are in this function
@@ -2731,7 +2743,11 @@
             function toggleWidget() {
                 widget.classList.toggle('active');
                 if (widget.classList.contains('active')) {
-                    chatInput.focus();
+                    if (widget.querySelector('.ai-guide-is-open')) {
+                        document.getElementById('ai-guide-title').focus();
+                    } else {
+                        chatInput.focus();
+                    }
                     if (!currentSessionId) {
                         loadSessions();
                     }
@@ -2746,154 +2762,6 @@
 
             // Send Message
             // ---- Streaming send (SSE) with graceful fallback ----
-            async function streamAiMessage(message) {
-                if (isGenerating) return true;
-                const activeBanSeconds = getBanRemainingSeconds();
-                if (activeBanSeconds > 0) {
-                    applyBanUiState(true, activeBanSeconds);
-                    return true;
-                }
-
-                typingIndicator.style.display = 'none';
-                const userDiv = document.createElement('div');
-                userDiv.className = 'ai-message-bubble ai-user-msg';
-                userDiv.textContent = message;
-                chatBox.insertBefore(userDiv, typingIndicator);
-                chatBox.scrollTop = chatBox.scrollHeight;
-
-                isGenerating = true;
-                setSendButtonDisabled(true);
-
-                const showImageStatus = isLikelyImageMessage(message);
-                const imageStatus = showImageStatus ? startImageGenerationStatus() : null;
-
-                // The reply bubble is created lazily on the first streamed
-                // text, so image requests only show the "Creating your
-                // image..." status — never an empty typing bubble beside it.
-                let botDiv = null;
-                let streamSpan = null;
-                let streamedText = '';
-
-                function ensureBotDiv() {
-                    if (!botDiv) {
-                        botDiv = document.createElement('div');
-                        botDiv.className = 'ai-message-bubble ai-bot-msg';
-                        streamSpan = document.createElement('span');
-                        botDiv.appendChild(streamSpan);
-                        chatBox.insertBefore(botDiv, typingIndicator);
-                    }
-                    return botDiv;
-                }
-
-                // Re-render the accumulated text through the markdown
-                // formatter on every delta so headings, bold text and lists
-                // look right WHILE typing. No blinking cursor — the text
-                // itself visibly grows, which already reads as "typing".
-                function isScrolledUp() {
-                    return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight > 80;
-                }
-                function renderStreamedText() {
-                    ensureBotDiv();
-                    const wasAtBottom = !isScrolledUp();
-                    streamSpan.innerHTML = formatMarkdown(streamedText);
-                    // Only follow the text while the user is at the bottom —
-                    // scrolling up to read earlier messages must stick.
-                    if (wasAtBottom) {
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                    }
-                }
-
-                chatBox.scrollTop = chatBox.scrollHeight;
-
-                let receivedAny = false;
-                try {
-                    const payload = { message: message };
-                    if (currentSessionId) payload.session_id = currentSessionId;
-
-                    const response = await fetch('/api/chat/stream/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok || !response.body) {
-                        throw new Error('Stream unavailable');
-                    }
-
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-                    let finalData = null;
-                    let streamError = null;
-
-                    while (true) {
-                        const chunk = await reader.read();
-                        if (chunk.done) break;
-                        buffer += decoder.decode(chunk.value, { stream: true });
-                        const frames = buffer.split('\n\n');
-                        buffer = frames.pop();
-                        for (const frame of frames) {
-                            const line = frame.trim();
-                            if (!line.startsWith('data:')) continue;
-                            let evt;
-                            try { evt = JSON.parse(line.slice(5).trim()); } catch (err) { continue; }
-                            if (evt.type === 'delta') {
-                                receivedAny = true;
-                                streamedText += evt.text;
-                                renderStreamedText();
-                            } else if (evt.type === 'status') {
-                                receivedAny = true;
-                                streamedText = evt.message || '';
-                                renderStreamedText();
-                            } else if (evt.type === 'final') {
-                                finalData = evt.data;
-                            } else if (evt.type === 'error') {
-                                streamError = evt.message;
-                            }
-                        }
-                    }
-
-                    if (finalData) {
-                        ensureBotDiv();
-                        finalizeStreamedMessage(botDiv, finalData);
-                        receivedAny = true;
-                    } else if (streamError) {
-                        ensureBotDiv();
-                        botDiv.innerHTML = formatMarkdown('⚠️ ' + streamError);
-                        receivedAny = true;
-                    } else if (!receivedAny) {
-                        // Nothing streamed — caller falls back to the classic endpoint
-                        if (botDiv) botDiv.remove();
-                        return false;
-                    }
-                    return true;
-                } catch (e) {
-                    if (receivedAny) {
-                        // Mid-stream failure: keep what we have, no resend
-                        renderStreamedText();
-                        botDiv.insertAdjacentHTML(
-                            'beforeend',
-                            '<div style="color:#ef4444; font-size:12px; margin-top:4px;">(connection interrupted)</div>'
-                        );
-                        return true;
-                    }
-                    if (botDiv) botDiv.remove();
-                    return false; // fall back to classic send
-                } finally {
-                    isGenerating = false;
-                    if (imageStatus) stopImageGenerationStatus(imageStatus);
-                    if (getBanRemainingSeconds() > 0) {
-                        applyBanUiState(true, getBanRemainingSeconds());
-                    } else {
-                        setSendButtonDisabled(false);
-                    }
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                }
-            }
-
             function finalizeStreamedMessage(botDiv, data) {
                 typingIndicator.style.display = 'none';
                 if (data.session_id) {
@@ -2919,33 +2787,27 @@
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
 
-            async function handleAiSend(forcedMessage) {
-                const message = (typeof forcedMessage === 'string' ? forcedMessage : chatInput.value).trim();
-                // An attached inspiration photo is sent together with whatever
-                // the user typed (or alone if the note is empty) — never instantly.
-                if (pendingPhotoFile && !isGenerating) {
-                    const photoFile = pendingPhotoFile;
-                    const noteText = message;
-                    clearPendingPhoto();
-                    if (!forcedMessage) {
-                        chatInput.value = '';
-                        chatInput.style.height = 'auto';
-                        chatInput.classList.remove('has-scroll');
-                    }
-                    await analyzePhotoAndReply(photoFile, noteText);
+            async function handleAiSend(forcedMessage, options = {}) {
+                if (isGenerating) return;
+                if (getBanRemainingSeconds() > 0) {
+                    applyBanUiState(true, getBanRemainingSeconds());
                     return;
                 }
-                if (!message) return;
-                if (!forcedMessage) {
+                const forced = typeof forcedMessage === 'string';
+                const message = (forced ? forcedMessage : chatInput.value).trim();
+                const file = pendingPhotoFile;
+                if (!message && !file) return;
+                const sending = requestUi.send({ message, file, sessionId: currentSessionId,
+                    intent: options.intent || (selectedReferenceId || selectedPhotoId ? 'revise' : 'auto'),
+                    referenceId: options.intent === 'generate' || file ? null : selectedReferenceId,
+                    sourcePhotoId: options.intent === 'generate' || file ? null : selectedPhotoId });
+                if (!forced) {
                     chatInput.value = '';
                     chatInput.style.height = 'auto';
                     chatInput.classList.remove('has-scroll');
+                    try { localStorage.removeItem(composerDraftKey); } catch (_) {}
                 }
-                const streamed = await streamAiMessage(message);
-                if (!streamed) {
-                    if (!chatInput.value.trim()) chatInput.value = message;
-                    await sendAiMessage();
-                }
+                await sending;
             }
 
             // ---- Feedback buttons under generated images ----
@@ -2954,8 +2816,8 @@
                 if (!hasImage || botDiv.querySelector('.ai-feedback-row')) return;
                 const srcMatch = (rawText || '').match(/<img src="([^"]+)"/);
                 const promptMatch = (rawText || '').match(/data-ai-prompt="([^"]*)"/);
-                const imageUrl = srcMatch ? srcMatch[1] : (hasImage.getAttribute('src') || '');
-                const prompt = promptMatch ? promptMatch[1] : (hasImage.getAttribute('data-ai-prompt') || '');
+                const imageUrl = hasImage.getAttribute('src') || (srcMatch ? srcMatch[1] : '');
+                const prompt = hasImage.getAttribute('data-ai-prompt') || (promptMatch ? promptMatch[1] : '');
                 if (!imageUrl) return;
 
                 const row = document.createElement('div');
@@ -3090,6 +2952,7 @@
             const photoBtn = document.getElementById('ai-widget-photo');
             const photoInput = document.getElementById('ai-widget-photo-input');
             const inputArea = document.querySelector('.ai-input-area');
+            const composerMedia = document.getElementById('ai-composer-media');
             let pendingPhotoFile = null;
 
             function clearPendingPhoto() {
@@ -3103,6 +2966,8 @@
                     }
                     chip.remove();
                 }
+                composerMedia.hidden = Array.from(composerMedia.children).every(element => element.hidden);
+                if (!selectedReferenceId && !selectedPhotoId) chatInput.placeholder = 'Type an idea or question...';
             }
 
             function showPendingPhotoChip(file) {
@@ -3111,12 +2976,30 @@
                     chip = document.createElement('div');
                     chip.id = 'ai-pending-photo-chip';
                     chip.className = 'ai-pending-photo';
-                    chip.innerHTML = '<img class="ai-pending-photo-thumb" alt="Attached inspiration photo">' +
-                        '<span class="ai-pending-photo-name"></span>' +
-                        '<button type="button" class="ai-pending-photo-remove" aria-label="Remove attached photo">&times;</button>';
+                    chip.innerHTML = '<div class="ai-composer-thumbnail"><img class="ai-pending-photo-thumb" alt="Attached photo">' +
+                        '<button type="button" class="ai-pending-photo-remove" aria-label="Remove attached photo">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>' +
+                        '<div class="ai-attachment-details"><strong>Attached photo</strong><span class="ai-pending-photo-name"></span>' +
+                        '<div class="ai-photo-shortcuts" aria-label="Photo editing ideas"></div></div>';
                     chip.querySelector('.ai-pending-photo-remove').addEventListener('click', clearPendingPhoto);
-                    if (inputArea) inputArea.parentNode.insertBefore(chip, inputArea);
+                    [['Add something', 'Add ', 'Describe what to add and where...'],
+                     ['Change colors', 'Change the color of ', 'Describe which item and the new color...'],
+                     ['Remove something', 'Remove ', 'Describe what to remove from this photo...']].forEach(([label, prefix, placeholder]) => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.textContent = label;
+                        button.addEventListener('click', () => {
+                            if (!chatInput.value.trim()) chatInput.value = prefix;
+                            chatInput.placeholder = placeholder;
+                            chatInput.dispatchEvent(new Event('input'));
+                            chatInput.focus();
+                        });
+                        chip.querySelector('.ai-photo-shortcuts').appendChild(button);
+                    });
+                    composerMedia.appendChild(chip);
                 }
+                composerMedia.hidden = false;
+                chatInput.placeholder = 'Describe what you want to change in this photo...';
                 // Show the actual photo (like modern chat apps), not a filename.
                 const thumb = chip.querySelector('.ai-pending-photo-thumb');
                 if (thumb) {
@@ -3128,59 +3011,6 @@
                     thumb.dataset.objectUrl = url;
                 }
                 chip.querySelector('.ai-pending-photo-name').textContent = file.name;
-            }
-
-            async function analyzePhotoAndReply(file, noteText) {
-                if (isGenerating) return;
-                isGenerating = true;
-                setSendButtonDisabled(true);
-                const userDiv = document.createElement('div');
-                userDiv.className = 'ai-message-bubble ai-user-msg';
-                // Show the actual photo in the sent bubble (not a filename),
-                // with the typed note underneath it.
-                const photoImg = document.createElement('img');
-                photoImg.className = 'ai-user-photo-thumb';
-                photoImg.alt = 'Inspiration photo';
-                photoImg.src = URL.createObjectURL(file);
-                userDiv.appendChild(photoImg);
-                if (noteText) {
-                    const noteSpan = document.createElement('span');
-                    noteSpan.textContent = noteText;
-                    userDiv.appendChild(noteSpan);
-                }
-                chatBox.insertBefore(userDiv, typingIndicator);
-                const botDiv = document.createElement('div');
-                botDiv.className = 'ai-message-bubble ai-bot-msg';
-                botDiv.textContent = 'Analyzing your photo...';
-                chatBox.insertBefore(botDiv, typingIndicator);
-                chatBox.scrollTop = chatBox.scrollHeight;
-                try {
-                    const fd = new FormData();
-                    fd.append('image', file);
-                    fd.append('note', noteText || 'Please analyze this event design inspiration and turn it into a Balloorina design.');
-                    const response = await fetch('/api/chat/analyze-image/', {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: fd
-                    });
-                    const data = await response.json();
-                    if (data.error) {
-                        botDiv.style.color = '#ef4444';
-                        botDiv.textContent = 'Error: ' + data.error;
-                    } else {
-                        botDiv.innerHTML = formatMarkdown(data.response);
-                        bindGeneratedImageFallbacks(botDiv);
-                        attachAiFeedback(botDiv, data.response);
-                        if (data.suggestions && data.suggestions.length) {
-                            renderSuggestionChips(data.suggestions);
-                        }
-                    }
-                } catch (e) {
-                    botDiv.textContent = 'Connection error. Please try again.';
-                }
-                isGenerating = false;
-                setSendButtonDisabled(false);
-                chatBox.scrollTop = chatBox.scrollHeight;
             }
 
             if (photoBtn && photoInput && inputArea) {
@@ -3201,134 +3031,52 @@
                     // Attach to the input instead of sending right away so the
                     // user can still type what they want changed.
                     pendingPhotoFile = file;
+                    requestUi.clearEdit();
                     showPendingPhotoChip(file);
                     chatInput.focus();
                 });
             }
 
-            async function sendAiMessage(forcedMessage) {
-                const hasForcedMessage = typeof forcedMessage === 'string';
-                const message = (hasForcedMessage ? forcedMessage : chatInput.value).trim();
-                if (!message) return;
-                if (isGenerating) return; // Prevent double-send while generating
-                const activeBanSeconds = getBanRemainingSeconds();
-                if (activeBanSeconds > 0) {
-                    applyBanUiState(true, activeBanSeconds);
-                    return;
+            requestUi = window.initAiRequestUi({
+                userId: '{{ request.user.pk }}', csrfToken: '{{ csrf_token }}', chatBox,
+                galleryUrl: '{% url "gallery" %}',
+                typingIndicator, getSessionId: () => currentSessionId,
+                setSessionId(id) { currentSessionId = id; storeSessionId(id); },
+                loadHistory: loadChatHistory, loadSessions, format: formatMarkdown,
+                finalize: finalizeStreamedMessage,
+                onBusy(value) {
+                    isGenerating = value;
+                    setSendButtonDisabled(value || getBanRemainingSeconds() > 0);
+                    if (photoBtn) photoBtn.disabled = value || getBanRemainingSeconds() > 0;
+                    if (micBtn) micBtn.disabled = value || getBanRemainingSeconds() > 0;
+                },
+                onAccepted() {
+                    clearPendingPhoto();
+                    selectedReferenceId = null;
+                    requestUi.clearEdit();
+                },
+                onEdit(id, detail = {}) {
+                    clearPendingPhoto();
+                    selectedReferenceId = detail.sourcePhotoId ? null : id;
+                    selectedPhotoId = detail.sourcePhotoId || null;
+                    chatInput.placeholder = 'Describe the changes you want...';
+                    try { localStorage.setItem(editDraftKey, JSON.stringify({ id, sourcePhotoId: selectedPhotoId,
+                        url: detail.url, sessionId: currentSessionId })); } catch (_) {}
+                    if (detail.focus !== false) chatInput.focus();
+                },
+                onClearEdit() {
+                    selectedReferenceId = null;
+                    selectedPhotoId = null;
+                    chatInput.placeholder = pendingPhotoFile ? 'Describe what you want to change in this photo...' : 'Type an idea or question...';
+                    try { localStorage.removeItem(editDraftKey); } catch (_) {}
+                },
+                restoreMessage(message) {
+                    if (!chatInput.value) {
+                        chatInput.value = message || '';
+                        chatInput.dispatchEvent(new Event('input'));
+                    }
                 }
-
-                // User Message UI
-                typingIndicator.style.display = 'none';
-                const userDiv = document.createElement('div');
-                userDiv.className = 'ai-message-bubble ai-user-msg';
-                userDiv.textContent = message;
-                chatBox.insertBefore(userDiv, typingIndicator);
-
-                if (!hasForcedMessage) {
-                    chatInput.value = '';
-                }
-                chatInput.style.height = 'auto';
-                chatInput.classList.remove('has-scroll');
-                chatBox.scrollTop = chatBox.scrollHeight;
-
-                // renderSuggestionChips([]); // Removed: Do NOT hide chips on send
-
-                // Disable send button & mark as generating
-                isGenerating = true;
-                setSendButtonDisabled(true);
-
-                const showImageStatus = isLikelyImageMessage(message);
-                const imageStatus = showImageStatus ? startImageGenerationStatus() : null;
-
-                // Typing Indicator
-                typingIndicator.style.display = showImageStatus ? 'none' : 'flex';
-                chatBox.appendChild(typingIndicator);
-                chatBox.scrollTop = chatBox.scrollHeight;
-
-                try {
-                    const payload = { message: message };
-                    if (currentSessionId) {
-                        payload.session_id = currentSessionId;
-                    }
-
-                    const response = await fetch('/api/chat/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const data = await response.json();
-                    typingIndicator.style.display = 'none';
-                    stopImageGenerationStatus(imageStatus);
-
-                    // Update session ID if it was newly created
-                    if (data.session_id) {
-                        if (data.is_new_session || !currentSessionId) {
-                            currentSessionId = data.session_id;
-                            storeSessionId(currentSessionId);
-                            // Reload sidebar to show the new session
-                            loadSessions();
-                        }
-                    }
-
-                    const botDiv = document.createElement('div');
-                    botDiv.className = 'ai-message-bubble ai-bot-msg';
-
-                    if (data.error) {
-                        botDiv.style.color = '#ef4444';
-                        botDiv.textContent = `Error: ${data.error}`;
-                    } else {
-                        // Format markdown in response
-                        botDiv.innerHTML = formatMarkdown(data.response);
-                        bindGeneratedImageFallbacks(botDiv);
-                        // Apply warning styling for profanity
-                        if (data.is_warning) {
-                            botDiv.classList.add('ai-warning-msg');
-                        }
-
-                        if (data.is_banned) {
-                            applyBanUiState(true, data.ban_remaining_seconds || 0);
-                        } else if (getBanRemainingSeconds() <= 0) {
-                            applyBanUiState(false, 0);
-                        }
-                    }
-
-                    attachAiFeedback(botDiv, data.response || '');
-                    bindBanCountdowns(botDiv);
-                    chatBox.insertBefore(botDiv, typingIndicator);
-
-                    if (data.suggestions && data.suggestions.length) {
-                        renderSuggestionChips(data.suggestions);
-                    }
-
-                    // If widget was closed during generation, auto-scroll when it reopens
-                    if (!widget.classList.contains('active')) {
-                        // The response is now in the DOM; it will be visible when the widget is reopened
-                        // The toggleWidget function already scrolls to bottom on reopen
-                    }
-
-                } catch (e) {
-                    typingIndicator.style.display = 'none';
-                    stopImageGenerationStatus(imageStatus);
-                    const errDiv = document.createElement('div');
-                    errDiv.className = 'ai-message-bubble ai-bot-msg';
-                    errDiv.style.color = '#ef4444';
-                    errDiv.textContent = 'Connection error. Paki-try ulit.';
-                    chatBox.insertBefore(errDiv, typingIndicator);
-                }
-
-                // Re-enable send button
-                isGenerating = false;
-                if (getBanRemainingSeconds() > 0) {
-                    applyBanUiState(true, getBanRemainingSeconds());
-                } else {
-                    setSendButtonDisabled(false);
-                }
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }
+            });
 
             sendBtn.addEventListener('click', handleAiSend);
             chatInput.addEventListener('keydown', function (e) {
@@ -3340,6 +3088,10 @@
 
             // Auto-resize textarea as user types
             chatInput.addEventListener('input', function () {
+                try {
+                    if (this.value) localStorage.setItem(composerDraftKey, this.value);
+                    else localStorage.removeItem(composerDraftKey);
+                } catch (_) {}
                 // Pre-set height to min-height to accurately measure scrollHeight
                 this.style.height = '24px';
                 const newHeight = Math.max(24, Math.min(this.scrollHeight, 120));
@@ -3354,6 +3106,8 @@
 
             // ---- Start New Chat Function ----
             function startNewChat() {
+                selectedReferenceId = null;
+                requestUi?.clearEdit();
                 currentSessionId = null;
                 storeSessionId(null);
                 if (typeof clearPendingPhoto === 'function') clearPendingPhoto();
@@ -3367,12 +3121,41 @@
 
                 renderSuggestionChips(starterChips);
                 ensureIntroMessage();
+                requestUi?.attach();
             }
 
             const newChatBtn = document.getElementById('ai-new-chat');
             if (newChatBtn) {
                 newChatBtn.addEventListener('click', startNewChat);
             }
+
+            window.initAiDesignGuide({
+                userId: '{{ request.user.pk }}',
+                onGenerate(message) {
+                    if (getBanRemainingSeconds() > 0) {
+                        return 'The assistant is temporarily unavailable. Return to chat to see when you can try again.';
+                    }
+                    if (isGenerating) {
+                        return 'The assistant is still responding. Please wait, then select Generate design again.';
+                    }
+                    if (pendingPhotoFile) {
+                        return 'You have a photo attached in chat. Send or remove it before using the guide.';
+                    }
+                    handleAiSend(message, { intent: 'generate' });
+                    return true;
+                }
+            });
+            try {
+                chatInput.value = localStorage.getItem(composerDraftKey) || '';
+                if (chatInput.value) chatInput.dispatchEvent(new Event('input'));
+            } catch (_) {}
+            loadSessions().then(() => {
+                if (savedEditSelection && Number(savedEditSelection.sessionId) === Number(currentSessionId)) {
+                    requestUi.selectEdit(savedEditSelection.id, false, savedEditSelection);
+                }
+                savedEditSelection = null;
+                requestUi.recover();
+            });
         });
     </script>
     {% endif %}
