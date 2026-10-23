@@ -71,13 +71,15 @@ def _send_account_verification_email(request, user):
         f"If you did not create this account, you can ignore this email."
     )
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@balloorina.local")
-    send_mail(
+    sent = send_mail(
         subject,
         body,
         from_email,
         [user.email],
         fail_silently=False,
     )
+    if sent != 1:
+        raise RuntimeError("Verification email was not accepted by the email provider.")
 
 
 User = get_user_model()
@@ -376,7 +378,7 @@ def forgot_password_request(request):
                 body,
                 from_email,
                 [user.email],
-                fail_silently=getattr(settings, "EMAIL_FAIL_SILENTLY", True),
+                fail_silently=False,
             )
         except User.DoesNotExist:
             pass

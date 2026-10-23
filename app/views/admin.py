@@ -2782,7 +2782,7 @@ def _notify_clients_policy_update(request, changed_keys):
     """Email active clients that the Guidelines/Terms/Privacy pages changed.
 
     Sends one individual email per client (never exposes other clients'
-    addresses). Returns (sent_count, failed_count). Never raises — SMTP
+    addresses). Returns (sent_count, failed_count). Never raises — email
     failures are swallowed so a broken mail connection can never block
     saving policy content.
     """
@@ -2827,16 +2827,18 @@ def _notify_clients_policy_update(request, changed_keys):
     failed = 0
     for email_address in recipients:
         try:
-            send_mail(
+            accepted = send_mail(
                 subject=subject,
                 message="\n".join(lines),
                 from_email=from_email,
                 recipient_list=[email_address],
                 fail_silently=False,
             )
-            sent += 1
+            sent += int(accepted == 1)
+            failed += int(accepted != 1)
         except Exception:
             failed += 1
+            logger.exception("Failed to send policy update email.")
     return sent, failed
 
 

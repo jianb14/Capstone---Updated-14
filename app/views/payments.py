@@ -1467,7 +1467,7 @@ def admin_send_payment_reminder(request, booking_id):
     email_status = "in-app only"
     if customer_email:
         try:
-            send_mail(
+            sent = send_mail(
                 subject=f"Payment Reminder — Booking #{booking.id} | Balloorina",
                 message=(
                     f"Hi {booking.user.get_full_name() or booking.user.username},\n\n"
@@ -1478,9 +1478,9 @@ def admin_send_payment_reminder(request, booking_id):
                 ),
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 recipient_list=[customer_email],
-                fail_silently=True,
+                fail_silently=False,
             )
-            email_status = "email sent"
+            email_status = "email sent" if sent == 1 else "email failed (in-app sent)"
         except Exception:
             logger.exception("Failed to send payment reminder email for booking #%s", booking.id)
             email_status = "email failed (in-app sent)"

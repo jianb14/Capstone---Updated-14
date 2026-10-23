@@ -1055,7 +1055,7 @@ def admin_chat_thread(request, session_id):
                     try:
                         send_mail(
                             subject="New message from Balloorina support",
-                            body=(
+                            message=(
                                 f"Hi {session.user.first_name or session.user.username},\n\n"
                                 "You have a new message from our support team:\n\n"
                                 f"{(reply_text or '(Image attachment)')}\n\n"
@@ -1063,10 +1063,10 @@ def admin_chat_thread(request, session_id):
                             ),
                             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@balloorina.local"),
                             recipient_list=[session.user.email],
-                            fail_silently=True,
+                            fail_silently=False,
                         )
                     except Exception:
-                        pass
+                        logger.exception("Failed to send offline support chat email for session #%s", session.id)
         return redirect('admin_chat_thread', session_id=session.id)
 
     chat_messages = list(

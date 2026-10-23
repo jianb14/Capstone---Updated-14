@@ -313,16 +313,16 @@ PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "")
 PAYMONGO_PUBLIC_KEY = os.getenv("PAYMONGO_PUBLIC_KEY", "")
 PAYMONGO_WEBHOOK_SECRET = os.getenv("PAYMONGO_WEBHOOK_SECRET", "")
 
-# Email and password reset security
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# All application email uses Brevo over HTTPS, including booking/admin alerts.
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "app.email_backend.BrevoEmailBackend").strip()
+# Old deployments/local .env files may still contain the previous SMTP backend.
+# Retire that value too, so upgrading cannot reconnect to blocked SMTP ports.
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
+    EMAIL_BACKEND = "app.email_backend.BrevoEmailBackend"
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@balloorina.local")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = env_int("EMAIL_PORT", 587)
-EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
-EMAIL_FAIL_SILENTLY = env_bool("EMAIL_FAIL_SILENTLY", False)
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Default Django token timeout is 3 days; tighten for better security.
 PASSWORD_RESET_TIMEOUT = env_int("PASSWORD_RESET_TIMEOUT", 1800)

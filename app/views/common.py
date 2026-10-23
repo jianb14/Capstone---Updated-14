@@ -235,14 +235,14 @@ def send_admin_alert_email(subject, body):
         return False
 
     try:
-        send_mail(
+        sent = send_mail(
             subject=f"[Balloorina Admin] {subject}",
             message=body,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=recipients,
-            fail_silently=True,
+            fail_silently=False,
         )
-        return True
+        return sent == 1
     except Exception:
         logger.exception("Failed to send admin alert email: %s", subject)
         return False
