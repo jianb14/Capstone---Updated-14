@@ -25,6 +25,31 @@ class User(AbstractUser):
         return f"{self.username} ({self.role})"
 
 
+class EmailOTPChallenge(models.Model):
+    """Session-bound email verification/recovery; never stores the plaintext code."""
+    SIGNUP = 'signup'
+    RESET = 'reset'
+    PURPOSES = ((SIGNUP, 'Account verification'), (RESET, 'Password recovery'))
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_otp_challenges')
+    purpose = models.CharField(max_length=10, choices=PURPOSES)
+    email_snapshot = models.EmailField(help_text='Email address that received this challenge.')
+    code_digest = models.CharField(max_length=64, blank=True, default='')
+    session_digest = models.CharField(max_length=64)
+    password_digest = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    grant_expires_at = models.DateTimeField(null=True, blank=True)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    failed_attempts = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'purpose', 'consumed_at'], name='email_otp_user_purpose_idx')]
+
+
 class Booking(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Pending'),

@@ -171,11 +171,13 @@ def _email_request_limit(request, email, prefix, setting_prefix, label):
     window = getattr(settings, setting_prefix + '_RATE_LIMIT_WINDOW_SECONDS', 3600)
     rules = [
         (prefix + ':cooldown', ip, 1, getattr(settings, setting_prefix + '_COOLDOWN_SECONDS', 60), 1),
+        (prefix + ':email-cooldown', (email or '').strip().casefold(), 1,
+         getattr(settings, setting_prefix + '_COOLDOWN_SECONDS', 60), 1),
         (prefix + ':ip', ip, getattr(settings, setting_prefix + '_RATE_LIMIT_PER_IP', 5), window, 1),
         (prefix + ':email', (email or '').strip().casefold(), getattr(settings, setting_prefix + '_RATE_LIMIT_PER_EMAIL', 3), window, 1),
     ]
     try:
-        consume_rules(rules)
+        consume_rules(rules, force=True)
     except OperationalError:
         request._email_retry_after = 5
         request._email_limit_status = 503
@@ -183,7 +185,7 @@ def _email_request_limit(request, email, prefix, setting_prefix, label):
     except RateLimited as exc:
         request._email_retry_after = exc.retry_after
         wait = _format_wait_time(exc.retry_after)
-        if exc.scope.endswith(':cooldown'):
+        if exc.scope.endswith((':cooldown', ':email-cooldown')):
             return True, f'Please wait {wait} before requesting another {label}.'
         subject = 'reset attempts' if prefix == 'pwd-reset' else 'verification email requests'
         return True, f'Too many {subject}. Please try again in {wait}.'
@@ -191,7 +193,7 @@ def _email_request_limit(request, email, prefix, setting_prefix, label):
 
 
 def _is_reset_request_rate_limited(request, email):
-    return _email_request_limit(request, email, 'pwd-reset', 'FORGOT_PASSWORD', 'reset link')
+    return _email_request_limit(request, email, 'pwd-reset', 'FORGOT_PASSWORD', 'reset code')
 
 
 def _is_verification_resend_rate_limited(request, email):

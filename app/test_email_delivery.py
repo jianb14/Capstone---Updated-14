@@ -1,7 +1,7 @@
 """Exercise existing email triggers through the real Brevo backend with mocked HTTP."""
 from datetime import date, time, timedelta
 from unittest.mock import Mock, patch
-from urllib.parse import urlsplit
+import re
 
 import requests
 from django.core.cache import cache
@@ -64,15 +64,14 @@ class BrevoEmailDeliveryTests(TestCase):
             "password": "Passw0rd!", "confirm_password": "Passw0rd!",
         }
 
-    def test_registration_link_verifies_account_then_allows_login(self):
+    def test_registration_code_verifies_account_then_allows_login(self):
         response = self.client.post(reverse("register"), self.registration_data(), secure=True)
-        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("verify_account_otp"), fetch_redirect_response=False)
         payload = self.payload("Verify your Balloorina account", ["newcustomer@gmail.com"])
         user = User.objects.get(username="new-mail-customer")
         self.assertFalse(user.email_verified)
-        link = next(line for line in payload["textContent"].splitlines() if "/verify-email/" in line)
-        self.assertEqual(urlsplit(link).scheme, "https")
-        self.client.get(urlsplit(link).path, secure=True)
+        code = re.search(r"(?m)^[0-9]{6}$", payload["textContent"]).group()
+        self.client.post(reverse("verify_account_otp"), {"code": code}, secure=True)
         user.refresh_from_db()
         self.assertTrue(user.email_verified)
         self.assertEqual(self.client.post(reverse("login"), {
@@ -87,7 +86,7 @@ class BrevoEmailDeliveryTests(TestCase):
         self.assertFalse(User.objects.filter(username="new-mail-customer").exists())
 
     def test_zero_send_count_also_fails_registration(self):
-        with patch("app.views.auth.send_mail", return_value=0), self.assertLogs(level="ERROR"):
+        with patch("app.email_otp.send_mail", return_value=0), self.assertLogs(level="ERROR"):
             response = self.client.post(reverse("register"), self.registration_data())
         self.assertContains(response, "We could not send a verification email")
         self.assertFalse(User.objects.filter(username="new-mail-customer").exists())
@@ -97,14 +96,15 @@ class BrevoEmailDeliveryTests(TestCase):
         self.user.save(update_fields=["email_verified"])
         self.assertEqual(self.client.post(reverse("resend_verification"), {"email": self.user.email}).status_code, 302)
         payload = self.payload("Verify your Balloorina account", [self.user.email])
-        self.assertIn("/verify-email/", payload["textContent"])
+        self.assertRegex(payload["textContent"], r"(?m)^[0-9]{6}$")
 
-    def test_forgot_password_link_can_reset_password(self):
+    def test_forgot_password_code_can_reset_password(self):
         response = self.client.post(reverse("forgot_password"), {"email": self.user.email}, secure=True)
         self.assertEqual(response.status_code, 302)
         payload = self.payload("Balloorina Password Reset", [self.user.email])
-        link = next(line for line in payload["textContent"].splitlines() if line.startswith("https://"))
-        self.assertEqual(self.client.post(urlsplit(link).path, {
+        code = re.search(r"(?m)^[0-9]{6}$", payload["textContent"]).group()
+        self.client.post(reverse("verify_password_otp"), {"code": code}, secure=True)
+        self.assertEqual(self.client.post(reverse("reset_password_otp"), {
             "password": "NewPassw0rd!", "confirm_password": "NewPassw0rd!",
         }, secure=True).status_code, 302)
         self.user.refresh_from_db()

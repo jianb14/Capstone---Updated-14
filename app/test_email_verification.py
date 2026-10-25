@@ -41,7 +41,7 @@ class EmailVerificationFlowTests(TestCase):
     # Registration ──────────────────────────────────────────────────────
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-    def test_register_creates_unverified_account_and_sends_link(self):
+    def test_register_creates_unverified_account_and_sends_code(self):
         response = self.client.post(
             reverse("register"),
             {
@@ -55,15 +55,17 @@ class EmailVerificationFlowTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("login"))
+        self.assertEqual(response.url, reverse("verify_account_otp"))
 
         user = User.objects.get(username="newcustomer")
         self.assertFalse(user.email_verified)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["newcustomer@gmail.com"])
-        self.assertIn("/verify-email/", mail.outbox[0].body)
+        self.assertRegex(mail.outbox[0].body, r"(?m)^[0-9]{6}$")
 
     def test_register_with_existing_unverified_email_points_to_resend(self):
+        self.unverified.email = self.unverified.email.upper()
+        self.unverified.save(update_fields=['email'])
         response = self.client.post(
             reverse("register"),
             {
@@ -87,7 +89,7 @@ class EmailVerificationFlowTests(TestCase):
             {"email": self.unverified.email, "password": "pass12345"},
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Resend verification email")
+        self.assertContains(response, "Resend verification code")
         self.assertContains(response, "verify-banner")
         self.assertNotIn("_auth_user_id", self.client.session)
 
@@ -104,7 +106,11 @@ class EmailVerificationFlowTests(TestCase):
 
     def test_valid_link_marks_email_verified_and_allows_login(self):
         token = email_verification_token_generator.make_token(self.unverified)
-        response = self.client.get(self._verify_url(self.unverified, token))
+        page = self.client.get(self._verify_url(self.unverified, token))
+        self.assertContains(page, "Confirm Email")
+        self.unverified.refresh_from_db()
+        self.assertFalse(self.unverified.email_verified)
+        response = self.client.post(self._verify_url(self.unverified, token))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("login"))
 
@@ -131,7 +137,7 @@ class EmailVerificationFlowTests(TestCase):
         self.assertFalse(self.unverified.email_verified)
 
         page = self.client.get(reverse("login"))
-        self.assertContains(page, "Resend verification email")
+        self.assertContains(page, "Resend verification code")
         self.assertContains(page, "invalid or expired")
         self.assertContains(page, self.unverified.email)
 
@@ -152,13 +158,13 @@ class EmailVerificationFlowTests(TestCase):
             reverse("resend_verification"), {"email": self.unverified.email}
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("login"))
+        self.assertEqual(response.url, reverse("verify_account_otp"))
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, [self.unverified.email])
-        self.assertIn("/verify-email/", mail.outbox[0].body)
+        self.assertRegex(mail.outbox[0].body, r"(?m)^[0-9]{6}$")
 
-        page = self.client.get(reverse("login"))
+        page = self.client.get(reverse("verify_account_otp"))
         self.assertContains(page, "If your account still needs verification")
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -169,7 +175,7 @@ class EmailVerificationFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 0)
 
-        page = self.client.get(reverse("login"))
+        page = self.client.get(reverse("verify_account_otp"))
         self.assertContains(page, "If your account still needs verification")
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

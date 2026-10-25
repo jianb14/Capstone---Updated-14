@@ -10,6 +10,7 @@ from .models import RequestRateBucket
 
 POST_POLICIES = {
     'register': ('registration',), 'password_reset_confirm': ('password_reset_submit',),
+    'reset_password_otp': ('password_reset_submit',),
     'change_password': ('password_change',),
     'create_booking': ('booking_create', 'booking_daily'),
     'request_booking_change': ('booking_change',), 'edit_booking': ('booking_change',),
@@ -26,7 +27,7 @@ GET_POLICIES = {
     'admin_analytics_export_excel': ('report_export',), 'admin_analytics_export_pdf': ('report_export',),
     'download_payment_receipt_pdf': ('receipt_download',),
 }
-PUBLIC_POSTS = {'register', 'password_reset_confirm'}
+PUBLIC_POSTS = {'register', 'password_reset_confirm', 'reset_password_otp'}
 
 
 class RequestLimitsMiddleware(MiddlewareMixin):

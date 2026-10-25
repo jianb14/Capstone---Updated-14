@@ -53,9 +53,9 @@ def configured_rule(scope, subject, weight=1):
     return scope, subject, int(limit), int(seconds), weight
 
 
-def consume_rules(rules):
+def consume_rules(rules, *, force=False):
     """Reserve all budgets or none. Conditional SQL updates prevent lost increments."""
-    if not settings.REQUEST_RATE_LIMITING_ENABLED:
+    if not settings.REQUEST_RATE_LIMITING_ENABLED and not force:
         return
     now = timezone.now()
     with transaction.atomic():

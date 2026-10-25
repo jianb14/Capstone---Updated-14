@@ -3,6 +3,14 @@
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.crypto import constant_time_compare
 from django.utils.http import base36_to_int
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.http import require_http_methods
+from django.core.validators import validate_email as validate_email_address
+
+from .. import email_otp
+from ..models import EmailOTPChallenge
+from ..request_protection import RateLimited
 
 from .common import *  # noqa: F401,F403
 from .common import (  # noqa: F401
@@ -58,33 +66,17 @@ email_verification_token_generator = EmailVerificationTokenGenerator()
 
 
 def _send_account_verification_email(request, user):
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = email_verification_token_generator.make_token(user)
-    verify_url = request.build_absolute_uri(
-        reverse("verify_email", kwargs={"uidb64": uid, "token": token})
-    )
-    subject = "Verify your Balloorina account"
-    body = (
-        f"Hi {user.first_name or user.username},\n\n"
-        f"Thanks for registering at Balloorina.\n"
-        f"Please verify your Gmail by clicking the link below:\n{verify_url}\n\n"
-        f"If you did not create this account, you can ignore this email."
-    )
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@balloorina.local")
-    sent = send_mail(
-        subject,
-        body,
-        from_email,
-        [user.email],
-        fail_silently=False,
-    )
-    if sent != 1:
-        raise RuntimeError("Verification email was not accepted by the email provider.")
+    context = email_otp.new_context(user.email)
+    if not email_otp.send_code(user, EmailOTPChallenge.SIGNUP, context):
+        raise RuntimeError("Verification code was not accepted by the email provider.")
+    request.session[email_otp.session_key(EmailOTPChallenge.SIGNUP)] = context
 
 
 User = get_user_model()
 
 
+@sensitive_post_parameters('password', 'confirm_password')
+@require_http_methods(['GET', 'POST'])
 def register(request):
     if request.method == "POST":
         first_name = request.POST.get("first_name", "").strip()
@@ -121,13 +113,13 @@ def register(request):
         # Email unique. If the account exists but is still unverified, point
         # the user to the resend flow instead of the old "Email already
         # exists." dead end.
-        existing_user = User.objects.filter(email=email).first()
+        existing_user = User.objects.filter(email__iexact=email).first()
         if existing_user and existing_user.email_verified:
             errors.append("Email already exists.")
         elif existing_user:
             errors.append(
                 "This email is already registered but not yet verified. "
-                "Please log in and use \"Resend verification email\" to get a new link."
+                "Please log in and use \"Resend verification code\" to get a new code."
             )
 
         # Username unique
@@ -158,6 +150,10 @@ def register(request):
 
         if errors:
             return render(request, "auth/register.html", {"errors": errors})
+
+        limited, message = _is_verification_resend_rate_limited(request, email)
+        if limited:
+            return _otp_rate_response(request, message, 'auth/register.html')
 
         try:
             user = User.objects.create_user(
@@ -190,18 +186,21 @@ def register(request):
         log_action(None, f"New user '{username}' registered. Verification email sent.")
         messages.success(
             request,
-            "Registration successful! Please check your Gmail and verify your account before logging in.",
+            "Account created. Enter the verification code sent to your Gmail before logging in.",
         )
-        return redirect("login")
+        return redirect("verify_account_otp")
 
     return render(request, "auth/register.html")
 
 
+@never_cache
+@require_http_methods(['GET', 'POST'])
+@transaction.atomic
 def verify_email(request, uidb64, token):
     user = None
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
+        user = (User.objects.select_for_update() if request.method == 'POST' else User.objects).get(pk=uid)
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
 
@@ -220,8 +219,12 @@ def verify_email(request, uidb64, token):
         request.session["unverified_email"] = user.email
         return redirect("login")
 
+    if request.method == 'GET':
+        return render(request, 'auth/verify_email_link.html')
+
     user.email_verified = True
     user.save(update_fields=["email_verified"])
+    email_otp.invalidate(user, EmailOTPChallenge.SIGNUP)
     log_action(user, "Email verified.")
     messages.success(request, "Email verified successfully. You can now log in.")
     return redirect("login")
@@ -261,7 +264,7 @@ def user_login(request):
                         "unverified_email": email,
                         "verify_message": (
                             "Please confirm your email address before logging in. "
-                            "Check your inbox for the confirmation link, or request a new one below."
+                            "Request a verification code below to confirm your account."
                         ),
                     },
                 )
@@ -290,112 +293,207 @@ def user_login(request):
         context["unverified_email"] = stashed_email
         context["verify_message"] = (
             "This verification link is invalid or expired. "
-            "Click the button below to receive a new verification email."
+            "Click the button below to receive a verification code."
         )
     return render(request, "auth/login.html", context)
 
 
+def _otp_rate_response(request, message, template, context=None):
+    messages.error(request, message)
+    response = render(request, template, context or {}, status=getattr(request, '_email_limit_status', 429))
+    response['Retry-After'] = str(request._email_retry_after)
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+def _request_otp(request, email, purpose):
+    context = email_otp.new_context(email)
+    accepted = False
+    try:
+        user = User.objects.filter(email__iexact=email).first()
+        if email_otp.eligible(user, purpose):
+            accepted = email_otp.send_code(user, purpose, context)
+    except Exception:
+        logger.exception('Failed to send %s email code.', purpose)
+    return context, accepted
+
+
+def _otp_notice(purpose):
+    if purpose == EmailOTPChallenge.SIGNUP:
+        return 'If your account still needs verification, check your inbox and spam folder for a verification code.'
+    return 'If the email exists and is eligible, check your inbox and spam folder for a password reset code.'
+
+
+@never_cache
+@require_http_methods(['GET', 'POST'])
 def resend_verification(request):
-    generic_message = (
-        "If your account still needs verification, a new verification link has "
-        "been sent. Please check your inbox and spam folder."
-    )
-
-    if request.method == "POST":
-        email = (request.POST.get("email") or "").strip().lower()
-
-        if not email:
-            messages.error(request, "Please enter your account email.")
-            return render(request, "auth/resend_verification.html")
-
-        is_limited, rate_limit_message = _is_verification_resend_rate_limited(
-            request, email
-        )
-        if is_limited:
-            messages.error(request, rate_limit_message)
-            response = render(request, "auth/resend_verification.html", {"email": email},
-                              status=getattr(request, '_email_limit_status', 429))
-            response['Retry-After'] = str(request._email_retry_after)
-            response['Cache-Control'] = 'no-store'
-            return response
-
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip().casefold()
         try:
-            user = User.objects.get(email__iexact=email)
-            if not user.is_superuser and not getattr(user, "email_verified", True):
-                _send_account_verification_email(request, user)
-                log_action(user, "Verification email resent.")
-        except User.DoesNotExist:
-            # Generic response — para hindi ma-enumerate ang accounts.
-            pass
-        except Exception:
-            logger.exception("Failed to resend account verification email.")
+            validate_email_address(email)
+        except ValidationError:
+            messages.error(request, 'Please enter a valid account email.')
+            return render(request, 'auth/resend_verification.html', {'email': email})
+        limited, message = _is_verification_resend_rate_limited(request, email)
+        if limited:
+            return _otp_rate_response(request, message, 'auth/resend_verification.html', {'email': email})
+        context, accepted = _request_otp(request, email, EmailOTPChallenge.SIGNUP)
+        request.session[email_otp.session_key(EmailOTPChallenge.SIGNUP)] = context
+        if accepted:
+            log_action(None, 'Verification code requested.')
+        messages.info(request, _otp_notice(EmailOTPChallenge.SIGNUP))
+        return redirect('verify_account_otp')
+    return render(request, 'auth/resend_verification.html')
 
-        messages.success(request, generic_message)
-        return redirect("login")
 
-    return render(request, "auth/resend_verification.html")
-
-
+@never_cache
+@require_http_methods(['GET', 'POST'])
 def forgot_password_request(request):
-    if request.method == "POST":
-        email = (request.POST.get("email") or "").strip()
-        generic_message = "If the email exists, a password reset link has been sent."
-
-        if not email:
-            messages.error(request, "Please enter your account email.")
-            return render(request, "auth/forgot_password.html")
-
-        is_limited, rate_limit_message = _is_reset_request_rate_limited(request, email)
-        if is_limited:
-            messages.error(request, rate_limit_message)
-            response = render(request, "auth/forgot_password.html",
-                              status=getattr(request, '_email_limit_status', 429))
-            response['Retry-After'] = str(request._email_retry_after)
-            response['Cache-Control'] = 'no-store'
-            return response
-
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip().casefold()
         try:
-            user = User.objects.get(email__iexact=email)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            reset_url = request.build_absolute_uri(
-                reverse(
-                    "password_reset_confirm", kwargs={"uidb64": uid, "token": token}
-                )
-            )
-            subject = "Balloorina Password Reset"
-            body = (
-                f"Hi {user.first_name or user.username},\n\n"
-                f"We received a request to reset your password.\n"
-                f"Use the link below:\n{reset_url}\n\n"
-                f"If you did not request this, you can ignore this message."
-            )
-            from_email = getattr(
-                settings, "DEFAULT_FROM_EMAIL", "no-reply@balloorina.local"
-            )
-            send_mail(
-                subject,
-                body,
-                from_email,
-                [user.email],
-                fail_silently=False,
-            )
-        except User.DoesNotExist:
-            pass
-        except Exception:
-            logger.exception("Failed to send forgot-password email.")
-
-        messages.success(request, generic_message)
-        return redirect("forgot_password")
-
-    return render(request, "auth/forgot_password.html")
+            validate_email_address(email)
+        except ValidationError:
+            messages.error(request, 'Please enter a valid account email.')
+            return render(request, 'auth/forgot_password.html')
+        limited, message = _is_reset_request_rate_limited(request, email)
+        if limited:
+            return _otp_rate_response(request, message, 'auth/forgot_password.html')
+        context, _accepted = _request_otp(request, email, EmailOTPChallenge.RESET)
+        request.session[email_otp.session_key(EmailOTPChallenge.RESET)] = context
+        messages.info(request, _otp_notice(EmailOTPChallenge.RESET))
+        return redirect('verify_password_otp')
+    return render(request, 'auth/forgot_password.html')
 
 
+def _otp_template_context(context, purpose):
+    from django.utils.dateparse import parse_datetime
+    from datetime import timedelta
+    import math
+    issued = parse_datetime(context.get('issued_at', '')) or timezone.now()
+    prefix = 'VERIFICATION_RESEND' if purpose == EmailOTPChallenge.SIGNUP else 'FORGOT_PASSWORD'
+    wait = max(0, math.ceil((issued + timedelta(seconds=getattr(settings, prefix + '_COOLDOWN_SECONDS', 60)) - timezone.now()).total_seconds()))
+    email = context.get('email', '')
+    local, _, domain = email.partition('@')
+    return {
+        'masked_email': (local[:1] + '***@' + domain), 'resend_wait': wait,
+        'otp_minutes': settings.EMAIL_OTP_TIMEOUT // 60,
+        'is_signup': purpose == EmailOTPChallenge.SIGNUP,
+    }
+
+
+def _otp_page(request, purpose):
+    from django.db import OperationalError
+    key = email_otp.session_key(purpose)
+    context = request.session.get(key)
+    entry = 'resend_verification' if purpose == EmailOTPChallenge.SIGNUP else 'forgot_password'
+    route = 'verify_account_otp' if purpose == EmailOTPChallenge.SIGNUP else 'verify_password_otp'
+    if not context:
+        return redirect(entry)
+    if request.method == 'POST' and request.POST.get('action') == 'resend':
+        limiter = _is_verification_resend_rate_limited if purpose == EmailOTPChallenge.SIGNUP else _is_reset_request_rate_limited
+        limited, message = limiter(request, context['email'])
+        if limited:
+            data = _otp_template_context(context, purpose)
+            data['resend_wait'] = request._email_retry_after
+            return _otp_rate_response(request, message, 'auth/verify_otp.html', data)
+        replacement, accepted = _request_otp(request, context['email'], purpose)
+        # Failed sending preserves the previously accepted code and browser binding.
+        if accepted or not email_otp.get_challenge(context, purpose):
+            request.session[key] = replacement
+        messages.info(request, _otp_notice(purpose))
+        return redirect(route)
+    try:
+        challenge = email_otp.get_challenge(context, purpose)
+        user = User.objects.filter(pk=challenge.user_id).first() if challenge else None
+        if purpose == EmailOTPChallenge.RESET and email_otp.grant_valid(challenge, user, context):
+            return redirect('reset_password_otp')
+        if request.method == 'POST':
+            accepted, retry = email_otp.verify_code(request, purpose, context, (request.POST.get('code') or '').strip())
+            if retry:
+                raise RateLimited(retry, message='Too many incorrect codes. Please wait before trying again.')
+            if accepted:
+                if purpose == EmailOTPChallenge.SIGNUP:
+                    request.session.pop(key, None)
+                    log_action(user, 'Email verified using a one-time code.')
+                    messages.success(request, 'Email verified successfully. You can now log in.')
+                    return redirect('login')
+                return redirect('reset_password_otp')
+            messages.error(request, 'The code is invalid, expired, or already used. Please check it or request a new code.')
+    except RateLimited as error:
+        request._email_retry_after = error.retry_after
+        request._email_limit_status = 429
+        return _otp_rate_response(request, str(error), 'auth/verify_otp.html', _otp_template_context(context, purpose))
+    except OperationalError:
+        request._email_retry_after = 5
+        request._email_limit_status = 503
+        return _otp_rate_response(request, 'Request protection is temporarily unavailable. Please try again in 5 seconds.',
+                                  'auth/verify_otp.html', _otp_template_context(context, purpose))
+    return render(request, 'auth/verify_otp.html', _otp_template_context(context, purpose))
+
+
+@never_cache
+@sensitive_post_parameters('code')
+@require_http_methods(['GET', 'POST'])
+def verify_account_otp(request):
+    return _otp_page(request, EmailOTPChallenge.SIGNUP)
+
+
+@never_cache
+@sensitive_post_parameters('code')
+@require_http_methods(['GET', 'POST'])
+def verify_password_otp(request):
+    return _otp_page(request, EmailOTPChallenge.RESET)
+
+
+@never_cache
+@sensitive_post_parameters('password', 'confirm_password')
+@require_http_methods(['GET', 'POST'])
+def reset_password_otp(request):
+    from django.db import OperationalError
+    key = email_otp.session_key(EmailOTPChallenge.RESET)
+    context = request.session.get(key, {})
+    try:
+        challenge = email_otp.get_challenge(context, EmailOTPChallenge.RESET)
+        user = User.objects.filter(pk=challenge.user_id).first() if challenge else None
+        if not email_otp.grant_valid(challenge, user, context):
+            messages.error(request, 'Verify a new password reset code before setting your password.')
+            return redirect('forgot_password')
+        if request.method == 'POST':
+            password = request.POST.get('password') or ''
+            if password != (request.POST.get('confirm_password') or ''):
+                messages.error(request, 'Passwords do not match.')
+            else:
+                try:
+                    result = email_otp.reset_password(context, password)
+                except ValidationError as error:
+                    messages.error(request, ' '.join(error.messages))
+                else:
+                    if not result:
+                        messages.error(request, 'Your reset authorization has expired or already been used.')
+                        return redirect('forgot_password')
+                    request.session.pop(key, None)
+                    request.session.cycle_key()
+                    log_action(result, 'Password reset using an email one-time code.')
+                    messages.success(request, 'Password updated successfully. You can now log in.')
+                    return redirect('login')
+    except OperationalError:
+        request._email_retry_after = 5
+        request._email_limit_status = 503
+        return _otp_rate_response(request, 'Account recovery is temporarily unavailable. Please try again in 5 seconds.',
+                                  'auth/reset_password.html', {'is_valid_link': True})
+    return render(request, 'auth/reset_password.html', {'is_valid_link': True})
+
+
+@never_cache
+@sensitive_post_parameters('password', 'confirm_password')
+@require_http_methods(['GET', 'POST'])
+@transaction.atomic
 def password_reset_confirm(request, uidb64, token):
     user = None
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
+        user = (User.objects.select_for_update() if request.method == 'POST' else User.objects).get(pk=uid)
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
 
@@ -424,7 +522,8 @@ def password_reset_confirm(request, uidb64, token):
             )
 
         user.set_password(password)
-        user.save()
+        user.save(update_fields=['password'])
+        email_otp.invalidate(user, EmailOTPChallenge.RESET)
         log_action(user, "Password reset via forgot password.")
         messages.success(request, "Password updated successfully. You can now log in.")
         return redirect("login")
@@ -448,6 +547,7 @@ def change_password(request):
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
+            email_otp.invalidate(user, EmailOTPChallenge.RESET)
             log_action(request.user, "Changed their password.")
             update_session_auth_hash(
                 request, user
