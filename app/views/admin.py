@@ -1,5 +1,6 @@
 from ..logistics_settings import LogisticsSettingsForm
 from ..site_settings_form import SiteSettingsForm
+from ..home_statistics import get_customers_served, get_home_statistics
 from ..design_admin import configure_design_offer, render_offer_form, store_offer_config
 from ..design_limits import DesignSettingsForm
 """Admin: dashboard, content mgmt, users, analytics, gallery, reviews. (split from app/views.py)"""
@@ -1583,29 +1584,30 @@ def build_concerns_context(request):
 
 
 @login_required
-@login_required
 @require_POST
 def admin_concern_update(request, id):
     if request.user.role != "admin":
         return HttpResponseForbidden("Admins only")
 
-    ticket = get_object_or_404(ConcernTicket, id=id)
     next_url = request.POST.get("next") or reverse("admin_concerns")
 
     raw_status = (request.POST.get("status") or "").strip()
-    valid_statuses = {choice[0] for choice in ConcernTicket.STATUS_CHOICES}
+    valid_statuses = {'new', 'in_progress', 'resolved'}
     if raw_status not in valid_statuses:
         messages.error(request, "Invalid concern status selected.")
         return redirect(next_url)
 
-    ticket.status = raw_status
-    ticket.admin_notes = (request.POST.get("admin_notes") or "").strip()
-    ticket.save(update_fields=["status", "admin_notes", "updated_at"])
-
-    log_action(
-        request.user,
-        f"Updated concern #{ticket.id} to '{ticket.get_status_display()}'.",
-    )
+    with transaction.atomic():
+        ticket = get_object_or_404(ConcernTicket.objects.select_for_update(), id=id)
+        if ticket.status == 'cancelled':
+            messages.error(request, 'This concern was cancelled by the customer and cannot be updated.')
+            return redirect(next_url)
+        ticket.status = raw_status
+        ticket.admin_notes = (request.POST.get("admin_notes") or "").strip()
+        if ticket.processing_started_at is None and (raw_status != 'new' or ticket.admin_notes):
+            ticket.processing_started_at = timezone.now()
+        ticket.save(update_fields=['status', 'admin_notes', 'processing_started_at', 'updated_at'])
+        log_action(request.user, f"Updated concern #{ticket.id} to '{ticket.get_status_display()}'.")
     messages.success(
         request, f"Concern #{ticket.id} updated to {ticket.get_status_display()}."
     )
@@ -1956,10 +1958,6 @@ def _seed_home_defaults(content):
         "hero_label": "Balloon Styling & Event Design",
         "hero_title": "Turning Moments Into Elegant Celebrations.",
         "hero_subheadline": "Balloon styling tailored to your space, theme, and budget, set up before your celebration begins.",
-        "stat_events_styled": "500",
-        "stat_rating": "5",
-        "stat_satisfaction": "100",
-        "stat_response_time": "24",
         "why_choose_title": "Why Choose Balloorina.ph?",
         "why_choose_subtitle": "We style events based on your theme, budget, and venue. Our goal is simple: make your celebration look beautiful and feel special.",
         "occasion_chips": "Birthdays, Weddings, Corporate Events, Christenings, Graduation",
@@ -2117,8 +2115,6 @@ _ABOUT_DEFAULTS = {
     "story_paragraph_1": "Balloorina.ph empowers people to celebrate life's biggest moments through premium, custom balloon styling. What started in 2020 as a small home studio has grown into a trusted team serving clients across Metro Manila.",
     "story_paragraph_2": "From birthdays and weddings to corporate launches, every arch, centerpiece, and installation is crafted to look stunning in person and in photos.",
     "story_points": "Professional balloon styling for all events\nFast and reliable setup team\nCustom designs for birthdays, weddings, and corporate events\nAffordable packages without compromising quality",
-    "story_stat_number": "1,000+",
-    "story_stat_text": "People trust Balloorina.ph.",
     "values_title": "More Than Just Balloons.",
     "values_subtitle": "Every celebration we style carries the heart, hustle, and high standards we're known for.",
     "journey_title": "The Story Behind Balloorina.ph",
@@ -2286,22 +2282,19 @@ def admin_home_content(request):
         content = HomeContent.objects.create()
 
     if request.method == "POST":
+        if 'support_hours' in request.POST:
+            try:
+                support_hours = int(request.POST.get('support_hours', '').strip())
+                if not 1 <= support_hours <= 24:
+                    raise ValueError
+            except (ValueError, TypeError):
+                messages.error(request, 'Support hours must be a whole number from 1 to 24 hours per day.')
+                return redirect('admin_home_content')
+            content.support_hours = support_hours
         content.hero_label = request.POST.get("hero_label", content.hero_label).strip()
         content.hero_title = request.POST.get("hero_title", content.hero_title).strip()
         content.hero_subheadline = request.POST.get(
             "hero_subheadline", content.hero_subheadline
-        ).strip()
-        content.stat_events_styled = request.POST.get(
-            "stat_events_styled", content.stat_events_styled
-        ).strip()
-        content.stat_rating = request.POST.get(
-            "stat_rating", content.stat_rating
-        ).strip()
-        content.stat_satisfaction = request.POST.get(
-            "stat_satisfaction", content.stat_satisfaction
-        ).strip()
-        content.stat_response_time = request.POST.get(
-            "stat_response_time", content.stat_response_time
         ).strip()
         content.why_choose_title = request.POST.get(
             "why_choose_title", content.why_choose_title
@@ -2345,6 +2338,7 @@ def admin_home_content(request):
         "admin/content/home_content.html",
         {
             "content": content,
+            "home_stats": get_home_statistics(),
             "features": features,
             "hiw_steps": hiw_steps,
             "faqs": faqs,
@@ -2700,12 +2694,6 @@ def admin_about_content(request):
         content.story_paragraph_2 = request.POST.get(
             "story_paragraph_2", content.story_paragraph_2
         ).strip()
-        content.story_stat_number = request.POST.get(
-            "story_stat_number", content.story_stat_number
-        ).strip()
-        content.story_stat_text = request.POST.get(
-            "story_stat_text", content.story_stat_text
-        ).strip()
         content.story_points = request.POST.get(
             "story_points", content.story_points
         ).strip()
@@ -2753,6 +2741,7 @@ def admin_about_content(request):
             "content": content,
             "values": values,
             "journey_items": journey_items,
+            "customers_served": get_customers_served(),
         },
     )
 

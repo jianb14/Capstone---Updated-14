@@ -5,37 +5,49 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="same-origin">
-    <title>{% if is_signup %}Verify your account{% else %}Verify password reset{% endif %} | Balloorina</title>
+    <title>Verify your email | Balloorina</title>
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="stylesheet" href="{% static 'css/email_otp.css' %}">
     <script src="{% static 'js/theme-toggle.js' %}"></script>
 </head>
 <body>
-<main class="body">
-    <div class="auth-container">
-        <div class="logo-container"><img src="{% static 'images/BalloorinaLogo1.png' %}" alt="Balloorina"></div>
-        <h1 class="otp-heading">{% if is_signup %}Verify your email{% else %}Check your email{% endif %}</h1>
-        <p class="info-text">Enter the 6-digit {% if is_signup %}verification{% else %}password reset{% endif %} code for <strong>{{ masked_email }}</strong>. Codes expire after {{ otp_minutes }} minutes.</p>
-        <div aria-live="polite">
-            {% for message in messages %}<p class="otp-notice {% if message.tags == 'error' %}otp-notice-error{% endif %}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">{{ message }}</p>{% endfor %}
-        </div>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="verify">
-            <div class="field-group">
-                <label class="input-label" for="otp-code">6-digit code</label>
-                <input class="otp-code" id="otp-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" required aria-describedby="otp-help" autofocus>
-                <small id="otp-help">Enter all six digits, including any leading zeros.</small>
+<main class="body otp-shell">
+    <div class="auth-container otp-auth">
+        <div class="logo-container"><a href="{% url 'home' %}" aria-label="Balloorina home"><img src="{% static 'images/BalloorinaLogo1.png' %}" alt="Balloorina"></a></div>
+        <section class="otp-content" aria-labelledby="otp-title">
+            <h1 id="otp-title">{% if is_signup %}Verify your email{% else %}Check your inbox{% endif %}</h1>
+            <p class="otp-description">Enter the 6-digit code for<br><strong>{{ masked_email }}</strong></p>
+            {% if is_signup and not request.session.pending_signup %}<p class="otp-assurance">If no code arrives, review your signup details or log in with your existing account.</p>{% endif %}
+            {% if is_change %}<p class="otp-assurance">Your password will change only after you verify this code.</p>{% endif %}
+            <div aria-live="polite" class="otp-messages">
+                {% for message in messages %}<p class="otp-notice {% if message.tags == 'error' %}otp-notice-error{% endif %}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">{{ message }}</p>{% endfor %}
             </div>
-            <button type="submit">{% if is_signup %}Verify Account{% else %}Verify Code{% endif %}</button>
-        </form>
-        <form method="post" class="otp-resend-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="resend">
-            <button type="submit" id="otp-resend" data-wait="{{ resend_wait }}">Resend Code</button>
-            <small id="otp-countdown" role="status"></small>
-        </form>
-        <p class="bottom-text">{% if is_signup %}<a href="{% url 'resend_verification' %}">{% else %}<a href="{% url 'forgot_password' %}">{% endif %}Use a different email</a></p>
-        <p class="bottom-text"><a href="{% url 'login' %}">Back to Login</a></p>
+            <form method="post" id="otp-form" data-verify-wait="{{ verify_wait|default:0 }}">
+                {% csrf_token %}<input type="hidden" name="action" value="verify"><input type="hidden" name="code" id="otp-code">
+                <fieldset class="otp-fieldset" aria-describedby="otp-help otp-expiry otp-entry-error">
+                    <legend>Verification code</legend>
+                    <div class="otp-digits">
+                        {% for digit in digits %}<input class="otp-digit" type="text" id="otp-digit-{{ digit }}" name="digit_{{ digit }}" aria-label="Digit {{ digit }} of 6" inputmode="numeric" autocomplete="{% if digit == 1 %}one-time-code{% else %}off{% endif %}" pattern="[0-9]" maxlength="1" required>{% endfor %}
+                    </div>
+                </fieldset>
+                <p id="otp-help" class="otp-helper">You can paste the entire code into any box.</p>
+                <p id="otp-entry-error" class="otp-entry-error" role="alert" hidden></p>
+                <p id="otp-expiry" class="otp-expiry" data-seconds="{{ expiry_seconds }}">Code expires after {{ otp_minutes }} minutes.</p>
+                <button type="submit" id="otp-submit" class="otp-primary">{% if is_signup %}Verify Account{% elif is_change %}Verify &amp; Change Password{% else %}Verify Code{% endif %}</button>
+                <p id="otp-verify-countdown" class="otp-helper" role="status"></p>
+            </form>
+            <div class="otp-resend-area">
+                <p>Didn't receive a code? Check your spam folder.</p>
+                <form method="post" class="otp-resend-form">{% csrf_token %}<input type="hidden" name="action" value="resend"><button type="submit" id="otp-resend" data-wait="{{ resend_wait }}">Resend Code</button></form>
+                <small id="otp-countdown" role="status"></small>
+            </div>
+            <nav class="otp-links" aria-label="Verification options">
+                {% if is_signup %}{% if request.session.pending_signup %}<a href="{% url 'change_signup_email' %}">Change email address</a>{% else %}<a href="{% url 'register' %}">Review signup details</a>{% endif %}<a href="{% url 'login' %}">Back to login</a>
+                {% elif is_change %}<a href="{% if request.user.role == 'admin' or request.user.role == 'staff' %}{% url 'admin_profile' %}{% else %}{% url 'customer_profile' %}{% endif %}">Back to profile</a>
+                {% else %}<a href="{% url 'forgot_password' %}">Use a different email</a><a href="{% url 'login' %}">Back to login</a>{% endif %}
+            </nav>
+        </section>
+        {% if is_signup %}<p class="otp-footer">Already started? You can leave this page and continue verification later.</p>{% else %}<p class="otp-footer">Keep this code private. Balloorina will never ask you to share it.</p>{% endif %}
     </div>
 </main>
 <script src="{% static 'js/email_otp.js' %}"></script>

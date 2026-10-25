@@ -2,39 +2,51 @@
 {% load static tz %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20261004e">
+<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20261025-concern6">
+
+<link rel="stylesheet" href="{% static 'css/concern_details.css' %}?v=20261025-concern7">
 
 <div class="concern-page">
+    <header class="concern-page-header">
+        <div>
+            <h1>Report a concern</h1>
+            <p class="concern-page-intro">Tell us what happened. Follow every update here.</p>
+        </div>
+    </header>
     <div class="concern-wrap">
         <section class="panel concern-report-panel">
-            <h1>Report a Concern</h1>
-            <p class="sub">Share bugs, account issues, payment concerns, or other feedback.</p>
+            <div class="concern-panel-heading"><h2>New concern</h2><span class="concern-form-marker" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span></div>
+            <p class="sub">A few details will help our team look into it.</p>
+            <p class="concern-required-note">All fields are required except attachments.</p>
 
             <form method="post" class="concern-form" id="concernForm" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
-                <label for="category">Category</label>
-                <div class="custom-filter-dropdown" id="categoryDropdown">
-                    <div class="dropdown-trigger">
-                        <span id="categoryDropdownText">Select Category</span>
-                        <i class="fas fa-chevron-down"></i>
+                <input type="hidden" name="submission_key" value="{{ form_data.submission_key }}">
+                <div class="concern-field">
+                    <label for="category">Category</label>
+                    <div class="custom-filter-dropdown" id="categoryDropdown">
+                        <div class="dropdown-trigger">
+                            <span id="categoryDropdownText">Select Category</span>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                        <ul class="dropdown-options">
+                            <li data-value="bug">Bug Report</li>
+                            <li data-value="account">Account Issue</li>
+                            <li data-value="payment">Payment Concern</li>
+                            <li data-value="booking">Booking Concern</li>
+                            <li data-value="other">Other</li>
+                        </ul>
+                        <select id="category" name="category" class="filter-select">
+                            <option value="" {% if not form_data.category %}selected{% endif %}>Select Category</option>
+                            <option value="bug" {% if form_data.category == 'bug' %}selected{% endif %}>Bug Report</option>
+                            <option value="account" {% if form_data.category == 'account' %}selected{% endif %}>Account Issue</option>
+                            <option value="payment" {% if form_data.category == 'payment' %}selected{% endif %}>Payment Concern</option>
+                            <option value="booking" {% if form_data.category == 'booking' %}selected{% endif %}>Booking Concern</option>
+                            <option value="other" {% if form_data.category == 'other' %}selected{% endif %}>Other</option>
+                        </select>
                     </div>
-                    <ul class="dropdown-options">
-                        <li data-value="bug">Bug Report</li>
-                        <li data-value="account">Account Issue</li>
-                        <li data-value="payment">Payment Concern</li>
-                        <li data-value="booking">Booking Concern</li>
-                        <li data-value="other">Other</li>
-                    </ul>
-                    <select id="category" name="category" class="filter-select">
-                        <option value="" {% if not form_data.category %}selected{% endif %}>Select Category</option>
-                        <option value="bug" {% if form_data.category == 'bug' %}selected{% endif %}>Bug Report</option>
-                        <option value="account" {% if form_data.category == 'account' %}selected{% endif %}>Account Issue</option>
-                        <option value="payment" {% if form_data.category == 'payment' %}selected{% endif %}>Payment Concern</option>
-                        <option value="booking" {% if form_data.category == 'booking' %}selected{% endif %}>Booking Concern</option>
-                        <option value="other" {% if form_data.category == 'other' %}selected{% endif %}>Other</option>
-                    </select>
+                    <small class="field-error" id="category_error"></small>
                 </div>
-                <small class="field-error" id="category_error"></small>
 
                 <div id="otherCategoryWrap" class="other-category-wrap">
                     <label for="other_category">Specify Concern Type</label>
@@ -48,72 +60,75 @@
                     <small class="field-error" id="other_category_error"></small>
                 </div>
 
-                <label for="subject">Subject</label>
-                <input
-                    type="text"
-                    id="subject"
-                    name="subject"
-                    maxlength="150"
-                    placeholder="e.g., short summary of your concern"
-                    value="{{ form_data.subject|default:'' }}">
-                <small class="field-error" id="subject_error"></small>
+                <div class="concern-field">
+                    <div class="concern-label-row"><label for="subject">Subject</label><span id="concernSubjectCount" aria-hidden="true">0/150</span></div>
+                    <input
+                        type="text"
+                        id="subject"
+                        name="subject"
+                        maxlength="150"
+                        placeholder="A short summary of the issue"
+                        value="{{ form_data.subject|default:'' }}">
+                    <small class="field-error" id="subject_error"></small>
+                </div>
 
-                <label for="message">Message</label>
-                <textarea
-                    id="message"
-                    name="message"
-                    rows="6"
-                    placeholder="e.g., explain what happened and the details">{{ form_data.message|default:'' }}</textarea>
-                <small class="field-error" id="message_error"></small>
+                <div class="concern-field">
+                    <label for="message">What happened?</label>
+                    <textarea
+                        id="message"
+                        name="message"
+                        rows="4"
+                        aria-describedby="concernMessageHelp message_error" placeholder="Describe the issue and what you were trying to do.">{{ form_data.message|default:'' }}</textarea>
+                    <p class="concern-field-help" id="concernMessageHelp">Include a booking number if your concern is about a booking or payment.</p>
+                    <small class="field-error" id="message_error"></small>
+                </div>
 
                 <div class="form-group">
-                    <label for="concern_images">Attach Images (Optional)</label>
-                    <input type="file" id="concern_images" name="concern_images" multiple accept="image/*" class="file-input">
-                    <small class="field-info">You can upload up to 4 images to help us understand your concern.</small>
+                    <label for="concern_images">Attachments <span class="concern-optional">Optional</span></label>
+                    <div class="concern-upload-zone" id="concernUploadZone" role="group" aria-label="Upload concern images" aria-describedby="concernUploadHelp">
+                        <svg class="concern-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17H6a4 4 0 0 1-.6-7.95 6.5 6.5 0 0 1 12.5-1.4A4.7 4.7 0 0 1 18 17h-1M12 21V11m-4 4 4-4 4 4"/></svg>
+                        <p>Choose an image or drag &amp; drop it here</p>
+                        <small id="concernUploadHelp">JPG, PNG or WEBP · Up to 5MB per image</small>
+                        <button type="button" class="concern-browse" id="concernBrowse">Browse File</button>
+                        <input type="file" id="concern_images" name="concern_images" multiple accept="image/jpeg,image/png,image/webp" class="concern-file-input" aria-label="Choose concern images">
+                    </div>
+                    <small class="field-info">Attach up to 4 images.</small>
+                    <p id="concernUploadFeedback" class="concern-feedback" role="status" aria-live="polite"></p>
                     <div id="concernImagePreview" class="image-preview-grid"></div>
                 </div>
 
-                <button type="submit">Submit Concern</button>
+                <button type="submit" id="concernSubmit">Submit Concern</button>
+                <p id="concernSubmitStatus" class="concern-feedback" role="status" aria-live="polite">{{ form_error_message }}</p>
             </form>
         </section>
 
         <section class="panel concern-history-panel">
-            <h2>My Concern History</h2>
-            <p class="history-sub">Track the status of your submitted concerns and feedback.</p>
+            <div class="concern-panel-heading"><h2>My concerns</h2><span class="concern-history-count" aria-label="{{ my_tickets|length }} recent concerns">{{ my_tickets|length }}</span></div>
+            <p class="history-sub">Your latest submissions and updates from our team.</p>
             {% if my_tickets %}
+            <p id="concernHistoryFeedback" class="concern-feedback" role="status" aria-live="polite"></p>
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>Ticket</th>
-                            <th>Category</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Action</th>
+                            <th scope="col">Concern</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Submitted</th>
+                            <th scope="col" class="concern-actions-heading">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ticket in my_tickets %}
-                        <tr>
-                            <td>#CON-{{ ticket.id }}</td>
-                            <td>{{ ticket.get_category_display }}</td>
-                            <td><span class="status status-{{ ticket.status }}">{{ ticket.get_status_display }}</span></td>
-                            <td>{{ ticket.created_at|timezone:"Asia/Manila"|date:"M d, Y g:i A" }}</td>
-                            <td>
-                                <button type="button" class="btn-view-concern"
-                                    data-ticket="#CON-{{ ticket.id }}"
-                                    data-category="{{ ticket.get_category_display|escape }}"
-                                    data-status-raw="{{ ticket.status }}"
-                                    data-status="{{ ticket.get_status_display|escape }}"
-                                    data-created="{{ ticket.created_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}"
-                                    data-updated="{{ ticket.updated_at|timezone:'Asia/Manila'|date:'M d, Y g:i A' }}"
-                                    data-images="{% for img in ticket.images.all %}{{ img.image.url }}{% if not forloop.last %},{% endif %}{% endfor %}">
-                                    View
-                                </button>
-                                <div class="concern-hidden-texts" hidden>
-                                    <p class="full-subject">{{ ticket.subject }}</p>
-                                    <p class="full-message">{{ ticket.message }}</p>
-                                    <p class="full-admin-notes">{{ ticket.admin_notes|default:"" }}</p>
+                        <tr data-concern-id="{{ ticket.id }}">
+                            <td class="concern-cell-title"><span class="concern-row-reference">#CON-{{ ticket.id }} <span aria-hidden="true">&middot;</span> {{ ticket.get_category_display }}</span><span class="concern-row-subject">{{ ticket.subject }}</span></td>
+                            <td class="concern-cell-status"><span class="status concern-row-status status-{{ ticket.status }}">{{ ticket.get_status_display }}</span></td>
+                            <td class="concern-cell-date"><time datetime="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|timezone:"Asia/Manila"|date:"M d, Y" }}<span>{{ ticket.created_at|timezone:"Asia/Manila"|date:"g:i A" }}</span></time></td>
+                            <td class="concern-cell-actions">
+                                <div class="concern-row-actions">
+                                    <button type="button" class="btn-view-concern concern-eye" data-view-id="{{ ticket.id }}" aria-label="View concern #CON-{{ ticket.id }}" title="View concern">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </button>
+                                    {% if ticket.can_cancel %}<button type="button" class="concern-row-cancel" data-cancel-id="{{ ticket.id }}" aria-label="Cancel concern #CON-{{ ticket.id }}">Cancel</button>{% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -121,9 +136,10 @@
                     </tbody>
                 </table>
             </div>
+            <p class="concern-history-help">Showing your latest {{ my_tickets|length }} concern{{ my_tickets|length|pluralize }}. New concerns can be cancelled before our team starts handling them.</p>
             {% else %}
             <div class="empty-state">
-                <div class="empty-icon"><i class="far fa-envelope"></i></div>
+                <div class="empty-icon"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></div>
                 <h3>No submitted concerns yet</h3>
                 <p>When you report a concern, it will appear here so you can track its progress.</p>
             </div>
@@ -132,459 +148,47 @@
     </div>
 </div>
 
-<div class="concern-modal-overlay client-concern-modal" id="concernDetailModal" aria-hidden="true">
-    <div class="concern-modal-card client-concern-modal-card" role="dialog" aria-modal="true" aria-labelledby="concernModalTitle">
-        <div class="concern-modal-head">
-            <div class="concern-modal-title-wrap">
-                <h3 id="concernModalTitle">Concern Details</h3>
-                <span class="concern-modal-id" id="modalTicket">ID: -</span>
-            </div>
-            <button type="button" class="concern-modal-close" id="concernModalClose" aria-label="Close">&times;</button>
+<dialog class="concern-dialog concern-detail-dialog" id="concernDetailModal" aria-labelledby="modalSubject">
+    <header class="concern-dialog-head">
+        <div>
+            <p class="concern-eyebrow">Concern details</p>
+            <h2 id="modalSubject"></h2>
+            <div class="concern-ticket-line"><span id="modalTicket"></span><span id="modalStatus" class="concern-detail-status"></span></div>
         </div>
-        <div class="concern-modal-body">
-            <div class="detail-grid">
-                <div class="detail-row"><span><i class="fa-solid fa-tag" aria-hidden="true"></i>Category</span><strong id="modalCategory">-</strong></div>
-                <div class="detail-row"><span><i class="fa-regular fa-circle-dot" aria-hidden="true"></i>Status</span><strong id="modalStatus" class="client-modal-status">-</strong></div>
-                <div class="detail-row"><span><i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>Created</span><strong id="modalCreated">-</strong></div>
-                <div class="detail-row"><span><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Updated</span><strong id="modalUpdated">-</strong></div>
-            </div>
-
-            <div class="detail-block">
-                <h4><i class="fa-regular fa-bookmark" aria-hidden="true"></i>Subject</h4>
-                <p id="modalSubject">-</p>
-            </div>
-
-            <div class="detail-block">
-                <h4><i class="fa-regular fa-comment-dots" aria-hidden="true"></i>Message</h4>
-                <p id="modalMessage">-</p>
-            </div>
-
-            <div class="detail-block" id="modalImagesBlock" style="display: none;">
-                <h4><i class="fa-regular fa-images" aria-hidden="true"></i>Attached Images</h4>
-                <div id="modalImages" class="concern-images-grid"></div>
-            </div>
-
-            <div class="detail-block" id="modalAdminNotesBlock" style="display: none;">
-                <h4><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Admin Notes</h4>
-                <p id="modalAdminNotes" class="client-modal-admin-notes">-</p>
-            </div>
-        </div>
+        <button type="button" class="concern-icon-close" data-close-dialog="concernDetailModal" aria-label="Close concern details" autofocus><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="concern-dialog-body">
+        <dl class="concern-meta">
+            <div><dt>Category</dt><dd id="modalCategory"></dd></div>
+            <div><dt>Submitted</dt><dd id="modalCreated"></dd></div>
+            <div><dt>Last updated</dt><dd id="modalUpdated"></dd></div>
+        </dl>
+        <section class="concern-detail-section"><h3>Your message</h3><p id="modalMessage" class="concern-message"></p></section>
+        <section class="concern-detail-section" id="modalImagesBlock" hidden><h3>Attachments</h3><p class="concern-section-help">Select an image to view it in full.</p><div id="modalImages" class="concern-attachment-grid"></div></section>
+        <section class="concern-team-response"><h3>Team response</h3><p id="modalAdminNotes" class="concern-message"></p></section>
     </div>
-</div>
+    <footer class="concern-dialog-foot">
+        <p id="modalCancelHelp" class="concern-section-help"></p>
+        <div class="concern-dialog-actions"><button type="button" id="modalCancel" class="concern-button concern-button-danger">Cancel concern</button><button type="button" class="concern-button concern-button-primary" data-close-dialog="concernDetailModal">Close</button></div>
+    </footer>
+</dialog>
 
-<div class="concern-image-lightbox" id="concernImageLightbox" aria-hidden="true" role="dialog" aria-label="Attached image preview">
-    <button type="button" class="concern-lightbox-close" id="concernLightboxClose" aria-label="Close image">&times;</button>
-    <img id="concernLightboxImg" src="" alt="Attached image preview">
-</div>
+<dialog class="concern-dialog concern-confirm-dialog" id="concernCancelModal" aria-labelledby="cancelConcernTitle" aria-describedby="cancelConcernExplanation">
+    <h2 id="cancelConcernTitle">Cancel this concern?</h2>
+    <p id="cancelConcernExplanation">Your concern will stay in your history as Cancelled. Our team will not process it.</p>
+    <p id="cancelConcernTicket" class="concern-cancel-reference"></p>
+    <form method="post" id="cancelConcernForm">
+        {% csrf_token %}
+        <p id="cancelConcernFeedback" class="concern-feedback" role="alert"></p>
+        <div class="concern-dialog-actions"><button type="button" class="concern-button concern-button-secondary" data-close-dialog="concernCancelModal" autofocus>Keep concern</button><button type="submit" class="concern-button concern-button-danger-solid" id="confirmCancelConcern">Cancel concern</button></div>
+    </form>
+</dialog>
 
-{{ form_error_toasts|json_script:"concern-form-errors" }}
+<dialog class="concern-image-dialog" id="concernImageLightbox" aria-label="Attachment preview">
+    <button type="button" class="concern-icon-close" data-close-dialog="concernImageLightbox" aria-label="Close image" autofocus><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <img id="concernLightboxImg" alt="Concern attachment">
+</dialog>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const categorySelect = document.getElementById('category');
-        const otherWrap = document.getElementById('otherCategoryWrap');
-        const otherInput = document.getElementById('other_category');
-        const subjectInput = document.getElementById('subject');
-        const messageInput = document.getElementById('message');
-        const concernForm = document.getElementById('concernForm');
-        const categoryDropdown = document.getElementById('categoryDropdown');
-        const categoryDropdownText = document.getElementById('categoryDropdownText');
-        const dropdownTrigger = categoryDropdown ? categoryDropdown.querySelector('.dropdown-trigger') : null;
-        const dropdownOptions = categoryDropdown ? categoryDropdown.querySelectorAll('.dropdown-options li') : [];
-
-        const modal = document.getElementById('concernDetailModal');
-        const closeBtn = document.getElementById('concernModalClose');
-        const viewButtons = document.querySelectorAll('.btn-view-concern');
-        const imageLightbox = document.getElementById('concernImageLightbox');
-        const lightboxImg = document.getElementById('concernLightboxImg');
-        const lightboxCloseBtn = document.getElementById('concernLightboxClose');
-
-        const modalFields = {
-            ticket: document.getElementById('modalTicket'),
-            category: document.getElementById('modalCategory'),
-            status: document.getElementById('modalStatus'),
-            created: document.getElementById('modalCreated'),
-            updated: document.getElementById('modalUpdated'),
-            subject: document.getElementById('modalSubject'),
-            message: document.getElementById('modalMessage'),
-            adminNotes: document.getElementById('modalAdminNotes'),
-            images: document.getElementById('modalImages')
-        };
-        const adminNotesBlock = document.getElementById('modalAdminNotesBlock');
-        const imagesBlock = document.getElementById('modalImagesBlock');
-
-        const imagesInput = document.getElementById('concern_images');
-        const imagePreviewContainer = document.getElementById('concernImagePreview');
-        let concernFiles = new DataTransfer();
-
-        if (imagesInput) {
-            imagesInput.addEventListener('change', function() {
-                const newFiles = Array.from(this.files);
-                
-                if (concernFiles.items.length + newFiles.length > 4) {
-                    AppToast.fire({
-                        icon: 'error',
-                        title: 'Too many files',
-                        text: 'You can only upload a maximum of 4 images.'
-                    });
-                    this.value = ''; // Reset the actual input
-                    return;
-                }
-                
-                newFiles.forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        concernFiles.items.add(file);
-                        const fileIndex = concernFiles.items.length - 1;
-                        
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const wrapper = document.createElement('div');
-                            wrapper.className = 'preview-item';
-                            wrapper.dataset.index = fileIndex;
-
-                            const img = document.createElement('img');
-                            img.src = e.target.result;
-                            img.className = 'preview-thumb';
-                            
-                            const removeBtn = document.createElement('button');
-                            removeBtn.type = 'button';
-                            removeBtn.className = 'btn-remove-preview';
-                            removeBtn.innerHTML = '&times;';
-                            removeBtn.onclick = function() {
-                                removeConcernFile(file);
-                                wrapper.remove();
-                            };
-
-                            wrapper.appendChild(img);
-                            wrapper.appendChild(removeBtn);
-                            imagePreviewContainer.appendChild(wrapper);
-                        }
-                        reader.readAsDataURL(file);
-                    }
-                });
-                
-                // Update the input with the combined files
-                imagesInput.files = concernFiles.files;
-            });
-        }
-
-        function removeConcernFile(fileToRemove) {
-            const newDataTransfer = new DataTransfer();
-            Array.from(concernFiles.files).forEach(file => {
-                if (file !== fileToRemove) {
-                    newDataTransfer.items.add(file);
-                }
-            });
-            concernFiles = newDataTransfer;
-            imagesInput.files = concernFiles.files;
-        }
-
-        function syncOtherCategoryVisibility() {
-            const isOther = categorySelect && categorySelect.value === 'other';
-            if (otherWrap) {
-                otherWrap.style.display = isOther ? 'block' : 'none';
-            }
-            if (otherInput) {
-                if (!isOther) {
-                    otherInput.value = '';
-                    setFieldError('other_category', '');
-                }
-            }
-        }
-
-        let submitAttempted = false;
-        const fieldConfigs = {
-            category: {
-                container: categoryDropdown,
-                errorEl: document.getElementById('category_error')
-            },
-            other_category: {
-                container: otherWrap,
-                errorEl: document.getElementById('other_category_error')
-            },
-            subject: {
-                container: null,
-                input: subjectInput,
-                errorEl: document.getElementById('subject_error')
-            },
-            message: {
-                container: null,
-                input: messageInput,
-                errorEl: document.getElementById('message_error')
-            }
-        };
-
-        function setFieldError(key, message) {
-            const config = fieldConfigs[key];
-            if (!config || !config.errorEl) return;
-
-            if (config.input) {
-                config.input.classList.toggle('has-error', !!message);
-            }
-
-            if (config.container) {
-                config.container.classList.toggle('has-error', !!message);
-            }
-
-            config.errorEl.textContent = message || '';
-            config.errorEl.classList.toggle('show', !!message);
-        }
-
-        function clearAllFieldErrors() {
-            setFieldError('category', '');
-            setFieldError('other_category', '');
-            setFieldError('subject', '');
-            setFieldError('message', '');
-        }
-
-        function validateConcernForm() {
-            clearAllFieldErrors();
-            let firstInvalidField = null;
-
-            if (!categorySelect || !categorySelect.value) {
-                setFieldError('category', 'Category is required*');
-                firstInvalidField = 'category';
-            }
-
-            if (categorySelect && categorySelect.value === 'other' && !otherInput.value.trim()) {
-                setFieldError('other_category', 'Specify concern type is required*');
-                if (!firstInvalidField) firstInvalidField = 'other_category';
-            }
-
-            if (!subjectInput.value.trim()) {
-                setFieldError('subject', 'Subject is required*');
-                if (!firstInvalidField) firstInvalidField = 'subject';
-            }
-
-            if (!messageInput.value.trim()) {
-                setFieldError('message', 'Message is required*');
-                if (!firstInvalidField) firstInvalidField = 'message';
-            }
-
-            return firstInvalidField;
-        }
-
-        if (dropdownTrigger && categoryDropdown) {
-            dropdownTrigger.setAttribute('tabindex', '0');
-            dropdownTrigger.addEventListener('click', function () {
-                categoryDropdown.classList.toggle('open');
-            });
-        }
-
-        if (dropdownOptions.length && categorySelect) {
-            dropdownOptions.forEach(option => {
-                option.addEventListener('click', function () {
-                    const value = this.getAttribute('data-value');
-                    const text = this.textContent.trim();
-
-                    categorySelect.value = value;
-                    if (categoryDropdownText) categoryDropdownText.textContent = text;
-
-                    dropdownOptions.forEach(item => item.classList.remove('selected'));
-                    this.classList.add('selected');
-
-                    if (categoryDropdown) categoryDropdown.classList.remove('open');
-                    syncOtherCategoryVisibility();
-                    if (submitAttempted) validateConcernForm();
-                });
-            });
-        }
-
-        if (categorySelect) {
-            categorySelect.addEventListener('change', function () {
-                const selectedText = categorySelect.options[categorySelect.selectedIndex] ? categorySelect.options[categorySelect.selectedIndex].text : 'Select Category';
-                if (categoryDropdownText) categoryDropdownText.textContent = selectedText;
-                dropdownOptions.forEach(item => item.classList.toggle('selected', item.getAttribute('data-value') === categorySelect.value));
-                syncOtherCategoryVisibility();
-                if (submitAttempted) validateConcernForm();
-            });
-        }
-
-        document.addEventListener('click', function (event) {
-            if (categoryDropdown && !categoryDropdown.contains(event.target)) {
-                categoryDropdown.classList.remove('open');
-            }
-        });
-
-        if (categorySelect && categorySelect.value) {
-            const selectedText = categorySelect.options[categorySelect.selectedIndex] ? categorySelect.options[categorySelect.selectedIndex].text : 'Select Category';
-            if (categoryDropdownText) categoryDropdownText.textContent = selectedText;
-        }
-        syncOtherCategoryVisibility();
-        clearAllFieldErrors();
-
-        if (concernForm) {
-            concernForm.addEventListener('submit', function (event) {
-                submitAttempted = true;
-                const firstInvalidField = validateConcernForm();
-                if (firstInvalidField) {
-                    event.preventDefault();
-                    if (firstInvalidField === 'category' && dropdownTrigger) {
-                        categoryDropdown.classList.remove('open');
-                        dropdownTrigger.focus();
-                    } else if (firstInvalidField === 'other_category' && otherInput) {
-                        otherInput.focus();
-                    } else if (firstInvalidField === 'subject' && subjectInput) {
-                        subjectInput.focus();
-                    } else if (firstInvalidField === 'message' && messageInput) {
-                        messageInput.focus();
-                    }
-                }
-            });
-        }
-
-        if (otherInput) {
-            otherInput.addEventListener('input', function () {
-                if (submitAttempted) {
-                    validateConcernForm();
-                }
-            });
-        }
-
-        if (subjectInput) {
-            subjectInput.addEventListener('input', function () {
-                if (submitAttempted) {
-                    validateConcernForm();
-                }
-            });
-        }
-
-        if (messageInput) {
-            messageInput.addEventListener('input', function () {
-                if (submitAttempted) {
-                    validateConcernForm();
-                }
-            });
-        }
-
-        function textOrDash(value) {
-            const clean = (value || '').trim();
-            return clean ? clean : '-';
-        }
-
-        function openModal(button) {
-            const row = button.closest('tr');
-            const subjectNode = row ? row.querySelector('.full-subject') : null;
-            const messageNode = row ? row.querySelector('.full-message') : null;
-            const notesNode = row ? row.querySelector('.full-admin-notes') : null;
-
-            modalFields.ticket.textContent = 'ID: ' + textOrDash(button.dataset.ticket);
-            modalFields.category.textContent = textOrDash(button.dataset.category);
-            modalFields.status.textContent = textOrDash(button.dataset.status);
-            modalFields.status.className = 'client-modal-status status-' + (button.dataset.statusRaw || 'new');
-            modalFields.created.textContent = textOrDash(button.dataset.created);
-            modalFields.updated.textContent = textOrDash(button.dataset.updated);
-            modalFields.subject.textContent = textOrDash(subjectNode ? subjectNode.textContent : '');
-            modalFields.message.textContent = textOrDash(messageNode ? messageNode.textContent : '');
-            const statusRaw = button.dataset.statusRaw || 'new';
-            const adminNotesRaw = notesNode ? notesNode.textContent.trim() : '';
-            const shouldShowAdminNotes = (statusRaw === 'in_progress' || statusRaw === 'resolved') && !!adminNotesRaw;
-
-            modalFields.adminNotes.textContent = textOrDash(adminNotesRaw);
-            if (modalFields.adminNotes.textContent === '-') {
-                modalFields.adminNotes.classList.add('is-empty');
-            } else {
-                modalFields.adminNotes.classList.remove('is-empty');
-            }
-            if (adminNotesBlock) {
-                adminNotesBlock.style.display = shouldShowAdminNotes ? 'block' : 'none';
-            }
-
-            // Handle images
-            const imagesCsv = button.dataset.images || '';
-            if (imagesCsv) {
-                const urls = imagesCsv.split(',').filter(u => u.trim());
-                modalFields.images.innerHTML = '';
-                urls.forEach(url => {
-                    const img = document.createElement('img');
-                    img.src = url.trim();
-                    img.className = 'concern-modal-img';
-                    img.onclick = () => openImageLightbox(url.trim());
-                    modalFields.images.appendChild(img);
-                });
-                imagesBlock.style.display = 'block';
-            } else {
-                imagesBlock.style.display = 'none';
-            }
-
-            closeImageLightbox();
-            modal.classList.add('show');
-            modal.setAttribute('aria-hidden', 'false');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeModal() {
-            closeImageLightbox();
-            modal.classList.remove('show');
-            modal.setAttribute('aria-hidden', 'true');
-            document.body.style.overflow = '';
-        }
-
-        function openImageLightbox(url) {
-            if (!url || !imageLightbox || !lightboxImg) return;
-            lightboxImg.src = url;
-            imageLightbox.classList.add('show');
-            imageLightbox.setAttribute('aria-hidden', 'false');
-        }
-
-        function closeImageLightbox() {
-            if (!imageLightbox) return;
-            imageLightbox.classList.remove('show');
-            imageLightbox.setAttribute('aria-hidden', 'true');
-            if (lightboxImg) lightboxImg.src = '';
-        }
-
-        viewButtons.forEach((button) => {
-            button.addEventListener('click', () => openModal(button));
-        });
-
-        if (closeBtn) closeBtn.addEventListener('click', closeModal);
-        if (modal) {
-            modal.addEventListener('click', function (event) {
-                if (event.target === modal) closeModal();
-            });
-        }
-
-        if (lightboxCloseBtn) lightboxCloseBtn.addEventListener('click', closeImageLightbox);
-        if (imageLightbox) {
-            imageLightbox.addEventListener('click', function (event) {
-                if (event.target === imageLightbox) closeImageLightbox();
-            });
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && imageLightbox && imageLightbox.classList.contains('show')) {
-                closeImageLightbox();
-                return;
-            }
-            if (event.key === 'Escape' && modal && modal.classList.contains('show')) {
-                closeModal();
-            }
-        });
-
-        const formErrorsEl = document.getElementById('concern-form-errors');
-        if (typeof Swal !== 'undefined' && formErrorsEl) {
-            let formErrors = [];
-            try {
-                formErrors = JSON.parse(formErrorsEl.textContent || '[]');
-            } catch (e) {
-                formErrors = [];
-            }
-
-            if (Array.isArray(formErrors) && formErrors.length) {
-                const Toast = AppToast.mixin({ timer: 3800 });
-
-                formErrors.forEach((msg, index) => {
-                    setTimeout(() => {
-                        Toast.fire({
-                            icon: 'error',
-                            title: msg
-                        });
-                    }, index * 250);
-                });
-            }
-        }
-    });
-</script>
+{{ ticket_data|json_script:"concern-ticket-data" }}
+<script src="{% static 'js/report_concern.js' %}?v=20261025-concern6"></script>
 {% endblock %}
-

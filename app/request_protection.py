@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
@@ -117,6 +118,10 @@ def deduplicate_submission(view):
                 if view.__name__ == 'create_booking' and ajax != stored_json:
                     response = (JsonResponse({'success': True, 'message': 'Your booking has already been submitted.'})
                                 if ajax else redirect('booking_page'))
+                elif view.__name__ == 'report_concern' and ajax != stored_json:
+                    response = (JsonResponse({'success': True, 'message': 'Your concern has already been submitted.',
+                                              'redirect_url': reverse('report_concern')})
+                                if ajax else redirect('report_concern'))
                 else:
                     location = receipt.headers.get('Location')
                     response = (HttpResponseRedirect(location, status=receipt.status_code)

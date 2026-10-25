@@ -19,6 +19,7 @@
 #packages .package-logistics-details summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 2px; }
 #packages .package-logistics-details > div { padding-top: 9px; }
 #packages .package-logistics-details p + p { margin-top: 6px; }
+#packages .additional-requirement { margin: 8px 0 0; font-size: .78rem; line-height: 1.6; color: var(--pkg-text-muted); }
 @media(max-width:600px) { #packages .package-logistics { padding: 16px; } #packages .package-logistics-heading { flex-direction: column; } }
 </style>
 
@@ -86,7 +87,7 @@
                         <p class="package-notes"><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>{{ package.notes }}</p>
                         {% endif %}
 
-                        <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
+                        <a href="{% url 'booking_page' %}?from=packages&amp;package_id={{ package.id }}" class="package-cta">Book Now</a>
 
                     </div>
                     {% empty %}
@@ -132,7 +133,7 @@
                                 {% endfor %}
                             </ul>
 
-                            <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
+                            <a href="{% url 'booking_page' %}?from=packages&amp;addon_id={{ addon.id }}&amp;arch_mode=package" class="package-cta">Book Now</a>
 
                         </div>
                         {% empty %}
@@ -167,6 +168,7 @@
                                 <p class="addon-price">
                                     <strong>₱{{ additional.price|floatformat:"-2"|intcomma }}</strong>
                                 </p>
+                                <p class="additional-requirement">Requires a package or solo entrance arch.</p>
                             </div>
 
 
@@ -182,7 +184,7 @@
                             <p class="additional-notes"><svg class="note-icon" aria-hidden="true"><use href="#ic-info"/></svg>{{ additional.notes }}</p>
                             {% endif %}
 
-                            <a href="{% url 'create_booking' %}" class="package-cta">Book Now</a>
+                            <a href="{% url 'booking_page' %}?from=packages&amp;additional_id={{ additional.id }}" class="package-cta">Add to Booking</a>
 
                         </div>
 
@@ -327,6 +329,12 @@
                     const amount = card.querySelector('.price-amount');
                     const note = card.querySelector('.addon-price-note');
                     if (!amount) return;
+                    const book = card.querySelector('.package-cta');
+                    if (book) {
+                        const destination = new URL(book.href, window.location.origin);
+                        destination.searchParams.set('arch_mode', mode === 'solo' && amount.dataset.soloPrice ? 'solo' : 'package');
+                        book.href = destination.pathname + destination.search;
+                    }
 
                     if (mode === 'solo' && amount.dataset.soloPrice) {
                         amount.textContent = amount.dataset.soloPrice;

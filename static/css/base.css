@@ -3811,12 +3811,62 @@ nav.scrolled {
     }
 }
 
-/* Masonry Gallery Grid (Main Gallery) */
+/* Natural image heights, packed across the page in document order. */
 .gallery-grid {
-    columns: 4;
-    column-gap: 12px;
+    --gallery-gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--gallery-gap);
     max-width: 1400px;
     margin: 0 auto;
+}
+
+.gallery-grid .gallery-item {
+    min-width: 0;
+    margin: 0;
+    opacity: 1;
+    transform: none;
+    transition: none;
+}
+
+.gallery-grid.masonry-ready {
+    grid-auto-rows: 1px;
+    row-gap: 0;
+    align-items: start;
+}
+
+.gallery-grid.gallery-animated .gallery-item {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transition-delay: var(--reveal-delay, 0ms);
+}
+
+.gallery-grid.gallery-animated .gallery-item.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.gallery-grid.gallery-resetting .gallery-item {
+    transition: none;
+}
+
+.gallery-grid .gallery-item[hidden] {
+    display: none;
+}
+
+.gallery-grid .gallery-item img {
+    height: auto;
+    /* Reserve space before downloading, then use the photo's natural ratio. */
+    aspect-ratio: auto 3 / 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gallery-grid.gallery-animated .gallery-item {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
 }
 
 .gallery-item {
@@ -3920,7 +3970,7 @@ nav.scrolled {
 }
 
 .gallery-empty {
-    column-span: all;
+    grid-column: 1 / -1;
     text-align: center;
     padding: 4rem 2rem;
     color: #666;
@@ -4018,8 +4068,8 @@ nav.scrolled {
 /* Gallery Responsive */
 @media (max-width: 1024px) {
     .gallery-grid {
-        columns: 3;
-        column-gap: 10px;
+        --gallery-gap: 10px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .gallery-item {
@@ -4033,8 +4083,8 @@ nav.scrolled {
     }
 
     .gallery-grid {
-        columns: 2;
-        column-gap: 8px;
+        --gallery-gap: 8px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .gallery-item {
@@ -4055,8 +4105,7 @@ nav.scrolled {
 
 @media (max-width: 480px) {
     .gallery-grid {
-        columns: 2;
-        column-gap: 6px;
+        --gallery-gap: 6px;
     }
 
     .gallery-item {

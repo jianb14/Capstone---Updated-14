@@ -87,7 +87,7 @@ class BookingPreviewPageTests(TempMediaMixin, TestCase):
             'id="btnNextToDetails"',
             'id="btnBackToPackages"',
             "function renderPackagePreview()",
-            "preview-group-grid",
+            "window.BookingFormUI.renderPreview",
         ):
             self.assertContains(response, marker)
 
@@ -191,8 +191,9 @@ class BookingPreviewAdminTests(TempMediaMixin, TestCase):
             self.assertNotContains(response, 'name="image"')
             self.assertNotContains(response, 'type="checkbox" name="remove_preview"')
             self.assertContains(response, 'name="remove_preview_ids"')
-            self.assertContains(response, "Booking Preview Images")
-            self.assertContains(response, "(max 2)")
+            self.assertContains(response, "Preview images")
+            self.assertContains(response, 'name="preview_images"')
+            self.assertContains(response, "Up to 2 preview images in total")
 
     def test_detail_page_shows_preview_images_grid(self):
         self.package.preview_images.create(image=_preview_upload("d1.png"))

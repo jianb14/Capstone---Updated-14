@@ -2,7 +2,8 @@
 {% load static humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/my_profile.css' %}?v=20261012a">
+<link rel="stylesheet" href="{% static 'css/my_profile.css' %}?v=20261025b">
+<link rel="stylesheet" href="{% static 'css/password_requirements.css' %}?v=20261025b">
 
 <div class="my-profile-page">
     <div class="my-profile-wrapper">
@@ -167,6 +168,9 @@
             <button class="modal-close" onclick="closePasswordModal()">&times;</button>
         </div>
 
+        {% if request.session.email_otp_change %}
+        <p style="font-size: .8rem; margin-bottom: 1rem;">Already requested a code? <a href="{% url 'verify_change_password_otp' %}">Continue password verification</a></p>
+        {% endif %}
         <form id="changePasswordForm" action="{% url 'change_password' %}" method="POST" novalidate>
             {% csrf_token %}
             <div class="form-group">
@@ -186,15 +190,7 @@
                     <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
                         class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password1', this)">
                 </div>
-                <div class="password-requirements" id="changePasswordRequirements" aria-live="polite">
-                    <p class="password-requirements-title">Password must have:</p>
-                    <ul class="password-requirements-list">
-                        <li id="change-rule-length" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 8 characters</span></li>
-                        <li id="change-rule-uppercase" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 1 uppercase letter</span></li>
-                        <li id="change-rule-number" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 1 number</span></li>
-                        <li id="change-rule-special" class="password-rule"><span class="password-rule-icon" aria-hidden="true"></span><span>At least 1 special character</span></li>
-                    </ul>
-                </div>
+                {% include 'components/password_requirements.html' with requirements_id='changePasswordRequirements' rule_prefix='change-rule-' %}
                 <small class="field-error"></small>
             </div>
             
@@ -208,7 +204,8 @@
                 <small class="field-error"></small>
             </div>
             
-            <button type="submit" id="btnSavePassword">Update Password</button>
+            <p class="otp-profile-help" style="font-size: .8rem; line-height: 1.5; opacity: .8;">We will email a verification code before updating your password.</p>
+            <button type="submit" id="btnSavePassword">Send Verification Code</button>
         </form>
     </div>
 </div>
@@ -321,6 +318,9 @@
             Object.entries(changePasswordRules).forEach(([key, element]) => {
                 if (!element) return;
                 element.classList.toggle('is-valid', ruleState[key]);
+                const status = element.querySelector('.password-rule-status');
+                const description = ruleState[key] ? 'Met: ' : 'Not met: ';
+                if (status && status.textContent !== description) status.textContent = description;
             });
 
             return ruleState;
@@ -395,7 +395,7 @@
 
             // Loading state
             btn.disabled = true;
-            btn.textContent = 'Updating...';
+            btn.textContent = 'Sending code...';
 
             const formData = new FormData(form);
 
@@ -409,19 +409,14 @@
                 .then(response => response.json())
                 .then(data => {
                     btn.disabled = false;
-                    btn.textContent = 'Update Password';
+                    btn.textContent = 'Send Verification Code';
 
                     if (data.success) {
-                        Toast.fire({
-                            icon: 'success',
-                            title: data.message
-                        });
                         form.reset();
-                        // Close modal after delay
-                        setTimeout(closePasswordModal, 1500);
+                        window.location.assign(data.redirect_url);
                     } else {
                         // Gather the first error to display
-                        let errorMsg = 'Update failed. Please check your inputs.';
+                        let errorMsg = data.message || data.error || 'Update failed. Please check your inputs.';
                         if (data.errors) {
                             for (const [field, errors] of Object.entries(data.errors)) {
                                 errorMsg = errors[0]; // Show first error found
@@ -437,7 +432,7 @@
                 .catch(error => {
                     console.error('Error:', error);
                     btn.disabled = false;
-                    btn.textContent = 'Update Password';
+                    btn.textContent = 'Send Verification Code';
                     Toast.fire({
                         icon: 'error',
                         title: 'An error occurred. Please try again.'

@@ -63,7 +63,7 @@ class EmailVerificationFlowTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["newcustomer@gmail.com"])
         self.assertRegex(mail.outbox[0].body, r"(?m)^[0-9]{6}$")
 
-    def test_register_with_existing_unverified_email_points_to_resend(self):
+    def test_public_duplicate_signup_does_not_disclose_verification_status(self):
         self.unverified.email = self.unverified.email.upper()
         self.unverified.save(update_fields=['email'])
         response = self.client.post(
@@ -78,20 +78,25 @@ class EmailVerificationFlowTests(TestCase):
                 "confirm_password": "Passw0rd!",
             },
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "not yet verified")
+        self.assertRedirects(response, reverse('verify_account_otp'), fetch_redirect_response=False)
+        page = self.client.get(response.url)
+        self.assertNotContains(page, 'not yet verified')
+        self.assertContains(page, 'If your account still needs verification')
 
     # Login gate ─────────────────────────────────────────────────────────
 
-    def test_login_blocks_unverified_user_and_shows_resend_banner(self):
+    def test_login_shows_private_banner_and_continue_requests_code_without_retyping_email(self):
         response = self.client.post(
             reverse("login"),
             {"email": self.unverified.email, "password": "pass12345"},
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Resend verification code")
-        self.assertContains(response, "verify-banner")
-        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(response, 'Continue Verification')
+        self.assertContains(response, 'u***@gmail.com')
+        self.assertContains(response, 'value="unverified@gmail.com"')
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertRedirects(self.client.post(reverse('continue_verification')), reverse('verify_account_otp'), fetch_redirect_response=False)
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_login_allows_verified_user(self):
         response = self.client.post(
@@ -137,9 +142,9 @@ class EmailVerificationFlowTests(TestCase):
         self.assertFalse(self.unverified.email_verified)
 
         page = self.client.get(reverse("login"))
-        self.assertContains(page, "Resend verification code")
-        self.assertContains(page, "invalid or expired")
-        self.assertContains(page, self.unverified.email)
+        self.assertContains(page, 'invalid or expired')
+        self.assertNotContains(page, self.unverified.email)
+        self.assertNotContains(page, 'Continue Verification')
 
     def test_reset_token_is_not_accepted_for_verification(self):
         token = default_token_generator.make_token(self.unverified)

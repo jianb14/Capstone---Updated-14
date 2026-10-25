@@ -362,3 +362,53 @@ class EmailOTPConcurrencyTests(TransactionTestCase):
         self.assertEqual(self.parallel(operation), [True, True])
         bucket = RequestRateBucket.objects.get(pk=bucket_key('email-otp:wrong:reset', self.user.email))
         self.assertEqual(bucket.count, 5)
+
+    @skipUnlessDBFeature('has_select_for_update')
+    def test_concurrent_password_change_verification_applies_once(self):
+        from django.contrib.auth.hashers import make_password
+        context = email_otp.new_context(self.user.email)
+        with patch('app.email_otp.secrets.randbelow', return_value=483021):
+            email_otp.send_code(self.user, EmailOTPChallenge.CHANGE, context,
+                pending_password_hash=make_password('ChangedPassword!123'))
+        def operation(index):
+            request = RequestFactory().post('/verify-password-change/', REMOTE_ADDR=f'198.51.100.{index + 1}')
+            request.user = self.user
+            return email_otp.verify_code(request, EmailOTPChallenge.CHANGE, context, '483021')[0]
+        self.assertEqual(self.parallel(operation).count(True), 1)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('ChangedPassword!123'))
+
+    @skipUnlessDBFeature('has_select_for_update')
+    def test_concurrent_signup_email_replacement_cannot_claim_same_email_twice(self):
+        from django.core.exceptions import ValidationError
+        other = User.objects.create_user(username='parallel-other', email='other@gmail.com',
+            password='Passw0rd!', role='customer')
+        contexts = [email_otp.new_context('new@gmail.com'), email_otp.new_context('new@gmail.com')]
+        with patch('app.email_otp.secrets.randbelow', return_value=483021):
+            for user, context in zip((self.user, other), contexts):
+                email_otp.send_code(user, EmailOTPChallenge.SIGNUP, context, replacement_email='new@gmail.com')
+        def operation(index):
+            request = RequestFactory().post('/verify-account/', REMOTE_ADDR=f'198.51.100.{index + 1}')
+            try:
+                return email_otp.verify_code(request, EmailOTPChallenge.SIGNUP, contexts[index], '483021')[0]
+            except ValidationError:
+                return False
+        self.assertEqual(self.parallel(operation).count(True), 1)
+        self.assertEqual(User.objects.filter(email='new@gmail.com', email_verified=True).count(), 1)
+
+    @skipUnlessDBFeature('has_select_for_update')
+    def test_recovery_and_authenticated_change_compete_for_single_password_update(self):
+        from django.contrib.auth.hashers import make_password
+        request = RequestFactory().post('/forgot-password/verify/')
+        email_otp.verify_code(request, EmailOTPChallenge.RESET, self.context, '731280')
+        context = email_otp.new_context(self.user.email)
+        with patch('app.email_otp.secrets.randbelow', return_value=483021):
+            email_otp.send_code(self.user, EmailOTPChallenge.CHANGE, context,
+                pending_password_hash=make_password('ChangedPassword!123'))
+        def operation(index):
+            if index == 0:
+                return bool(email_otp.reset_password(self.context, 'RecoveredPassword!123'))
+            request = RequestFactory().post('/verify-password-change/')
+            request.user = self.user
+            return email_otp.verify_code(request, EmailOTPChallenge.CHANGE, context, '483021')[0]
+        self.assertEqual(self.parallel(operation).count(True), 1)

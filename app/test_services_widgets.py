@@ -144,9 +144,11 @@ class ServicesPageWidgetsTests(TestCase):
         )
         response = self.client.get("/services/")
         body = response.content.decode("utf-8")
-        # Single-select add-on (radio) instead of multiple checkboxes.
+        # Optional single-choice groups use checkboxes so they can be cleared.
         self.assertIn('name="estimatorAddon"', body)
-        self.assertIn('type="radio"', body)
+        self.assertIn('type="checkbox" name="estimatorAddon"', body)
+        self.assertIn('type="checkbox" name="estimatorAdditional"', body)
+        self.assertIn('Entrance Arch', body)
         # Welcome Stand section is now part of the estimator.
         self.assertIn('id="estimatorAdditionals"', body)
         self.assertIn('name="estimatorAdditional"', body)
@@ -187,7 +189,7 @@ class ServicesPageWidgetsTests(TestCase):
         js_path = Path(__file__).resolve().parent.parent / "static" / "js" / "services_widgets.js"
         js = js_path.read_text(encoding="utf-8")
         self.assertNotIn("fa-solid fa-wand-magic-sparkles", js)
-        self.assertIn("fa-regular fa-lightbulb", js)
+        self.assertIn("'fa-lightbulb'", js)
 
     def test_tool_cards_match_package_card_background(self):
         # Cards should use the same bg as the Packages page cards.
@@ -337,7 +339,7 @@ class DateAvailabilityApiTests(TestCase):
         self.assertTrue(data["available"])
         self.assertEqual(len(data["suggestions"]), 3)
 
-    def test_booked_date_reports_taken_with_suggestions(self):
+    def test_partially_booked_date_reports_available_with_suggestions(self):
         from django.utils import timezone
 
         from .models import Booking
@@ -349,6 +351,7 @@ class DateAvailabilityApiTests(TestCase):
             user=customer,
             event_date=timezone.localdate() + timezone.timedelta(days=10),
             event_time=timezone.datetime(2020, 1, 1, 10, 0).time(),
+            event_end_time=timezone.datetime(2020, 1, 1, 18, 0).time(),
             package_type="Package A",
             payment_status="pending",
             total_price=100,
@@ -357,7 +360,8 @@ class DateAvailabilityApiTests(TestCase):
         target = (timezone.localdate() + timezone.timedelta(days=10)).isoformat()
         response = self.client.get(self.url + "?date=" + target)
         data = response.json()
-        self.assertFalse(data["available"])
+        # A partially occupied day remains bookable, matching Step 3.
+        self.assertTrue(data["available"])
         self.assertEqual(len(data["suggestions"]), 3)
         self.assertNotIn(target, data["suggestions"])
 

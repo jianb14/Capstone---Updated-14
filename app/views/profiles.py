@@ -4,11 +4,40 @@ from .common import *  # noqa: F401,F403
 from .admin import build_dashboard_context  # noqa: F401
 from .common import _cleanup_legacy_booking_request_states  # noqa: F401
 from django.db.models import Avg
+from django.utils.formats import date_format
+from django.views.decorators.http import require_http_methods
+from PIL import Image
 from ..booking_lifecycle import lifecycle_display
 from ..booking_changes import eligibility
+from ..request_protection import deduplicate_submission
+
+
+def _concern_data(ticket):
+    return {
+        'id': ticket.pk, 'number': f'#CON-{ticket.pk}', 'subject': ticket.subject,
+        'message': ticket.message, 'category': ticket.get_category_display(),
+        'status': ticket.status, 'status_label': ticket.get_status_display(),
+        'created': date_format(timezone.localtime(ticket.created_at), 'M d, Y g:i A'),
+        'updated': date_format(timezone.localtime(ticket.updated_at), 'M d, Y g:i A'),
+        'admin_notes': ticket.admin_notes or '', 'can_cancel': ticket.can_cancel,
+        'cancel_url': reverse('cancel_concern', args=[ticket.pk]),
+        'images': [image.image.url for image in ticket.images.all()],
+    }
+
+
+def _concern_submitted(request, ticket):
+    request._submission_succeeded = True
+    text = 'Concern submitted. Our team will review it soon.'
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'message': text, 'ticket_id': ticket.pk,
+                             'redirect_url': reverse('report_concern')})
+    messages.success(request, text)
+    return redirect('report_concern')
 
 
 @login_required
+@require_http_methods(['GET', 'POST'])
+@deduplicate_submission
 def report_concern(request):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
@@ -20,6 +49,7 @@ def report_concern(request):
         "other_category": "",
         "subject": "",
         "message": "",
+        "submission_key": str(uuid.uuid4()),
     }
 
     if request.method == "POST":
@@ -27,17 +57,29 @@ def report_concern(request):
         subject = (request.POST.get("subject") or "").strip()
         message_text = (request.POST.get("message") or "").strip()
         other_category = (request.POST.get("other_category") or "").strip()
+        raw_key = (request.POST.get('submission_key') or '').strip()
+        submission_key = None
+        if raw_key:
+            try:
+                submission_key = uuid.UUID(raw_key)
+            except ValueError:
+                form_error_message = 'Please try submitting the form again.'
 
         form_data = {
             "category": category,
             "other_category": other_category,
             "subject": subject,
             "message": message_text,
+            "submission_key": str(submission_key or uuid.uuid4()),
         }
 
         valid_categories = {choice[0] for choice in ConcernTicket.CATEGORY_CHOICES}
 
-        if category not in valid_categories:
+        images = request.FILES.getlist('concern_images')
+        stored_subject = f'{subject} (Other: {other_category})' if category == 'other' else subject
+        if form_error_message:
+            pass
+        elif category not in valid_categories:
             form_error_message = "Please select a valid category."
         elif category == "other" and not other_category:
             form_error_message = "Please specify your concern type."
@@ -45,46 +87,56 @@ def report_concern(request):
             form_error_message = "Please enter a subject."
         elif not message_text:
             form_error_message = "Please enter your message."
+        elif len(stored_subject) > 150 or len(other_category) > 80:
+            form_error_message = 'Please shorten the subject or concern type (150 characters combined).'
+        elif len(images) > 4:
+            form_error_message = 'You can attach up to 4 images.'
+        elif any(image.size > 5 * 1024 * 1024 for image in images):
+            form_error_message = 'Each image must be 5MB or smaller.'
         else:
-            if category == "other" and other_category:
-                subject = f"{subject} (Other: {other_category})"
-            ticket = ConcernTicket.objects.create(
-                user=request.user,
-                category=category,
-                subject=subject,
-                message=message_text,
-            )
+            for image in images:
+                try:
+                    with Image.open(image) as decoded:
+                        if decoded.format not in {'JPEG', 'PNG', 'WEBP'}:
+                            raise ValueError('Unsupported image format')
+                        decoded.verify()
+                    image.seek(0)
+                    width, height = get_image_dimensions(image)
+                    if not width or not height:
+                        raise ValueError('Invalid image')
+                except (ValueError, OSError, TypeError):
+                    form_error_message = 'Please attach valid image files.'
+                    break
+                finally:
+                    image.seek(0)
 
-            # Handle multiple images
-            images = request.FILES.getlist("concern_images")
-            for img in images[:4]:  # Limit to 4 images
-                ConcernImage.objects.create(concern=ticket, image=img)
-
-            log_action(request.user, f"Submitted concern ticket #{ticket.id}.")
-
-            # Admin alert email (fail-safe)
-            send_admin_alert_email(
-                f"New Concern Ticket #{ticket.id}",
-                (
-                    f"A customer reported a concern.\n\n"
-                    f"Ticket ID: #{ticket.id}\n"
-                    f"Customer: {request.user.get_full_name() or request.user.username} ({request.user.email})\n"
-                    f"Category: {ticket.get_category_display()}\n"
-                    f"Subject: {ticket.subject}\n\n"
-                    f"Message:\n{ticket.message}\n\n"
-                    f"Review it here: {request.build_absolute_uri('/staff/concerns/')}"
-                ),
-            )
-
-            messages.success(
-                request, "Concern submitted. Our team will review it soon."
-            )
-            return redirect("report_concern")
+        if not form_error_message:
+            with transaction.atomic():
+                # This also serializes retries whose fields changed after a lost response.
+                User.objects.select_for_update().get(pk=request.user.pk)
+                ticket = (ConcernTicket.objects.filter(user=request.user, submission_key=submission_key).first()
+                          if submission_key else None)
+                if ticket is None:
+                    ticket = ConcernTicket.objects.create(user=request.user, category=category,
+                        subject=stored_subject, message=message_text, submission_key=submission_key)
+                    for image in images:
+                        ConcernImage.objects.create(concern=ticket, image=image)
+                    log_action(request.user, f'Submitted concern ticket #{ticket.id}.')
+                    send_admin_alert_email(
+                        f'New Concern Ticket #{ticket.id}',
+                        f'A customer reported a concern.\n\nTicket ID: #{ticket.id}\n'
+                        f'Customer: {request.user.get_full_name() or request.user.username} ({request.user.email})\n'
+                        f'Category: {ticket.get_category_display()}\nSubject: {ticket.subject}\n\n'
+                        f'Message:\n{ticket.message}\n\n'
+                        f"Review it here: {request.build_absolute_uri('/staff/concerns/')}")
+                return _concern_submitted(request, ticket)
 
     if form_error_message:
         form_error_toasts = [form_error_message]
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': form_error_message}, status=400)
 
-    my_tickets = ConcernTicket.objects.filter(user=request.user).order_by(
+    my_tickets = ConcernTicket.objects.filter(user=request.user).prefetch_related('images').order_by(
         "-created_at"
     )[:20]
     return render(
@@ -94,8 +146,35 @@ def report_concern(request):
             "my_tickets": my_tickets,
             "form_data": form_data,
             "form_error_toasts": form_error_toasts,
+            "form_error_message": form_error_message,
+            "ticket_data": [_concern_data(ticket) for ticket in my_tickets],
         },
     )
+
+
+@login_required
+@require_POST
+def cancel_concern(request, id):
+    if request.user.role != 'customer':
+        return HttpResponseForbidden('Not allowed')
+    with transaction.atomic():
+        ticket = get_object_or_404(ConcernTicket.objects.select_for_update(), pk=id, user=request.user)
+        if ticket.status == 'cancelled':
+            success = True
+        elif ticket.can_cancel:
+            ticket.status = 'cancelled'
+            ticket.save(update_fields=['status', 'updated_at'])
+            log_action(request.user, f'Cancelled concern ticket #{ticket.pk}.')
+            success = True
+        else:
+            success = False
+        text = ('Concern cancelled. It will remain in your history.' if success else
+                'This concern is already being handled and can no longer be cancelled.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': success, 'message': text, 'ticket': _concern_data(ticket)},
+                                status=200 if success else 409)
+        (messages.success if success else messages.error)(request, text)
+        return redirect('report_concern')
 
 
 @login_required

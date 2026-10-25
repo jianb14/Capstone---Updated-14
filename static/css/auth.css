@@ -12,6 +12,33 @@ body {
     font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+.body.auth-with-back {
+    position: relative;
+    padding-top: 78px;
+    padding-bottom: 32px;
+}
+
+.auth-home-back {
+    position: absolute;
+    top: 18px;
+    left: clamp(18px, 4vw, 48px);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 44px;
+    padding: 8px 2px;
+    color: #d4d4d4;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    text-underline-offset: 4px;
+}
+
+.auth-home-back:hover { color: #fff; text-decoration: underline; }
+.auth-home-back:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 3px; }
+[data-theme="light"] .auth-home-back { color: #4b5563; }
+[data-theme="light"] .auth-home-back:hover { color: #111827; }
+
 .body {
     font-family: inherit;
     background-color: #000000;
@@ -129,70 +156,6 @@ form {
     font-size: 12px;
 }
 
-.password-requirements {
-    margin-top: 12px;
-}
-
-.password-requirements-title {
-    color: #f3f4f6;
-    font-size: 12px;
-    font-weight: 500;
-    margin-bottom: 8px;
-}
-
-.password-requirements-list {
-    list-style: none;
-    display: grid;
-    gap: 8px;
-}
-
-.password-rule {
-    color: #9ca3af;
-    font-size: 12px;
-    line-height: 1.4;
-    transition: color 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.password-rule-icon {
-    width: 15px;
-    height: 15px;
-    min-width: 15px;
-    border-radius: 999px;
-    border: 1px solid #4b5563;
-    background: transparent;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.password-rule-icon::before {
-    content: "";
-    width: 4px;
-    height: 7px;
-    border-right: 1.5px solid transparent;
-    border-bottom: 1.5px solid transparent;
-    transform: rotate(45deg) translate(-1px, -1px);
-    transition: border-color 0.2s ease;
-}
-
-.password-rule.is-valid {
-    color: #22c55e;
-}
-
-.password-rule.is-valid .password-rule-icon {
-    border-color: #22c55e;
-    background: rgba(34, 197, 94, 0.16);
-}
-
-.password-rule.is-valid .password-rule-icon::before {
-    border-right-color: #22c55e;
-    border-bottom-color: #22c55e;
-}
-
 .field-group.has-error input[type="text"],
 .field-group.has-error input[type="email"],
 .field-group.has-error input[type="password"],
@@ -241,6 +204,10 @@ input:hover {
 }
 
 /* Password Container */
+input[type="password"]::-ms-reveal {
+    display: none;
+}
+
 .password-container {
     position: relative;
 }
@@ -911,18 +878,6 @@ html[data-theme="light"] {
     background: #1f2937;
 }
 
-[data-theme="light"] .password-rule {
-    color: #6b7280;
-}
-
-[data-theme="light"] .password-requirements-title {
-    color: #374151;
-}
-
-[data-theme="light"] .password-rule-icon {
-    border-color: #9ca3af;
-}
-
 /* Puti ang eye icon sa password fields (eye-view/eye-hide.png) —
    gawing itim sa light mode (kapareho ng logo) para makita sa puting input */
 [data-theme="light"] .pass-icon {
@@ -1003,6 +958,19 @@ html[data-theme="light"] {
 
 
 /* Email verification and recovery codes. */
+.pending-verification { padding: 18px; margin-bottom: 24px; border: 1px solid #858585; border-radius: 10px; font-size: 13px; line-height: 1.6; }
+.pending-verification p { margin: 8px 0 14px; }
+.pending-verification button { margin: 0; font-size: 13px; }
+.pending-verification { border-color: #505050; background: #ffffff08; overflow-wrap: anywhere; }
+.pending-eyebrow { display: block; margin-bottom: 8px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.pending-title { display: block; font-size: 15px; line-height: 1.5; }
+.pending-verification .pending-deadline { font-size: 11px; opacity: .8; }
+.pending-verification form { gap: 0; }
+.pending-verification .pending-dismiss { margin-top: 8px; }
+.pending-verification button[type="submit"] { min-height: 44px; padding: 10px 12px; }
+.pending-verification button[type="submit"].pending-secondary { background: transparent !important; color: inherit !important; border: 1px solid transparent; text-decoration: underline; text-underline-offset: 4px; font-weight: 400; }
+.pending-verification button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+[data-theme="light"] .pending-verification { border-color: #d1d5db; background: #f9fafb; }
 .otp-heading { font-size: 1.5rem; text-align: center; margin-bottom: 12px; }
 .otp-code { text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
 .otp-notice { padding: 12px; margin-bottom: 16px; border: 1px solid currentColor; border-radius: 8px; font-size: .875rem; }

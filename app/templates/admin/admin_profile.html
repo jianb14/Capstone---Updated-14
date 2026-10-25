@@ -5,6 +5,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/admin_user.css' %}">
+<link rel="stylesheet" href="{% static 'css/password_requirements.css' %}?v=20261025b">
 
 <style>
     .ap-page {
@@ -324,71 +325,6 @@
         border-color: #ef4444;
     }
 
-    .apm-requirements {
-        margin-top: 10px;
-    }
-
-    .apm-requirements-title {
-        color: #f3f4f6;
-        font-size: 0.74rem;
-        font-weight: 500;
-        margin-bottom: 8px;
-    }
-
-    .apm-req-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 7px;
-    }
-
-    .apm-rule {
-        color: #9ca3af;
-        font-size: 0.8rem;
-        line-height: 1.35;
-        transition: color 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .apm-rule-icon {
-        width: 15px;
-        height: 15px;
-        min-width: 15px;
-        border-radius: 999px;
-        border: 1px solid #4b5563;
-        background: transparent;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-    }
-
-    .apm-rule-icon::before {
-        content: "";
-        width: 4px;
-        height: 7px;
-        border-right: 1.5px solid transparent;
-        border-bottom: 1.5px solid transparent;
-        transform: rotate(45deg) translate(-1px, -1px);
-    }
-
-    .apm-rule.is-valid {
-        color: #22c55e;
-    }
-
-    .apm-rule.is-valid .apm-rule-icon {
-        border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.16);
-    }
-
-    .apm-rule.is-valid .apm-rule-icon::before {
-        border-right-color: #22c55e;
-        border-bottom-color: #22c55e;
-    }
-
     #btnSavePassword {
         width: 100%;
         padding: 0.8rem;
@@ -496,18 +432,6 @@
 
     [data-theme="light"] .apm-toggle {
         filter: brightness(0);
-    }
-
-    [data-theme="light"] .apm-requirements-title {
-        color: #111827;
-    }
-
-    [data-theme="light"] .apm-rule {
-        color: #4b5563;
-    }
-
-    [data-theme="light"] .apm-rule-icon {
-        border-color: #9ca3af;
     }
 
     [data-theme="light"] #btnSavePassword {
@@ -691,6 +615,9 @@
             <button type="button" class="apm-close" onclick="closePasswordModal()">&times;</button>
         </div>
 
+        {% if request.session.email_otp_change %}
+        <p style="font-size: .8rem; margin-bottom: 1rem;">Already requested a code? <a href="{% url 'verify_change_password_otp' %}">Continue password verification</a></p>
+        {% endif %}
         <form id="adminChangePasswordForm" action="{% url 'change_password' %}" method="POST" novalidate>
             {% csrf_token %}
 
@@ -713,15 +640,7 @@
                     <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility" class="apm-toggle"
                         onclick="togglePasswordVisibility('id_new_password1', this)">
                 </div>
-                <div class="apm-requirements" id="apRequirements" aria-live="polite">
-                    <p class="apm-requirements-title">Password must have:</p>
-                    <ul class="apm-req-list">
-                        <li id="ap-rule-length" class="apm-rule"><span class="apm-rule-icon" aria-hidden="true"></span><span>At least 8 characters</span></li>
-                        <li id="ap-rule-uppercase" class="apm-rule"><span class="apm-rule-icon" aria-hidden="true"></span><span>At least 1 uppercase letter</span></li>
-                        <li id="ap-rule-number" class="apm-rule"><span class="apm-rule-icon" aria-hidden="true"></span><span>At least 1 number</span></li>
-                        <li id="ap-rule-special" class="apm-rule"><span class="apm-rule-icon" aria-hidden="true"></span><span>At least 1 special character</span></li>
-                    </ul>
-                </div>
+                {% include 'components/password_requirements.html' with requirements_id='apRequirements' rule_prefix='ap-rule-' %}
                 <small class="apm-error" data-field="new_password1"></small>
             </div>
 
@@ -736,7 +655,8 @@
                 <small class="apm-error" data-field="new_password2"></small>
             </div>
 
-            <button type="submit" id="btnSavePassword">Update Password</button>
+            <p class="otp-profile-help" style="font-size: .8rem; line-height: 1.5; opacity: .8;">We will email a verification code before updating your password.</p>
+            <button type="submit" id="btnSavePassword">Send Verification Code</button>
         </form>
     </div>
 </div>
@@ -852,7 +772,11 @@
             if (!newPasswordInput) return getPasswordRuleState('');
             const state = getPasswordRuleState(newPasswordInput.value);
             Object.entries(rules).forEach(([key, el]) => {
-                if (el) el.classList.toggle('is-valid', state[key]);
+                if (!el) return;
+                el.classList.toggle('is-valid', state[key]);
+                const status = el.querySelector('.password-rule-status');
+                const description = state[key] ? 'Met: ' : 'Not met: ';
+                if (status && status.textContent !== description) status.textContent = description;
             });
             return state;
         };
@@ -902,7 +826,7 @@
 
             const btn = document.getElementById('btnSavePassword');
             btn.disabled = true;
-            btn.textContent = 'Updating...';
+            btn.textContent = 'Sending code...';
 
             fetch(form.action, {
                 method: 'POST',
@@ -912,16 +836,16 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        closePasswordModal();
-                        apToastFire({ icon: 'success', title: data.message || 'Password updated successfully!' });
+                        form.reset();
+                        window.location.assign(data.redirect_url);
                     } else {
                         const errors = data.errors || {};
                         Object.keys(errors).forEach((field) => {
                             const input = form.querySelector(`input[name="${field}"]`);
                             if (input) setFieldError(input, errors[field].join(' '));
                         });
-                        if (!Object.keys(errors).length) {
-                            apToastFire({ icon: 'error', title: 'Something went wrong. Please try again.' });
+                        if (errors.__all__ || !Object.keys(errors).length) {
+                            apToastFire({ icon: 'error', title: errors.__all__ ? errors.__all__[0] : (data.message || data.error || 'Something went wrong. Please try again.') });
                         }
                     }
                 })
@@ -930,7 +854,7 @@
                 })
                 .finally(() => {
                     btn.disabled = false;
-                    btn.textContent = 'Update Password';
+                    btn.textContent = 'Send Verification Code';
                 });
         });
     });

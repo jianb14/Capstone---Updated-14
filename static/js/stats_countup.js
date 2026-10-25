@@ -95,7 +95,9 @@
     }
 
     var stats = [];
-    statHeads.forEach(function (el) {
+    statHeads.forEach(function (head) {
+        // Keep units and empty-state text intact while only the value counts up.
+        var el = head.querySelector('[data-stat-value]') || head;
         var parsed = parseStat(el.textContent);
         if (parsed) {
             parsed.el = el;

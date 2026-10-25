@@ -2,6 +2,8 @@
 
 from .common import *  # noqa: F401,F403
 from .admin import _seed_about_defaults, _seed_service_defaults  # noqa: F401
+from ..home_statistics import get_customers_served, get_home_statistics
+from ..design_previews import preview_bytes, preview_version
 
 
 class HomePageView(TemplateView):
@@ -10,6 +12,8 @@ class HomePageView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["home_content"] = HomeContent.objects.first()
+        context['home_stats'] = get_home_statistics()
+        context['support_hours'] = context['home_content'].support_hours if context['home_content'] else 11
         context["home_features"] = HomeFeatureItem.objects.filter(is_active=True)
         context["home_hiw_steps"] = HomeHowItWorksStep.objects.filter(is_active=True)
         context["home_faqs"] = HomeFaqItem.objects.filter(is_active=True)
@@ -41,6 +45,7 @@ class AboutPageView(TemplateView):
         # defaults the client template falls back to (fresh DB safety).
         _seed_about_defaults(about_content)
         context["about_content"] = about_content
+        context['customers_served'] = get_customers_served()
 
         # Split hero title into main + accent lines using "|" as separator
         # e.g. "Turning Moments Into | Elegant Celebrations."
@@ -138,7 +143,12 @@ class ServicesPageView(TemplateView):
             "addons": estimator_addons,
             "additionals": estimator_additionals,
             "serviceCharge": str(service_charge_config.amount or 0),
+            "bookingUrl": reverse('booking_page'),
+            "loginUrl": reverse('login'),
+            "quizUrl": reverse('theme_quiz_api'),
+            "availabilityUrl": reverse('check_date_availability'),
         }
+        context['availability_data'] = get_booking_form_availability()
         return context
 
 
@@ -160,7 +170,9 @@ def theme_quiz_api(request):
 
     try:
         data = json.loads(request.body or "{}")
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"success": False, "error": "Invalid request body."}, status=400)
+    if not isinstance(data, dict):
         return JsonResponse({"success": False, "error": "Invalid request body."}, status=400)
 
     event_type = str(data.get("event_type") or "").strip()
@@ -172,6 +184,8 @@ def theme_quiz_api(request):
             {"success": False, "error": "Event type and vibe are required."},
             status=400,
         )
+    if len(event_type) > 100 or len(vibe) > 100 or len(colors) > 60:
+        return JsonResponse({"success": False, "error": "Please shorten your event type, vibe, or colors."}, status=400)
 
     # Light throttle so the HuggingFace API is not spammed.
     throttle_key = f"services_quiz_{request.user.id}"
@@ -215,7 +229,7 @@ def theme_quiz_api(request):
             status=502,
         )
 
-    if payload.get("is_banned") or payload.get("is_warning"):
+    if isinstance(payload, dict) and (payload.get("is_banned") or payload.get("is_warning")):
         return JsonResponse({"success": False, "error": text}, status=403)
 
     return JsonResponse({"success": True, "response": text})
@@ -225,9 +239,8 @@ def theme_quiz_api(request):
 def check_date_availability(request):
     """
     JSON API for the Services page "Is my date available?" quick-check.
-    A date is considered taken when any active customer booking
-    (pending_payment / confirmed / completed) exists on that day,
-    matching the client booking calendar filter.
+    A date is fully booked when active ranges cover 7 AM to 6 PM,
+    matching the Step 3 date picker (including overnight ranges and holds).
     Lead-time blocked dates (SiteSettings.booking_lead_time_days) are also
     reported as unavailable para consistent sa booking page.
     """
@@ -250,20 +263,18 @@ def check_date_availability(request):
     lead_days, min_bookable_date = get_booking_lead_time_policy()
     is_lead_blocked = lead_days > 0 and selected_date < min_bookable_date
 
-    blocked_statuses = ["pending_payment", "confirmed", "completed"]
-    blocked_dates = set(
-        Booking.objects.filter(
-            event_date__gte=today,
-            status__in=blocked_statuses,
-        ).values_list("event_date", flat=True)
-    )
-    # Admin-blocked dates are also unavailable
-    blocked_dates.update(
-        BlockedDate.objects.filter(date__gte=today).values_list("date", flat=True)
-    )
-    blocked_by_admin = BlockedDate.objects.filter(
-        date=selected_date
-    ).exists()
+    availability = get_booking_form_availability()
+    blocked_dates = {datetime.strptime(row['date'], '%Y-%m-%d').date()
+                     for row in availability['blockedDates']}
+    blocked_by_admin = selected_date in blocked_dates
+    for day, ranges in availability['bookedRanges'].items():
+        covered_until = 7 * 60
+        for start, end in sorted(ranges):
+            if start > covered_until:
+                break
+            covered_until = max(covered_until, end)
+        if covered_until >= 18 * 60:
+            blocked_dates.add(datetime.strptime(day, '%Y-%m-%d').date())
 
     available = selected_date not in blocked_dates and not is_lead_blocked
 
@@ -277,7 +288,7 @@ def check_date_availability(request):
         cursor += timedelta(days=1)
 
     if available:
-        message = "Great news! This date is still open for booking."
+        message = "This date has open time slots. Choose your event time during booking to confirm availability."
     elif is_lead_blocked:
         message = (
             f"Please book at least {lead_days} day(s) in advance. "
@@ -285,9 +296,9 @@ def check_date_availability(request):
             "Here are the nearest open dates:"
         )
     elif blocked_by_admin:
-        message = "Sorry, this date is unavailable (blocked by the admin). Here are the nearest open dates:"
+        message = "This date is unavailable. Try one of the nearby open dates below."
     else:
-        message = "Sorry, this date is already fully booked. Here are the nearest open dates:"
+        message = "This date is fully booked. Try one of the nearby open dates below."
 
     return JsonResponse(
         {
@@ -381,7 +392,32 @@ class GalleryPageView(TemplateView):
         context["gallery_images"] = GalleryImage.objects.filter(
             is_active=True
         ).select_related("category")
+        for image in context['gallery_images']:
+            image.preview_version = preview_version(image.image.name)
         return context
+
+
+@require_GET
+def gallery_image_preview(request, id):
+    """Serve a cached, lightweight preview; keep the original for the lightbox."""
+    from django.http import HttpResponseNotModified
+    from PIL import Image, UnidentifiedImageError
+
+    image = get_object_or_404(GalleryImage.objects.only('image'), pk=id, is_active=True)
+    if not image.image:
+        raise Http404('No preview available')
+    etag = '"' + preview_version(image.image.name) + '"'
+    if request.headers.get('If-None-Match') == etag:
+        response = HttpResponseNotModified()
+    else:
+        try:
+            response = HttpResponse(preview_bytes(image.image), content_type='image/webp')
+        except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
+            raise Http404('No preview available')
+    response['ETag'] = etag
+    response['Cache-Control'] = 'public, max-age=86400'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 def reviews_page(request):

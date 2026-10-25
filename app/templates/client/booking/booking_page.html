@@ -135,6 +135,7 @@
                 <div class="stepper-step active-step" id="step-1">
                     <h3>Available Packages</h3>
                     <p class="step-desc">Please choose a package for your booking.</p>
+                    <p class="step-desc" id="catalogSelectionHint" role="status" hidden></p>
 
                     <div class="package-cards-grid">
                         {% for package in packages %}
@@ -642,6 +643,8 @@
         let soloModeAddon = null;       // name of the add-on in solo price mode (or null)
         let soloModePrice = 0;
         let bookingSubmitAttempted = false;
+        let serviceBookingPrepared = false;
+        let catalogRequestedItem = null;
 
         // --- DOM References ---
         const packageOnlyCards = document.querySelectorAll('.package-cards-grid:not(.addons-selection-grid):not(.additionals-selection-grid) .package-card');
@@ -1542,6 +1545,29 @@
         }
 
         function updateUIStates() {
+            const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
+            // A Package-page extra can be chosen before its required base offer.
+            if (catalogRequestedItem && hasBaseSelection) {
+                const card = catalogRequestedItem.card;
+                if (catalogRequestedItem.kind === 'additional_id') {
+                    selectedAdditionalName = card.dataset.name;
+                    selectedAdditionalPrice = parseFloat(card.dataset.price);
+                } else if (selectedPackageName) {
+                    selectedAddonName = card.dataset.name;
+                    selectedAddonPrice = parseFloat(card.dataset.price);
+                }
+                catalogRequestedItem = null;
+            }
+            const requestedCard = catalogRequestedItem?.card;
+            const catalogHint = document.getElementById('catalogSelectionHint');
+            if (catalogHint) {
+                catalogHint.hidden = !catalogRequestedItem;
+                catalogHint.textContent = catalogRequestedItem
+                    ? (catalogRequestedItem.kind === 'additional_id'
+                        ? `${catalogRequestedItem.card.dataset.name} will be added after you choose a package or solo entrance arch.`
+                        : 'Your entrance arch is selected. Choose a package to continue.')
+                    : '';
+            }
             // --- Package cards ---
             packageOnlyCards.forEach(card => {
                 if (soloModeAddon) {
@@ -1577,7 +1603,11 @@
                     }
                 } else {
                     // No Package: Show Solo Price
-                    if (soloPrice > 0) {
+                    if (card === requestedCard) {
+                        priceEl.innerHTML = `${formatPrice(basePrice)} <span class="w-package">w/ Package</span>`;
+                        card.classList.remove('disabled');
+                        card.classList.add('selected');
+                    } else if (soloPrice > 0) {
                         priceEl.innerHTML = `${formatPrice(soloPrice)}`;
                         card.classList.remove('disabled');
                         if (name === soloModeAddon) {
@@ -1596,8 +1626,6 @@
 
 
             // --- Additional cards (enabled only if base package/solo is selected) ---
-            const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
-
             // Clear additional selection if base selection is removed
             if (!hasBaseSelection) {
                 selectedAdditionalName = null;
@@ -1709,6 +1737,7 @@
             {% endif %}
 
             selectedServiceCharge = globalServiceCharge;
+            catalogRequestedItem = null;
             selectedAddonName = null;
             selectedAddonPrice = 0;
             selectedAdditionalName = null;
@@ -1782,6 +1811,11 @@
         // =============================================
         addonCards.forEach(card => {
             card.addEventListener('click', function (e) {
+                if (catalogRequestedItem?.card === this) {
+                    catalogRequestedItem = null;
+                    updateUIStates();
+                    return;
+                }
                 const name = this.dataset.name;
                 const basePrice = parseFloat(this.dataset.price);
                 const soloPrice = parseFloat(this.dataset.soloPrice);
@@ -1826,6 +1860,11 @@
         // =============================================
         additionalCards.forEach(card => {
             card.addEventListener('click', function () {
+                if (catalogRequestedItem?.card === this) {
+                    catalogRequestedItem = null;
+                    updateUIStates();
+                    return;
+                }
                 const hasBaseSelection = selectedPackageName !== null || soloModeAddon !== null;
                 if (!hasBaseSelection) return; // Prevent selection if disabled
 
@@ -2202,7 +2241,9 @@
                 return;
             }
 
-            resetModalSteps();
+            // Keep Service selections while the customer chooses their first date.
+            if (!serviceBookingPrepared) resetModalSteps();
+            serviceBookingPrepared = false;
             dateInput.value = clickedDate;
             updateTimeConstraints();
             updateEventDateAvailability();
@@ -3480,6 +3521,74 @@
     {% if prefilled_design %}
     resetModalSteps();
     modalOverlay.classList.add('show');
+    {% else %}
+    // Resume a Service tool or Package-page selection, including after login.
+    const serviceParams = new URLSearchParams(window.location.search);
+    const serviceSource = serviceParams.get('from');
+    if (['estimate', 'availability', 'ai', 'packages'].includes(serviceSource)) {
+        resetModalSteps();
+        const chooseServiceItem = (cards, key) => {
+            const id = serviceParams.get(key);
+            if (!id || !/^\d+$/.test(id)) return;
+            const card = Array.from(cards).find(card => card.dataset.id === id);
+            if (!card) return;
+            const needsBase = key === 'additional_id' || (key === 'addon_id'
+                && (serviceParams.get('arch_mode') !== 'solo' || !(parseFloat(card.dataset.soloPrice) > 0)));
+            if (serviceSource === 'packages' && needsBase && !selectedPackageName && !soloModeAddon) {
+                catalogRequestedItem = { kind: key, card: card };
+                updateUIStates();
+            } else {
+                card.click();
+            }
+        };
+        chooseServiceItem(packageOnlyCards, 'package_id');
+        chooseServiceItem(addonCards, 'addon_id');
+        chooseServiceItem(additionalCards, 'additional_id');
+        const serviceDate = serviceParams.get('event_date') || '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) && window.BookingAvailability
+                && !window.BookingAvailability.isDateUnavailable(serviceDate, window.BookingAvailability.readData())) {
+            dateInput.value = serviceDate;
+            dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (serviceSource === 'ai') {
+            const event = (serviceParams.get('event_type') || '').slice(0, 100);
+            const option = Array.from(document.querySelectorAll('#eventTypeCustomSelect li'))
+                .find(item => item.dataset.value === event);
+            if (event) {
+                (option || document.querySelector('#eventTypeCustomSelect li[data-value="Other"]'))?.click();
+                if (!option) eventTypeOther.value = event;
+            }
+            const vibe = (serviceParams.get('vibe') || '').slice(0, 100);
+            if (vibe) {
+                document.querySelector('#designThemeChips [data-value="Other"]')?.click();
+                designThemeOther.value = vibe;
+                designThemeOther.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            (serviceParams.get('colors') || '').slice(0, 60).split(',')
+                .map(color => color.trim()).filter(Boolean).slice(0, 3).forEach(togglePaletteColor);
+            let serviceDraft = {};
+            try {
+                serviceDraft = JSON.parse(sessionStorage.getItem('balloorina.service-ai-booking') || '{}');
+                sessionStorage.removeItem('balloorina.service-ai-booking');
+            } catch (_) {}
+            if (serviceDraft.event_type === event && serviceDraft.vibe === vibe) {
+                document.getElementById('booking_special_requests').value = (serviceDraft.notes || '').slice(0, 3000);
+                const image = serviceDraft.images?.[0];
+                if (image && /^https?:\/\//i.test(image)) {
+                    try { sessionStorage.setItem(AI_BOOKING_IMAGE_KEY, image); } catch (_) {}
+                    attachAiBookingImage();
+                }
+            }
+        }
+        // Keep Step 1 visible so the customer can review current catalog prices.
+        showStep(1);
+        modalOverlay.querySelector('.booking-modal-box').scrollTop = 0;
+        const hasServiceDate = !!serviceDate && dateInput.value === serviceDate;
+        serviceBookingPrepared = !hasServiceDate;
+        // Without a date, show the booking calendar first. A valid Service date
+        // already completes that choice, so open Step 1 immediately.
+        modalOverlay.classList.toggle('show', hasServiceDate);
+    }
     {% endif %}
 
     });

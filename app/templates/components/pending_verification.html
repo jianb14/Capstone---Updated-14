@@ -1,0 +1,17 @@
+{% if pending_signup %}
+<aside class="pending-verification" aria-label="Pending account verification">
+    <span class="pending-eyebrow">Finish your signup</span>
+    <strong class="pending-title">Your signup is not yet verified.</strong>
+    <p>Continue verification for <strong>{{ masked_pending_email }}</strong>. Your signup is saved, so you can pick up where you left off.</p>
+    {% if pending_expires_at %}<p class="pending-deadline">Finish verifying by {{ pending_expires_at|date:"M j, Y" }}.</p>{% endif %}
+    <form method="post" action="{% url 'continue_verification' %}" data-email-send data-loading-label="Continuing...">
+        {% csrf_token %}
+        <input type="hidden" name="signup_reference" value="{{ signup_reference }}">
+        <button type="submit">Continue Verification</button>
+    </form>
+    <form method="post" action="{% url 'dismiss_signup_verification' %}" class="pending-dismiss" data-email-send data-loading-label="Returning...">
+        {% csrf_token %}
+        <button type="submit" class="pending-secondary">Use another account</button>
+    </form>
+</aside>
+{% endif %}

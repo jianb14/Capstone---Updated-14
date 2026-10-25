@@ -1,0 +1,42 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="same-origin">
+    <title>Change signup email | Balloorina</title>
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="stylesheet" href="{% static 'css/email_otp.css' %}">
+    <script src="{% static 'js/theme-toggle.js' %}"></script>
+</head>
+<body>
+<main class="body otp-shell">
+    <div class="auth-container otp-auth">
+        <div class="logo-container"><a href="{% url 'home' %}" aria-label="Balloorina home"><img src="{% static 'images/BalloorinaLogo1.png' %}" alt="Balloorina"></a></div>
+        <section class="otp-content" aria-labelledby="change-email-title">
+            <h1 id="change-email-title">Use a different email</h1>
+            <p class="otp-description">We'll send a new code to your Gmail. Your account email changes only after you verify it.</p>
+            {% for message in messages %}
+                <p class="otp-notice {% if message.tags == 'error' %}otp-notice-error{% endif %}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">{{ message }}</p>
+            {% endfor %}
+            <form method="post" data-email-send>
+                {% csrf_token %}
+                <div class="field-group">
+                    <label for="email" class="input-label">New Gmail address</label>
+                    <input id="email" name="email" type="email" value="{{ email|default:'' }}" autocomplete="email" placeholder="yourname@gmail.com" required>
+                </div>
+                <div class="field-group">
+                    <label for="password" class="input-label">Signup password</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-help">
+                    <p class="otp-helper" id="password-help">Enter the password you used to create this account.</p>
+                </div>
+                <button class="otp-primary" type="submit">Send Code to New Email</button>
+            </form>
+            <nav class="otp-links"><a href="{% url 'verify_account_otp' %}">Back to verification</a></nav>
+        </section>
+    </div>
+</main>
+<script src="{% static 'js/email_otp.js' %}"></script>
+</body>
+</html>

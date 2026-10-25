@@ -1,0 +1,154 @@
+/* Quiet, readable service tools in both site themes. */
+#services .services-tools {
+    position: relative;
+    z-index: 2;
+    --tool-surface: #191919;
+    --tool-soft: #232323;
+    --tool-ink: #f3f4f6;
+    --tool-muted: #b5bbc5;
+    --tool-border: #383838;
+    --tool-scroll-thumb: #575b63;
+    --tool-scroll-hover: #858a94;
+    --tool-ghost: rgb(20 20 20 / .4);
+    --tool-ghost-hover: rgb(20 20 20 / .65);
+    --tool-error: #fecaca;
+    --tool-error-bg: #301e20;
+    --tool-error-border: #774246;
+    --tool-success: #b8e6cc;
+    --tool-success-bg: #1b2922;
+    --tool-success-border: #365a46;
+}
+#services .comparison-table-wrap { position: relative; }
+[data-theme="light"] #services .services-tools {
+    --tool-surface: #fff;
+    --tool-soft: #f1f2f4;
+    --tool-ink: #161b26;
+    --tool-muted: #536071;
+    --tool-border: #d8dde4;
+    --tool-scroll-thumb: #b9c0ca;
+    --tool-scroll-hover: #8c96a5;
+    --tool-ghost: rgb(255 255 255 / .5);
+    --tool-ghost-hover: rgb(255 255 255 / .75);
+    --tool-error: #8f2633;
+    --tool-error-bg: #fff3f3;
+    --tool-error-border: #e8bbc2;
+    --tool-success: #205d3b;
+    --tool-success-bg: #f0f8f3;
+    --tool-success-border: #bad8c5;
+}
+#services .tool-card { min-width: 0; overflow: visible; transform: none; transition-delay: 0s !important; }
+#services .tool-card:hover { transform: none; }
+#services .btn { border-radius: 10px; }
+#services .tool-card-topline { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#services .tool-clear { padding: 4px 0 4px 8px; background: transparent; border: 0; border-radius: 10px; font: inherit; font-size: .72rem; color: var(--tool-muted); cursor: pointer; }
+#services .tool-clear:hover { color: var(--tool-ink); text-decoration: underline; text-underline-offset: 3px; }
+#services :is(.custom-select-options, .estimator-addons) { scrollbar-width: thin; scrollbar-color: var(--tool-scroll-thumb) transparent; }
+#services :is(.custom-select-options, .estimator-addons)::-webkit-scrollbar { width: 4px; height: 4px; }
+#services :is(.custom-select-options, .estimator-addons)::-webkit-scrollbar-track { background: transparent; }
+#services :is(.custom-select-options, .estimator-addons)::-webkit-scrollbar-thumb { background: var(--tool-scroll-thumb); border-radius: 8px; }
+#services :is(.custom-select-options, .estimator-addons)::-webkit-scrollbar-thumb:hover { background: var(--tool-scroll-hover); }
+#services .tool-card:focus-within { position: relative; z-index: 2; }
+#services .services-tools [hidden] { display: none !important; }
+#services .tool-other-field { margin-top: 12px; }
+#services .tool-field-hint { color: var(--tool-muted); font-size: .74rem; line-height: 1.6; margin: 4px 0 8px; }
+#services .tool-field .custom-select-options li:focus-visible,
+#services .services-tools button:focus-visible,
+#services .services-tools a:focus-visible { outline: 2px solid var(--tool-ink); outline-offset: 3px; }
+#services .services-tools :is(.quiz-result, .availability-result) {
+    padding: 16px;
+    margin-top: 16px;
+    border: 1px solid var(--tool-border);
+    background: var(--tool-surface);
+    border-radius: 12px;
+    color: var(--tool-ink);
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+#services .services-tools [data-state="error"] { background: var(--tool-error-bg); border-color: var(--tool-error-border); }
+#services .services-tools [data-state="success"] { border-color: var(--tool-success-border); }
+#services .tool-message { display: flex; gap: 10px; align-items: flex-start; font-size: .8rem; }
+#services .tool-message > i { flex: 0 0 auto; margin-top: 4px; color: var(--tool-muted); }
+#services .tool-message > div { min-width: 0; }
+#services .tool-message strong { display: block; font-size: .86rem; font-weight: 700; color: var(--tool-ink); }
+#services .tool-message p { margin: 4px 0 0; color: var(--tool-muted); font-size: .78rem; line-height: 1.65; }
+#services [data-state="error"] .tool-message :is(i, strong) { color: var(--tool-error); }
+#services [data-state="success"] .tool-message > i { color: var(--tool-success); }
+#services .services-tools [aria-busy="true"] { border-style: dashed; }
+#services .quiz-result-body { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--tool-border); font-size: .82rem; }
+#services .quiz-result-body strong { color: var(--tool-ink); }
+#services .quiz-result-body :is(p, ul, ol) { margin: 0 0 10px; }
+#services .quiz-result-body :is(ul, ol) { padding-left: 20px; }
+#services .quiz-result-body li { margin: 4px 0; }
+#services .services-tools :is(.quiz-result, .availability-result) .btn { height: auto; min-height: 40px; white-space: normal; margin-top: 14px; text-align: center; }
+#services .availability-suggestions { margin: 14px 0 0; gap: 8px; }
+#services .availability-chip { border-color: var(--tool-border); background: var(--tool-surface); color: var(--tool-ink); min-height: 36px; font-size: .75rem; }
+#services .availability-chip:hover { background: var(--tool-soft); border-color: var(--tool-muted); }
+#services .quiz-image { margin: 14px 0 0; position: relative; border: 1px solid var(--tool-border); border-radius: 10px; overflow: hidden; background: var(--tool-soft); }
+#services .quiz-image img { display: block; width: 100%; height: auto; min-height: 100px; }
+#services .quiz-image-download {
+    position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; padding: 8px; background: var(--tool-ghost); color: var(--tool-ink); border: 0;
+    border-radius: 10px; cursor: pointer; box-shadow: none; backdrop-filter: blur(6px);
+}
+#services .quiz-image-download svg { width: 20px; height: 20px; flex-shrink: 0; }
+#services .quiz-image-download:hover { background: var(--tool-ghost-hover); }
+#services .quiz-image-download:disabled { opacity: .7; cursor: progress; }
+#services .quiz-download-error { padding: 8px 12px; color: var(--tool-error); }
+#services .estimator-total { background: var(--tool-surface); border: 1px solid var(--tool-border); }
+#services .estimator-row { gap: 12px; color: var(--tool-muted); }
+#services .estimator-grand { color: var(--tool-ink); }
+#services .addon-check { padding: 9px; background: transparent; }
+#services .addon-check:hover { background: transparent; }
+#services .addon-check,
+#services .addon-check input,
+#services .addon-check input::after { transition: none !important; animation: none !important; }
+#services .addon-check input {
+    appearance: none; -webkit-appearance: none; display: grid; place-content: center;
+    width: 17px; height: 17px; border: 1px solid var(--tool-muted); border-radius: 3px;
+    /* Override the global input:focus background so checked colors show on click. */
+    background: transparent !important; color: var(--tool-ink); box-shadow: none;
+}
+#services .addon-check input:checked { background: #fff !important; border-color: #fff !important; color: #000; }
+[data-theme="light"] #services .addon-check input:checked { background: #000 !important; border-color: #000 !important; color: #fff; }
+#services .addon-check input:checked::after {
+    content: ''; width: 9px; height: 5px; border-left: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor;
+    transform: translateY(-1px) rotate(-45deg);
+}
+#services .addon-check:has(input:checked) { background: transparent; border-color: var(--tool-muted); }
+#services .addon-check:has(input:focus-visible) { outline: 2px solid var(--tool-ink); outline-offset: 1px; }
+
+/* Same picker markup and date states as booking Step 3. Scoped to the services card. */
+#services .booking-input-holder { display: block; width: 100%; position: relative; }
+#services .booking-input-holder input { display: block; width: 100%; padding-right: 38px; cursor: pointer; }
+#services input[data-custom-picker="date"]::-webkit-calendar-picker-indicator { opacity: 0; }
+#services .booking-picker-icon { position: absolute; top: 0; right: 12px; height: 44px; display: flex; align-items: center; color: var(--tool-muted); cursor: pointer; }
+#services .booking-picker-icon svg { width: 18px; height: 18px; }
+#services .booking-picker-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; width: 100%; min-width: 0; max-width: 310px; z-index: 30;
+    padding: 12px; border: 1px solid var(--tool-border); border-radius: 10px; background: var(--tool-surface);
+    color: var(--tool-ink); box-shadow: 0 4px 12px #0002;
+}
+#services .booking-picker-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+#services .booking-picker-title { font-size: .78rem; }
+#services .booking-picker-nav { width: 30px; height: 30px; border: 1px solid var(--tool-border); border-radius: 5px; background: var(--tool-soft); color: var(--tool-ink); cursor: pointer; }
+#services .booking-picker-nav:disabled { opacity: .35; cursor: not-allowed; }
+#services .booking-picker-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+#services .booking-picker-dow { font-size: .65rem; text-align: center; color: var(--tool-muted); padding-bottom: 4px; }
+#services .booking-picker-day { min-height: 30px; padding: 0; border: 1px solid transparent; border-radius: 5px; background: var(--tool-soft); color: var(--tool-ink); font: inherit; font-size: .72rem; cursor: pointer; }
+#services .booking-picker-day:hover { border-color: var(--tool-muted); }
+#services .booking-picker-day.is-selected { background: var(--tool-ink); color: var(--tool-surface); }
+#services .booking-picker-day.is-disabled { cursor: not-allowed; }
+#services .booking-picker-day.is-past { opacity: .3; }
+#services .booking-picker-day.is-blocked { background: #8e2934; color: #fff; }
+#services .booking-picker-day.is-full { background: #dfac4d; color: #251b09; }
+#services .booking-picker-foot { margin-top: 10px; color: var(--tool-muted); font-size: .65rem; line-height: 1.6; }
+#services .booking-picker-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+#services .booking-picker-legend span { display: inline-flex; align-items: center; gap: 5px; }
+#services .lp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+#services .lp-blocked { background: #8e2934; }
+#services .lp-full { background: #dfac4d; }
+@media (max-width: 480px) {
+    #services .services-tools :is(.quiz-result, .availability-result) { padding: 12px; }
+    #services .booking-picker-pop { padding: 8px; }
+    #services .quiz-image-download { padding: 8px; top: 8px; right: 8px; }
+}

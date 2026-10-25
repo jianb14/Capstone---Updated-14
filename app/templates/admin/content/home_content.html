@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_content.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_content.css' %}?v=20261025stats">
 
 <!-- Page Header -->
 <div class="page-header">
@@ -58,31 +58,32 @@
 <form method="POST" class="content-form">
     {% csrf_token %}
     <div class="form-section">
-        <h3 class="section-title">Statistics Section</h3>
+        <h3 class="section-title">Statistics &amp; Support Hours</h3>
+        <p class="help-text stats-intro">Events and review statistics update automatically. Only support hours can be edited here.</p>
         <div class="form-grid stats-grid">
             <div class="form-group">
-                <label for="stat_events_styled">Successful Events (Value only)</label>
-                <input type="text" name="stat_events_styled" id="stat_events_styled" value="{{ content.stat_events_styled }}" class="form-control" placeholder="e.g. 500">
-                <small class="help-text">The "+" symbol is hard-coded.</small>
+                <label for="preview_events_styled">Events Styled (automatic)</label>
+                <input type="text" id="preview_events_styled" value="{{ home_stats.events_styled }}" class="form-control" readonly>
+                <small class="help-text">Counts completed bookings, excluding pending and cancelled bookings.</small>
             </div>
             <div class="form-group">
-                <label for="stat_rating">Average Rating (Value only)</label>
-                <input type="text" name="stat_rating" id="stat_rating" value="{{ content.stat_rating }}" class="form-control" placeholder="e.g. 5">
-                <small class="help-text">The star (★) symbol is hard-coded.</small>
+                <label for="preview_customer_rating">Customer Rating (automatic)</label>
+                <input type="text" id="preview_customer_rating" value="{% if home_stats.review_count %}{{ home_stats.customer_rating|floatformat:1 }}/5{% else %}No reviews yet{% endif %}" class="form-control" readonly>
+                <small class="help-text">Average of all {{ home_stats.review_count }} valid customer review{{ home_stats.review_count|pluralize }}.</small>
             </div>
             <div class="form-group">
-                <label for="stat_satisfaction">Satisfaction Rate (Value only)</label>
-                <input type="text" name="stat_satisfaction" id="stat_satisfaction" value="{{ content.stat_satisfaction }}" class="form-control" placeholder="e.g. 100">
-                <small class="help-text">The "%" symbol is hard-coded.</small>
+                <label for="preview_positive_reviews">Positive Reviews (automatic)</label>
+                <input type="text" id="preview_positive_reviews" value="{% if home_stats.review_count %}{{ home_stats.positive_reviews|floatformat:'-1' }}%{% else %}No reviews yet{% endif %}" class="form-control" readonly>
+                <small class="help-text">Percentage of reviews rated 4 or 5 stars.</small>
             </div>
             <div class="form-group">
-                <label for="stat_response_time">Response Time (Value only)</label>
-                <input type="text" name="stat_response_time" id="stat_response_time" value="{{ content.stat_response_time }}" class="form-control" placeholder="e.g. 24">
-                <small class="help-text">The "HR" symbol is hard-coded.</small>
+                <label for="support_hours">Support Hours per Day</label>
+                <input type="number" name="support_hours" id="support_hours" value="{{ content.support_hours }}" class="form-control" min="1" max="24" step="1" required>
+                <small class="help-text">Daily customer support availability. Enter 1–24 hours.</small>
             </div>
         </div>
         <div class="card-actions">
-            <button type="submit" class="btn-save">Save Statistics</button>
+            <button type="submit" class="btn-save">Save Support Hours</button>
         </div>
     </div>
 </form>

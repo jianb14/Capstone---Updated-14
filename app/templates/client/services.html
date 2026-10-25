@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+    <link rel="stylesheet" href="{% static 'css/services_widgets.css' %}?v=20261025d">
 
     <div id="services" class="page">
         <section class="about-hero">
@@ -117,7 +118,10 @@
                 <!-- AI Style Quiz -->
                 <div class="tool-card" id="style-quiz">
                     <div class="tool-card-head">
-                        <span class="tool-badge tool-badge-ai">AI-Powered</span>
+                        <div class="tool-card-topline">
+                            <span class="tool-badge tool-badge-ai">AI-Powered</span>
+                            {% if user.is_authenticated %}<button type="button" class="tool-clear" data-clear-tool="quiz" aria-label="Clear AI style form">Clear</button>{% endif %}
+                        </div>
                         <h2>Find Your Perfect Style</h2>
                         <p>Answer 3 quick questions and our AI stylist will recommend a balloon theme made for your event.</p>
                     </div>
@@ -138,9 +142,13 @@
                                         <li data-value="Debut">Debut</li>
                                         <li data-value="Anniversary">Anniversary</li>
                                         <li data-value="Kids Party">Kids Party</li>
-                                        <li data-value="Other Celebration">Other Celebration</li>
+                                        <li data-value="Other">Other</li>
                                     </ul>
                                     <input type="hidden" id="quizEventType" value="">
+                                </div>
+                                <div id="quizEventTypeOtherField" class="tool-other-field" hidden>
+                                    <label for="quizEventTypeOther">Your Event Type</label>
+                                    <input type="text" id="quizEventTypeOther" maxlength="100" placeholder="e.g. graduation or housewarming">
                                 </div>
                             </div>
                             <div class="tool-field">
@@ -156,8 +164,13 @@
                                         <li data-value="Minimalist and modern">Minimalist and modern</li>
                                         <li data-value="Whimsical and dreamy">Whimsical and dreamy</li>
                                         <li data-value="Bold and festive">Bold and festive</li>
+                                        <li data-value="Other">Other</li>
                                     </ul>
                                     <input type="hidden" id="quizVibe" value="">
+                                </div>
+                                <div id="quizVibeOtherField" class="tool-other-field" hidden>
+                                    <label for="quizVibeOther">Your Preferred Vibe</label>
+                                    <input type="text" id="quizVibeOther" maxlength="100" placeholder="Describe the style you have in mind">
                                 </div>
                             </div>
                             <div class="tool-field">
@@ -166,11 +179,11 @@
                             </div>
                             <button type="submit" class="btn btn-primary" id="quizSubmit"><span>Get My AI Theme</span></button>
                         </form>
-                        <div id="quizResult" class="quiz-result" hidden></div>
+                        <div id="quizResult" class="quiz-result" role="status" aria-live="polite" hidden></div>
                     {% else %}
                         <div class="tool-login-note">
                             <p>Log in to unlock AI style suggestions.</p>
-                            <a href="{% url 'login' %}" class="btn btn-primary"><span>Log In</span></a>
+                            <a href="{% url 'login' %}?next={{ request.path|add:'#style-quiz'|urlencode }}" class="btn btn-primary"><span>Log In</span></a>
                         </div>
                     {% endif %}
                 </div>
@@ -178,9 +191,12 @@
                 <!-- Instant Price Estimator -->
                 <div class="tool-card" id="price-estimator">
                     <div class="tool-card-head">
-                        <span class="tool-badge tool-badge-price">Instant Estimate</span>
+                        <div class="tool-card-topline">
+                            <span class="tool-badge tool-badge-price">Instant Estimate</span>
+                            {% if packages %}<button type="button" class="tool-clear" data-clear-tool="estimate" aria-label="Clear estimate">Clear</button>{% endif %}
+                        </div>
                         <h2>Estimate Your Setup</h2>
-                        <p>Pick a package with an add-on to see an instant price estimate before booking.</p>
+                        <p>Choose a package, then add an optional entrance arch or welcome stand to estimate your setup.</p>
                     </div>
                     {% if packages %}
                         <div class="tool-form">
@@ -192,7 +208,7 @@
                                         <i class="fa-solid fa-chevron-down"></i>
                                     </div>
                                     <ul class="custom-select-options" role="listbox">
-                                        <li data-value="">No package (solo add-on)</li>
+                                        <li data-value="">No package (entrance arch only)</li>
                                         {% for package in packages %}
                                             <li data-value="{{ package.id }}">{{ package.name }} — ₱{{ package.price }}</li>
                                         {% endfor %}
@@ -201,15 +217,16 @@
                                 </div>
                             </div>
                             <div class="tool-field">
-                                <label>Add-On</label>
+                                <label>Entrance Arch</label>
+                                <p class="tool-field-hint">Choose one, or uncheck to remove.</p>
                                 <div class="estimator-addons" id="estimatorAddons">
                                     {% for addon in active_addons %}
                                         <label class="addon-check" data-id="{{ addon.id }}">
-                                            <input type="radio" name="estimatorAddon" value="{{ addon.id }}">
+                                            <input type="checkbox" name="estimatorAddon" value="{{ addon.id }}">
                                             <span class="addon-label">{{ addon.name }} (+₱{{ addon.price }})</span>
                                         </label>
                                     {% empty %}
-                                        <p class="tool-muted">No add-ons available right now.</p>
+                                        <p class="tool-muted">No entrance arches available right now.</p>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -218,7 +235,7 @@
                                 <div class="estimator-addons" id="estimatorAdditionals">
                                     {% for additional in active_additionals %}
                                         <label class="addon-check" data-id="{{ additional.id }}">
-                                            <input type="radio" name="estimatorAdditional" value="{{ additional.id }}">
+                                            <input type="checkbox" name="estimatorAdditional" value="{{ additional.id }}">
                                             <span class="addon-label">{{ additional.name }} (+₱{{ additional.price }})</span>
                                         </label>
                                     {% empty %}
@@ -232,7 +249,7 @@
                                 <div class="estimator-row estimator-grand"><span>Estimated Total</span><span id="estimatorGrand">₱0.00</span></div>
                                 <p class="tool-muted">Final pricing is confirmed during booking.</p>
                             </div>
-                            <a href="{% url 'create_booking' %}" class="btn btn-primary"><span>Continue to Booking</span></a>
+                            <a href="{% url 'create_booking' %}" class="btn btn-primary" id="estimatorContinue"><span>Continue to Booking</span></a>
                         </div>
                     {% else %}
                         <div class="tool-login-note">
@@ -244,17 +261,21 @@
                 <!-- Date Availability Quick-Check -->
                 <div class="tool-card" id="date-check">
                     <div class="tool-card-head">
-                        <span class="tool-badge tool-badge-date">Live Availability</span>
+                        <div class="tool-card-topline">
+                            <span class="tool-badge tool-badge-date">Live Availability</span>
+                            <button type="button" class="tool-clear" data-clear-tool="date" aria-label="Clear selected date">Clear</button>
+                        </div>
                         <h2>Is Your Date Available?</h2>
                         <p>Check if your event date is still open before you book.</p>
                     </div>
                     <div class="tool-form">
                         <div class="tool-field">
                             <label for="availabilityDate">Event Date</label>
-                            <input type="date" id="availabilityDate">
+                            <input type="date" id="availabilityDate" aria-describedby="availabilityDateHint">
+                            <p class="tool-field-hint" id="availabilityDateHint">Select an open date. Unavailable and fully booked dates cannot be selected.</p>
                         </div>
                         <button type="button" class="btn btn-primary" id="availabilityCheck"><span>Check Availability</span></button>
-                        <div id="availabilityResult" class="availability-result" hidden></div>
+                        <div id="availabilityResult" class="availability-result" role="status" aria-live="polite" hidden></div>
                     </div>
                 </div>
 
@@ -263,7 +284,11 @@
     </div>
 
     {{ services_widget_data|json_script:"services-widget-data" }}
+    {{ availability_data|json_script:"booking-availability-data" }}
 
-    <script src="{% static 'js/services_widgets.js' %}?v=20261003b"></script>
+    <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
+    <script src="{% static 'js/booking_picker_a.js' %}?v=20261014f"></script>
+    <script src="{% static 'js/booking_picker_c.js' %}?v=20261021b"></script>
+    <script src="{% static 'js/services_widgets.js' %}?v=20261025b"></script>
 
 {% endblock content %}

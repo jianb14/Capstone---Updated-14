@@ -1,6 +1,8 @@
 from django.urls import path
+from .views.auth import continue_verification, dismiss_signup_verification, change_signup_email, verify_change_password_otp
 from .views.designs import evaluate_user_design, user_design_preview
 from .views.ai_health import ai_health
+from .views.profiles import cancel_concern
 from .views.ai import ai_design_brief
 from .views.changes import (request_booking_change, admin_booking_change_action,
     customer_booking_change_action, booking_change_payment)
@@ -11,6 +13,7 @@ from .views import (
     AboutPageView,
     DataPrivacyPageView,
     GalleryPageView,
+    gallery_image_preview,
     GuidelinesPageView,
     HomePageView,
     PackagePageView,
@@ -208,6 +211,7 @@ urlpatterns = [
     path("data-privacy/", DataPrivacyPageView.as_view(), name="data_privacy"),
     path("package/", PackagePageView.as_view(), name="package"),
     path("gallery/", GalleryPageView.as_view(), name="gallery"),
+    path("gallery/image/<int:id>/preview/", gallery_image_preview, name="gallery_image_preview"),
     # My Designs Dashboard
     path("my-designs/", my_designs_page, name="my_designs"),
     path("my-designs/<int:id>/preview/", user_design_preview, name="user_design_preview"),
@@ -217,6 +221,10 @@ urlpatterns = [
     path("my-designs/delete/<int:id>/", delete_user_design, name="delete_user_design"),
     path("register/", register, name="register"),
     path("verify-account/", verify_account_otp, name="verify_account_otp"),
+    path("continue-verification/", continue_verification, name="continue_verification"),
+    path("verification/use-another-account/", dismiss_signup_verification, name="dismiss_signup_verification"),
+    path("change-signup-email/", change_signup_email, name="change_signup_email"),
+    path("verify-password-change/", verify_change_password_otp, name="verify_change_password_otp"),
     path("verify-email/<uidb64>/<token>/", verify_email, name="verify_email"),
     path("login/", user_login, name="login"),
     path("resend-verification/", resend_verification, name="resend_verification"),
@@ -244,6 +252,7 @@ urlpatterns = [
     path("update-my-profile/", update_my_profile, name="update_my_profile"),
     path("my-reviews/", my_reviews, name="my_reviews"),
     path("report-concern/", report_concern, name="report_concern"),
+    path('report-concern/<int:id>/cancel/', cancel_concern, name='cancel_concern'),
     path("change-password/", change_password, name="change_password"),
     path("admin-profile/", admin_profile, name="admin_profile"),
     path("staff/settings/", admin_site_settings, name="admin_site_settings"),

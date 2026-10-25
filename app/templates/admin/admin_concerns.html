@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_concerns.css' %}?v=20261004f">
+<link rel="stylesheet" href="{% static 'css/admin_concerns.css' %}?v=20261025-concern2">
 {% endblock %}
 
 {% block content %}
@@ -110,6 +110,8 @@
                                 In Progress
                                 {% elif concern_status_filter == 'resolved' %}
                                 Resolved
+                                {% elif concern_status_filter == 'cancelled' %}
+                                Cancelled
                                 {% else %}
                                 All Status
                                 {% endif %}
@@ -121,12 +123,14 @@
                             <li data-value="new" {% if concern_status_filter == 'new' %}class="selected"{% endif %}>New</li>
                             <li data-value="in_progress" {% if concern_status_filter == 'in_progress' %}class="selected"{% endif %}>In Progress</li>
                             <li data-value="resolved" {% if concern_status_filter == 'resolved' %}class="selected"{% endif %}>Resolved</li>
+                            <li data-value="cancelled" {% if concern_status_filter == 'cancelled' %}class="selected"{% endif %}>Cancelled</li>
                         </ul>
                         <select name="concern_status" id="queueStatusFilterSelect" class="filter-select">
                             <option value="" {% if not concern_status_filter %}selected{% endif %}>All Status</option>
                             <option value="new" {% if concern_status_filter == 'new' %}selected{% endif %}>New</option>
                             <option value="in_progress" {% if concern_status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
                             <option value="resolved" {% if concern_status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                            <option value="cancelled" {% if concern_status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                         </select>
                     </div>
                 </form>
@@ -250,6 +254,7 @@
                     <p id="modalAdminNotes">-</p>
                 </div>
 
+                <p id="cancelledConcernNote" class="concern-cancelled-note" hidden>This concern was cancelled by the customer and is kept for reference.</p>
                 <form method="post" id="concernUpdateForm" class="concern-update-form" action="">
                     {% csrf_token %}
                     <input type="hidden" name="next" id="modalNextUrl" value="{{ request.get_full_path }}">
@@ -276,9 +281,9 @@
                     </div>
 
                     <div id="updateAdminNotesBlock">
-                        <label for="modalAdminNotesInput"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i> Update Admin Notes</label>
+                        <label for="modalAdminNotesInput"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i> Update Customer Response</label>
                         <textarea id="modalAdminNotesInput" name="admin_notes" rows="4"
-                            placeholder="Add internal notes for this concern..."></textarea>
+                            placeholder="Add a response the customer can read..."></textarea>
                     </div>
 
                     <button type="submit" class="btn-save-concern">Save Changes</button>
@@ -434,7 +439,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (updateForm) {
             updateForm.action = button.dataset.updateUrl || '';
+            updateForm.hidden = statusRaw === 'cancelled';
         }
+        document.getElementById('cancelledConcernNote').hidden = statusRaw !== 'cancelled';
 
         if (statusSelect) statusSelect.value = statusRaw;
         if (statusDropdownText && statusSelect && statusSelect.options[statusSelect.selectedIndex]) {

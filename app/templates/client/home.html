@@ -3,6 +3,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/hero_balloons.css' %}">
+<link rel="stylesheet" href="{% static 'css/home_stats.css' %}?v=20261025a">
 {% endblock %}
 
 {% block content %}
@@ -105,25 +106,36 @@
     <section class="stats-section">
         <div class="stats-card">
             <div class="stat-item">
-                <h3>{{ home_content.stat_events_styled|default:"500" }}+</h3>
+                <h3><span data-stat-value>{{ home_stats.events_styled }}</span></h3>
                 <p>Events Styled</p>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-                <h3>{{ home_content.stat_rating|default:"5" }}★</h3>
-                <p>Average Rating</p>
+                {% if home_stats.review_count %}
+                <h3><span data-stat-value>{{ home_stats.customer_rating|floatformat:1 }}</span><span class="stat-unit">/5</span></h3>
+                {% else %}
+                <h3 class="stat-empty">No reviews yet</h3>
+                {% endif %}
+                <p>Customer Rating</p>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-                <h3>{{ home_content.stat_satisfaction|default:"100" }}%</h3>
-                <p>Satisfaction Rate</p>
+                {% if home_stats.review_count %}
+                <h3><span data-stat-value>{{ home_stats.positive_reviews|floatformat:"-1" }}</span><span class="stat-unit">%</span></h3>
+                {% else %}
+                <h3 class="stat-empty">No reviews yet</h3>
+                {% endif %}
+                <p>Positive Reviews</p>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-                <h3>{{ home_content.stat_response_time|default:"24" }}HR</h3>
-                <p>Response Time</p>
+                <h3><span data-stat-value>{{ support_hours }}</span><span class="stat-unit"> hrs/day</span></h3>
+                <p>Support Hours</p>
             </div>
         </div>
+        {% if home_stats.review_count %}
+        <p class="stats-caption">Based on {{ home_stats.review_count }} customer review{{ home_stats.review_count|pluralize }}. Positive reviews are 4–5 stars.</p>
+        {% endif %}
     </section>
 
     <!-- Why Choose Us -->
@@ -505,7 +517,7 @@
 <script src="{% static 'js/hero_balloons.js' %}"></script>
 
 <!-- Count-up animation ng stats numbers (scroll-triggered) -->
-<script src="{% static 'js/stats_countup.js' %}"></script>
+<script src="{% static 'js/stats_countup.js' %}?v=20261025a"></script>
 
 {% endblock content %}
 

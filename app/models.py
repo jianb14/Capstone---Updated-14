@@ -20,21 +20,28 @@ class User(AbstractUser):
         default=False,
         help_text="New accounts must verify their email before logging in.",
     )
+    pending_signup_expires_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text='Expiry for new website signups only; null preserves legacy and verified accounts.',
+    )
 
     def __str__(self):
         return f"{self.username} ({self.role})"
 
 
 class EmailOTPChallenge(models.Model):
-    """Session-bound email verification/recovery; never stores the plaintext code."""
+    """Session-bound email and password actions; never stores the plaintext code."""
     SIGNUP = 'signup'
     RESET = 'reset'
-    PURPOSES = ((SIGNUP, 'Account verification'), (RESET, 'Password recovery'))
+    CHANGE = 'change'
+    PURPOSES = ((SIGNUP, 'Account verification'), (RESET, 'Password recovery'), (CHANGE, 'Password change'))
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_otp_challenges')
     purpose = models.CharField(max_length=10, choices=PURPOSES)
     email_snapshot = models.EmailField(help_text='Email address that received this challenge.')
+    replacement_email = models.EmailField(blank=True, default='')
+    pending_password_hash = models.CharField(max_length=128, blank=True, default='')
     code_digest = models.CharField(max_length=64, blank=True, default='')
     session_digest = models.CharField(max_length=64)
     password_digest = models.CharField(max_length=64)
@@ -981,6 +988,7 @@ class ConcernTicket(models.Model):
         ('new', 'New'),
         ('in_progress', 'In Progress'),
         ('resolved', 'Resolved'),
+        ('cancelled', 'Cancelled'),
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='concern_tickets')
@@ -990,11 +998,24 @@ class ConcernTicket(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     admin_notes = models.TextField(blank=True, null=True)
     admin_notified = models.BooleanField(default=False)
+    processing_started_at = models.DateTimeField(
+        null=True, blank=True, editable=False,
+        help_text='First staff response or processing action; keeps the cancellation window closed.')
+    submission_key = models.UUIDField(
+        null=True, blank=True, editable=False,
+        help_text='Identifies one submitted form so delayed network retries cannot create another ticket.')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [models.UniqueConstraint(
+            fields=['user', 'submission_key'], name='unique_concern_submission_per_user')]
+
+    @property
+    def can_cancel(self):
+        return (self.status == 'new' and self.processing_started_at is None
+                and not (self.admin_notes or '').strip())
 
     def __str__(self):
         return f"Concern #{self.id} - {self.subject}"
@@ -1203,6 +1224,10 @@ class HomeContent(models.Model):
     stat_rating = models.CharField(max_length=50, blank=True, default='')
     stat_satisfaction = models.CharField(max_length=50, blank=True, default='')
     stat_response_time = models.CharField(max_length=50, blank=True, default='')
+    support_hours = models.PositiveSmallIntegerField(
+        default=11, validators=[MinValueValidator(1), MaxValueValidator(24)],
+        help_text='Hours of customer support available per day.',
+    )
     why_choose_title = models.CharField(max_length=255, blank=True, default='')
     why_choose_subtitle = models.TextField(blank=True, default='')
     occasion_chips = models.CharField(

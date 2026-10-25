@@ -19,12 +19,20 @@ def start_deadline_worker():
         _stop.clear()
         def run():
             from .booking_lifecycle import process_booking_deadlines
+            from .signup_lifecycle import process_signup_cleanup
             while not _stop.is_set():
                 try:
                     close_old_connections()
                     process_booking_deadlines()
                 except Exception:
                     logger.exception('Booking deadline worker failed; retrying in one minute')
+                finally:
+                    connections.close_all()
+                try:
+                    close_old_connections()
+                    process_signup_cleanup()
+                except Exception:
+                    logger.exception('Pending signup cleanup failed; retrying on a later interval')
                 finally:
                     connections.close_all()
                 _stop.wait(60)
