@@ -1,0 +1,28 @@
+{% if concern_rows %}
+<div class="ac-table-scroll">
+    <table class="ac-table">
+        <thead><tr><th scope="col">Concern</th><th scope="col">Customer</th><th scope="col">Category</th><th scope="col">Status</th><th scope="col">Submitted</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+        {% for item in concern_rows %}
+            <tr>
+                <td><small>#CON-{{ item.id }}</small><strong class="ac-subject">{{ item.subject }}</strong></td>
+                <td><span>{{ item.user.get_full_name|default:item.user.username }}</span><small class="ac-email">{{ item.user.email }}</small></td>
+                <td>{{ item.get_category_display }}</td>
+                <td><span class="ac-status ac-status--{{ item.status }}">{{ item.get_status_display }}</span></td>
+                <td><span class="ac-date">{{ item.created_at|date:'M d, Y' }}</span><small>{{ item.created_at|date:'g:i A' }}</small></td>
+                <td><button type="button" class="ac-icon-btn btn-view-concern" data-details-url="{% url 'admin_concern_details' item.id %}" data-ticket-id="{{ item.id }}" aria-label="View concern #CON-{{ item.id }}" title="View details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include 'components/account_table_footer.html' with page=concerns_page page_key='page' pagination_label='Concerns' %}
+{% else %}
+    <div class="ac-empty">
+        {% if has_filters %}
+            {% include 'components/account_empty_state.html' with empty_kind='concerns' empty_title='No matching concerns' empty_description='Try another search or clear your filters to see your concerns.' reset_filters=True %}
+        {% else %}
+            {% include 'components/account_empty_state.html' with empty_kind='concerns' empty_title='No concerns yet' empty_description='Customer concerns will appear here as soon as they are submitted.' %}
+        {% endif %}
+    </div>
+{% endif %}

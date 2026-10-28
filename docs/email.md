@@ -51,7 +51,7 @@ No new package or database migration is required.
 | Sign-up and resend verification | Account email receives a 6-digit OTP; verification still required before login |
 | Forgot password | Account email receives a 6-digit OTP; existing cooldown/rate limits and generic response |
 | Logged-in password change | Current account email receives a 6-digit OTP before the new password is applied |
-| Admin-initiated password reset | Selected user's email |
+| Admin account activation / deactivation | Selected account's email; confirmation required; status and audit entry roll back if email cannot be sent |
 | New booking | Admin addresses in Site Settings, when email notifications are enabled |
 | Payment proof submitted | Admin addresses in Site Settings, when enabled |
 | Concern ticket submitted | Admin addresses in Site Settings, when enabled |
@@ -180,7 +180,7 @@ users into deletion. Successful OTP or legacy verification clears that marker.
 The existing deadline worker runs bounded cleanup in development/Gunicorn, with a
 shared database budget so replicas run at most one batch per interval. It only
 removes marked, expired, active customer signups that have never logged in and have
-no other activity. Staff/admin/superusers, disabled users, groups/permissions, and
+no other activity. Admin/superusers, disabled users, groups/permissions, and
 all related records (bookings, payments, audit logs, chat, designs, etc.) protect the
 account. OTP challenges alone do not count as activity and are removed with an
 eligible abandoned signup. Accounts with activity are retained and removed from

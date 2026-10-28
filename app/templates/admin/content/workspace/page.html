@@ -1,0 +1,6 @@
+{% extends 'admin/catalog/workspace.html' %}{% load static %}
+{% block workspace_class %}content-workspace{% endblock %}
+{% block workspace_css %}<link rel="stylesheet" href="{% static 'css/admin_page_content.css' %}?v=20261028b">{% endblock %}
+{% block workspace_header %}<header class="ac-header page-header"><h1>{{ title }}</h1><p class="page-subtitle">{{ subtitle }}</p></header>{% endblock %}
+{% block workspace_body %}{% include 'admin/content/workspace/_workspace.html' %}{% endblock %}
+{% block delete_options %}{% if workspace == 'policies' %}<label class="content-delete-notice"><input type="checkbox" data-delete-notify> Email active customers about this update</label>{% endif %}{% endblock %}

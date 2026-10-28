@@ -58,7 +58,7 @@
 
                 <div class="carousel-track">
                     {% for package in packages %}
-                    <div class="package-card {% if package.is_featured %}featured{% endif %}">
+                    <div class="package-card {% if package.is_featured %}featured{% endif %}" data-catalog-position="{{ package.catalog_position }}">
                         {% if package.is_featured %}
                         <div class="package-badge"><i class="fas fa-bolt" aria-hidden="true"></i> Most Popular</div>
                         {% endif %}
@@ -213,6 +213,11 @@
         if (!track || !prevBtn || !nextBtn) return;
 
         let index = 0;
+        const viewport = track.parentElement;
+        let gesture = null;
+        let suppressClickUntil = 0;
+        const originalCards = Array.from(track.querySelectorAll('.package-card, .addon-card'));
+        const featuredCards = originalCards.filter(card => card.classList.contains('featured'));
 
         // Determine how many cards should be visible based on screen size
         function getVisibleCards() {
@@ -221,31 +226,36 @@
             return 3;
         }
 
-        // Card width including gap — basah ang AKTUAL na gap mula sa CSS
-        // (1rem sa packages track, 2rem sa addons/additionals) para hindi
-        // mag-drift ang alignment sa paulit-ulit na click
-        function getItemWidth() {
-            const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 0;
-            return track.children[0].offsetWidth + gap;
+        function arrangeCards() {
+            let cards = originalCards;
+            // One popular card sits between its predecessor and next package.
+            // Two or more popular cards stay together at the beginning.
+            if (featuredCards.length === 1) {
+                const natural = [...originalCards].sort((a, b) => Number(a.dataset.catalogPosition) - Number(b.dataset.catalogPosition));
+                const offset = getVisibleCards() === 3 && natural.length >= 3 ? 1 : 0;
+                const start = (natural.indexOf(featuredCards[0]) - offset + natural.length) % natural.length;
+                cards = [...natural.slice(start), ...natural.slice(0, start)];
+            }
+            cards.forEach(card => track.appendChild(card));
         }
 
         // Show or hide carousel buttons based on number of items
         function updateButtons() {
             const visibleCards = getVisibleCards();
-            const totalCards = track.children.length;
+            const totalCards = originalCards.length;
 
             if (totalCards <= visibleCards) {
                 prevBtn.style.display = "none";
                 nextBtn.style.display = "none";
             } else {
-                prevBtn.style.display = "block";
-                nextBtn.style.display = "block";
+                prevBtn.style.display = "inline-flex";
+                nextBtn.style.display = "inline-flex";
             }
         }
 
         // Update carousel position and centering
         function updateCarousel() {
-            const totalCards = track.children.length;
+            const totalCards = originalCards.length;
             const visibleCards = getVisibleCards();
 
             if (totalCards <= visibleCards) {
@@ -254,30 +264,102 @@
                 track.style.transform = 'translateX(0)';
             } else {
                 track.style.justifyContent = 'flex-start';
-                const itemWidth = getItemWidth();
-                track.style.transform = `translateX(-${index * itemWidth}px)`;
+                // Keep subpixel precision: offsetWidth rounds fractional card widths
+                // and clips the first card's border after repeated navigation.
+                const first = track.children[0].getBoundingClientRect();
+                const target = track.children[index].getBoundingClientRect();
+                track.style.transform = `translateX(-${target.left - first.left}px)`;
             }
         }
 
         // Reset carousel (e.g., on resize)
         function resetCarousel() {
+            finishGesture(false);
             index = 0;
+            arrangeCards();
             updateButtons();
             updateCarousel();
         }
 
-        // Next button
-        nextBtn.addEventListener('click', () => {
-            const maxIndex = track.children.length - getVisibleCards();
-            index = index >= maxIndex ? 0 : index + 1;
+        function move(direction) {
+            const maxIndex = Math.max(0, originalCards.length - getVisibleCards());
+            if (!maxIndex) return;
+            index = (index + direction + maxIndex + 1) % (maxIndex + 1);
             updateCarousel();
-        });
+        }
 
-        // Previous button
-        prevBtn.addEventListener('click', () => {
-            const maxIndex = track.children.length - getVisibleCards();
-            index = index <= 0 ? maxIndex : index - 1;
-            updateCarousel();
+        nextBtn.addEventListener('click', () => move(1));
+        prevBtn.addEventListener('click', () => move(-1));
+
+        // Shared touch, mouse and pen swiping for all three catalogs.
+        viewport.addEventListener('pointerdown', event => {
+            if (!event.isPrimary || event.button !== 0 || originalCards.length <= getVisibleCards()) return;
+            gesture = {id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, dragging: false};
+        });
+        viewport.addEventListener('pointermove', event => {
+            if (!gesture || gesture.id !== event.pointerId) return;
+            const dx = event.clientX - gesture.x;
+            const dy = event.clientY - gesture.y;
+            if (!gesture.dragging) {
+                if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+                    gesture = null;
+                    return;
+                }
+                if (Math.abs(dx) < 10 || Math.abs(dx) <= Math.abs(dy)) return;
+                gesture.dragging = true;
+                const transform = getComputedStyle(track).transform;
+                gesture.base = transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
+                const first = track.children[0].getBoundingClientRect();
+                const last = track.children[originalCards.length - getVisibleCards()].getBoundingClientRect();
+                gesture.min = -(last.left - first.left);
+                track.style.transition = 'none';
+                viewport.classList.add('is-dragging');
+                viewport.setPointerCapture(event.pointerId);
+            }
+            event.preventDefault();
+            gesture.dx = dx;
+            let position = gesture.base + dx;
+            if (position > 0) position *= 0.25;
+            if (position < gesture.min) position = gesture.min + (position - gesture.min) * 0.25;
+            track.style.transform = `translateX(${position}px)`;
+        }, {passive: false});
+
+        function finishGesture(navigate) {
+            if (!gesture) return;
+            const completed = gesture;
+            gesture = null;
+            if (completed.dragging) {
+                suppressClickUntil = performance.now() + 400;
+                viewport.classList.remove('is-dragging');
+                track.style.transition = '';
+                const threshold = Math.min(80, Math.max(40, viewport.clientWidth * 0.12));
+                if (navigate && Math.abs(completed.dx) >= threshold) move(completed.dx < 0 ? 1 : -1);
+                else updateCarousel();
+            }
+            if (viewport.hasPointerCapture(completed.id)) viewport.releasePointerCapture(completed.id);
+        }
+
+        viewport.addEventListener('pointerup', event => {
+            if (gesture?.id === event.pointerId) finishGesture(true);
+        });
+        viewport.addEventListener('pointercancel', event => {
+            if (gesture?.id === event.pointerId) finishGesture(false);
+        });
+        viewport.addEventListener('lostpointercapture', event => {
+            // Touch initially captures on the tapped child (including Book Now).
+            // Its capture transfer bubbles here; only cancel if the viewport loses it.
+            if (event.target === viewport && gesture?.id === event.pointerId) finishGesture(false);
+        });
+        viewport.addEventListener('dragstart', event => event.preventDefault());
+        viewport.addEventListener('click', event => {
+            if (performance.now() >= suppressClickUntil) return;
+            event.preventDefault();
+            event.stopPropagation();
+        }, true);
+
+        window.addEventListener('pointerup', event => {
+            // A tap released outside the viewport should not leave stale state.
+            if (gesture?.id === event.pointerId && !gesture.dragging) gesture = null;
         });
 
         // Reset carousel on window resize
@@ -286,29 +368,6 @@
         // Initialize
         resetCarousel();
     }
-
-    /* Always place the "Most Popular" (featured) package in the MIDDLE of the
-       track (position 2 of 3) so it renders highlighted at the center like
-       the MindEase pricing UI, with non-featured cards on BOTH sides.
-       NOTE: kung nasa unahan na ang featured sa DOM, ang
-       insertBefore(featured, children[1]) ay NO-OP lang — dapat siya
-       ilagay BEFORE the card currently at position 3. */
-    (function () {
-        const pkgTrack = document.querySelector('.carousel-track');
-        if (!pkgTrack) return;
-        const cards = Array.from(pkgTrack.children);
-        const featuredCard = pkgTrack.querySelector('.package-card.featured');
-        if (!featuredCard || cards.length < 3) return;
-        const featuredIndex = cards.indexOf(featuredCard);
-        if (featuredIndex === 1) return; /* nasa gitna na */
-        if (featuredIndex === 0) {
-            /* unahan siya → ilipat sa index 1 (before ang kasalukuyang 3rd card) */
-            pkgTrack.insertBefore(featuredCard, cards[2]);
-        } else {
-            /* nasa likod siya → isingit sa gitna (before ang 2nd card) */
-            pkgTrack.insertBefore(featuredCard, cards[1]);
-        }
-    })();
 
     /* Entrance Arch pricing toggle: "w/ Package" ↔ "Solo".
        Pag nag-switch, nagbabago ang price sa bawat addon card

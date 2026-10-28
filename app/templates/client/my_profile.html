@@ -1,238 +1,182 @@
-﻿{% extends 'client/base.html' %}
+{% extends 'client/account_base.html' %}
 {% load static humanize %}
+{% block title %}My Profile | Balloorina.ph{% endblock %}
 
-{% block content %}
+{% block account_page %}my_profile{% endblock %}
+{% block account_content %}
 <link rel="stylesheet" href="{% static 'css/my_profile.css' %}?v=20261025b">
 <link rel="stylesheet" href="{% static 'css/password_requirements.css' %}?v=20261025b">
+<link rel="stylesheet" href="{% static 'css/profile_dialogs.css' %}?v=20261025d">
+{% include 'components/password_visibility_assets.html' %}
+<link rel="stylesheet" href="{% static 'css/profile_workspace.css' %}?v=20261025b">
+<script src="{% static 'js/profile_deletion.js' %}?v=20261025b" defer></script>
+<script src="{% static 'js/profile_password_otp.js' %}?v=20261025a" defer></script>
 
-<div class="my-profile-page">
-    <div class="my-profile-wrapper">
-        
-        <div class="my-profile-card">
-
-            <!-- Header Section -->
-            <div class="my-profile-header">
-                <div class="avatar-wrapper">
-                    <div class="my-profile-avatar">
-                        {{ user.first_name|default:user.username|slice:":1"|upper }}
-                    </div>
-                </div>
-                <div class="my-profile-title">
-                    <h2>{% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}</h2>
-                    <p>Member since {{ user.date_joined|date:"Y" }}</p>
-                </div>
-            </div>
-            
-            <!-- Body Section -->
-            <div class="my-profile-body">
-                
-                <div class="profile-section">
-                    <div class="section-title-row">
-                        <h3 class="section-title"><i class="far fa-address-card"></i> Personal Information</h3>
-                        <button type="button" class="btn-edit-profile" onclick="openProfileModal()">
-                            <i class="far fa-edit"></i> Edit
-                        </button>
-                    </div>
-                    <div class="info-grid-modern">
-                        <div class="info-group">
-                            <label>First Name</label>
-                            <div class="info-val">{{ user.first_name|default:"Not specified" }}</div>
-                        </div>
-                        <div class="info-group">
-                            <label>Last Name</label>
-                            <div class="info-val">{{ user.last_name|default:"Not specified" }}</div>
-                        </div>
-                        <div class="info-group">
-                            <label>Email Address</label>
-                            <div class="info-val">{{ user.email|default:"Not specified" }}</div>
-                        </div>
-                        <div class="info-group">
-                            <label>Phone Number</label>
-                            <div class="info-val">{{ user.phone_number|default:"Not specified" }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="profile-section">
-                    <h3 class="section-title"><i class="far fa-user-circle"></i> Account Security</h3>
-                    <p class="security-desc">Ensure your account is using a long, random password to stay secure. Change it regularly.</p>
-                    <div class="last-login-row">
-                        <svg class="last-login-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        <span>
-                            {% if user.last_login %}
-                                Last login: {{ user.last_login|date:"M d, Y" }} at {{ user.last_login|time:"g:i A" }}
-                            {% else %}
-                                Welcome! This is your first login.
-                            {% endif %}
-                        </span>
-                    </div>
-                    <button class="btn-change-password" onclick="openPasswordModal()">
-                        <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                        </svg> Change Password
-                    </button>
-                </div>
-
-                <!-- Recent Activity Timeline -->
-                <div class="profile-section">
-                    <h3 class="section-title"><i class="far fa-clock"></i> Recent Activity</h3>
-                    {% if activity_logs %}
-                    <ul class="activity-timeline" id="activityTimeline">
-                        {% for log in activity_logs %}
-                        <li class="activity-item{% if forloop.counter > 4 %} activity-extra{% endif %}">
-                            <span class="activity-marker" title="{{ log.created_at|date:'M d, Y, g:i A' }}">
-                                {% with action=log.action|lower %}
-                                    {% if 'password' in action %}
-                                        <svg class="activity-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-                                    {% elif 'booking' in action %}
-                                        <i class="far fa-calendar"></i>
-                                    {% elif 'review' in action %}
-                                        <i class="far fa-star"></i>
-                                    {% elif 'payment' in action %}
-                                        <i class="far fa-credit-card"></i>
-                                    {% elif 'concern' in action %}
-                                        <i class="far fa-envelope"></i>
-                                    {% elif 'logged in' in action or 'logged out' in action %}
-                                        <i class="far fa-user"></i>
-                                    {% else %}
-                                        <i class="far fa-circle"></i>
-                                    {% endif %}
-                                {% endwith %}
-                            </span>
-                            <div class="activity-content">
-                                <p class="activity-text">{{ log.action }}</p>
-                                <span class="activity-time">{{ log.created_at|timesince }} ago &middot; {{ log.created_at|date:"M d, Y, g:i A" }}</span>
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% if activity_logs|length > 4 %}
-                    <button type="button" class="btn-activity-toggle" id="btnActivityToggle" onclick="toggleActivity()" aria-expanded="false" aria-controls="activityTimeline">
-                        <span id="activityToggleLabel">Show all activity ({{ activity_logs|length }})</span>
-                        <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
-                    {% endif %}
-                    {% else %}
-                    <p class="activity-empty">No activity yet. Your recent actions will show up here.</p>
-                    {% endif %}
-                </div>
-
-            </div>
-
-        </div>
-    </div>
-</div>
+{% include 'components/profile_overview.html' %}
+{% include 'components/account_deletion_dialog.html' %}
+{% include 'components/profile_password_otp.html' %}
 
 <!-- EDIT PROFILE MODAL -->
-<div id="profileModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h2>Edit Profile</h2>
-            <button class="modal-close" onclick="closeProfileModal()">&times;</button>
-        </div>
+<dialog id="profileModal" class="profile-dialog" aria-labelledby="profileModalTitle" aria-describedby="profileModalDescription">
+        <header class="profile-dialog__header">
+            <div><h2 id="profileModalTitle">Edit Profile</h2><p id="profileModalDescription">Keep your contact details up to date.</p></div>
+            <button type="button" class="profile-dialog__close" onclick="closeProfileModal()" aria-label="Close edit profile">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
 
-        <form id="editProfileForm" action="{% url 'update_my_profile' %}" method="POST" novalidate>
+        <form id="editProfileForm" class="profile-dialog__form" action="{% url 'update_my_profile' %}" method="POST" novalidate>
             {% csrf_token %}
+            <div class="profile-dialog__fields">
+            <div class="profile-dialog__names">
             <div class="form-group">
-                <label for="profile_first_name">First Name</label>
-                <input type="text" name="first_name" id="profile_first_name" value="{{ user.first_name|default:'' }}" maxlength="150" placeholder="Enter first name">
+                <label for="profile_first_name">First Name <span style="color: red;">*</span></label>
+                <input type="text" name="first_name" id="profile_first_name" value="{{ profile_form.first_name.value|default_if_none:'' }}" maxlength="150" placeholder="Enter first name" autocomplete="given-name" data-label="First name" required aria-describedby="profileFirstNameError" {% if profile_form.first_name.errors %}aria-invalid="true"{% endif %} autofocus>
+                <small id="profileFirstNameError" class="field-error" role="alert">{{ profile_form.first_name.errors.0 }}</small>
             </div>
 
             <div class="form-group">
-                <label for="profile_last_name">Last Name</label>
-                <input type="text" name="last_name" id="profile_last_name" value="{{ user.last_name|default:'' }}" maxlength="150" placeholder="Enter last name">
+                <label for="profile_last_name">Last Name <span style="color: red;">*</span></label>
+                <input type="text" name="last_name" id="profile_last_name" value="{{ profile_form.last_name.value|default_if_none:'' }}" maxlength="150" placeholder="Enter last name" autocomplete="family-name" data-label="Last name" required aria-describedby="profileLastNameError" {% if profile_form.last_name.errors %}aria-invalid="true"{% endif %}>
+                <small id="profileLastNameError" class="field-error" role="alert">{{ profile_form.last_name.errors.0 }}</small>
             </div>
-
+            </div>
             <div class="form-group">
-                <label for="profile_phone_number">Phone Number</label>
-                <input type="text" name="phone_number" id="profile_phone_number" value="{{ user.phone_number|default:'' }}" maxlength="20" placeholder="Enter phone number">
+                <label for="profile_phone_number">Phone Number <span style="color: red;">*</span></label>
+                <input type="tel" name="phone_number" id="profile_phone_number" value="{{ profile_form.phone_number.value|default_if_none:'' }}" maxlength="20" placeholder="Enter phone number" autocomplete="tel" data-label="Phone number" required aria-describedby="profilePhoneError" {% if profile_form.phone_number.errors %}aria-invalid="true"{% endif %}>
+                <small id="profilePhoneError" class="field-error" role="alert">{{ profile_form.phone_number.errors.0 }}</small>
             </div>
-
-            <button type="submit" class="btn-save-profile">Save Changes</button>
+            </div>
+            <footer class="profile-dialog__actions">
+                <button type="button" class="profile-dialog__cancel" onclick="closeProfileModal()">Cancel</button>
+                <button type="submit" class="profile-dialog__submit btn-save-profile">Save Changes</button>
+            </footer>
         </form>
-    </div>
-</div>
+</dialog>
 
 <!-- CHANGE PASSWORD MODAL -->
-<div id="passwordModal" class="modal-overlay"> <!-- We reuse the clean classes defined in my_profile.css -->
-    <div class="modal-card">
+<dialog id="passwordModal" class="profile-dialog" aria-labelledby="passwordModalTitle" aria-describedby="passwordModalDescription">
+        <header class="profile-dialog__header">
+            <div><h2 id="passwordModalTitle">Change Password</h2><p id="passwordModalDescription">Choose a new password for your account.</p></div>
+            <button type="button" class="profile-dialog__close" onclick="closePasswordModal()" aria-label="Close change password">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
 
-        <div class="modal-header">
-            <h2>Change Password</h2>
-            <button class="modal-close" onclick="closePasswordModal()">&times;</button>
-        </div>
-
-        {% if request.session.email_otp_change %}
-        <p style="font-size: .8rem; margin-bottom: 1rem;">Already requested a code? <a href="{% url 'verify_change_password_otp' %}">Continue password verification</a></p>
-        {% endif %}
-        <form id="changePasswordForm" action="{% url 'change_password' %}" method="POST" novalidate>
+        <form id="changePasswordForm" class="profile-dialog__form" action="{% url 'change_password' %}" method="POST" novalidate>
             {% csrf_token %}
+            <div class="profile-dialog__fields">
+        <p class="profile-dialog__resume"{% if not request.session.email_otp_change %} hidden{% endif %}>Already requested a code? <a data-password-resume href="{% url 'verify_change_password_otp' %}">Continue password verification</a></p>
+            <p id="passwordFormMessage" class="profile-dialog__message" role="alert" tabindex="-1" hidden></p>
             <div class="form-group">
                 <label for="id_old_password">Current Password <span style="color: red;">*</span></label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="old_password" id="id_old_password" required placeholder="Enter current password">
-                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
-                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_old_password', this)">
+                <div class="password-input-wrapper password-visibility-field">
+                    <input type="password" name="old_password" id="id_old_password" required placeholder="Enter current password" autocomplete="current-password" aria-describedby="oldPasswordError" autofocus>
+                    {% include 'components/password_visibility.html' with input_id='id_old_password' password_label='current password' %}
                 </div>
-                <small class="field-error"></small>
+                <small class="field-error" id="oldPasswordError" aria-live="polite"></small>
             </div>
             
             <div class="form-group">
                 <label for="id_new_password1">New Password <span style="color: red;">*</span></label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="new_password1" id="id_new_password1" required placeholder="Enter new password">
-                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
-                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password1', this)">
+                <div class="password-input-wrapper password-visibility-field">
+                    <input type="password" name="new_password1" id="id_new_password1" required placeholder="Enter new password" autocomplete="new-password" aria-describedby="changePasswordRequirements newPasswordError">
+                    {% include 'components/password_visibility.html' with input_id='id_new_password1' password_label='new password' %}
                 </div>
                 {% include 'components/password_requirements.html' with requirements_id='changePasswordRequirements' rule_prefix='change-rule-' %}
-                <small class="field-error"></small>
+                <small class="field-error" id="newPasswordError" aria-live="polite"></small>
             </div>
             
             <div class="form-group">
                 <label for="id_new_password2">Confirm New Password <span style="color: red;">*</span></label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="new_password2" id="id_new_password2" required placeholder="Confirm new password">
-                    <img src="{% static 'images/eye-view.png' %}" alt="Toggle visibility"
-                        class="password-toggle-icon" onclick="togglePasswordVisibility('id_new_password2', this)">
+                <div class="password-input-wrapper password-visibility-field">
+                    <input type="password" name="new_password2" id="id_new_password2" required placeholder="Confirm new password" autocomplete="new-password" aria-describedby="confirmPasswordError">
+                    {% include 'components/password_visibility.html' with input_id='id_new_password2' password_label='confirmation password' %}
                 </div>
-                <small class="field-error"></small>
+                <small class="field-error" id="confirmPasswordError" aria-live="polite"></small>
             </div>
             
-            <p class="otp-profile-help" style="font-size: .8rem; line-height: 1.5; opacity: .8;">We will email a verification code before updating your password.</p>
-            <button type="submit" id="btnSavePassword">Send Verification Code</button>
+            <p class="profile-dialog__note">We will email a verification code before updating your password.</p>
+            </div>
+            <footer class="profile-dialog__actions">
+                <button type="button" class="profile-dialog__cancel" onclick="closePasswordModal()">Cancel</button>
+                <button type="submit" id="btnSavePassword" class="profile-dialog__submit">Send Verification Code</button>
+            </footer>
         </form>
-    </div>
-</div>
+</dialog>
 
 <script>
-    // SweetAlert2 Toast configuration
-    // (Ang CDN ay naka-load na sa client/base.html — huwag i-load ulit)
-    const Toast = AppToast.mixin({ timer: 3000 });
+AccountPages.register('my_profile', "template", function(scope) {
+    scope.capture(['resetChangePasswordState', 'syncChangePasswordChecklist']);
+
+    let profilePreviousOverflow = '';
+    function openAccountDialog(id) {
+        const dialog = document.getElementById(id);
+        if (dialog.open) return;
+        if (!document.querySelector('.profile-dialog[open]')) profilePreviousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        dialog.showModal();
+    }
 
     function openProfileModal() {
-        document.getElementById('profileModal').classList.add('show');
+        openAccountDialog('profileModal');
     }
 
     function closeProfileModal() {
-        const modal = document.getElementById('profileModal');
-        const form = document.getElementById('editProfileForm');
-        modal.classList.remove('show');
-        if (form) form.reset();
+        document.getElementById('profileModal').close();
     }
+
+    const editProfileForm = document.getElementById('editProfileForm');
+    const profileInputs = [...editProfileForm.querySelectorAll('input[required]')];
+    let profileSubmitAttempted = false;
+    function profileFieldError(input, message) {
+        input.closest('.form-group').classList.toggle('has-error', Boolean(message));
+        input.setAttribute('aria-invalid', String(Boolean(message)));
+        document.getElementById(input.getAttribute('aria-describedby')).textContent = message;
+    }
+    function validateProfileField(input) {
+        const value = input.value.trim();
+        let message = '';
+        if (!value) message = `${input.dataset.label} is required.`;
+        else if (value.length > input.maxLength) message = `Use at most ${input.maxLength} characters.`;
+        else if (input.name === 'phone_number') {
+            const digits = value.replace(/[\s\-()+]/g, '');
+            if (!/^\d+$/.test(digits)) message = 'Phone number must contain only digits.';
+            else if (digits.length < 10 || digits.length > 15) message = 'Phone number must be between 10 and 15 digits.';
+        }
+        profileFieldError(input, message);
+        return !message;
+    }
+    editProfileForm.addEventListener('submit', event => {
+        profileSubmitAttempted = true;
+        const invalid = profileInputs.filter(input => !validateProfileField(input));
+        if (invalid.length) {
+            event.preventDefault();
+            invalid[0].focus();
+        }
+    });
+    profileInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            if (profileSubmitAttempted || input.getAttribute('aria-invalid') === 'true') validateProfileField(input);
+        });
+        if (input.getAttribute('aria-invalid') === 'true') input.closest('.form-group').classList.add('has-error');
+    });
+    editProfileForm.addEventListener('reset', () => {
+        profileSubmitAttempted = false;
+        profileInputs.forEach(input => profileFieldError(input, ''));
+    });
 
     // --- PASSWORD MODAL FUNCTIONS ---
     function openPasswordModal() {
-        document.getElementById('passwordModal').classList.add('show');
+        openAccountDialog('passwordModal');
     }
 
     function closePasswordModal() {
-        document.getElementById('passwordModal').classList.remove('show');
+        document.getElementById('passwordModal').close();
+        if (!document.querySelector('.profile-dialog[open]')) document.body.style.overflow = profilePreviousOverflow;
+    }
+
+    function resetPasswordModal() {
         // Reset form on close
         const form = document.getElementById('changePasswordForm');
         if (form) form.reset();
@@ -244,32 +188,18 @@
         });
         document.querySelectorAll('#changePasswordForm input.has-error').forEach((el) => {
             el.classList.remove('has-error');
+            el.removeAttribute('aria-invalid');
         });
 
-        // Reset password fields to password type and eye icon to view
-        ['id_old_password', 'id_new_password1', 'id_new_password2'].forEach(id => {
-            let input = document.getElementById(id);
-            if (input) input.type = 'password';
-        });
-        document.querySelectorAll('.password-toggle-icon').forEach(icon => {
-            icon.src = "{% static 'images/eye-view.png' %}";
-        });
+        window.PasswordVisibility.reset(form);
+
+        window.resetChangePasswordState?.();
 
         if (typeof syncChangePasswordChecklist === 'function') {
             syncChangePasswordChecklist();
         }
     }
 
-    function togglePasswordVisibility(inputId, icon) {
-        const input = document.getElementById(inputId);
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.src = "{% static 'images/eye-hide.png' %}";
-        } else {
-            input.type = 'password';
-            icon.src = "{% static 'images/eye-view.png' %}";
-        }
-    }
 
     // --- AJAX PASSWORD SUBMISSION ---
     const pwForm = document.getElementById('changePasswordForm');
@@ -284,6 +214,12 @@
             special: document.getElementById('change-rule-special')
         };
         let submitAttempted = false;
+        const formMessage = document.getElementById('passwordFormMessage');
+        window.resetChangePasswordState = () => {
+            submitAttempted = false;
+            formMessage.hidden = true;
+            formMessage.textContent = '';
+        };
 
         const setFieldError = (input, message) => {
             const group = input.closest('.form-group');
@@ -291,6 +227,7 @@
             const errorEl = group.querySelector('.field-error');
             group.classList.toggle('has-error', !!message);
             input.classList.toggle('has-error', !!message);
+            input.setAttribute('aria-invalid', String(Boolean(message)));
             if (errorEl) errorEl.textContent = message || '';
         };
 
@@ -383,6 +320,8 @@
         pwForm.addEventListener('submit', function (e) {
             e.preventDefault();
             submitAttempted = true;
+            formMessage.hidden = true;
+            formMessage.textContent = '';
 
             const validation = validateRequiredFields();
             if (!validation.isValid) {
@@ -408,12 +347,13 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    if (!scope.active) return;
                     btn.disabled = false;
                     btn.textContent = 'Send Verification Code';
 
                     if (data.success) {
                         form.reset();
-                        window.location.assign(data.redirect_url);
+                        window.AccountPasswordOTP.open();
                     } else {
                         // Gather the first error to display
                         let errorMsg = data.message || data.error || 'Update failed. Please check your inputs.';
@@ -423,20 +363,25 @@
                                 break;
                             }
                         }
-                        Toast.fire({
-                            icon: 'error',
-                            title: errorMsg
+                        let firstInvalid = null;
+                        Object.entries(data.errors || {}).forEach(([field, errors]) => {
+                            const input = form.elements.namedItem(field);
+                            if (!input) return;
+                            setFieldError(input, Array.isArray(errors) ? errors.join(' ') : String(errors));
+                            if (!firstInvalid) firstInvalid = input;
                         });
+                        formMessage.textContent = errorMsg;
+                        formMessage.hidden = false;
+                        (firstInvalid || formMessage).focus();
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     btn.disabled = false;
                     btn.textContent = 'Send Verification Code';
-                    Toast.fire({
-                        icon: 'error',
-                        title: 'An error occurred. Please try again.'
-                    });
+                    formMessage.textContent = 'We could not send your request. Please try again.';
+                    formMessage.hidden = false;
+                    formMessage.focus();
                 });
         });
 
@@ -501,17 +446,41 @@
         }
     }
 
-    // Close on outside click
-    window.onclick = function (event) {
-        const profileModal = document.getElementById('profileModal');
-        const passwordModal = document.getElementById('passwordModal');
-        if (event.target == profileModal) {
-            closeProfileModal();
-        }
-        if (event.target == passwordModal) {
-            closePasswordModal();
-        }
-    }
+    document.querySelectorAll('.profile-dialog:not(.account-deletion-dialog):not(.password-otp-dialog)').forEach(dialog => {
+        dialog.addEventListener('keydown', event => {
+            if (event.key !== 'Tab') return;
+            const focusable = [...dialog.querySelectorAll('button:not(:disabled), input:not([type="hidden"]):not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')]
+                .filter(element => element.getClientRects().length);
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+        dialog.addEventListener('click', event => {
+            if (event.target !== dialog) return;
+            const rect = dialog.getBoundingClientRect();
+            if (event.clientX < rect.left || event.clientX > rect.right ||
+                event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+        });
+        dialog.addEventListener('close', () => {
+            if (!document.querySelector('.profile-dialog[open]')) document.body.style.overflow = profilePreviousOverflow;
+            if (dialog.id === 'profileModal') document.getElementById('editProfileForm').reset();
+            else resetPasswordModal();
+        });
+    });
+    {% if profile_form.is_bound %}
+    openProfileModal();
+    profileInputs.find(input => input.getAttribute('aria-invalid') === 'true')?.focus();
+    {% endif %}
+
+    scope.expose({openAccountDialog, openProfileModal, closeProfileModal, profileFieldError, validateProfileField, openPasswordModal, closePasswordModal, resetPasswordModal, toggleActivity});
+
+});
 </script>
 {% endblock %}
 

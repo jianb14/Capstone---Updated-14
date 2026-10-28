@@ -1,6 +1,10 @@
 from ..logistics_settings import LogisticsSettingsForm
 from ..site_settings_form import SiteSettingsForm
+from ..admin_configuration import render_settings, settings_saved
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_http_methods
 from ..home_statistics import get_customers_served, get_home_statistics
+from ..package_catalog import ordered_packages
 from ..design_admin import configure_design_offer, render_offer_form, store_offer_config
 from ..design_limits import DesignSettingsForm
 """Admin: dashboard, content mgmt, users, analytics, gallery, reviews. (split from app/views.py)"""
@@ -38,6 +42,8 @@ def _handle_preview_images(request, preview_manager):
 # Helper to extract End Time from special_requests string
 
 @login_required
+@never_cache
+@require_http_methods(['GET', 'POST'])
 def admin_site_settings(request):
     """Central site settings page (admin role only)."""
     if request.user.role != "admin":
@@ -63,9 +69,12 @@ def admin_site_settings(request):
                 config.shop_lng = site_form.cleaned_data['shop_lng']
                 config.save()
                 log_action(request.user, 'Updated site settings, design allowance, and logistics rates.')
+            response = settings_saved(request, settings_obj, 'All site settings saved successfully.')
+            if response is not None:
+                return response
             messages.success(request, 'All site settings saved successfully.')
             return redirect('admin_site_settings')
-        return render(request, 'admin/settings/admin_site_settings.html', {
+        return render_settings(request, {
             'settings': settings_obj, 'shop_origin': (request.POST.get('shop_lat', ''), request.POST.get('shop_lng', '')),
             'site_form': site_form, 'design_settings_form': design_settings_form,
             'logistics_settings_form': logistics_settings_form,
@@ -77,9 +86,12 @@ def admin_site_settings(request):
             config = logistics_settings_form.save(commit=False)
             config.save(update_fields=[*LogisticsSettingsForm.Meta.fields, 'updated_at'])
             log_action(request.user, f'Updated logistics rates: base {config.amount}, per km {config.per_km_rate}.')
+            response = settings_saved(request, settings_obj, 'Logistics settings saved successfully.')
+            if response is not None:
+                return response
             messages.success(request, 'Logistics settings saved successfully.')
             return redirect(reverse('admin_site_settings') + '#logistics-settings')
-        return render(request, 'admin/settings/admin_site_settings.html', {
+        return render_settings(request, {
             'settings': settings_obj, 'shop_origin': get_logistics_origin(service_charge_config),
             'design_settings_form': design_settings_form, 'logistics_settings_form': logistics_settings_form,
         }, status=400)
@@ -92,9 +104,12 @@ def admin_site_settings(request):
             settings_obj.updated_by = request.user
             settings_obj.save(update_fields=['max_saved_designs', 'updated_by', 'updated_at'])
             log_action(request.user, f'Updated saved design limit to {settings_obj.max_saved_designs} per customer.')
+            response = settings_saved(request, settings_obj, 'Design settings saved successfully.')
+            if response is not None:
+                return response
             messages.success(request, 'Design settings saved successfully.')
             return redirect(reverse('admin_site_settings') + '#design-settings')
-        return render(request, 'admin/settings/admin_site_settings.html', {
+        return render_settings(request, {
             'settings': settings_obj, 'shop_origin': get_logistics_origin(service_charge_config),
             'design_settings_form': design_settings_form, 'logistics_settings_form': logistics_settings_form,
         }, status=400)
@@ -188,320 +203,79 @@ def admin_site_settings(request):
 
         return redirect("admin_site_settings")
 
-    return render(
+    return render_settings(
         request,
-        "admin/settings/admin_site_settings.html",
         {"settings": settings_obj, "shop_origin": get_logistics_origin(service_charge_config), "design_settings_form": design_settings_form, "logistics_settings_form": logistics_settings_form},
     )
 
 
-@login_required
-def admin_user_list(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    # 1. Kunin lahat ng users
-    users_list = User.objects.all().order_by("username")
-
-    # 2. Role Filter
-    role_filter = request.GET.get("role")
-    if role_filter and role_filter in ["admin", "customer"]:
-        users_list = users_list.filter(role=role_filter)
-
-    # 2A. Status Filter (active/inactive)
-    status_filter = request.GET.get("status", "").strip()
-    if status_filter == "active":
-        users_list = users_list.filter(is_active=True)
-    elif status_filter == "inactive":
-        users_list = users_list.filter(is_active=False)
-
-    # 3. Search Logic
-    search_query = request.GET.get("search")
-    if search_query:
-        users_list = users_list.filter(
-            Q(username__icontains=search_query)
-            | Q(first_name__icontains=search_query)
-            | Q(last_name__icontains=search_query)
-            | Q(email__icontains=search_query)
-        )
-
-    # 4. Summary cards (mirrors admin booking summary grid)
-    all_users = User.objects.all()
-    user_summary = {
-        "total": all_users.count(),
-        "active": all_users.filter(is_active=True).count(),
-        "inactive": all_users.filter(is_active=False).count(),
-        "admins": all_users.filter(role="admin").count(),
-        "staff": all_users.filter(role="staff").count(),
-        "customers": all_users.filter(role="customer").count(),
-    }
-
-    # 5. Pagination Logic (10 items per page)
-    paginator = Paginator(users_list, 10)
-    page_number = request.GET.get("page")
-    users = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "admin/user/admin_user_list.html",
-        {"users": users, "user_summary": user_summary},
-    )
+# Account management is read-only except for explicit, email-backed access changes.
+from .users import (admin_user_list, admin_user_detail, admin_user_toggle_active,
+                    admin_user_edit, admin_user_delete, admin_user_reset_password)
 
 
 @login_required
-def admin_user_edit(request, id):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Admins only")
-
-    user_obj = get_object_or_404(User, id=id)
-
-    # ❌ bawal i-edit ang sarili
-    if user_obj == request.user:
-        messages.error(request, "You cannot edit your own account.")
-        return redirect("admin_user_list")
-
-    if request.method == "POST":
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-        email = request.POST.get("email", "").strip()
-        phone_number = request.POST.get("phone_number", "").strip()
-        role = request.POST.get("role", "").strip()
-
-        user_obj.first_name = first_name
-        user_obj.last_name = last_name
-        user_obj.email = email
-        user_obj.phone_number = phone_number
-        user_obj.role = role
-
-        if not first_name:
-            messages.error(request, "First name is required.")
-            return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
-
-        if not last_name:
-            messages.error(request, "Last name is required.")
-            return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
-
-        if not email:
-            messages.error(request, "Email is required.")
-            return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
-
-        if not phone_number:
-            messages.error(request, "Phone number is required.")
-            return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
-
-        valid_roles = {"admin", "customer"}
-        if role not in valid_roles:
-            messages.error(request, "Role is required.")
-            return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
-
-        log_action(request.user, f"Edited user profile for '{user_obj.username}'.")
-        user_obj.save()
-        messages.success(request, "User updated successfully.")
-        return redirect("admin_user_list")
-
-    return render(request, "admin/user/admin_user_edit.html", {"u": user_obj})
-
-
-@login_required
-def admin_user_detail(request, id):
-    """Detailed profile view for a single user: bookings, payments, reviews."""
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    user_obj = get_object_or_404(User, id=id)
-
-    user_bookings = (
-        Booking.objects.filter(user=user_obj)
-        .prefetch_related("payments")
-        .order_by("-created_at")
-    )
-    for b in user_bookings[:20]:
-        b.time_range_display = get_booking_time_range(b)
-
-    booking_count = user_bookings.count()
-    total_spent = (
-        user_bookings.filter(status__in=["confirmed", "completed"])
-        .aggregate(total=Sum("total_price"))["total"]
-        or Decimal("0.00")
-    )
-
-    user_payments = Payment.objects.filter(booking__user=user_obj).select_related(
-        "booking"
-    ).order_by("-created_at")[:20]
-
-    user_reviews = Review.objects.filter(user=user_obj).select_related("booking").order_by(
-        "-created_at"
-    )[:20]
-
-    context = {
-        "u": user_obj,
-        "user_bookings": user_bookings[:20],
-        "booking_count": booking_count,
-        "total_spent": total_spent,
-        "user_payments": user_payments,
-        "user_reviews": user_reviews,
-    }
-    return render(request, "admin/user/admin_user_detail.html", context)
-
-
-@login_required
-@require_POST
-def admin_user_reset_password(request, id):
-    """Send a password reset link to a user's email address."""
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Admins only")
-
-    user_obj = get_object_or_404(User, id=id)
-
-    if user_obj.role == "admin":
-        messages.error(
-            request,
-            "Password reset is not available for administrator accounts.",
-        )
-        return redirect("admin_user_detail", id=user_obj.id)
-
-    if not user_obj.email:
-        messages.error(request, f"User '{user_obj.username}' has no email address on file.")
-        return redirect("admin_user_detail", id=user_obj.id)
-
-    token = default_token_generator.make_token(user_obj)
-    uid = urlsafe_base64_encode(force_bytes(user_obj.pk))
-    reset_link = request.build_absolute_uri(
-        reverse("password_reset_confirm", kwargs={"uidb64": uid, "token": token})
-    )
-
-    try:
-        send_mail(
-            subject="Password Reset Request | Balloorina",
-            message=(
-                f"Hi {user_obj.get_full_name() or user_obj.username},\n\n"
-                "An administrator requested a password reset for your Balloorina account.\n"
-                "Click the link below to set a new password (valid for 30 minutes):\n\n"
-                f"{reset_link}\n\n"
-                "If you did not expect this, you can safely ignore this email.\n\n"
-                "— Balloorina Team"
-            ),
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[user_obj.email],
-            fail_silently=False,
-        )
-        log_action(
-            request.user,
-            f"Sent password reset email to '{user_obj.username}'.",
-        )
-        messages.success(
-            request,
-            f"Password reset link sent to {user_obj.email}.",
-        )
-    except Exception:
-        logger.exception("Failed to send password reset email to user #%s", user_obj.id)
-        messages.error(
-            request,
-            "Could not send the password reset email right now. Please try again later.",
-        )
-
-    return redirect("admin_user_detail", id=user_obj.id)
-
-
-@login_required
-def admin_user_toggle_active(request, id):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Admins only")
-
-    user_obj = get_object_or_404(User, id=id)
-
-    if user_obj == request.user:
-        messages.error(request, "You cannot deactivate yourself.")
-        return redirect("admin_user_list")
-
-    user_obj.is_active = not user_obj.is_active
-    user_obj.save()
-
-    status = "activated" if user_obj.is_active else "deactivated"
-    log_action(
-        request.user, f"User account for '{user_obj.username}' has been {status}."
-    )
-    messages.success(
-        request, f"User '{user_obj.username}' has been {status} successfully."
-    )
-    return redirect("admin_user_list")
-
-
-@login_required
-def admin_user_delete(request, id):
-    if request.user.role != "admin":
-        return HttpResponseForbidden("Admins only")
-
-    user_obj = get_object_or_404(User, id=id)
-
-    if user_obj == request.user:
-        messages.error(request, "You cannot delete yourself.")
-        return redirect("admin_user_list")
-
-    username = user_obj.username
-    user_obj.delete()
-    log_action(request.user, f"Deleted user account for '{username}'.")
-    messages.success(request, "User deleted.")
-    return redirect("admin_user_list")
-
-
-@login_required
+@require_GET
 def admin_audit_log_list(request):
     if request.user.role not in ["admin"]:
         return HttpResponseForbidden("Admins only")
 
-    log_list = AuditLog.objects.select_related("user").all()
+    from ..account_lists import account_page_size
+    from django.utils.dateparse import parse_date
+    log_list = AuditLog.objects.select_related('user').order_by('-created_at', '-pk')
 
     # Filters
-    search_query = request.GET.get("search", "").strip()
+    search_query = request.GET.get("search", "").strip()[:150]
     role_filter = request.GET.get("role", "").strip()
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
 
     if search_query:
-        log_list = log_list.filter(
-            Q(action__icontains=search_query)
-            | Q(user__username__icontains=search_query)
-            | Q(user__email__icontains=search_query)
-        )
-
-    if role_filter:
+        match = (Q(action__icontains=search_query) | Q(user__username__icontains=search_query)
+                 | Q(user__email__icontains=search_query) | Q(user__first_name__icontains=search_query)
+                 | Q(user__last_name__icontains=search_query))
+        key = re.sub(r'^(?:#?LOG-?|#)', '', search_query, flags=re.I)
+        if key.isdecimal() and len(key) < 19:
+            match |= Q(pk=int(key))
+        log_list = log_list.filter(match)
+    if role_filter == 'system':
+        log_list = log_list.filter(user__isnull=True)
+    elif role_filter in ('admin', 'customer'):
         log_list = log_list.filter(user__role=role_filter)
+    else:
+        role_filter = ''
 
-    if date_from:
+    error = ''
+    if date_from or date_to:
         try:
-            log_list = log_list.filter(created_at__date__gte=date_from)
-        except (ValueError, ValidationError):
-            pass
+            first, last = parse_date(date_from), parse_date(date_to)
+        except (ValueError, TypeError):
+            first = last = None
+        if not first or not last:
+            error = 'Choose both a valid start date and end date.'
+        elif first > last:
+            error = 'The end date must be on or after the start date.'
+        else:
+            log_list = log_list.filter(created_at__date__range=(first, last))
 
-    if date_to:
-        try:
-            log_list = log_list.filter(created_at__date__lte=date_to)
-        except (ValueError, ValidationError):
-            pass
-
-    # Pagination Logic (15 items per page)
-    paginator = Paginator(log_list, 15)
-    page_number = request.GET.get("page")
-    logs = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "admin/audit_log_list.html",
-        {
-            "logs": logs,
-            "search_query": search_query,
-            "role_filter": role_filter,
-            "date_from": date_from,
-            "date_to": date_to,
-        },
-    )
+    per_page = account_page_size(request)
+    logs = Paginator(log_list, per_page).get_page(request.GET.get('page'))
+    context = {'logs': logs, 'per_page': per_page, 'search_query': search_query,
+        'role_filter': role_filter, 'date_from': date_from, 'date_to': date_to,
+        'filter_error': error, 'has_filters': bool(search_query or role_filter or date_from or date_to)}
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        response = JsonResponse({'html': render_to_string('admin/audit/_list.html', context, request),
+            'page': logs.number, 'per_page': per_page, 'error': error}, status=400 if error else 200)
+    else:
+        response = render(request, 'admin/audit_log_list.html', context)
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required
 @configure_design_offer('package')
 def admin_package_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     if request.method == "POST":
@@ -588,23 +362,8 @@ def admin_package_edit(request, id):
 
 @login_required
 def admin_package_list(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    # Featured packages first, then others, newest first
-    packages = Package.objects.all().order_by("-is_featured", "-created_at")
-    addons = AddOn.objects.all().order_by("-created_at")
-    additionals = AdditionalOnly.objects.all().order_by("-created_at")
-
-    return render(
-        request,
-        "admin/package/package_list.html",
-        {
-            "packages": packages,
-            "addons": addons,
-            "additionals": additionals,
-        },
-    )
+    from ..catalog_admin import catalog_workspace
+    return catalog_workspace(request, 'packages')
 
 
 @login_required
@@ -624,7 +383,7 @@ def admin_service_charge_update(request):
 
 @login_required
 def admin_package_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     package = get_object_or_404(Package, id=id)
@@ -634,19 +393,12 @@ def admin_package_detail(request, id):
 
 @login_required
 def admin_package_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    package = get_object_or_404(Package, id=id)
-    package_name = package.name
-    package.delete()
-    log_action(request.user, f"Deleted package: '{package_name}'.")
-    messages.success(request, "Package deleted successfully!")
-    return redirect("admin_package_list")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'package', id)
 
 
 def package(request):
-    packages = Package.objects.all().order_by("-is_featured", "-created_at")
+    packages = ordered_packages()
     addons = AddOn.objects.filter(is_active=True).order_by("-created_at")
     additionals = AdditionalOnly.objects.filter(is_active=True).order_by("-created_at")
     service_charge_config = get_service_charge_config()
@@ -671,7 +423,7 @@ from decimal import Decimal, InvalidOperation
 @login_required
 @configure_design_offer('entrance')
 def admin_addon_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     if request.method == "POST":
@@ -717,7 +469,7 @@ def admin_addon_create(request):
 
 @login_required
 def admin_addon_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     addon = get_object_or_404(AddOn, id=id)
@@ -775,18 +527,14 @@ def admin_addon_edit(request, id):
 
 @login_required
 def admin_addon_delete(request, id):
-    addon = get_object_or_404(AddOn, id=id)
-    addon_name = addon.name
-    addon.delete()
-    log_action(request.user, f"Deleted add-on: '{addon_name}'.")
-    messages.success(request, "Add-on deleted successfully!")
-    return redirect("admin_package_list")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'entrance', id)
 
 
 @login_required
 @configure_design_offer('stand')
 def admin_additional_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     if request.method == "POST":
@@ -878,7 +626,7 @@ def admin_additional_edit(request, id):
 
 @login_required
 def admin_additional_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     additional = get_object_or_404(AdditionalOnly, id=id)
@@ -894,18 +642,18 @@ def admin_additional_detail(request, id):
 
 @login_required
 def admin_additional_delete(request, id):
-    additional = get_object_or_404(AdditionalOnly, id=id)
-    additional_name = additional.name
-    additional.delete()
-    log_action(request.user, f"Deleted additional item: '{additional_name}'.")
-    messages.success(request, "Additional deleted successfully!")
-    return redirect("admin_package_list")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'stand', id)
 
 
 @login_required
 def admin_service_content(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
+
+    if request.method == 'GET':
+        from ..content_admin import content_workspace
+        return content_workspace(request, 'services')
 
     content = ServiceContent.objects.first()
     if content is None:
@@ -942,89 +690,16 @@ def admin_service_content(request):
 
 @login_required
 def admin_service_item_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'services', 'services', 'create', 0)
 
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
-
-        if not title:
-            messages.error(request, "Title is required.")
-            return render(
-                request,
-                "admin/content/service_item_form.html",
-                {
-                    "action": "Create",
-                    "feature": {},
-                    "post_data": request.POST,
-                },
-            )
-
-        service = Service.objects.create(
-            title=title,
-            description=description,
-            features=request.POST.get("features", "").strip(),
-            best_for=request.POST.get("best_for", "").strip(),
-            display_order=display_order,
-            is_active=is_active,
-        )
-        
-        if request.FILES.get("image"):
-            service.image = request.FILES["image"]
-            service.save()
-
-        log_action(request.user, f"Created service item '{title}'.")
-        messages.success(request, "Service item created successfully.")
-        return redirect("admin_service_content")
-
-    return render(request, "admin/content/service_item_form.html", {"action": "Create", "feature": {}, "post_data": {}})
 
 
 @login_required
 def admin_service_item_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'services', 'services', 'edit', id)
 
-    service = get_object_or_404(Service, id=id)
-
-    if request.method == "POST":
-        service.title = request.POST.get("title", service.title).strip()
-        service.description = request.POST.get("description", service.description).strip()
-        service.features = request.POST.get("features", "").strip()
-        service.best_for = request.POST.get("best_for", "").strip()
-        service.is_active = request.POST.get("is_active") == "on"
-
-        service.display_order = parse_non_negative_int(
-            request.POST.get("display_order", service.display_order),
-            service.display_order,
-        )
-        remove_image = request.POST.get("remove_image") == "1"
-        if remove_image and service.image:
-            service.image.delete(save=False)
-            service.image = None
-
-        if request.FILES.get("image"):
-            service.image = request.FILES["image"]
-
-        service.save()
-        log_action(request.user, f"Updated service item '{service.title}' (ID #{service.id}).")
-
-        messages.success(request, "Service item updated successfully.")
-        return redirect("admin_service_content")
-
-    return render(
-        request,
-        "admin/content/service_item_form.html",
-        {
-            "action": "Edit",
-            "feature": service,
-            "post_data": {},
-        },
-    )
 
 
 # =========================
@@ -1033,20 +708,14 @@ def admin_service_item_edit(request, id):
 
 @login_required
 def admin_service_item_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'services', 'services', 'delete', id)
 
-    service = get_object_or_404(Service, id=id)
-    service_title = service.title
-    service.delete()
-    log_action(request.user, f"Deleted service item '{service_title}' (ID #{id}).")
-    messages.success(request, "Service item deleted successfully.")
-    return redirect("admin_service_content")
 
 
 def _get_reporting_date_range(request):
     filter_preset = request.GET.get("filter_preset")
-    today = timezone.now().date()
+    today = timezone.localdate()
     
     if filter_preset == "today":
         start_date = today
@@ -1086,501 +755,78 @@ def _get_reporting_date_range(request):
     return start_date, end_date
 
 
-def _status_distribution_from_queryset(filtered_bookings):
-    status_colors_map = {
-        "completed": "#10b981",
-        "confirmed": "#3b82f6",
-        "pending": "#f59e0b",
-        "pending_payment": "#fbbf24",
-        "cancelled": "#ef4444",
-        "expired": "#9ca3af",
-    }
-    status_dist_qs = (
-        filtered_bookings.values("status")
-        .annotate(count=Count("id"))
-        .order_by("status")
-    )
-    status_distribution = []
-    for item in status_dist_qs:
-        status_raw = item["status"]
-        status_distribution.append(
-            {
-                "status": status_raw,
-                "label": status_raw.title(),
-                "count": item["count"],
-                "color": status_colors_map.get(status_raw.lower(), "#6b7280"),
-            }
-        )
-    return status_distribution
-
-
-def _get_trend_bucket_mode(date_range_days):
-    if date_range_days <= 31:
-        return "day"
-    if date_range_days <= 180:
-        return "week"
-    return "month"
-
-
-def _build_trend_spans_and_labels(start_date, end_date, bucket_mode):
-    spans = []
-    labels = []
-    cursor = start_date
-
-    while cursor <= end_date:
-        if bucket_mode == "day":
-            bucket_end = cursor
-            label = cursor.strftime("%b %d")
-        elif bucket_mode == "week":
-            bucket_end = min(cursor + timedelta(days=6), end_date)
-            label = f"{cursor.strftime('%b %d')} - {bucket_end.strftime('%b %d')}"
-        else:
-            month_end_day = monthrange(cursor.year, cursor.month)[1]
-            natural_month_end = datetime(
-                cursor.year, cursor.month, month_end_day
-            ).date()
-            bucket_end = min(natural_month_end, end_date)
-            if cursor.day == 1 and bucket_end.day == month_end_day:
-                label = cursor.strftime("%b %Y")
-            else:
-                label = f"{cursor.strftime('%b %d')} - {bucket_end.strftime('%b %d')}"
-
-        spans.append((bucket_end - cursor).days + 1)
-        labels.append(label)
-        cursor = bucket_end + timedelta(days=1)
-
-    return spans, labels
-
-
-def _aggregate_trend_series(bookings_qs, range_start, bucket_spans):
-    bucket_index_by_day = {}
-    cursor = range_start
-    for idx, span_days in enumerate(bucket_spans):
-        for _ in range(span_days):
-            bucket_index_by_day[cursor] = idx
-            cursor += timedelta(days=1)
-
-    bookings_series = [0] * len(bucket_spans)
-    revenue_series = [0.0] * len(bucket_spans)
-
-    for event_date, booking_total, status in bookings_qs.values_list(
-        "event_date", "total_price", "status"
-    ):
-        bucket_idx = bucket_index_by_day.get(event_date)
-        if bucket_idx is None:
-            continue
-        bookings_series[bucket_idx] += 1
-        if status == "completed":
-            revenue_series[bucket_idx] += float(booking_total or 0)
-
-    return bookings_series, revenue_series
-
-
 def build_dashboard_context(request):
-    _cleanup_legacy_booking_request_states()
-    start_date, end_date = _get_reporting_date_range(request)
-    date_range_days = (end_date - start_date).days + 1
-
-    event_type_options = list(
-        Booking.objects.exclude(event_type__isnull=True)
-        .exclude(event_type__exact="")
-        .values_list("event_type", flat=True)
-        .distinct()
-        .order_by("event_type")
-    )
-    # Ensure event_type is not an empty string or invalid
-    selected_event_type = (request.GET.get("event_type") or "all").strip()
-    if not selected_event_type or (selected_event_type != "all" and selected_event_type not in event_type_options):
-        selected_event_type = "all"
-
-    filtered_bookings = Booking.objects.filter(
-        event_date__gte=start_date, event_date__lte=end_date
-    )
-    if selected_event_type != "all":
-        filtered_bookings = filtered_bookings.filter(event_type=selected_event_type)
-
-    previous_end = start_date - timedelta(days=1)
-    previous_start = previous_end - timedelta(days=max(date_range_days - 1, 0))
-    previous_period_bookings = Booking.objects.filter(
-        event_date__gte=previous_start, event_date__lte=previous_end
-    )
-    if selected_event_type != "all":
-        previous_period_bookings = previous_period_bookings.filter(
-            event_type=selected_event_type
-        )
-
-    status_distribution = _status_distribution_from_queryset(filtered_bookings)
-    today = timezone.localdate()
-
-    pending_approvals = filtered_bookings.filter(status="pending").count()
-    action_queue_total = pending_approvals
-
-    upcoming_deadline_bookings_qs = Booking.objects.filter(
-        status="pending",
-        event_date__gte=today,
-        event_date__lte=today + timedelta(days=3),
-    )
-    if selected_event_type != "all":
-        upcoming_deadline_bookings_qs = upcoming_deadline_bookings_qs.filter(event_type=selected_event_type)
-    
-    upcoming_deadline_bookings = list(
-        upcoming_deadline_bookings_qs
-        .select_related("user")
-        .order_by("event_date")[:6]
-    )
-    for booking in upcoming_deadline_bookings:
-        booking.days_left = (booking.event_date - today).days
-
-    total_revenue = (
-        filtered_bookings.filter(status="completed").aggregate(
-            rev=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
-        )["rev"]
-    ) or Decimal("0.00")
-    total_bookings = filtered_bookings.count()
-    completed_count = filtered_bookings.filter(status="completed").count()
-    cancelled_count = filtered_bookings.filter(status="cancelled").count()
-    pending_count = filtered_bookings.filter(status="pending").count()
-    confirmed_count = filtered_bookings.filter(status="confirmed").count()
-
-    avg_booking_value = (
-        filtered_bookings.filter(status="completed").aggregate(
-            avg_val=Coalesce(Avg("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
-        )["avg_val"]
-    ) or Decimal("0.00")
-    completion_rate = (
-        round((completed_count / total_bookings) * 100, 1) if total_bookings else 0
-    )
-    cancellation_rate = (
-        round((cancelled_count / total_bookings) * 100, 1) if total_bookings else 0
-    )
-
-    prev_period_bookings = previous_period_bookings.count()
-    period_delta = total_bookings - prev_period_bookings
-    period_delta_pct = (
-        round((period_delta / prev_period_bookings) * 100, 1)
-        if prev_period_bookings > 0
-        else (100.0 if total_bookings > 0 else 0.0)
-    )
-    prev_completed_revenue = (
-        previous_period_bookings.filter(status="completed").aggregate(
-            rev=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
-        )["rev"]
-    ) or Decimal("0.00")
-    revenue_delta = total_revenue - prev_completed_revenue
-    revenue_delta_pct = (
-        round((revenue_delta / prev_completed_revenue) * 100, 1)
-        if prev_completed_revenue
-        else (100.0 if total_revenue > 0 else 0.0)
-    )
-
-    revenue_by_event = list(
-        filtered_bookings.filter(status="completed")
-        .values("event_type")
-        .annotate(
-            count=Count("id"),
-            revenue=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField())),
-            avg_value=Coalesce(Avg("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
-        )
-        .order_by("-revenue")
-    )
-    top_event_label = "No completed bookings yet"
-    top_event_revenue = 0
-    if revenue_by_event:
-        top_event_label = revenue_by_event[0]["event_type"]
-        top_event_revenue = revenue_by_event[0]["revenue"] or 0
-
-    package_counts = {}
-    completed_with_packages = filtered_bookings.filter(status="completed").values_list(
-        "package_type", flat=True
-    )
-    for package_type in completed_with_packages:
-        if not package_type:
-            continue
-        first_part = str(package_type).split("+")[0].strip()
-        if first_part:
-            package_counts[first_part] = package_counts.get(first_part, 0) + 1
-    top_package_name = "No package data"
-    top_package_count = 0
-    if package_counts:
-        top_package_name, top_package_count = max(
-            package_counts.items(), key=lambda item: item[1]
-        )
-
-    package_rows = []
-    package_revenue = {}
-    completed_with_package_revenue = filtered_bookings.filter(
-        status="completed"
-    ).values_list("package_type", "total_price")
-    for package_type, booking_total in completed_with_package_revenue:
-        if not package_type:
-            continue
-        package_name = str(package_type).split("+")[0].strip()
-        if not package_name:
-            continue
-        package_revenue[package_name] = package_revenue.get(
-            package_name, Decimal("0.00")
-        ) + (booking_total or Decimal("0.00"))
-
-    for package_name, count in sorted(
-        package_counts.items(), key=lambda item: item[1], reverse=True
-    )[:8]:
-        package_rows.append(
-            {
-                "package_name": package_name,
-                "count": count,
-                "revenue": package_revenue.get(package_name, Decimal("0.00")),
-            }
-        )
-
-    # Top customers ranked by revenue from COMPLETED bookings only so this
-    # table stays consistent with total_revenue and revenue_by_event.
-    top_customers = list(
-        filtered_bookings.filter(status="completed")
-        .values("user__first_name", "user__last_name", "user__username", "user__email")
-        .annotate(
-            booking_count=Count("id"),
-            total_spent=Coalesce(Sum("total_price"), Value(Decimal("0.00"), output_field=DecimalField()))
-        )
-        .order_by("-total_spent", "-booking_count")[:8]
-    )
-    for customer in top_customers:
-        customer['name'] = f"{customer['user__first_name']} {customer['user__last_name']}".strip() or customer['user__username']
-
-    status_table = [
-        {
-            "label": item["label"],
-            "count": item["count"],
-            "color": item["color"],
-            "share_pct": round((item["count"] / total_bookings) * 100, 1)
-            if total_bookings
-            else 0,
-        }
-        for item in status_distribution
-    ]
-
-    recent_audit_logs = AuditLog.objects.select_related("user").order_by("-created_at")[
-        :6
-    ]
-    recent_bookings = filtered_bookings.select_related("user").order_by("-created_at")[
-        :15
-    ]
-
-    trend_bucket_mode = _get_trend_bucket_mode(date_range_days)
-    trend_bucket_spans, chart_labels = _build_trend_spans_and_labels(
-        start_date, end_date, trend_bucket_mode
-    )
-    bookings_trend, revenue_trend = _aggregate_trend_series(
-        filtered_bookings, start_date, trend_bucket_spans
-    )
-
-    prev_bookings_trend, prev_revenue_trend = _aggregate_trend_series(
-        previous_period_bookings,
-        previous_start,
-        trend_bucket_spans,
-    )
-
-    trend_title_map = {
-        "day": "Daily Trend",
-        "week": "Weekly Trend",
-        "month": "Monthly Trend",
-    }
-    trend_bucket_label_map = {
-        "day": "Daily buckets",
-        "week": "Weekly buckets",
-        "month": "Monthly buckets",
-    }
-
-    queue_breakdown = {
-        "labels": ["Pending Approvals"],
-        "values": [pending_approvals],
-        "colors": ["#f59e0b"],
-    }
-
-    # Busiest days of the week
-    busiest_days_data = (
-        filtered_bookings.exclude(event_date__isnull=True)
-        .values("event_date__week_day")
-        .annotate(count=Count("id"))
-        .order_by("event_date__week_day")
-    )
-    
-    # Map Django's week_day (1=Sunday, 7=Saturday) to labels
-    day_map = {1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat"}
-    busiest_days_labels = [day_map.get(item["event_date__week_day"], "Unknown") for item in busiest_days_data]
-    busiest_days_values = [item["count"] for item in busiest_days_data]
-
-    # Customer Retention (Returning vs New)
-    # Define returning as someone who has more than 1 booking ever
-    all_time_customer_counts = (
-        Booking.objects.values("user")
-        .annotate(count=Count("id"))
-    )
-    returning_user_ids = [item["user"] for item in all_time_customer_counts if item["count"] > 1 and item["user"] is not None]
-    
-    new_customers_count = filtered_bookings.exclude(user_id__in=returning_user_ids).values("user").distinct().count()
-    returning_customers_count = filtered_bookings.filter(user_id__in=returning_user_ids).values("user").distinct().count()
-    
-    total_customers = new_customers_count + returning_customers_count
-    new_customers_pct = round((new_customers_count / total_customers * 100), 1) if total_customers > 0 else 0
-    returning_customers_pct = round((returning_customers_count / total_customers * 100), 1) if total_customers > 0 else 0
-
-    # Peak Season Heatmap: bookings per month, current year vs previous year
-    today_for_heat = timezone.localdate()
-    heatmap_current_year = today_for_heat.year
-    heatmap_prev_year = heatmap_current_year - 1
-    heatmap_months = []
-    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    all_heatmap_bookings = Booking.objects.exclude(event_date__isnull=True)
-    heatmap_current_counts = {
-        item["event_date__month"]: item["count"]
-        for item in all_heatmap_bookings.filter(
-            event_date__year=heatmap_current_year
-        ).values("event_date__month").annotate(count=Count("id"))
-    }
-    heatmap_prev_counts = {
-        item["event_date__month"]: item["count"]
-        for item in all_heatmap_bookings.filter(
-            event_date__year=heatmap_prev_year
-        ).values("event_date__month").annotate(count=Count("id"))
-    }
-    max_heatmap_count = 0
-    for m in range(1, 13):
-        cur = heatmap_current_counts.get(m, 0)
-        prev = heatmap_prev_counts.get(m, 0)
-        max_heatmap_count = max(max_heatmap_count, cur, prev)
-        heatmap_months.append(
-            {
-                "label": month_names[m - 1],
-                "current": cur,
-                "prev": prev,
-            }
-        )
-
-    # Conversion: registered customers vs customers with at least one booking
-    registered_customers = User.objects.filter(role="customer").count()
-    booked_customer_ids = set(
-        Booking.objects.values_list("user_id", flat=True).distinct()
-    )
-    booked_customers = (
-        User.objects.filter(role="customer", id__in=booked_customer_ids).count()
-    )
-    conversion_rate_pct = (
-        round((booked_customers / registered_customers * 100), 1)
-        if registered_customers > 0
-        else 0
-    )
-
-    return {
-        "filter_preset": request.GET.get("filter_preset", ""),
-        "start_date": start_date,
-        "end_date": end_date,
-        "selected_event_type": selected_event_type,
-        "event_type_options": event_type_options,
-        "active_users": User.objects.filter(role="customer", is_active=True).count(),
-        "pending_approvals": pending_approvals,
-        "action_queue_total": action_queue_total,
-        "upcoming_deadline_bookings": upcoming_deadline_bookings,
-        "period_delta": period_delta,
-        "period_delta_pct": period_delta_pct,
-        "total_revenue": total_revenue,
-        "avg_booking_value": avg_booking_value,
-        "completion_rate": completion_rate,
-        "cancellation_rate": cancellation_rate,
-        "completed_count": completed_count,
-        "cancelled_count": cancelled_count,
-        "pending_bookings": pending_count,
-        "confirmed_bookings": confirmed_count,
-        "completed_bookings": completed_count,
-        "cancelled_bookings": cancelled_count,
-        "avg_booking_price": avg_booking_value,
-        "total_bookings": total_bookings,
-        "revenue_delta": revenue_delta,
-        "revenue_delta_pct": revenue_delta_pct,
-        "top_event_label": top_event_label,
-        "top_event_revenue": top_event_revenue,
-        "top_package_name": top_package_name,
-        "top_package_count": top_package_count,
-        "top_customers": top_customers,
-        "status_table": status_table,
-        "package_rows": package_rows,
-        "revenue_by_event": revenue_by_event,
-        "date_range_days": date_range_days,
-        "recent_audit_logs": recent_audit_logs,
-        "recent_bookings": recent_bookings,
-        "trend_title": trend_title_map.get(trend_bucket_mode, "Trend"),
-        "trend_bucket_label": trend_bucket_label_map.get(
-            trend_bucket_mode, "Trend buckets"
-        ),
-        "dashboard_trend_labels": chart_labels,
-        "dashboard_bookings_trend": bookings_trend,
-        "dashboard_revenue_trend": revenue_trend,
-        "dashboard_prev_bookings_trend": prev_bookings_trend,
-        "dashboard_prev_revenue_trend": prev_revenue_trend,
-        "queue_breakdown": queue_breakdown,
-        "dashboard_status_labels": [item["label"] for item in status_distribution],
-        "dashboard_status_values": [item["count"] for item in status_distribution],
-        "dashboard_status_colors": [item["color"] for item in status_distribution],
-        "dashboard_busiest_days_labels": busiest_days_labels,
-        "dashboard_busiest_days_values": busiest_days_values,
-        "new_customers_count": new_customers_count,
-        "returning_customers_count": returning_customers_count,
-        "new_customers_pct": new_customers_pct,
-        "returning_customers_pct": returning_customers_pct,
-        "heatmap_months": heatmap_months,
-        "heatmap_current_year": heatmap_current_year,
-        "heatmap_prev_year": heatmap_prev_year,
-        "max_heatmap_count": max_heatmap_count,
-        "registered_customers": registered_customers,
-        "booked_customers": booked_customers,
-        "conversion_rate_pct": conversion_rate_pct,
-    }
+    from ..dashboard_reporting import build_dashboard, dashboard_filters
+    return build_dashboard(dashboard_filters(request.GET))
 
 
 def build_concerns_context(request):
-    start_date, end_date = _get_reporting_date_range(request)
-    concern_base_qs = (
-        ConcernTicket.objects.select_related("user")
-        .filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
-        .order_by("-created_at")
-    )
-
-    status_filter = (request.GET.get("concern_status") or "").strip()
-    valid_statuses = {choice[0] for choice in ConcernTicket.STATUS_CHOICES}
-    if status_filter and status_filter in valid_statuses:
-        concern_filtered_qs = concern_base_qs.filter(status=status_filter)
+    from ..admin_notifications import concern_counts
+    from ..account_lists import account_page_size
+    from django.utils.dateparse import parse_date
+    counts = concern_counts()
+    tickets = ConcernTicket.objects.select_related('user').order_by('-created_at', '-pk')
+    status = (request.GET.get('concern_status') or '').strip()
+    category = (request.GET.get('category') or '').strip()
+    search = (request.GET.get('q') or '').strip()[:150]
+    start, end = request.GET.get('start_date', ''), request.GET.get('end_date', '')
+    error = ''
+    if start or end:
+        try:
+            first, last = parse_date(start), parse_date(end)
+            if not first or not last:
+                raise ValueError('Choose both a valid start date and end date.')
+            if first > last:
+                raise ValueError('The end date must be on or after the start date.')
+            tickets = tickets.filter(created_at__date__range=(first, last))
+        except (ValueError, TypeError) as exc:
+            error = str(exc) or 'Choose a valid date range.'
+    if status in dict(ConcernTicket.STATUS_CHOICES):
+        tickets = tickets.filter(status=status)
     else:
-        status_filter = ""
-        concern_filtered_qs = concern_base_qs
+        status = ''
+    if category in dict(ConcernTicket.CATEGORY_CHOICES):
+        tickets = tickets.filter(category=category)
+    else:
+        category = ''
+    if search:
+        match = Q(subject__icontains=search) | Q(message__icontains=search) | Q(user__email__icontains=search)
+        match |= Q(user__username__icontains=search) | Q(user__first_name__icontains=search) | Q(user__last_name__icontains=search)
+        key = re.sub(r'^(?:#?CON-?|#)', '', search, flags=re.I)
+        if key.isdecimal() and len(key) < 19:
+            match |= Q(pk=int(key))
+        tickets = tickets.filter(match)
+    per_page = account_page_size(request)
+    page = Paginator(tickets, per_page).get_page(request.GET.get('page'))
+    return {'concern_rows': page, 'concerns_page': page, 'per_page': per_page,
+        'concern_status_filter': status, 'category_filter': category, 'search_query': search,
+        'start_date': start, 'end_date': end, 'filter_error': error, 'counts': counts,
+        'concern_records_count': page.paginator.count, 'total_concerns': counts['total'],
+        'new_concerns': counts['new'], 'new_concerns_count': counts['new'], 'in_progress_concerns': counts['in_progress'],
+        'resolved_concerns': counts['resolved'], 'has_filters': bool(status or category or search or start or end)}
 
-    recent_admin_notifications = (
-        AdminNotification.objects.select_related("user", "booking")
-        .filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
-        .order_by("-created_at")[:20]
-    )
 
-    concern_count = concern_base_qs.count()
-    new_count = concern_base_qs.filter(status="new").count()
-    in_progress_count = concern_base_qs.filter(status="in_progress").count()
-    resolved_count = concern_base_qs.filter(status="resolved").count()
+def _admin_concern_data(ticket):
+    return {'id': ticket.pk, 'number': f'#CON-{ticket.pk}', 'subject': ticket.subject,
+        'message': ticket.message, 'category': ticket.get_category_display(),
+        'status': ticket.status, 'status_label': ticket.get_status_display(),
+        'name': ticket.user.get_full_name() or ticket.user.username, 'email': ticket.user.email,
+        'created': timezone.localtime(ticket.created_at).strftime('%b %d, %Y · %I:%M %p'),
+        'updated': timezone.localtime(ticket.updated_at).strftime('%b %d, %Y · %I:%M %p'),
+        'admin_notes': ticket.admin_notes,
+        'images': [{'url': image.image.url} for image in ticket.images.all()],
+        'update_url': reverse('admin_concern_update', args=[ticket.pk])}
 
-    concerns_paginator = Paginator(concern_filtered_qs, 8)
-    concerns_page = concerns_paginator.get_page(request.GET.get("page"))
 
-    return {
-        "filter_preset": request.GET.get("filter_preset", ""),
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
-        "date_range_days": (end_date - start_date).days + 1,
-        "concern_rows": concerns_page,
-        "concerns_page": concerns_page,
-        "concern_status_filter": status_filter,
-        "concern_records_count": concern_filtered_qs.count(),
-        "total_concerns": concern_count,
-        "new_concerns": new_count,
-        "in_progress_concerns": in_progress_count,
-        "resolved_concerns": resolved_count,
-        "admin_notifications": recent_admin_notifications,
-    }
+@login_required
+@require_GET
+def admin_concern_details(request, id):
+    if request.user.role != 'admin':
+        return HttpResponseForbidden('Not allowed')
+    ticket = get_object_or_404(ConcernTicket.objects.select_related('user').prefetch_related('images'), pk=id)
+    response = JsonResponse({'ticket': _admin_concern_data(ticket), 'can_update': request.user.role == 'admin'})
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required
@@ -1589,25 +835,52 @@ def admin_concern_update(request, id):
     if request.user.role != "admin":
         return HttpResponseForbidden("Admins only")
 
+    from django.utils.http import url_has_allowed_host_and_scheme
     next_url = request.POST.get("next") or reverse("admin_concerns")
+    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}, require_https=request.is_secure()):
+        next_url = reverse('admin_concerns')
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def reject(message, status=400):
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': message}, status=status)
+        messages.error(request, message)
+        return redirect(next_url)
 
     raw_status = (request.POST.get("status") or "").strip()
     valid_statuses = {'new', 'in_progress', 'resolved'}
     if raw_status not in valid_statuses:
-        messages.error(request, "Invalid concern status selected.")
-        return redirect(next_url)
+        return reject('Choose a valid concern status.')
+    notes = (request.POST.get('admin_notes') or '').strip()
+    if len(notes) > 10000:
+        return reject('Keep the customer update within 10,000 characters.')
 
     with transaction.atomic():
+        # Match customer cancellation/account-removal lock order. Do not hold a
+        # ticket lock while waiting for its customer's account lock.
+        owner_id = get_object_or_404(ConcernTicket.objects.only('user_id'), id=id).user_id
+        User.objects.select_for_update().get(pk=owner_id)
         ticket = get_object_or_404(ConcernTicket.objects.select_for_update(), id=id)
         if ticket.status == 'cancelled':
-            messages.error(request, 'This concern was cancelled by the customer and cannot be updated.')
-            return redirect(next_url)
+            return reject('This concern was cancelled by the customer and cannot be updated.', 409)
+        previous_status = ticket.status
         ticket.status = raw_status
-        ticket.admin_notes = (request.POST.get("admin_notes") or "").strip()
+        ticket.admin_notes = notes
         if ticket.processing_started_at is None and (raw_status != 'new' or ticket.admin_notes):
             ticket.processing_started_at = timezone.now()
         ticket.save(update_fields=['status', 'admin_notes', 'processing_started_at', 'updated_at'])
+        if previous_status != ticket.status:
+            updates = {
+                'in_progress': f'Concern #CON-{ticket.id} is now In Progress. Our team is reviewing it.',
+                'resolved': f'Concern #CON-{ticket.id} has been resolved. View the update.',
+                'new': f'Concern #CON-{ticket.id} status changed to New. View the latest update.',
+            }
+            Notification.objects.create(user_id=ticket.user_id, concern=ticket, message=updates[ticket.status])
         log_action(request.user, f"Updated concern #{ticket.id} to '{ticket.get_status_display()}'.")
+    if is_ajax:
+        from ..admin_notifications import concern_counts
+        return JsonResponse({'success': True, 'message': 'Concern updated. Changes are visible to the customer.',
+            'ticket': _admin_concern_data(ticket), 'counts': concern_counts()})
     messages.success(
         request, f"Concern #{ticket.id} updated to {ticket.get_status_display()}."
     )
@@ -1616,37 +889,13 @@ def admin_concern_update(request, id):
 
 @login_required
 def admin_gallery(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    categories = GalleryCategory.objects.all()
-    selected_image_category = request.GET.get("image_category", "all")
-    gallery_images = GalleryImage.objects.select_related("category").all()
-
-    if selected_image_category != "all":
-        try:
-            category_id = int(selected_image_category)
-            gallery_images = gallery_images.filter(category_id=category_id)
-        except (TypeError, ValueError):
-            selected_image_category = "all"
-
-    paginator = Paginator(gallery_images, 5)
-    page_number = request.GET.get("page")
-    gallery_images = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "admin/gallery/admin_gallery.html",
-        {
-            "categories": categories,
-            "gallery_images": gallery_images,
-            "selected_image_category": selected_image_category,
-        },
-    )
+    from ..catalog_admin import catalog_workspace
+    return catalog_workspace(request, 'gallery')
 
 
 @login_required
 def admin_gallery_category_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
@@ -1663,7 +912,7 @@ def admin_gallery_category_create(request):
 
 @login_required
 def admin_gallery_category_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     category = get_object_or_404(GalleryCategory, id=id)
     if request.method == "POST":
@@ -1689,45 +938,59 @@ def admin_gallery_category_edit(request, id):
 
 @login_required
 def admin_gallery_category_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    category = get_object_or_404(GalleryCategory, id=id)
-    cat_name = category.name
-    category.delete()
-    log_action(request.user, f"Deleted gallery category '{cat_name}'.")
-    messages.success(request, "Category deleted successfully.")
-    return redirect("admin_gallery")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'gallery-category', id)
+
+
+GALLERY_CAPTION_MAX_LENGTH = GalleryImage._meta.get_field('caption').max_length
+
+
+def _render_gallery_image_form(request, categories, gallery_image=None, errors=None,
+                               next_url='', scroll_target=''):
+    bound = request.method == 'POST'
+    return render(request, 'admin/gallery/gallery_image_form.html', {
+        'categories': categories,
+        'gallery_image': gallery_image,
+        'caption_max_length': GALLERY_CAPTION_MAX_LENGTH,
+        'caption_value': request.POST.get('caption', '') if bound else (gallery_image.caption if gallery_image else ''),
+        'selected_category_id': str(request.POST.get('category', '')) if bound else str(gallery_image.category_id if gallery_image else ''),
+        'form_is_active': request.POST.get('is_active') == 'on' if bound else (gallery_image.is_active if gallery_image else True),
+        'errors': errors or {},
+        'upload_needs_reselect': bound and bool(request.FILES.get('image')) and bool(errors),
+        'next_url': next_url,
+        'scroll_target': scroll_target,
+    })
 
 
 @login_required
 def admin_gallery_image_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     categories = GalleryCategory.objects.all()
     if request.method == "POST":
         category_id = request.POST.get("category")
         caption = request.POST.get("caption", "").strip()
         image = request.FILES.get("image")
-        if not category_id or not image:
-            messages.error(request, "Category and image are required.")
-            return render(
-                request,
-                "admin/gallery/gallery_image_form.html",
-                {"categories": categories},
-            )
+        errors = {}
+        if not category_id:
+            errors['category'] = 'Category is required.'
+        if not image:
+            errors['image'] = 'Image is required.'
+        if len(caption) > GALLERY_CAPTION_MAX_LENGTH:
+            errors['caption'] = f'Use {GALLERY_CAPTION_MAX_LENGTH} characters or fewer for the caption.'
+        if errors:
+            return _render_gallery_image_form(request, categories, errors=errors)
         category = get_object_or_404(GalleryCategory, id=category_id)
         GalleryImage.objects.create(category=category, image=image, caption=caption)
         log_action(request.user, f"Added gallery image to '{category.name}'.")
         messages.success(request, "Image added successfully.")
         return redirect("admin_gallery")
-    return render(
-        request, "admin/gallery/gallery_image_form.html", {"categories": categories}
-    )
+    return _render_gallery_image_form(request, categories)
 
 
 @login_required
 def admin_gallery_image_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     gallery_image = get_object_or_404(GalleryImage, id=id)
     categories = GalleryCategory.objects.all()
@@ -1740,18 +1003,14 @@ def admin_gallery_image_edit(request, id):
         caption = request.POST.get("caption", "").strip()
         new_image = request.FILES.get("image")
         is_active = request.POST.get("is_active") == "on"
+        errors = {}
         if not category_id:
-            messages.error(request, "Category is required.")
-            return render(
-                request,
-                "admin/gallery/gallery_image_form.html",
-                {
-                    "gallery_image": gallery_image,
-                    "categories": categories,
-                    "next_url": next_url,
-                    "scroll_target": scroll_target,
-                },
-            )
+            errors['category'] = 'Category is required.'
+        if len(caption) > GALLERY_CAPTION_MAX_LENGTH:
+            errors['caption'] = f'Use {GALLERY_CAPTION_MAX_LENGTH} characters or fewer for the caption.'
+        if errors:
+            return _render_gallery_image_form(request, categories, gallery_image,
+                errors=errors, next_url=next_url, scroll_target=scroll_target)
         gallery_image.category = get_object_or_404(GalleryCategory, id=category_id)
         gallery_image.caption = caption
         gallery_image.is_active = is_active
@@ -1766,21 +1025,13 @@ def admin_gallery_image_edit(request, id):
                 return redirect(f"{next_url}{separator}scroll={scroll_target}")
             return redirect(next_url)
         return redirect("admin_gallery")
-    return render(
-        request,
-        "admin/gallery/gallery_image_form.html",
-        {
-            "gallery_image": gallery_image,
-            "categories": categories,
-            "next_url": next_url,
-            "scroll_target": scroll_target,
-        },
-    )
+    return _render_gallery_image_form(request, categories, gallery_image,
+        next_url=next_url, scroll_target=scroll_target)
 
 
 @login_required
 def admin_gallery_image_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     gallery_image = get_object_or_404(
@@ -1812,20 +1063,13 @@ def admin_gallery_image_detail(request, id):
 
 @login_required
 def admin_gallery_image_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    gallery_image = get_object_or_404(GalleryImage, id=id)
-    img_id = gallery_image.id
-    gallery_image.image.delete()  # Delete file from storage
-    gallery_image.delete()
-    log_action(request.user, f"Deleted gallery image #{img_id}.")
-    messages.success(request, "Image deleted successfully.")
-    return redirect("admin_gallery")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'gallery-image', id)
 
 
 @login_required
 def admin_service_list(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     services = Service.objects.order_by("display_order")
     return render(
@@ -1835,7 +1079,7 @@ def admin_service_list(request):
 
 @login_required
 def admin_service_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     if request.method == "POST":
@@ -1882,7 +1126,7 @@ def admin_service_create(request):
 
 @login_required
 def admin_service_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     service = get_object_or_404(Service, id=id)
@@ -1922,7 +1166,7 @@ def admin_service_edit(request, id):
 
 @login_required
 def admin_service_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     service = get_object_or_404(Service, id=id)
     return render(
@@ -1936,7 +1180,7 @@ def admin_service_detail(request, id):
 
 @login_required
 def admin_service_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     service = get_object_or_404(Service, id=id)
@@ -2274,8 +1518,12 @@ def _seed_service_defaults(content):
 
 @login_required
 def admin_home_content(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
+
+    if request.method == 'GET':
+        from ..content_admin import content_workspace
+        return content_workspace(request, 'home')
 
     content = HomeContent.objects.first()
     if content is None:
@@ -2348,300 +1596,58 @@ def admin_home_content(request):
 
 @login_required
 def admin_home_feature_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'features', 'create', 0)
 
-    content = HomeContent.objects.first()
-    if content is None:
-        content = HomeContent.objects.create()
-
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        icon_class = request.POST.get("icon_class", "fas fa-star").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
-
-        if not title:
-            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "message": "Title is required."}, status=400)
-            messages.error(request, "Title is required.")
-            return render(
-                request,
-                "admin/content/home_feature_form.html",
-                {
-                    "action": "Create",
-                    "feature": {},
-                    "post_data": request.POST,
-                },
-            )
-
-        HomeFeatureItem.objects.create(
-            home_content=content,
-            title=title,
-            description=description,
-            icon_class=icon_class,
-            display_order=display_order,
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created home feature item '{title}'.")
-        
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "Feature item created successfully."})
-        
-        messages.success(request, "Feature item created successfully.")
-        return redirect("admin_home_content")
-
-    return render(request, "admin/content/home_feature_form.html", {"action": "Create", "feature": {}, "post_data": {}})
 
 
 @login_required
 def admin_home_feature_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'features', 'edit', id)
 
-    feature = get_object_or_404(HomeFeatureItem, id=id)
-
-    if request.method == "POST":
-        feature.title = request.POST.get("title", feature.title).strip()
-        feature.description = request.POST.get(
-            "description", feature.description
-        ).strip()
-        feature.icon_class = request.POST.get("icon_class", feature.icon_class).strip()
-        feature.is_active = request.POST.get("is_active") == "on"
-
-        feature.display_order = parse_non_negative_int(
-            request.POST.get("display_order", feature.display_order),
-            feature.display_order,
-        )
-
-        feature.save()
-        log_action(
-            request.user,
-            f"Updated home feature item '{feature.title}' (ID #{feature.id}).",
-        )
-        
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "Feature item updated successfully."})
-        
-        messages.success(request, "Feature item updated successfully.")
-        return redirect("admin_home_content")
-
-    return render(
-        request,
-        "admin/content/home_feature_form.html",
-        {
-            "action": "Edit",
-            "feature": feature,
-            "post_data": {},
-        },
-    )
 
 
 @login_required
 def admin_home_feature_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'features', 'delete', id)
 
-    feature = get_object_or_404(HomeFeatureItem, id=id)
-    feature_title = feature.title
-    feature.delete()
-    log_action(request.user, f"Deleted home feature item '{feature_title}' (ID #{id}).")
-    messages.success(request, "Feature item deleted successfully.")
-    return redirect("admin_home_content")
 
 
 @login_required
 def admin_hiw_step_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'steps', 'create', 0)
 
-    content = HomeContent.objects.first()
-    if content is None:
-        content = HomeContent.objects.create()
-
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        icon_class = request.POST.get("icon_class", "fas fa-star").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
-
-        if not title:
-            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "message": "Title is required."}, status=400)
-            messages.error(request, "Title is required.")
-            return render(
-                request,
-                "admin/content/home_step_form.html",
-                {
-                    "action": "Create",
-                    "step": {},
-                    "post_data": request.POST,
-                },
-            )
-
-        HomeHowItWorksStep.objects.create(
-            home_content=content,
-            title=title,
-            description=description,
-            icon_class=icon_class,
-            display_order=display_order,
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created 'How It Works' step '{title}'.")
-
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "Step created successfully."})
-
-        messages.success(request, "Step created successfully.")
-        return redirect("admin_home_content")
-
-    return render(request, "admin/content/home_step_form.html", {"action": "Create", "step": {}, "post_data": {}})
 
 
 @login_required
 def admin_hiw_step_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'steps', 'edit', id)
 
-    step = get_object_or_404(HomeHowItWorksStep, id=id)
-
-    if request.method == "POST":
-        step.title = request.POST.get("title", step.title).strip()
-        step.description = request.POST.get("description", step.description).strip()
-        step.icon_class = request.POST.get("icon_class", step.icon_class).strip()
-        step.is_active = request.POST.get("is_active") == "on"
-
-        step.display_order = parse_non_negative_int(
-            request.POST.get("display_order", step.display_order),
-            step.display_order,
-        )
-
-        step.save()
-        log_action(
-            request.user,
-            f"Updated 'How It Works' step '{step.title}' (ID #{step.id}).",
-        )
-
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "Step updated successfully."})
-
-        messages.success(request, "Step updated successfully.")
-        return redirect("admin_home_content")
-
-    return render(
-        request,
-        "admin/content/home_step_form.html",
-        {
-            "action": "Edit",
-            "step": step,
-            "post_data": {},
-        },
-    )
 
 
 @login_required
 def admin_hiw_step_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'steps', 'delete', id)
 
-    step = get_object_or_404(HomeHowItWorksStep, id=id)
-    step_title = step.title
-    step.delete()
-    log_action(request.user, f"Deleted 'How It Works' step '{step_title}' (ID #{id}).")
-    messages.success(request, "Step deleted successfully.")
-    return redirect("admin_home_content")
 
 
 @login_required
 def admin_faq_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'faqs', 'create', 0)
 
-    content = HomeContent.objects.first()
-    if content is None:
-        content = HomeContent.objects.create()
-
-    if request.method == "POST":
-        question = request.POST.get("question", "").strip()
-        answer = request.POST.get("answer", "").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
-
-        if not question:
-            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "message": "Question is required."}, status=400)
-            messages.error(request, "Question is required.")
-            return render(
-                request,
-                "admin/content/home_faq_form.html",
-                {
-                    "action": "Create",
-                    "faq": {},
-                    "post_data": request.POST,
-                },
-            )
-
-        HomeFaqItem.objects.create(
-            home_content=content,
-            question=question,
-            answer=answer,
-            display_order=display_order,
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created home FAQ item '{question}'.")
-
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "FAQ item created successfully."})
-
-        messages.success(request, "FAQ item created successfully.")
-        return redirect("admin_home_content")
-
-    return render(request, "admin/content/home_faq_form.html", {"action": "Create", "faq": {}, "post_data": {}})
 
 
 @login_required
 def admin_faq_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'faqs', 'edit', id)
 
-    faq = get_object_or_404(HomeFaqItem, id=id)
-
-    if request.method == "POST":
-        faq.question = request.POST.get("question", faq.question).strip()
-        faq.answer = request.POST.get("answer", faq.answer).strip()
-        faq.is_active = request.POST.get("is_active") == "on"
-
-        faq.display_order = parse_non_negative_int(
-            request.POST.get("display_order", faq.display_order),
-            faq.display_order,
-        )
-
-        faq.save()
-        log_action(
-            request.user,
-            f"Updated home FAQ item '{faq.question}' (ID #{faq.id}).",
-        )
-
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "FAQ item updated successfully."})
-
-        messages.success(request, "FAQ item updated successfully.")
-        return redirect("admin_home_content")
-
-    return render(
-        request,
-        "admin/content/home_faq_form.html",
-        {
-            "action": "Edit",
-            "faq": faq,
-            "post_data": {},
-        },
-    )
 
 
 # =============================================================================
@@ -2650,21 +1656,19 @@ def admin_faq_edit(request, id):
 
 @login_required
 def admin_faq_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'home', 'faqs', 'delete', id)
 
-    faq = get_object_or_404(HomeFaqItem, id=id)
-    faq_question = faq.question
-    faq.delete()
-    log_action(request.user, f"Deleted home FAQ item '{faq_question}' (ID #{id}).")
-    messages.success(request, "FAQ item deleted successfully.")
-    return redirect("admin_home_content")
 
 
 @login_required
 def admin_about_content(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
+
+    if request.method == 'GET':
+        from ..content_admin import content_workspace
+        return content_workspace(request, 'about')
 
     content = AboutContent.objects.first()
     if content is None:
@@ -2834,8 +1838,12 @@ def _notify_clients_policy_update(request, changed_keys):
 @login_required
 def admin_guidelines_content(request):
     """Manage Guidelines, Terms & Conditions, and Privacy Policy page content."""
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
+
+    if request.method == 'GET':
+        from ..content_admin import content_workspace
+        return content_workspace(request, 'policies')
 
     pages = []
     for key in GUIDELINE_PAGE_KEYS:
@@ -2975,193 +1983,37 @@ def admin_guidelines_content(request):
 
 @login_required
 def admin_about_value_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'about', 'values', 'create', 0)
 
-    content = AboutContent.objects.first()
-    if content is None:
-        content = AboutContent.objects.create()
-
-    if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        icon_class = request.POST.get("icon_class", "fas fa-star").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
-
-        if not title:
-            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "message": "Title is required."}, status=400)
-            messages.error(request, "Title is required.")
-            return render(
-                request,
-                "admin/content/about_value_form.html",
-                {
-                    "action": "Create",
-                    "post_data": request.POST,
-                },
-            )
-
-        AboutValueItem.objects.create(
-            about_content=content,
-            title=title,
-            description=description,
-            icon_class=icon_class,
-            display_order=display_order,
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created about value item '{title}'.")
-        
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "Value item created successfully."})
-        
-        messages.success(request, "Value item created successfully.")
-        return redirect("admin_about_content")
-
-    return render(request, "admin/content/about_value_form.html", {"action": "Create"})
 
 
 @login_required
 def admin_about_value_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'about', 'values', 'edit', id)
 
-    value_item = get_object_or_404(AboutValueItem, id=id)
-
-    if request.method == "POST":
-        value_item.title = request.POST.get("title", value_item.title).strip()
-        value_item.description = request.POST.get(
-            "description", value_item.description
-        ).strip()
-        value_item.icon_class = request.POST.get(
-            "icon_class", value_item.icon_class
-        ).strip()
-        value_item.is_active = request.POST.get("is_active") == "on"
-
-        value_item.display_order = parse_non_negative_int(
-            request.POST.get("display_order", value_item.display_order),
-            value_item.display_order,
-        )
-
-        value_item.save()
-        log_action(
-            request.user,
-            f"Updated about value item '{value_item.title}' (ID #{value_item.id}).",
-        )
-        
-        if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-            return JsonResponse({"ok": True, "message": "Value item updated successfully."})
-        
-        messages.success(request, "Value item updated successfully.")
-        return redirect("admin_about_content")
-
-    return render(
-        request,
-        "admin/content/about_value_form.html",
-        {
-            "action": "Edit",
-            "value_item": value_item,
-        },
-    )
 
 
 @login_required
 def admin_about_value_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'about', 'values', 'delete', id)
 
-    value_item = get_object_or_404(AboutValueItem, id=id)
-    item_title = value_item.title
-    value_item.delete()
-    log_action(request.user, f"Deleted about value item '{item_title}' (ID #{id}).")
-    messages.success(request, "Value item deleted successfully.")
-    return redirect("admin_about_content")
 
 
 @login_required
 def admin_about_journey_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'about', 'journey', 'create', 0)
 
-    content = AboutContent.objects.first()
-    if content is None:
-        content = AboutContent.objects.create()
-
-    if request.method == "POST":
-        caption = request.POST.get("caption", "").strip()
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        is_active = request.POST.get("is_active") == "on"
-
-        display_order = parse_non_negative_int(request.POST.get("display_order", 0), 0)
-
-        if not title:
-            if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "message": "Title is required."}, status=400)
-            messages.error(request, "Title is required.")
-            return render(
-                request,
-                "admin/content/about_journey_form.html",
-                {
-                    "action": "Create",
-                    "post_data": request.POST,
-                },
-            )
-
-        AboutJourneyItem.objects.create(
-            about_content=content,
-            caption=caption,
-            title=title,
-            description=description,
-            display_order=display_order,
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created about journey item '{title}'.")
-        messages.success(request, "Journey step created successfully.")
-        return redirect("admin_about_content")
-
-    return render(request, "admin/content/about_journey_form.html", {"action": "Create"})
 
 
 @login_required
 def admin_about_journey_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
+    from ..content_admin import content_action
+    return content_action(request, 'about', 'journey', 'edit', id)
 
-    journey_item = get_object_or_404(AboutJourneyItem, id=id)
-
-    if request.method == "POST":
-        journey_item.caption = request.POST.get(
-            "caption", journey_item.caption
-        ).strip()
-        journey_item.title = request.POST.get("title", journey_item.title).strip()
-        journey_item.description = request.POST.get(
-            "description", journey_item.description
-        ).strip()
-        journey_item.is_active = request.POST.get("is_active") == "on"
-
-        journey_item.display_order = parse_non_negative_int(
-            request.POST.get("display_order", journey_item.display_order),
-            journey_item.display_order,
-        )
-
-        journey_item.save()
-        log_action(
-            request.user,
-            f"Updated about journey item '{journey_item.title}' (ID #{journey_item.id}).",
-        )
-        messages.success(request, "Journey step updated successfully.")
-        return redirect("admin_about_content")
-
-    return render(
-        request,
-        "admin/content/about_journey_form.html",
-        {
-            "action": "Edit",
-            "journey_item": journey_item,
-        },
-    )
 
 
 # =============================================================================
@@ -3170,200 +2022,131 @@ def admin_about_journey_edit(request, id):
 
 @login_required
 def admin_about_journey_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    journey_item = get_object_or_404(AboutJourneyItem, id=id)
-    item_title = journey_item.title
-    journey_item.delete()
-    log_action(request.user, f"Deleted about journey item '{item_title}' (ID #{id}).")
-    messages.success(request, "Journey step deleted successfully.")
-    return redirect("admin_about_content")
+    from ..content_admin import content_action
+    return content_action(request, 'about', 'journey', 'delete', id)
 
 
-@login_required
-def admin_reviews(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
 
-    search_query = request.GET.get("search", "").strip()
-    rating_filter = request.GET.get("rating", "").strip()
-    sort_filter = request.GET.get("sort", "-created_at").strip()
-
-    reviews_qs = Review.objects.select_related("user", "booking").prefetch_related(
-        "images"
-    )
-
-    if search_query:
-        reviews_qs = reviews_qs.filter(
-            Q(user__first_name__icontains=search_query)
-            | Q(user__last_name__icontains=search_query)
-            | Q(user__username__icontains=search_query)
-            | Q(comment__icontains=search_query)
-        )
-
-    if rating_filter:
-        try:
-            reviews_qs = reviews_qs.filter(rating=int(rating_filter))
-        except (ValueError, TypeError):
-            pass
-
-    valid_sorts = ["-created_at", "created_at", "-rating", "rating"]
-    if sort_filter not in valid_sorts:
-        sort_filter = "-created_at"
-    reviews_qs = reviews_qs.order_by(sort_filter)
-
-    total_reviews = Review.objects.count()
-    avg_rating_data = Review.objects.aggregate(avg=Avg("rating"))
-    avg_rating = round(avg_rating_data["avg"] or 0, 1)
-    featured_count = Review.objects.filter(is_testimonial=True).count()
-
-    # Star rating distribution (5★ → 1★)
-    rating_distribution = []
-    rating_counts_raw = (
-        Review.objects.values("rating")
-        .annotate(count=Count("id"))
-    )
-    rating_counts_map = {row["rating"]: row["count"] for row in rating_counts_raw}
-    for star in range(5, 0, -1):
-        count = rating_counts_map.get(star, 0)
-        pct = round((count / total_reviews) * 100, 1) if total_reviews else 0
-        rating_distribution.append({"star": star, "count": count, "pct": pct})
-
-    paginator = Paginator(reviews_qs, 10)
-    page_number = request.GET.get("page", 1)
-    reviews_page = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "admin/admin_reviews.html",
-        {
-            "total_reviews": total_reviews,
-            "avg_rating": avg_rating,
-            "featured_count": featured_count,
-            "rating_distribution": rating_distribution,
-            "search_query": search_query,
-            "rating_filter": rating_filter,
-            "sort_filter": sort_filter,
-            "reviews": reviews_page,
-        },
-    )
-
-
-@login_required
-def admin_review_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    review = get_object_or_404(Review.objects.select_related("user", "booking"), id=id)
+def _review_detail_context(review):
     try:
         reply = review.reply
     except ReviewReply.DoesNotExist:
         reply = None
-    return render(
-        request,
-        "admin/admin_review_detail.html",
-        {"review": review, "reply": reply},
-    )
+    return {"review": review, "reply": reply}
+
+
+def _review_json(request, review, message=""):
+    from ..review_management import review_summary
+    context = _review_detail_context(review)
+    response = JsonResponse({
+        "success": True, "id": review.pk, "is_testimonial": review.is_testimonial,
+        "message": message,
+        "html": render_to_string("admin/reviews/_detail.html", context, request=request),
+        "summary_html": render_to_string("admin/reviews/_summary.html", review_summary(), request=request),
+    })
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+def _review_action_result(request, review, message, error=False, status=400):
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        if error:
+            return JsonResponse({'success': False, 'message': message}, status=status)
+        return _review_json(request, review, message)
+    (messages.error if error else messages.success)(request, message)
+    return redirect('admin_review_detail', id=review.pk)
+
+
+@login_required
+@require_GET
+def admin_reviews(request):
+    if request.user.role != 'admin':
+        return HttpResponseForbidden("Not allowed")
+    from ..review_management import build_review_context
+    context = build_review_context(request.GET)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        response = JsonResponse({
+            'html': render_to_string('admin/reviews/_queue.html', context, request=request),
+            'summary_html': render_to_string('admin/reviews/_summary.html', context, request=request),
+            'page': context['reviews'].number,
+        })
+    else:
+        response = render(request, 'admin/admin_reviews.html', context)
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@login_required
+@require_GET
+def admin_review_detail(request, id):
+    if request.user.role != 'admin':
+        return HttpResponseForbidden("Not allowed")
+    review = get_object_or_404(Review.objects.select_related('user', 'booking', 'reply').prefetch_related('images'), pk=id)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return _review_json(request, review)
+    from ..review_management import build_review_context
+    context = build_review_context(request.GET)
+    context.update(_review_detail_context(review))
+    context['initial_review_id'] = review.pk
+    response = render(request, 'admin/admin_review_detail.html', context)
+    response['Cache-Control'] = 'no-store'
+    return response
 
 
 @login_required
 @require_POST
 def admin_review_reply(request, id):
-    """Create or update the official admin reply to a review."""
-    if request.user.role not in ["admin", "staff"]:
+    """Create or update the official, public response to a review."""
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-
-    review = get_object_or_404(Review, id=id)
-    reply_text = (request.POST.get("reply_text") or "").strip()
-
+    review = get_object_or_404(Review, pk=id)
+    reply_text = (request.POST.get('reply_text') or '').strip()
     if not reply_text:
-        messages.error(request, "Reply text is required.")
-        return redirect("admin_review_detail", id=review.id)
-
+        return _review_action_result(request, review, 'Reply text is required.', error=True)
     if len(reply_text) > 2000:
-        messages.error(request, "Reply is too long (max 2000 characters).")
-        return redirect("admin_review_detail", id=review.id)
+        return _review_action_result(request, review, 'Reply is too long (max 2000 characters).', error=True)
+    with transaction.atomic():
+        review = get_object_or_404(Review.objects.select_for_update(), pk=id)
+        _, created = ReviewReply.objects.update_or_create(review=review, defaults={'admin': request.user, 'reply_text': reply_text})
+        log_action(request.user, f"{'Posted' if created else 'Updated'} an admin reply to review #{review.pk}.")
+    return _review_action_result(request, review, 'Reply posted successfully.' if created else 'Reply updated successfully.')
 
-    try:
-        existing_reply = review.reply
-    except ReviewReply.DoesNotExist:
-        existing_reply = None
-    if existing_reply:
-        existing_reply.reply_text = reply_text
-        existing_reply.admin = request.user
-        existing_reply.save()
-        log_action(
-            request.user,
-            f"Updated admin reply to review #{review.id}.",
-        )
-        messages.success(request, "Reply updated successfully.")
-    else:
-        ReviewReply.objects.create(
-            review=review,
-            admin=request.user,
-            reply_text=reply_text,
-        )
-        log_action(
-            request.user,
-            f"Posted an admin reply to review #{review.id}.",
-        )
-        messages.success(request, "Reply posted successfully.")
-
-    return redirect("admin_review_detail", id=review.id)
-
-
-# =============================================================================
-# ADMIN CONCERNS
-# =============================================================================
 
 @login_required
 @require_POST
 def admin_review_delete_reply(request, id):
-    """Remove the official admin reply from a review."""
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-
-    review = get_object_or_404(Review, id=id)
-    try:
-        reply = review.reply
-    except ReviewReply.DoesNotExist:
-        messages.error(request, "No admin reply to remove.")
-        return redirect("admin_review_detail", id=review.id)
-
-    reply.delete()
-    log_action(
-        request.user,
-        f"Removed admin reply from review #{review.id}.",
-    )
-    messages.success(request, "Reply removed successfully.")
-    return redirect("admin_review_detail", id=review.id)
+    with transaction.atomic():
+        review = get_object_or_404(Review.objects.select_for_update(), pk=id)
+        removed, _ = ReviewReply.objects.filter(review=review).delete()
+        if removed:
+            log_action(request.user, f'Removed admin reply from review #{review.pk}.')
+    return _review_action_result(request, review, 'Reply removed successfully.' if removed else 'No admin reply to remove.')
 
 
 @login_required
+@require_POST
 def admin_review_toggle_testimonial(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-
-    review = get_object_or_404(Review, id=id)
-    
-    # If enabling testimonial, check if already 4
-    if not review.is_testimonial:
-        featured_count = Review.objects.filter(is_testimonial=True).count()
-        if featured_count >= 4:
-            messages.error(request, "You can only select up to 4 reviews as testimonials.")
-            return redirect("admin_reviews")
-    
-    review.is_testimonial = not review.is_testimonial
-    review.save()
-
-    status_label = (
-        "featured as testimonial"
-        if review.is_testimonial
-        else "removed from testimonials"
-    )
-    log_action(request.user, f"Review #{review.id} {status_label}.")
-    messages.success(request, f"Review #{review.id} {status_label}.")
-    return redirect("admin_reviews")
+    from ..review_management import FEATURED_REVIEW_LIMIT
+    requested = request.POST.get('is_testimonial')
+    if requested not in (None, '0', '1'):
+        return JsonResponse({'success': False, 'message': 'Choose a valid testimonial action.'}, status=400)
+    with transaction.atomic():
+        # All admin feature changes share a lock, including requests from different admins.
+        # Lock before counting so simultaneous requests cannot exceed the four slots.
+        User.objects.select_for_update(no_key=True).filter(role='admin').order_by('pk').first()
+        review = get_object_or_404(Review.objects.select_for_update(), pk=id)
+        desired = (not review.is_testimonial) if requested is None else requested == '1'
+        if desired and not review.is_testimonial and Review.objects.filter(is_testimonial=True).count() >= FEATURED_REVIEW_LIMIT:
+            return _review_action_result(request, review, 'All 4 testimonial slots are in use. Remove a featured review before adding another.', error=True, status=409)
+        if desired != review.is_testimonial:
+            review.is_testimonial = desired
+            review.save(update_fields=['is_testimonial'])
+            log_action(request.user, f"Review #{review.pk} {'featured as testimonial' if desired else 'removed from testimonials'}.")
+    return _review_action_result(request, review, 'Review featured on Home and About.' if desired else 'Review removed from featured testimonials.')
 
 
 # =============================================================================
@@ -3372,50 +2155,66 @@ def admin_review_toggle_testimonial(request, id):
 
 @login_required
 def admin_concerns(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     context = build_concerns_context(request)
-    return render(request, "admin/admin_concerns.html", context)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        response = JsonResponse({'html': render_to_string('admin/concerns/_queue.html', context, request),
+            'counts': context['counts'], 'page': context['concerns_page'].number,
+            'error': context['filter_error']}, status=400 if context['filter_error'] else 200)
+    else:
+        response = render(request, 'admin/admin_concerns.html', context)
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required
+@require_GET
 def admin_analytics(request):
     if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
-    return render(request, "admin/admin_analytics.html", build_dashboard_context(request))
+    from django.core.exceptions import ValidationError
+    from ..analytics_reporting import build_report, resolve_filters
+    asynchronous = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        context = build_report(resolve_filters(request.GET))
+    except ValidationError as error:
+        message = ' '.join(error.messages)
+        if asynchronous:
+            response = JsonResponse({'error': message}, status=400)
+        else:
+            context = build_report(resolve_filters({}))
+            context['filter_error'] = message
+            response = render(request, 'admin/admin_analytics.html', context, status=400)
+    else:
+        if asynchronous:
+            response = JsonResponse({'html': render_to_string('admin/analytics/_results.html', context, request),
+                'filters': context['filters'].params(), 'export_url': context['export_url'], 'excel_url': context['excel_url']})
+        else:
+            response = render(request, 'admin/admin_analytics.html', context)
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required
+@require_GET
 def admin_analytics_export_excel(request):
     if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
-    _cleanup_legacy_booking_request_states()
     from openpyxl.styles import Alignment, Font, PatternFill
-
-    start_date, end_date = _get_reporting_date_range(request)
-    selected_event_type = (request.GET.get("event_type") or "all").strip()
-
-    bookings = Booking.objects.select_related("user").filter(
-        created_at__date__gte=start_date, created_at__date__lte=end_date
-    )
-    if selected_event_type != "all":
-        bookings = bookings.filter(event_type=selected_event_type)
-    bookings = bookings.order_by("-created_at")
-
-    payments = Payment.objects.select_related("booking").filter(
-        created_at__date__gte=start_date, created_at__date__lte=end_date
-    )
-    if selected_event_type != "all":
-        payments = payments.filter(booking__event_type=selected_event_type)
-    payments = payments.order_by("-created_at")
-
-    reviews = Review.objects.select_related("user").filter(
-        created_at__date__gte=start_date, created_at__date__lte=end_date
-    )
-    if selected_event_type != "all":
-        reviews = reviews.filter(booking__event_type=selected_event_type)
-    reviews = reviews.order_by("-created_at")
+    from django.core.exceptions import ValidationError
+    from ..analytics_reporting import build_report, resolve_filters, selected_bookings, REPORT_ZONE
+    from ..analytics_insights import selected_collections
+    try:
+        filters = resolve_filters(request.GET)
+    except ValidationError as error:
+        return HttpResponse(' '.join(error.messages), status=400)
+    cohort = selected_bookings(filters)
+    bookings = cohort.select_related('user').order_by('-created_at')
+    payments = Payment.objects.select_related('booking').filter(booking__in=cohort,
+        payment_status='verified', applied_to_booking=True).order_by('-created_at')
+    reviews = Review.objects.select_related('user').filter(booking__in=cohort).order_by('-created_at')
 
     wb = openpyxl.Workbook()
 
@@ -3437,6 +2236,8 @@ def admin_analytics_export_excel(request):
         "Status",
         "Total Price (PHP)",
         "Payment Status",
+        "Submitted (Philippine time)",
+        "Selected Setup",
     ]
     for col_idx, h in enumerate(booking_headers, 1):
         cell = ws1.cell(row=1, column=col_idx, value=h)
@@ -3460,13 +2261,15 @@ def admin_analytics_export_excel(request):
         ws1.cell(row=row_idx, column=5, value=booking.status)
         ws1.cell(row=row_idx, column=6, value=float(booking.total_price or 0))
         ws1.cell(row=row_idx, column=7, value=booking.payment_status or "—")
+        ws1.cell(row=row_idx, column=8, value=timezone.localtime(booking.created_at, REPORT_ZONE).strftime('%Y-%m-%d %H:%M'))
+        ws1.cell(row=row_idx, column=9, value=booking.package_type or '')
 
     for col in ws1.columns:
         max_len = max((len(str(cell.value or "")) for cell in col), default=10)
         ws1.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
 
-    # ── Sheet 2: Revenue Data ──────────────────────────────────────────────
-    ws2 = wb.create_sheet(title="Revenue Data")
+    # ── Sheet 2: Verified collections for the same booking cohort ──────────
+    ws2 = wb.create_sheet(title="Verified Collections")
 
     rev_headers = [
         "Payment ID",
@@ -3493,7 +2296,7 @@ def admin_analytics_export_excel(request):
         ws2.cell(
             row=row_idx,
             column=7,
-            value=pay.created_at.strftime("%Y-%m-%d %H:%M") if pay.created_at else "—",
+            value=timezone.localtime(pay.created_at, REPORT_ZONE).strftime("%Y-%m-%d %H:%M") if pay.created_at else "—",
         )
 
     for col in ws2.columns:
@@ -3523,12 +2326,12 @@ def admin_analytics_export_excel(request):
             row=row_idx, column=2, value=rev.user.get_full_name() or rev.user.username
         )
         ws3.cell(row=row_idx, column=3, value=rev.rating)
-        ws3.cell(row=row_idx, column=4, value=rev.comment[:200] if rev.comment else "")
+        ws3.cell(row=row_idx, column=4, value=rev.comment or "")
         ws3.cell(row=row_idx, column=5, value="Yes" if rev.is_testimonial else "No")
         ws3.cell(
             row=row_idx,
             column=6,
-            value=rev.created_at.strftime("%Y-%m-%d")
+            value=timezone.localtime(rev.created_at, REPORT_ZONE).strftime("%Y-%m-%d %H:%M")
             if hasattr(rev, "created_at") and rev.created_at
             else "—",
         )
@@ -3537,16 +2340,59 @@ def admin_analytics_export_excel(request):
         max_len = max((len(str(cell.value or "")) for cell in col), default=10)
         ws3.column_dimensions[col[0].column_letter].width = min(max_len + 4, 50)
 
+    report = build_report(filters)
+    insights = report['insights']
+    receipts = wb.create_sheet(title='Collections Received')
+    receipts.append(['Payment ID', 'Booking ID', 'Amount (PHP)', 'Method', 'Recorded Date (Philippine time)', 'Date Source'])
+    for pay in selected_collections(filters).order_by('report_received_at', 'pk'):
+        receipts.append([pay.pk, pay.booking_id, float(pay.amount), pay.get_payment_method_display(),
+            timezone.localtime(pay.report_received_at, REPORT_ZONE).strftime('%Y-%m-%d %H:%M'),
+            'Receipt / submission' if pay.received_at else 'Verification fallback'])
+    facts = wb.create_sheet(title='Business Insights')
+    facts.append(['Metric', 'Value'])
+    for label, value in [('Remaining balance', insights['remaining_balance']),
+            ('Payable booking value', insights['payable_value']), ('Collections received', insights['collections']['value']),
+            ('Expired bookings', insights['expired']), ('Expired booking rate (%)', insights['expired_rate']),
+            ('First-time customers', insights['customers']['new']), ('Returning customers', insights['customers']['returning']),
+            ('Valid reviews', insights['customers']['reviews']), ('Average rating', insights['customers']['average_rating']),
+            ('Review coverage (%)', insights['customers']['review_coverage']),
+            ('Receipt timestamp missing, verification fallback (period)', insights['collections']['fallback_count']),
+            ('No payment timestamp (all dates, same event filter)', insights['collections']['undated_count'])]:
+        facts.append([label, float(value) if isinstance(value, Decimal) else value])
+    for row in insights['payment_progress']:
+        facts.append([row['label']+' bookings', row['count']])
+    demand = wb.create_sheet(title='Offer Demand')
+    demand.append(['Category', 'Offer', 'Booking selections', 'Completed whole-booking value (overlapping, PHP)'])
+    for group in ('packages', 'arches', 'stands'):
+        for row in insights['offers'][group]:
+            demand.append([group, row['label'], row['count'], float(row['completed_value'])])
+
+    metadata = wb.create_sheet(title='Report Definitions')
+    metadata.append(['Definition', 'Value'])
+    for row in [('Date basis', filters.basis_label), ('Period', filters.period_label),
+            ('Comparison', filters.comparison_label),
+            ('Event type', filters.event_type), ('Time zone', 'Asia/Manila'),
+            ('Collections', 'Verified payments applied to selected bookings, regardless of payment date; not net of refunds.'),
+            ('Collections Received', 'Independent receipt-date period, same event filter. Receipt/submission timestamp, then verification timestamp fallback; undated payments excluded.'),
+            ('Payable balances', 'Approved or completed bookings only; pending quotations, cancelled and expired bookings excluded. Credit capped per booking.'),
+            ('Returning customers', 'Completed events up to today; customer had a completed event on an earlier event date before this cohort.'),
+            ('Offer value', 'Whole completed booking totals containing each offer; overlapping, not item revenue.'),
+            ('Booking value', 'Total price is booking value, not proof of a received payment.')]:
+        metadata.append(row)
+    from ..analytics_exports import add_analytics_sheets, style_workbook
+    add_analytics_sheets(wb, report)
+    style_workbook(wb)
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
-    filename = f"analytics_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"analytics_export_{report['generated_at'].strftime('%Y%m%d_%H%M%S')}.xlsx"
     response = HttpResponse(
         output.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response['Cache-Control'] = 'private, no-store'
     log_action(request.user, "Exported analytics data to Excel.")
     return response
 
@@ -3556,142 +2402,50 @@ def admin_analytics_export_excel(request):
 # =============================================================================
 
 @login_required
+@require_GET
 def admin_analytics_export_pdf(request):
     if request.user.role != "admin":
         return HttpResponseForbidden("Not allowed")
 
-    _cleanup_legacy_booking_request_states()
-    context = build_dashboard_context(request)
-    
-    # ULTIMATE DATA CLEANER: Force everything to be a safe type for ReportLab
-    def to_str(val, default="—"):
-        if val is None: return default
-        return str(val)
-
-    def to_float_str(val):
-        try:
-            if val is None: return "0.00"
-            return "{:,.2f}".format(float(val))
-        except:
-            return "0.00"
-
-    def to_int(val):
-        try:
-            if val is None: return 0
-            return int(float(val))
-        except:
-            return 0
-
-    # Pre-format all top-level stats
+    from django.core.exceptions import ValidationError
+    from ..analytics_reporting import build_report, resolve_filters
+    try:
+        report = build_report(resolve_filters(request.GET))
+    except ValidationError as error:
+        return HttpResponse(' '.join(error.messages), status=400)
+    filters = report['filters']
     pdf_context = {
-        "now": timezone.now().strftime("%B %d, %Y %I:%M %p"),
-        "start_date_str": context.get("start_date").strftime("%b %d, %Y") if context.get("start_date") else "All Time",
-        "end_date_str": context.get("end_date").strftime("%b %d, %Y") if context.get("end_date") else "Now",
-        "selected_event_type": to_str(context.get("selected_event_type"), "all").title(),
-        "total_bookings": to_int(context.get("total_bookings")),
-        "total_revenue": to_float_str(context.get("total_revenue")),
-        "completion_rate": to_float_str(context.get("completion_rate")),
-        "cancellation_rate": to_float_str(context.get("cancellation_rate")),
-        "avg_booking_value": to_float_str(context.get("avg_booking_value")),
-        "active_users": to_int(context.get("active_users")),
-        "completed_count": to_int(context.get("completed_count")),
-        "cancelled_count": to_int(context.get("cancelled_count")),
-        "pending_approvals": to_int(context.get("pending_approvals")),
-        "action_queue_total": to_int(context.get("action_queue_total")),
-        "new_customers_count": to_int(context.get("new_customers_count")),
-        "returning_customers_count": to_int(context.get("returning_customers_count")),
-        "new_customers_pct": to_float_str(context.get("new_customers_pct")),
-        "returning_customers_pct": to_float_str(context.get("returning_customers_pct")),
+        'now': report['generated_at'].strftime('%B %d, %Y %I:%M %p'),
+        'start_date_str': filters.start.strftime('%b %d, %Y'),
+        'end_date_str': filters.end.strftime('%b %d, %Y'),
+        'date_basis': filters.basis_label,
+        'selected_event_type': 'All' if filters.event_type == 'all' else filters.event_type or 'Unspecified event',
+        'total_bookings': report['total_bookings'],
+        'total_revenue': f"{report['completed_value']:,.2f}",
+        'verified_collections': f"{report['verified_collections']:,.2f}",
+        'completion_rate': f"{report['completion_rate']:.2f}",
+        'cancellation_rate': f"{report['cancellation_rate']:.2f}",
+        'avg_booking_value': f"{report['average_completed_value']:,.2f}",
+        'active_users': report['customer_count'],
+        'completed_count': report['completed_count'],
+        'cancelled_count': report['cancelled_count'],
+        'status_table': report['statuses'],
+        'event_rows': [{**row, 'value': f"{row['value']:,.2f}", 'collections': f"{row['collections']:,.2f}"} for row in report['event_rows']],
+        'setup_rows': report['setup_rows'],
+        'report_insights': report['insights'],
+        'report_filters': filters,
+        'comparison_label': filters.comparison_label,
+        'report_comparison': report['comparison'],
+        'summary_notes': [
+            f"{report['total_bookings']} booking{'s' if report['total_bookings'] != 1 else ''} match{'es' if report['total_bookings'] == 1 else ''} this period and event filter: {report['completed_count']} completed and {report['cancelled_count']} cancelled.",
+            f"Completed booking value is PHP {report['completed_value']:,.2f}; verified collections credited to these bookings total PHP {report['verified_collections']:,.2f}.",
+        ],
     }
 
-    # Pre-format Status Table
-    pdf_context["status_table"] = []
-    for item in context.get("status_table", []):
-        pdf_context["status_table"].append({
-            "label": to_str(item.get("label"), "Unknown"),
-            "count": to_int(item.get("count")),
-            "share_pct": to_float_str(item.get("share_pct"))
-        })
-
-    # Pre-format Revenue by Event
-    pdf_context["revenue_by_event"] = []
-    for item in context.get("revenue_by_event", []):
-        pdf_context["revenue_by_event"].append({
-            "event_type": to_str(item.get("event_type"), "Other").title(),
-            "count": to_int(item.get("count")),
-            "revenue": to_float_str(item.get("revenue")),
-            "avg_value": to_float_str(item.get("avg_value"))
-        })
-
-    # Pre-format Packages
-    pdf_context["package_rows"] = []
-    for item in context.get("package_rows", []):
-        pdf_context["package_rows"].append({
-            "package_name": to_str(item.get("package_name"), "Unnamed Package"),
-            "count": to_int(item.get("count")),
-            "revenue": to_float_str(item.get("revenue"))
-        })
-
-    # Pre-format Top Customers
-    pdf_context["top_customers"] = []
-    for item in context.get("top_customers", []):
-        pdf_context["top_customers"].append({
-            "name": to_str(item.get("name"), "Guest"),
-            "booking_count": to_int(item.get("booking_count") or item.get("count")),
-            "total_spent": to_float_str(item.get("total_spent"))
-        })
-
-    # Pre-format Deadlines
-    pdf_context["upcoming_deadline_bookings"] = []
-    for item in context.get("upcoming_deadline_bookings", []):
-        display_name = "Unknown"
-        if hasattr(item, 'user') and item.user:
-            display_name = item.user.get_full_name() or item.user.username or "Unknown"
-            
-        pdf_context["upcoming_deadline_bookings"].append({
-            "event_date_str": item.event_date.strftime("%b %d, %Y") if hasattr(item, 'event_date') and item.event_date else "—",
-            "customer_name": display_name,
-            "event_type": to_str(getattr(item, 'event_type', ""), "Other").title(),
-            "days_left": to_int(getattr(item, 'days_left', 0))
-        })
-
-    # Report highlights: short, human-readable interpretation of the figures
-    # so the PDF reads like a standard business report.
-    summary_notes = []
-    if pdf_context["total_bookings"] == 0:
-        summary_notes.append(
-            "No bookings were recorded within the selected reporting period."
-        )
-    else:
-        summary_notes.append(
-            "A total of {t} booking(s) were scheduled within the period "
-            "({c} completed, {x} cancelled).".format(
-                t=pdf_context["total_bookings"],
-                c=pdf_context["completed_count"],
-                x=pdf_context["cancelled_count"],
-            )
-        )
-        if pdf_context["completed_count"] > 0:
-            summary_notes.append(
-                "Completed bookings generated PHP {r} in revenue, with an "
-                "average booking value of PHP {a}.".format(
-                    r=pdf_context["total_revenue"],
-                    a=pdf_context["avg_booking_value"],
-                )
-            )
-        else:
-            summary_notes.append(
-                "No completed bookings were recorded in this period, so "
-                "revenue figures are PHP 0.00. Revenue is computed from "
-                "completed bookings only."
-            )
-        if pdf_context["pending_approvals"] > 0:
-            summary_notes.append(
-                "{n} booking(s) are awaiting approval as of the report date.".format(
-                    n=pdf_context["pending_approvals"]
-                )
-            )
-    pdf_context["summary_notes"] = summary_notes
+    from ..analytics_exports import trend_rows, receipt_rows, comparison_rows
+    pdf_context['booking_trend_rows'] = trend_rows(report)
+    pdf_context['receipt_trend_rows'] = receipt_rows(report)
+    pdf_context['comparison_rows'] = comparison_rows(report)
 
     html = render_to_string("admin/analytics_pdf_template.html", pdf_context)
     buffer = io.BytesIO()
@@ -3700,14 +2454,15 @@ def admin_analytics_export_pdf(request):
         pisa_status = pisa.CreatePDF(html, dest=buffer, link_callback=_pdf_link_callback)
     except Exception as e:
         logger.error(f"PDF Generation Error: {str(e)}", exc_info=True)
-        return HttpResponse(f"Critical PDF Error: {str(e)}", status=500)
+        return HttpResponse("Unable to generate this report. Please try again.", status=500)
 
     if pisa_status.err:
-        return HttpResponse("Conversion Error. <pre>" + html + "</pre>")
+        return HttpResponse("Unable to generate this report. Please try again.", status=500)
 
     buffer.seek(0)
     response = HttpResponse(buffer.read(), content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="analytics_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    response["Content-Disposition"] = f'attachment; filename="analytics_report_{report["generated_at"].strftime("%Y%m%d_%H%M%S")}.pdf"'
     
+    response["Cache-Control"] = "private, no-store"
     log_action(request.user, "Exported analytics data to PDF.")
     return response

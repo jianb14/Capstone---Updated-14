@@ -1,24 +1,33 @@
-﻿{% load static %}
+{% load static site_configuration %}
+{% public_site_settings as public_site %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-effect="radial">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Balloorina.ph | Balloon Styling &amp; Event Design{% endblock %}</title>
+    <title>{% block title %}{{ public_site.site_name }} | Balloon Styling &amp; Event Design{% endblock %}</title>
     <meta name="description"
         content="Turning Moments Into Elegant Celebrations. Premium balloon styling and event decoration for birthdays, weddings, corporate events in the Philippines.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261025masonry">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261028settings">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
+    <link rel="stylesheet" href="{% static 'css/customer_notifications.css' %}?v=20261026a">
+    <link rel="stylesheet" href="{% static 'css/account_menu.css' %}?v=20261026c">
+    <link rel="stylesheet" href="{% static 'css/theme_controls.css' %}?v=20261026a">
+    <script src="{% static 'js/account_menu.js' %}?v=20261026b" defer></script>
+    <script src="{% static 'js/customer_notifications.js' %}?v=20261026e" defer></script>
+    <script src="{% static 'js/account_pages.js' %}?v=20261025a"></script>
+    <script src="{% static 'js/account_navigation.js' %}?v=20261026b" defer></script>
     <link rel="stylesheet" href="{% static 'css/ai_design_guide.css' %}?v=20261023-ai6">
 <link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261023-chat1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="{% static 'js/theme-toggle.js' %}?v=20261012a"></script>
+    <script src="{% static 'js/theme-toggle.js' %}?v=20261026a"></script>
     {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Shared Toast helper: iisang pinagmumulan ng toasts + dedupe guard -->
@@ -116,166 +125,6 @@
                 if (window.innerWidth > 968) closeMobileNav();
             });
 
-            // Profile Dropdown Toggle
-            const profileDropdown = document.querySelector(".profile-dropdown");
-            if (profileDropdown) {
-                const btn = profileDropdown.querySelector(".profile-avatar-btn");
-                const menu = profileDropdown.querySelector(".dropdown-menu");
-
-                btn.addEventListener("click", function (e) {
-                    e.stopPropagation(); // Prevent window click from firing immediately
-                    menu.classList.toggle("show");
-
-                    // Close notification dropdown if open
-                    const notifDropdown = document.getElementById("notif-dropdown");
-                    if (notifDropdown) notifDropdown.classList.remove("show");
-                });
-
-                // Close dropdown if clicked outside
-                window.addEventListener("click", function (e) {
-                    if (menu.classList.contains("show") && !profileDropdown.contains(e.target)) {
-                        menu.classList.remove("show");
-                    }
-                });
-            }
-
-            // Notification Dropdown Toggle
-            const notifBell = document.getElementById("notif-bell");
-            const notifDropdown = document.getElementById("notif-dropdown");
-            const clearAllBtn = document.getElementById("clear-all-notifs");
-            const notifItems = document.querySelectorAll(".notif-item");
-            const notifList = document.querySelector(".notif-list");
-
-            function getNotificationDateLabel(isoDate) {
-                if (!isoDate) return "Earlier";
-
-                const notifDate = new Date(isoDate);
-                if (Number.isNaN(notifDate.getTime())) return "Earlier";
-
-                const now = new Date();
-                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const notifDayStart = new Date(notifDate.getFullYear(), notifDate.getMonth(), notifDate.getDate());
-                const diffDays = Math.floor((todayStart - notifDayStart) / (1000 * 60 * 60 * 24));
-
-                if (diffDays === 0) return "Today";
-                if (diffDays === 1) return "Yesterday";
-
-                return notifDate.toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric"
-                });
-            }
-
-            function groupNotificationItemsByDate() {
-                if (!notifList) return;
-
-                notifList.querySelectorAll(".notif-date-header").forEach(header => header.remove());
-                const items = Array.from(notifList.querySelectorAll(".notif-item"));
-                if (!items.length) return;
-
-                let currentLabel = null;
-                items.forEach(item => {
-                    const label = getNotificationDateLabel(item.dataset.createdAt);
-                    if (label !== currentLabel) {
-                        const header = document.createElement("div");
-                        header.className = "notif-date-header";
-                        header.textContent = label;
-                        notifList.insertBefore(header, item);
-                        currentLabel = label;
-                    }
-                });
-            }
-
-            groupNotificationItemsByDate();
-
-            function removeNotificationBadge() {
-                const badge = document.querySelector(".notif-badge");
-                if (badge) badge.remove();
-            }
-
-            function markNotifItemUiAsRead(item) {
-                if (!item || !item.classList.contains("unread")) return;
-                item.classList.remove("unread");
-                const dot = item.querySelector(".unread-dot");
-                if (dot) dot.remove();
-            }
-
-            function markAllNotificationsAsRead() {
-                // Update UI immediately so badge disappears right away.
-                document.querySelectorAll(".notif-item.unread").forEach(markNotifItemUiAsRead);
-                removeNotificationBadge();
-
-                return fetch('/notifications/clear-all/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json'
-                    }
-                }).catch(() => { });
-            }
-
-            function markSingleNotificationAsRead(notifId, item) {
-                if (!item || !item.classList.contains("unread")) return Promise.resolve();
-
-                markNotifItemUiAsRead(item);
-                const hasUnreadLeft = document.querySelector(".notif-item.unread");
-                if (!hasUnreadLeft) removeNotificationBadge();
-
-                return fetch(`/notifications/${notifId}/read/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json'
-                    }
-                }).catch(() => { });
-            }
-
-            if (notifBell && notifDropdown) {
-                notifBell.addEventListener("click", function (e) {
-                    e.stopPropagation();
-                    const willOpen = !notifDropdown.classList.contains("show");
-                    notifDropdown.classList.toggle("show");
-
-                    if (willOpen) {
-                        markAllNotificationsAsRead();
-                    }
-
-                    // Close profile dropdown if open
-                    const profileMenu = document.querySelector(".dropdown-menu");
-                    if (profileMenu) profileMenu.classList.remove("show");
-                });
-
-                window.addEventListener("click", function (e) {
-                    if (notifDropdown.classList.contains("show") && !notifDropdown.contains(e.target) && !notifBell.contains(e.target)) {
-                        notifDropdown.classList.remove("show");
-                    }
-                });
-            }
-
-            // Mark individual notification as read, then follow its deep link
-            // (payment -> My Payments, review -> My Reviews, booking -> profile).
-            notifItems.forEach(item => {
-                item.addEventListener("click", function (e) {
-                    const notifId = this.dataset.id;
-                    const bookingUrl = this.getAttribute("href");
-                    if (!bookingUrl) return;
-
-                    e.preventDefault();
-                    markSingleNotificationAsRead(notifId, this).finally(() => {
-                        window.location.href = bookingUrl;
-                    });
-                });
-            });
-
-            // Clear all notifications
-            if (clearAllBtn) {
-                clearAllBtn.addEventListener("click", function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    markAllNotificationsAsRead();
-                });
-            }
 
             // Testimonial carousel: auto-swipe (Home/About). Kung 1 lang ang review, static.
             const testimonialCarousel = document.querySelector("[data-carousel]");

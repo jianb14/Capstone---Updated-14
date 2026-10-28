@@ -60,18 +60,18 @@ class DesignLimitsBrowserTests(StaticLiveServerTestCase):
                         input_field = form.locator('#ss_max_saved_designs')
                         input_field.fill('0')
                         admin_page.locator('#ss_btn_save').click()
-                        expect(form.locator('#ss_design_limit_error')).to_be_visible()
+                        expect(form.locator('[data-error-for=max_saved_designs]')).to_be_visible()
                         expect(input_field).to_have_attribute('aria-invalid', 'true')
-                        self.assertEqual(form.locator('#ss_design_limit_error').evaluate('(el) => getComputedStyle(el).color'), 'rgb(239, 68, 68)')
+                        self.assertEqual(form.locator('[data-error-for=max_saved_designs]').evaluate('(el) => getComputedStyle(el).color'), 'rgb(184, 53, 60)' if theme == 'light' else 'rgb(241, 145, 145)')
                         input_field.fill('2')
-                        expect(input_field).to_have_attribute('aria-invalid', 'false')
-                        expect(form.locator('#ss_design_limit_error')).to_be_hidden()
+                        expect(input_field).not_to_have_attribute('aria-invalid', 'true')
+                        expect(form.locator('[data-error-for=max_saved_designs]')).to_be_hidden()
                         form.screenshot(path=str(Path(gettempdir()) / f'balloorina-design-limit-admin-{theme}-{width}.png'), animations='disabled')
 
                 def set_limit(value):
                     admin_page.locator('#ss_max_saved_designs').fill(str(value))
                     admin_page.locator('#ss_btn_save').click()
-                    admin_page.wait_for_url('**/staff/settings/')
+                    expect(admin_page.locator('#ss_feedback')).to_have_text('All site settings saved successfully.')
                     expect(admin_page.locator('#ss_max_saved_designs')).to_have_value(str(value))
 
                 for target in (page, admin_page):

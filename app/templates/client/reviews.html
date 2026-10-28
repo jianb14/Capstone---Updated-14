@@ -3,8 +3,13 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/reviews.css' %}?v=20261004a">
+<link rel="stylesheet" href="{% static 'css/review_controls.css' %}?v=20261025c">
+<link rel="stylesheet" href="{% static 'css/review_motion.css' %}?v=20261025a">
+<script src="{% static 'js/review_controls.js' %}?v=20261025account1" defer></script>
+<script src="{% static 'js/review_page.js' %}?v=20261025account1" defer></script>
+<script src="{% static 'js/review_motion.js' %}?v=20261025account1" defer></script>
 
-<div class="reviews-page">
+<div class="reviews-page" data-review-page="reviews">
 
     <div class="reviews-filter-container">
         <div class="reviews-title-wrap">
@@ -12,62 +17,12 @@
             <p class="reviews-subtitle">Real stories from clients who trusted us to style their most memorable celebrations.</p>
         </div>
         <div class="reviews-filter-group">
-            <div class="custom-filter-dropdown" id="starDropdown">
-                <div class="dropdown-trigger">
-                    <span id="starDropdownText">Rating (All)</span>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <ul class="dropdown-options">
-                    <li data-value="all" class="selected">Rating (All)</li>
-                    <li data-value="5">5 Stars</li>
-                    <li data-value="4">4 Stars</li>
-                    <li data-value="3">3 Stars</li>
-                    <li data-value="2">2 Stars</li>
-                    <li data-value="1">1 Star</li>
-                </ul>
-                <select id="star-filter" class="filter-select">
-                    <option value="all">Rating (All)</option>
-                    <option value="5">5 Stars</option>
-                    <option value="4">4 Stars</option>
-                    <option value="3">3 Stars</option>
-                    <option value="2">2 Stars</option>
-                    <option value="1">1 Star</option>
-                </select>
-            </div>
-
-            <div class="custom-filter-dropdown" id="packageDropdown">
-                <div class="dropdown-trigger">
-                    <span id="packageDropdownText">Package (All)</span>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <ul class="dropdown-options" id="packageOptionsList">
-                    <li data-value="all" class="selected">Package (All)</li>
-                </ul>
-                <select id="package-filter" class="filter-select">
-                    <option value="all">Package (All)</option>
-                </select>
-            </div>
-
-            <!-- Sort dropdown (Newest / Highest Rated / Most Liked) -->
-            <div class="custom-filter-dropdown" id="sortDropdown">
-                <div class="dropdown-trigger">
-                    <span id="sortDropdownText">Newest First</span>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <ul class="dropdown-options">
-                    <li data-value="newest" class="selected">Newest First</li>
-                    <li data-value="highest">Highest Rated</li>
-                    <li data-value="most-liked">Most Liked</li>
-                </ul>
-                <select id="sort-filter" class="filter-select">
-                    <option value="newest">Newest First</option>
-                    <option value="highest">Highest Rated</option>
-                    <option value="most-liked">Most Liked</option>
-                </select>
-            </div>
+            {% include 'components/review_filter.html' with dropdown_id='starDropdown' select_id='star-filter' text_id='starDropdownText' label='Filter by rating' initial_text='Rating (All)' %}
+            {% include 'components/review_filter.html' with dropdown_id='packageDropdown' select_id='package-filter' text_id='packageDropdownText' label='Filter by package' initial_text='Package (All)' %}
+            {% include 'components/review_filter.html' with dropdown_id='sortDropdown' select_id='sort-filter' text_id='sortDropdownText' label='Sort reviews' initial_text='Newest First' %}
         </div>
     </div>
-    <div class="reviews-container {% if not reviews %}is-empty{% endif %}">
+    <div class="reviews-container {% if not reviews %}is-empty{% endif %}" data-review-page-content>
         <div class="reviews-list">
             {% if reviews %}
             {% for review in reviews %}
@@ -93,20 +48,7 @@
 
                     {% if user.is_authenticated and user == review.user %}
                     <span class="your-review-badge"><i class="fa-regular fa-circle-check"></i> Your Review</span>
-                    <div class="review-options">
-                        <button class="options-btn" type="button" onclick="toggleReviewDropdown(event, {{ review.id }})">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <div id="dropdown-{{ review.id }}" class="review-dropdown">
-                            <button type="button"
-                                onclick="openEditModal({{ review.id }}, {{ review.rating }}, '{{ review.comment|escapejs }}', '{{ review.images_json|escapejs }}')">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button type="button" class="delete-opt" onclick="deleteReview({{ review.id }})">
-                                <i class="fas fa-trash-alt"></i> Delete
-                            </button>
-                        </div>
-                    </div>
+                    {% include 'components/review_options.html' %}
                     {% endif %}
                 </div>
 
@@ -165,375 +107,22 @@
             </div>
             {% endfor %}
 
-            <!-- Message to show when filters return 0 results -->
-            <div class="no-reviews-filter" style="display: none;">
-                <p>No reviews match your selected filters. Please try a different rating or package.</p>
-            </div>
-
             {% else %}
-            <div class="no-reviews">
-                <div class="no-reviews-icon"><i class="fa-regular fa-comment-dots"></i></div>
-                <h3>No Reviews Yet</h3>
-                <p>There are no reviews for our event styling services yet. Check back later!</p>
-                {% if has_pending_review %}
-                <a href="{% url 'my_reviews' %}" class="btn-write-review">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> Be the first to review
-                </a>
-                {% endif %}
-            </div>
+            {% include 'components/review_empty_state.html' with title='No reviews yet' subtitle='Feedback from completed events will appear here. Be the first to share your experience.' review_link=has_pending_review %}
             {% endif %}
+            {% include 'components/review_empty_state.html' with state_id='review-filter-empty' kind='filtered' title='No matching reviews' subtitle='Try another rating or package, or clear your filters to see all reviews.' initially_hidden=True clear_filters=True %}
+            <button type="button" id="loadMoreBtn" class="load-more-btn" hidden>Load more reviews <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
 
-            {% if reviews|length > 6 %}
-            <button type="button" id="loadMoreBtn" class="load-more-btn">
-                Load More Reviews <i class="fas fa-chevron-down"></i>
-            </button>
-            {% endif %}
         </div>
     </div>    
 </div>
 
-<!-- IMAGE EXPAND MODAL -->
-<div id="imageModal" class="image-modal-overlay">
-    <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
-    <img class="image-modal-content" id="expandedImg">
-</div>
-</div>
-
-<!-- EDIT REVIEW MODAL -->
-<div id="editReviewModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h2>Edit a Review</h2>
-            <button class="modal-close" onclick="closeEditModal()">&times;</button>
-        </div>
-
-        <form id="editReviewForm" enctype="multipart/form-data" novalidate>
-            {% csrf_token %}
-            <input type="hidden" id="edit-review-id">
-
-            <div class="form-group">
-                <label>Rating</label>
-                <div class="star-rating" id="edit-star-rating">
-                    <input type="radio" id="edit-star5" name="rating" value="5" required />
-                    <label for="edit-star5" title="5 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star4" name="rating" value="4" />
-                    <label for="edit-star4" title="4 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star3" name="rating" value="3" />
-                    <label for="edit-star3" title="3 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star2" name="rating" value="2" />
-                    <label for="edit-star2" title="2 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star1" name="rating" value="1" />
-                    <label for="edit-star1" title="1 star">&#9733;</label>
-                </div>
-                <div id="edit-star-description"
-                    style="text-align: right; font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1rem; min-height: 1.2rem;">
-                    Select a rating</div>
-                <small class="review-field-error" id="edit_review_rating_error"></small>
-            </div>
-
-            <div class="form-group reviews-group">
-                <label for="edit-comment">Your Review</label>
-                <textarea id="edit-comment" name="comment" placeholder="Tell us about your experience..."
-                    required></textarea>
-                <small class="review-field-error" id="edit_review_comment_error"></small>
-            </div>
-
-            <!-- Unified Review Images -->
-            <div class="form-group reviews-group">
-                <label>Review Pictures (Max 4 total)</label>
-                <div id="edit-unified-images-preview" class="image-preview-grid">
-                    <!-- Populated via JS -->
-                </div>
-                
-                <div class="file-input-shell">
-                    <label for="edit_images_ui" class="file-choose-btn">Choose Files</label>
-                    <span id="editImagesStatus" class="file-status">No file chosen</span>
-                </div>
-                <small class="file-hint">You can select up to 4 images.</small>
-                
-                <input type="file" id="edit_images_ui" multiple accept="image/*" class="file-input" style="display: none;">
-                <input type="file" id="edit_images" name="images" multiple style="display: none;">
-                
-                <div id="edit-images-remove-inputs"></div>
-                <div id="editImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
-                    You can only have a maximum of 4 images total.
-                </div>
-            </div>
-
-            <button type="submit" class="btn-submit-review">Save Changes</button>
-        </form>
-    </div>
-</div>
+{% include 'components/review_form_modal.html' with editing=True %}
+{% include 'components/review_image_modal.html' %}
 
 <script>
-    const Toast = AppToast.mixin({ timer: 2000 }); // 2s para mabilis ma-reload
 
     document.addEventListener('DOMContentLoaded', () => {
-        const likeButtons = document.querySelectorAll('.like-btn');
-
-        likeButtons.forEach(btn => {
-            btn.addEventListener('click', async function () {
-                if (this.disabled) return;
-
-                const reviewId = this.dataset.id;
-                const csrfToken = '{{ csrf_token }}';
-                const icon = this.querySelector('svg');
-                const countSpan = this.querySelector('.like-count');
-
-                try {
-                    const response = await fetch(`/reviews/${reviewId}/like/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': csrfToken,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    const data = await response.json().catch(() => ({}));
-
-                    if (response.ok) {
-                        // Update state
-                        if (data.liked) {
-                            this.classList.add('liked');
-                            icon.setAttribute('fill', 'currentColor');
-                        } else {
-                            this.classList.remove('liked');
-                            icon.setAttribute('fill', 'none');
-                        }
-                        // Update count
-                        countSpan.textContent = data.total_likes;
-                    } else {
-                        alert(data.error || 'Failed to like review.');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('An error occurred.');
-                }
-            });
-        });
-
-        // Review Filter Logic
-        const starFilter = document.getElementById('star-filter');
-        const packageFilter = document.getElementById('package-filter');
-        const packageOptionsList = document.getElementById('packageOptionsList');
-        const reviewCards = document.querySelectorAll('.review-card');
-
-        // Populate package filter
-        if (packageFilter && reviewCards.length > 0) {
-            const uniquePackages = new Set();
-            reviewCards.forEach(card => {
-                const pkg = card.dataset.package;
-                if (pkg) uniquePackages.add(pkg);
-            });
-            uniquePackages.forEach(pkg => {
-                const option = document.createElement('option');
-                option.value = pkg;
-                option.textContent = pkg;
-                packageFilter.appendChild(option);
-
-                if (packageOptionsList) {
-                    const li = document.createElement('li');
-                    li.dataset.value = pkg;
-                    li.textContent = pkg;
-                    packageOptionsList.appendChild(li);
-                }
-            });
-        }
-
-        // Custom Dropdown JS
-        function setupCustomDropdown(dropdownId, selectId, textId) {
-            const dropdown = document.getElementById(dropdownId);
-            const select = document.getElementById(selectId);
-            const textSpan = document.getElementById(textId);
-            if (!dropdown || !select || !textSpan) return;
-            
-            const optionsList = dropdown.querySelector('.dropdown-options');
-
-            // Set initial text based on selected option
-            const selectedOption = select.options[select.selectedIndex];
-            if (selectedOption) {
-                textSpan.textContent = selectedOption.text;
-                const listItems = optionsList.querySelectorAll('li');
-                listItems.forEach(opt => {
-                    if (opt.dataset.value === select.value) {
-                        opt.classList.add('selected');
-                    } else {
-                        opt.classList.remove('selected');
-                    }
-                });
-            }
-
-            dropdown.addEventListener('click', (e) => {
-                const wasOpen = dropdown.classList.contains('open');
-                // Close all other dropdowns
-                document.querySelectorAll('.custom-filter-dropdown').forEach(d => {
-                    d.classList.remove('open');
-                });
-                
-                if (!wasOpen) {
-                    dropdown.classList.add('open');
-                }
-            });
-
-            optionsList.addEventListener('click', (e) => {
-                const li = e.target.closest('li');
-                if (!li) return;
-                e.stopPropagation();
-
-                // Update select
-                select.value = li.dataset.value;
-                textSpan.textContent = li.textContent;
-                
-                const listItems = optionsList.querySelectorAll('li');
-                listItems.forEach(opt => opt.classList.remove('selected'));
-                li.classList.add('selected');
-                
-                dropdown.classList.remove('open');
-
-                // Trigger change properly
-                const event = new Event('change');
-                select.dispatchEvent(event);
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!dropdown.contains(e.target)) {
-                    dropdown.classList.remove('open');
-                }
-            });
-        }
-
-        setupCustomDropdown('starDropdown', 'star-filter', 'starDropdownText');
-        setupCustomDropdown('packageDropdown', 'package-filter', 'packageDropdownText');
-        setupCustomDropdown('sortDropdown', 'sort-filter', 'sortDropdownText');
-
-        function applyFilters() {
-            const selectedStar = starFilter ? starFilter.value : 'all';
-            const selectedPackage = packageFilter ? packageFilter.value : 'all';
-            let visibleCount = 0;
-
-            reviewCards.forEach(card => {
-                const rating = card.dataset.rating;
-                const pkg = card.dataset.package;
-
-                const matchStar = selectedStar === 'all' || rating === selectedStar;
-                const matchPackage = selectedPackage === 'all' || pkg === selectedPackage;
-
-                if (matchStar && matchPackage) {
-                    card.style.display = 'flex';
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-
-            const noReviewsFilterMsg = document.querySelector('.no-reviews-filter');
-            if (noReviewsFilterMsg && reviewCards.length > 0) {
-                if (visibleCount === 0) {
-                    noReviewsFilterMsg.style.display = 'block';
-                } else {
-                    noReviewsFilterMsg.style.display = 'none';
-                }
-            }
-
-            // Load-more interplay: kapag may aktibong filter, ipakita lahat ng tugma;
-            // kapag "All" naman, i-apply ulit ang pagination
-            if (selectedStar === 'all' && selectedPackage === 'all') {
-                applyPagination();
-            } else {
-                allCards.forEach(card => card.classList.remove('load-hidden'));
-                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-            }
-        }
-
-        if (starFilter) starFilter.addEventListener('change', applyFilters);
-        if (packageFilter) packageFilter.addEventListener('change', applyFilters);
-
-        // --- SORT LOGIC (Newest First / Highest Rated / Most Liked) ---
-        const sortFilter = document.getElementById('sort-filter');
-        const reviewsListEl = document.querySelector('.reviews-list');
-
-        function applySort() {
-            if (!sortFilter || !reviewsListEl) return;
-            const mode = sortFilter.value;
-            const cards = Array.from(reviewsListEl.querySelectorAll('.review-card'));
-
-            cards.sort((a, b) => {
-                if (mode === 'highest') {
-                    const diff = (parseInt(b.dataset.rating) || 0) - (parseInt(a.dataset.rating) || 0);
-                    if (diff !== 0) return diff;
-                } else if (mode === 'most-liked') {
-                    const diff = (parseInt(b.dataset.likes) || 0) - (parseInt(a.dataset.likes) || 0);
-                    if (diff !== 0) return diff;
-                }
-                // Tie-break / default: newest (may pinakabagong petsa muna)
-                return (parseInt(b.dataset.date) || 0) - (parseInt(a.dataset.date) || 0);
-            });
-
-            cards.forEach(card => reviewsListEl.appendChild(card));
-            applyPagination();
-        }
-        if (sortFilter) sortFilter.addEventListener('change', applySort);
-
-        // --- LOAD MORE (6 reviews muna ang kita, +6 bawat click) ---
-        const PAGE_SIZE = 6;
-        const allCards = document.querySelectorAll('.review-card');
-        const loadMoreBtn = document.getElementById('loadMoreBtn');
-        let shownCount = PAGE_SIZE;
-
-        function applyPagination() {
-            if (allCards.length === 0) {
-                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-                return;
-            }
-            allCards.forEach((card, idx) => {
-                if (idx >= shownCount) {
-                    card.classList.add('load-hidden');
-                } else {
-                    card.classList.remove('load-hidden');
-                }
-            });
-            if (loadMoreBtn) {
-                loadMoreBtn.style.display = (shownCount < allCards.length) ? 'flex' : 'none';
-            }
-        }
-
-        if (loadMoreBtn) {
-            loadMoreBtn.addEventListener('click', () => {
-                shownCount += PAGE_SIZE;
-                applyPagination();
-            });
-        }
-
-        // Initial pagination sa page load
-        applyPagination();
-
-        // --- IMAGE LIGHTBOX LOGIC ---
-        const imageModal = document.getElementById("imageModal");
-        const expandedImg = document.getElementById("expandedImg");
-        const reviewImages = document.querySelectorAll(".review-uploaded-img");
-
-        if (imageModal && expandedImg) {
-            reviewImages.forEach(img => {
-                img.addEventListener('click', function () {
-                    imageModal.style.display = "flex";
-                    expandedImg.src = this.src;
-                    setTimeout(() => {
-                        imageModal.classList.add('show');
-                    }, 10);
-                });
-            });
-
-            imageModal.addEventListener('click', function (e) {
-                if (e.target === imageModal) {
-                    closeImageModal();
-                }
-            });
-        }
-
         // --- REVIEW EDIT/DELETE JS LOGIC ---
         // --- ENHANCED STAR RATING LOGIC (EDIT MODAL) ---
         const editStarInputs = document.querySelectorAll('#edit-star-rating input');
@@ -581,15 +170,6 @@
 
         editStarInputs.forEach(input => {
             input.addEventListener('change', () => updateEditStars(null));
-        });
-
-        // Close dropdowns when clicking outside
-        window.addEventListener('click', function (e) {
-            if (!e.target.closest('.review-options')) {
-                document.querySelectorAll('.review-dropdown').forEach(d => {
-                    d.classList.remove('show');
-                });
-            }
         });
 
         // --- MULTI-IMAGE UNIFIED PREVIEW LOGIC ---
@@ -648,7 +228,9 @@
                         el.style.borderRadius = '5px';
                         el.style.border = '1px solid #444';
 
-                        const delLabel = document.createElement('div');
+                        const delLabel = document.createElement('button');
+                        delLabel.type = 'button';
+                        delLabel.setAttribute('aria-label', 'Remove image');
                         delLabel.style.position = 'absolute';
                         delLabel.style.top = '-5px';
                         delLabel.style.right = '-5px';
@@ -663,7 +245,9 @@
                         delLabel.style.cursor = 'pointer';
                         delLabel.style.fontSize = '18px';
                         delLabel.style.transition = 'background 0.2s';
-                        delLabel.innerHTML = '&times;';
+                        delLabel.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+                    delLabel.style.padding = '0';
+                    delLabel.style.border = '0';
                         delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
                         delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
                         
@@ -701,6 +285,7 @@
         const editReviewRatingErrorEl = document.getElementById('edit_review_rating_error');
         const editReviewCommentErrorEl = document.getElementById('edit_review_comment_error');
         let editReviewSubmitAttempted = false;
+        editForm?.addEventListener('reset', () => { editReviewSubmitAttempted = false; });
 
         const setEditReviewFieldError = (field, message) => {
             if (field === 'rating') {
@@ -753,73 +338,7 @@
                     return;
                 }
 
-                const reviewId = document.getElementById('edit-review-id').value;
-                const formData = new FormData(this);
-                // Get CSRF token from the form's own hidden input
-                const csrfToken = formData.get('csrfmiddlewaretoken') || '';
-
-                try {
-                    const response = await fetch(`/reviews/${reviewId}/edit/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': csrfToken },
-                        body: formData
-                    });
-
-                    // Maaaring HTML ang error body (hal. 404/500) — huwag mag-throw
-                    // sa unang parse, kundi mapupunta sa catch.
-                    const data = await response.json().catch(() => ({}));
-                    if (response.ok) {
-                        closeEditModal(); // Close immediately on success
-                        Toast.fire({
-                            icon: 'success',
-                            title: data.message || 'Review updated successfully!'
-                        }).then(async () => {
-                            // Smooth reload: Fetch new HTML and replace the review card only
-                            try {
-                                const resp = await fetch(window.location.href);
-                                const html = await resp.text();
-                                const doc = new DOMParser().parseFromString(html, 'text/html');
-                                const newCard = doc.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
-                                const currentCard = document.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
-                                
-                                if (newCard && currentCard) {
-                                    currentCard.outerHTML = newCard.outerHTML;
-                                    // Rebind image click events for the new card
-                                    const updatedCard = document.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
-                                    const imgs = updatedCard.querySelectorAll(".review-uploaded-img");
-                                    const imageModal = document.getElementById("imageModal");
-                                    const expandedImg = document.getElementById("expandedImg");
-                                    imgs.forEach(img => {
-                                        img.addEventListener('click', function () {
-                                            if(imageModal && expandedImg) {
-                                                imageModal.style.display = "flex";
-                                                expandedImg.src = this.src;
-                                                setTimeout(() => imageModal.classList.add('show'), 10);
-                                            }
-                                        });
-                                    });
-                                } else {
-                                    location.reload();
-                                }
-                            } catch (e) {
-                                location.reload();
-                            }
-                        });
-                    } else {
-                        // Maaaring HTML ang error body — huwag mag-throw.
-                        const data = await response.json().catch(() => ({}));
-                        Toast.fire({
-                            icon: 'error',
-                            title: data.message || 'Update failed'
-                        });
-                    }
-                } catch (err) {
-                    console.error(err);
-                    Toast.fire({
-                        icon: 'error',
-                        title: 'An error occurred while updating.'
-                    });
-                }
+                await window.ReviewPage.save(this, document.getElementById('edit-review-id').value);
             });
 
             const editReviewStars = editForm.querySelectorAll('input[name="rating"]');
@@ -836,14 +355,6 @@
             });
         }
     });
-
-    function toggleReviewDropdown(e, id) {
-        e.stopPropagation();
-        document.querySelectorAll('.review-dropdown').forEach(d => {
-            if (d.id !== `dropdown-${id}`) d.classList.remove('show');
-        });
-        document.getElementById(`dropdown-${id}`).classList.toggle('show');
-    }
 
     // Pass images as a JSON string to avoid parsing complex JS arrays in HTML onClick attributes
     function openEditModal(id, rating, comment, imagesJson) {
@@ -900,7 +411,9 @@
                     el.style.borderRadius = '5px';
                     el.style.border = '1px solid #444';
 
-                    const delLabel = document.createElement('div');
+                    const delLabel = document.createElement('button');
+                    delLabel.type = 'button';
+                    delLabel.setAttribute('aria-label', 'Remove image');
                     delLabel.style.position = 'absolute';
                     delLabel.style.top = '-5px';
                     delLabel.style.right = '-5px';
@@ -916,7 +429,9 @@
                     delLabel.style.fontSize = '18px';
                     delLabel.style.transition = 'background 0.2s';
                     delLabel.title = "Remove image";
-                    delLabel.innerHTML = '&times;';
+                    delLabel.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+                    delLabel.style.padding = '0';
+                    delLabel.style.border = '0';
                     
                     delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
                     delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
@@ -945,14 +460,11 @@
             console.error("Error parsing existing images:", e);
         }
 
-        const modal = document.getElementById('editReviewModal');
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('show'), 10);
+        window.ReviewUI.open('editReviewModal');
     }
 
     function closeEditModal() {
-        const modal = document.getElementById('editReviewModal');
-        modal.classList.remove('show');
+        window.ReviewUI.close('editReviewModal');
         document.getElementById('editReviewForm').reset();
         document.querySelectorAll('#editReviewForm .review-field-error').forEach((el) => {
             el.textContent = '';
@@ -963,76 +475,16 @@
         document.querySelectorAll('#editReviewForm textarea.has-error').forEach((el) => {
             el.classList.remove('has-error');
         });
-        setTimeout(() => modal.style.display = 'none', 300);
+
     }
 
     async function deleteReview(id) {
-        AppToast.confirm({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            confirmText: 'Yes, delete it!',
-            confirmButtonColor: '#dc2626',
-            danger: true
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                const csrfToken = '{{ csrf_token }}';
-                try {
-                    const response = await fetch(`/reviews/${id}/delete/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': csrfToken }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json().catch(() => ({}));
-                        AppToast.fire({
-                            icon: 'success',
-                            title: data.message || 'Your review has been deleted.'
-                        }).then(() => {
-                            const currentCard = document.querySelector(`.like-btn[data-id="${id}"]`)?.closest('.review-card');
-                            if (currentCard) {
-                                currentCard.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-                                currentCard.style.opacity = '0';
-                                currentCard.style.transform = 'scale(0.95)';
-                                setTimeout(() => {
-                                    currentCard.remove();
-                                    // Make sure no-reviews message shows up if empty
-                                    if(document.querySelectorAll('.review-card').length === 0) {
-                                        location.reload(); // Best way to render empty state easily
-                                    }
-                                }, 400);
-                            } else {
-                                location.reload();
-                            }
-                        });
-                    } else {
-                        // Maaaring HTML ang error body (hal. 404/500), kaya
-                        // huwag mag-throw — para hindi ma-trigger ang catch
-                        // at hindi mag-double-fire ang toast.
-                        const data = await response.json().catch(() => ({}));
-                        Toast.fire({
-                            icon: 'error',
-                            title: data.message || 'Delete failed'
-                        });
-                    }
-                } catch (err) {
-                    console.error(err);
-                    Toast.fire({
-                        icon: 'error',
-                        title: 'An error occurred while deleting.'
-                    });
-                }
-            }
-        });
+        return window.ReviewPage.deleteReview(id);
     }
 
     function closeImageModal() {
-        const imageModal = document.getElementById("imageModal");
-        imageModal.classList.remove('show');
-        setTimeout(() => {
-            imageModal.style.display = "none";
-        }, 300); // match standard transition
+        window.ReviewUI.close('imageModal');
     }
 </script>
 {% endblock %}
-
 

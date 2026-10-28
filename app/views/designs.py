@@ -363,47 +363,14 @@ def design_canvas_page(request):
 
 @login_required
 def admin_canvas_assets(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    selected_kind = request.GET.get("kind", "package")
-    if selected_kind not in KINDS:
-        selected_kind = "package"
-    categories = CanvasCategory.objects.filter(**{"available_" + selected_kind: True}).order_by("order", "name")
-    selected_asset_category = request.GET.get("asset_category", "all")
-    canvas_assets = CanvasAsset.objects.select_related("category").filter(**{"available_" + selected_kind: True, "category__available_" + selected_kind: True})
-
-    if selected_asset_category != "all":
-        try:
-            parsed_category_id = int(selected_asset_category)
-            canvas_assets = canvas_assets.filter(category_id=parsed_category_id)
-        except (TypeError, ValueError):
-            selected_asset_category = "all"
-
-    categories_paginator = Paginator(categories, 10)
-    categories_page = categories_paginator.get_page(request.GET.get("cat_page"))
-
-    assets_paginator = Paginator(canvas_assets, 8)
-    canvas_assets = assets_paginator.get_page(request.GET.get("page"))
-
-    return render(
-        request,
-        "admin/canvas/admin_canvas_assets.html",
-        {
-            "categories": categories,
-            "categories_page": categories_page,
-            "canvas_assets": canvas_assets,
-            "selected_asset_category": selected_asset_category,
-            "selected_kind": selected_kind,
-            "design_kinds": KINDS.items(),
-        },
-    )
+    from ..catalog_admin import catalog_workspace
+    return catalog_workspace(request, 'canvas')
 
 
 @login_required
 @configure_canvas_availability(False)
 def admin_canvas_category_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
@@ -424,7 +391,7 @@ def admin_canvas_category_create(request):
 @login_required
 @configure_canvas_availability(False)
 def admin_canvas_category_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
     category = get_object_or_404(CanvasCategory, id=id)
     if request.method == "POST":
@@ -456,125 +423,14 @@ def admin_canvas_category_edit(request, id):
 
 @login_required
 def admin_canvas_category_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    category = get_object_or_404(CanvasCategory, id=id)
-    cat_name = category.name
-    if category.builtin_key:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'message': BUILTIN_MESSAGE}, status=400)
-        messages.warning(request, BUILTIN_MESSAGE)
-        return redirect('admin_canvas_assets')
-    if category.design_requirements.exists() or category.offer_inclusions.exists():
-        message = "Remove this category from its offer requirements before deleting it."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'message': message}, status=400)
-        messages.warning(request, message)
-        return redirect('admin_canvas_assets')
-    category.delete()
-    log_action(request.user, f"Deleted canvas category '{cat_name}'.")
-    messages.success(request, "Canvas category deleted successfully.")
-    return redirect("admin_canvas_assets")
-
-
-@login_required
-def admin_canvas_label_create(request):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    categories = CanvasCategory.objects.order_by("order", "name")
-    if request.method == "POST":
-        category_id = request.POST.get("category")
-        name = request.POST.get("name", "").strip()
-        order = request.POST.get("order", 1)
-        is_active = request.POST.get("is_active") == "on"
-        if not category_id:
-            messages.warning(request, "Please select a category for this label.")
-            return render(
-                request,
-                "admin/canvas/canvas_label_form.html",
-                {"categories": categories},
-            )
-        if not name:
-            messages.warning(request, "Please enter a label name before saving.")
-            return render(
-                request,
-                "admin/canvas/canvas_label_form.html",
-                {"categories": categories},
-            )
-
-        category = CanvasCategory.objects.filter(id=category_id).first()
-        if not category:
-            messages.warning(
-                request,
-                "Selected category could not be found. Please choose another category.",
-            )
-            return render(
-                request,
-                "admin/canvas/canvas_label_form.html",
-                {"categories": categories},
-            )
-        CanvasLabel.objects.create(
-            category=category,
-            name=name,
-            order=parse_non_negative_int(order, 1),
-            is_active=is_active,
-        )
-        log_action(request.user, f"Created canvas label '{name}' in '{category.name}'.")
-        messages.success(request, "Canvas label created successfully.")
-        return redirect("admin_canvas_assets")
-    return render(
-        request, "admin/canvas/canvas_label_form.html", {"categories": categories}
-    )
-
-
-@login_required
-def admin_canvas_label_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    label = get_object_or_404(CanvasLabel, id=id)
-    categories = CanvasCategory.objects.order_by("order", "name")
-    if request.method == "POST":
-        name = request.POST.get("name", "").strip()
-        order = request.POST.get("order", 1)
-        is_active = request.POST.get("is_active") == "on"
-        if not name:
-            messages.warning(request, "Please enter a label name before saving.")
-            return render(
-                request,
-                "admin/canvas/canvas_label_form.html",
-                {"label": label, "categories": categories},
-            )
-        label.name = name
-        label.order = parse_non_negative_int(order, 1)
-        label.is_active = is_active
-        label.save()
-        log_action(request.user, f"Updated canvas label '{name}'.")
-        messages.success(request, "Canvas label updated successfully.")
-        return redirect("admin_canvas_assets")
-    return render(
-        request,
-        "admin/canvas/canvas_label_form.html",
-        {"label": label, "categories": categories},
-    )
-
-
-@login_required
-def admin_canvas_label_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-    label = get_object_or_404(CanvasLabel, id=id)
-    label_name = label.name
-    CanvasAsset.objects.filter(label_ref=label).update(label_ref=None)
-    label.delete()
-    log_action(request.user, f"Deleted canvas label '{label_name}'.")
-    messages.success(request, "Canvas label deleted successfully.")
-    return redirect("admin_canvas_assets")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'canvas-category', id)
 
 
 @login_required
 @configure_canvas_availability(True)
 def admin_canvas_asset_create(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     categories = CanvasCategory.objects.order_by("order", "name")
@@ -661,7 +517,6 @@ def admin_canvas_asset_create(request):
         ) + 1
         CanvasAsset.objects.create(
             category=category,
-            label_ref=None,
             label=label,
             subgroup="",
             static_path=static_path,
@@ -686,7 +541,7 @@ def admin_canvas_asset_create(request):
 @login_required
 @configure_canvas_availability(True)
 def admin_canvas_asset_edit(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     canvas_asset = get_object_or_404(CanvasAsset, id=id)
@@ -807,7 +662,6 @@ def admin_canvas_asset_edit(request, id):
             )
 
         canvas_asset.category = category
-        canvas_asset.label_ref = None
         canvas_asset.label = label
         canvas_asset.subgroup = ""
         canvas_asset.static_path = static_path
@@ -844,11 +698,11 @@ def admin_canvas_asset_edit(request, id):
 
 @login_required
 def admin_canvas_asset_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     canvas_asset = get_object_or_404(
-        CanvasAsset.objects.select_related("category", "label_ref"), id=id
+        CanvasAsset.objects.select_related("category"), id=id
     )
     next_url = (
         request.GET.get("next")
@@ -877,20 +731,8 @@ def admin_canvas_asset_detail(request, id):
 
 @login_required
 def admin_canvas_asset_delete(request, id):
-    if request.user.role not in ["admin", "staff"]:
-        return HttpResponseForbidden("Not allowed")
-
-    canvas_asset = get_object_or_404(CanvasAsset, id=id)
-    asset_id = canvas_asset.id
-    if canvas_asset.builtin_key:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'message': BUILTIN_MESSAGE}, status=400)
-        messages.warning(request, BUILTIN_MESSAGE)
-        return redirect('admin_canvas_assets')
-    canvas_asset.delete()
-    log_action(request.user, f"Deleted canvas asset #{asset_id}.")
-    messages.success(request, "Canvas asset deleted successfully.")
-    return redirect("admin_canvas_assets")
+    from ..catalog_admin import legacy_catalog_delete
+    return legacy_catalog_delete(request, 'canvas-asset', id)
 
 
 @login_required

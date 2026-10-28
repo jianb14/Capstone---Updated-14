@@ -220,12 +220,12 @@ class DeleteReviewToastTests(TestCase):
     """Ang delete/edit flow: isang toast bawat action, at RED ang delete."""
 
     def _page(self, name):
-        return (CLIENT_TEMPLATES / name).read_text(encoding="utf-8")
+        return (CLIENT_TEMPLATES / name).read_text(encoding="utf-8") + (BASE_DIR / "static/js/review_page.js").read_text(encoding="utf-8")
 
     def test_delete_confirm_button_is_red(self):
         for name in REVIEWS_PAGES:
             self.assertIn(
-                "confirmButtonColor: '#dc2626'",
+                "confirmButtonColor:'#dc2626'",
                 self._page(name),
                 f"Si {name} ay dapat may RED na confirm button para sa delete.",
             )
@@ -251,10 +251,9 @@ class DeleteReviewToastTests(TestCase):
     def test_delete_and_update_error_toasts_are_distinct_messages(self):
         for name in REVIEWS_PAGES:
             source = self._page(name)
-            self.assertIn("Delete failed", source, f"Si {name}.")
-            self.assertIn("Update failed", source, f"Si {name}.")
-            self.assertIn("An error occurred while deleting.", source, f"Si {name}.")
-            self.assertIn("An error occurred while updating.", source, f"Si {name}.")
+            self.assertIn("Could not delete your review.", source, f"Si {name}.")
+            self.assertIn("Could not save your review.", source, f"Si {name}.")
+
 
 
 class DeleteReviewViewTests(TestCase):
@@ -324,7 +323,7 @@ class RenderedToastOutputTests(TestCase):
     def test_reviews_page_renders_helper_and_no_page_mixin(self):
         html = self._render("/reviews/")
         self.assertIn("js/toast_helper.js", html)
-        self.assertIn("AppToast.mixin(", html)
+        self.assertIn("js/review_page.js", html)
         self.assertNotIn("Swal.mixin(", html)
         # Isang SweetAlert2 CDN load lang bawat page.
         self.assertEqual(html.count("sweetalert2@11"), 1)
@@ -332,7 +331,7 @@ class RenderedToastOutputTests(TestCase):
     def test_my_reviews_page_renders_helper_and_no_page_mixin(self):
         html = self._render("/my-reviews/")
         self.assertIn("js/toast_helper.js", html)
-        self.assertIn("AppToast.mixin(", html)
+        self.assertIn("js/review_page.js", html)
         self.assertNotIn("Swal.mixin(", html)
         self.assertEqual(html.count("sweetalert2@11"), 1)
 
@@ -357,11 +356,11 @@ class RenderedToastOutputTests(TestCase):
                             f"toast -> {part!r}"
                         )
 
-    def test_rendered_delete_button_is_red(self):
+    def test_rendered_review_pages_load_shared_actions(self):
         for path in ("/reviews/", "/my-reviews/"):
             html = self._render(path)
             self.assertIn(
-                "confirmButtonColor: '#dc2626'",
+                "js/review_page.js",
                 html,
-                f"Si {path} ay dapat RED ang delete confirm button.",
+                f"Si {path} ay dapat gumagamit ng shared review controller.",
             )

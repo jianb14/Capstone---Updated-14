@@ -5,6 +5,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <title>Balloorina | Analytics Report</title>
     <style>
         @page {
             size: A4;
@@ -20,7 +21,7 @@
 
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
-            color: #1e293b;
+            color: #232323;
             font-size: 10px;
             line-height: 1.45;
         }
@@ -42,8 +43,8 @@
         .confidential-cell { text-align: right; }
 
         .confidential-stamp {
-            border: 1px solid #94a3b8;
-            color: #64748b;
+            border: 1px solid #969696;
+            color: #737373;
             font-size: 7.5px;
             font-weight: bold;
             padding: 3px 8px;
@@ -63,9 +64,11 @@
 
         .title-block p {
             font-size: 9.5px;
-            color: #64748b;
+            color: #707070;
             margin: 0;
             padding: 0;
+            padding-bottom: 7px;
+            border-bottom: 1.5px solid #242424;
         }
 
         /* ============ Report metadata ============= */
@@ -86,7 +89,7 @@
         }
 
         .meta-label {
-            color: #64748b;
+            color: #737373;
             font-size: 8px;
             font-weight: bold;
             width: 18%;
@@ -98,7 +101,7 @@
         h2 {
             font-size: 10.5px;
             font-weight: bold;
-            color: #1e293b;
+            color: #242424;
             margin: 12px 0 6px;
             padding: 0;
             -pdf-keep-with-next: true;
@@ -111,7 +114,9 @@
         }
 
         table.data th {
-            color: #334155;
+            color: #404040;
+            background-color: #f3f3f3;
+            border-bottom: 0.6px solid #d7d7d7;
             font-size: 8.5px;
             font-weight: bold;
             text-align: left;
@@ -124,8 +129,8 @@
             padding: 2px 10px;
             font-size: 9.5px;
             line-height: 1.3;
-            color: #1e293b;
-            border-bottom: 0.5px solid #e2e8f0;
+            color: #262626;
+            border-bottom: 0.5px solid #e5e5e5;
         }
 
         /* Pantay lahat sa kaliwa: walang left padding sa unang column */
@@ -139,7 +144,7 @@
         }
 
         .text-right { text-align: right; }
-        .empty { text-align: center; font-style: italic; color: #94a3b8; }
+        .empty { text-align: center; font-style: italic; color: #969696; }
 
         /* ========= Highlights / definitions ======= */
         ul.notes {
@@ -149,7 +154,7 @@
 
         ul.notes li {
             font-size: 9.5px;
-            color: #334155;
+            color: #444444;
             margin-bottom: 3px;
         }
 
@@ -160,19 +165,23 @@
 
         .definitions p {
             font-size: 8.5px;
-            color: #64748b;
+            color: #737373;
             margin: 2px 0;
         }
 
         .footer {
             text-align: center;
             font-size: 8px;
-            color: #94a3b8;
-            border-top: 0.5px solid #e2e8f0;
+            color: #969696;
+            border-top: 0.5px solid #e5e5e5;
             padding-top: 4px;
         }
 
         .spacer { height: 20px; }
+        .section-index { font-size:8px; font-weight:bold; letter-spacing:1px; color:#777777; margin:20px 0 5px; border-top:1px solid #303030; padding-top:10px; -pdf-keep-with-next:true; }
+        .report-scope { font-size:9px; color:#6a6a6a; line-height:1.6; margin:0 0 14px; }
+        .muted { font-size:8px; color:#737373; line-height:1.5; }
+        .appendix-start { page-break-before:always; }
     </style>
 </head>
 <body>
@@ -180,254 +189,6 @@
         Balloorina - Confidential Analytics Report | For Administrative Use Only | Page <pdf:pagenumber> of <pdf:pagecount>
     </div>
 
-    <table class="header-table">
-        <tr>
-            <td class="brand-cell">
-                <img src="{% static 'images/BalloorinaBlack.png' %}" style="width: 130px;">
-            </td>
-            <td class="confidential-cell">
-                <span class="confidential-stamp">CONFIDENTIAL</span>
-            </td>
-        </tr>
-    </table>
-
-    <div class="title-block">
-        <h1>ANALYTICS REPORT</h1>
-        <p>Business Performance Report - Balloorina</p>
-    </div>
-
-    <table class="meta-table">
-        <tr>
-            <td class="meta-label">PERIOD</td>
-            <td class="meta-value">{{ start_date_str }} - {{ end_date_str }}</td>
-            <td class="meta-label">GENERATED ON</td>
-            <td>{{ now }}</td>
-        </tr>
-        <tr>
-            <td class="meta-label">EVENT TYPE</td>
-            <td class="meta-value">{{ selected_event_type }}</td>
-            <td class="meta-label">PREPARED FOR</td>
-            <td>Balloorina Management</td>
-        </tr>
-    </table>
-
-    <!-- ═══ KPI SUMMARY (table, not cards) ═══ -->
-    <h2>Key Performance Indicators</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 70%;">Metric</th>
-                <th class="r" style="width: 30%;">Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Total Bookings</td>
-                <td class="text-right">{{ total_bookings }}</td>
-            </tr>
-            <tr>
-                <td>Total Revenue</td>
-                <td class="text-right">PHP {{ total_revenue }}</td>
-            </tr>
-            <tr>
-                <td>Completion Rate</td>
-                <td class="text-right">{{ completion_rate }}%</td>
-            </tr>
-            <tr>
-                <td>Cancellation Rate</td>
-                <td class="text-right">{{ cancellation_rate }}%</td>
-            </tr>
-            <tr>
-                <td>Avg. Booking Value</td>
-                <td class="text-right">PHP {{ avg_booking_value }}</td>
-            </tr>
-            <tr>
-                <td>Active Customers</td>
-                <td class="text-right">{{ active_users }}</td>
-            </tr>
-            <tr>
-                <td>Completed</td>
-                <td class="text-right">{{ completed_count }}</td>
-            </tr>
-            <tr>
-                <td>Cancelled</td>
-                <td class="text-right">{{ cancelled_count }}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2>Report Highlights</h2>
-    <ul class="notes">
-        {% for note in summary_notes %}
-        <li>{{ note }}</li>
-        {% empty %}
-        <li>No highlights for this period.</li>
-        {% endfor %}
-    </ul>
-
-    <h2>Status Breakdown</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 40%;">Booking Status</th>
-                <th class="r" style="width: 30%;">Count</th>
-                <th class="r" style="width: 30%;">Share of Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in status_table %}
-            <tr>
-                <td>{{ item.label }}</td>
-                <td class="text-right">{{ item.count }}</td>
-                <td class="text-right">{{ item.share_pct }}%</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="empty">No bookings recorded for this period.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Revenue by Event Type</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 34%;">Event Type</th>
-                <th class="r" style="width: 22%;">Completed Bookings</th>
-                <th class="r" style="width: 22%;">Revenue (PHP)</th>
-                <th class="r" style="width: 22%;">Avg. Value (PHP)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in revenue_by_event %}
-            <tr>
-                <td>{{ item.event_type }}</td>
-                <td class="text-right">{{ item.count }}</td>
-                <td class="text-right">PHP {{ item.revenue }}</td>
-                <td class="text-right">PHP {{ item.avg_value }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="empty">No completed bookings for this period.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Top Packages</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 46%;">Package Name</th>
-                <th class="r" style="width: 27%;">Completed Bookings</th>
-                <th class="r" style="width: 27%;">Revenue (PHP)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in package_rows %}
-            <tr>
-                <td>{{ item.package_name }}</td>
-                <td class="text-right">{{ item.count }}</td>
-                <td class="text-right">PHP {{ item.revenue }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="empty">No completed package bookings for this period.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Top Customers</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 46%;">Customer Name</th>
-                <th class="r" style="width: 27%;">Completed Bookings</th>
-                <th class="r" style="width: 27%;">Total Spent (PHP)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for customer in top_customers %}
-            <tr>
-                <td>{{ customer.name }}</td>
-                <td class="text-right">{{ customer.booking_count }}</td>
-                <td class="text-right">PHP {{ customer.total_spent }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="empty">No customer spending recorded for this period.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Customer Retention</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 40%;">Customer Type</th>
-                <th class="r" style="width: 30%;">Count</th>
-                <th class="r" style="width: 30%;">Percentage</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>New Customers</td>
-                <td class="text-right">{{ new_customers_count }}</td>
-                <td class="text-right">{{ new_customers_pct }}%</td>
-            </tr>
-            <tr>
-                <td>Returning Customers</td>
-                <td class="text-right">{{ returning_customers_count }}</td>
-                <td class="text-right">{{ returning_customers_pct }}%</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2>Action Queue Summary</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 70%;">Category</th>
-                <th class="r" style="width: 30%;">Count</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Pending Approvals</td>
-                <td class="text-right">{{ pending_approvals }}</td>
-            </tr>
-            <tr class="total">
-                <td>Total Action Required</td>
-                <td class="text-right">{{ action_queue_total }}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2>Upcoming Deadlines (Next 3 Days)</h2>
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width: 22%;">Event Date</th>
-                <th style="width: 33%;">Customer</th>
-                <th style="width: 27%;">Event Type</th>
-                <th class="r" style="width: 18%;">Days Left</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for booking in upcoming_deadline_bookings %}
-            <tr>
-                <td>{{ booking.event_date_str }}</td>
-                <td>{{ booking.customer_name }}</td>
-                <td>{{ booking.event_type }}</td>
-                <td class="text-right">{{ booking.days_left }} day{{ booking.days_left|pluralize }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="empty">No upcoming deadlines.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="definitions">
-        <p><strong>Notes &amp; Definitions:</strong> Revenue, average booking value, package rankings, and customer spending figures are computed from <strong>completed</strong> bookings only. Total bookings include all bookings with an event date within the reporting period, regardless of status. Active customers refers to all registered customer accounts as of the report date. Pending approvals are listed as of the report generation time and may change after this report was produced.</p>
-        <p>This report was automatically generated by the Balloorina system and is intended for administrative use only.</p>
-    </div>
-
-    <div class="spacer"></div>
+    {% include 'admin/analytics/_pdf_body.html' %}
 </body>
-
 </html>

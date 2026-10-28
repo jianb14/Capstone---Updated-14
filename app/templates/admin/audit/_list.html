@@ -1,0 +1,44 @@
+{% if logs %}
+<div class="ac-table-scroll audit-table-scroll">
+    <table class="ac-table audit-table">
+        <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Activity</th><th scope="col">Date &amp; time</th><th scope="col"><span class="audit-sr-only">Details</span></th></tr></thead>
+        <tbody>
+            {% for log in logs %}
+            <tr class="audit-log-row" data-audit-row="{{ log.id }}">
+                <td>{% if log.user %}{% with display_name=log.user.get_full_name|default:log.user.username %}<span class="audit-user-name">{{ display_name }}</span>{% if log.user.email and log.user.email != display_name %}<small class="ac-email">{{ log.user.email }}</small>{% endif %}{% endwith %}{% else %}<span class="audit-user-name">System / removed account</span>{% endif %}</td>
+                <td>{% include 'admin/audit/_role.html' %}</td>
+                <td><small class="audit-log-id">#LOG-{{ log.id }}</small><span class="audit-action-preview">{{ log.action|default:'No action description recorded.' }}</span></td>
+                <td><time datetime="{{ log.created_at|date:'c' }}"><span class="ac-date">{{ log.created_at|date:'M d, Y' }}</span><small>{{ log.created_at|date:'g:i A' }}</small></time></td>
+                <td><button type="button" class="ac-icon-btn audit-expand" data-audit-toggle="{{ log.id }}" aria-expanded="false" aria-controls="audit-detail-{{ log.id }}" aria-label="Show details for activity #LOG-{{ log.id }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></td>
+            </tr>
+            <tr class="audit-log-detail" id="audit-detail-{{ log.id }}" hidden>
+                <td colspan="5">
+                    <section class="audit-detail-panel" aria-label="Details for activity #LOG-{{ log.id }}">
+                        <div class="audit-detail-heading"><h3>Activity details</h3><span>#LOG-{{ log.id }}</span></div>
+                        <dl class="audit-meta">
+                            <div><dt>Recorded at · Philippine time</dt><dd><time datetime="{{ log.created_at|date:'c' }}">{{ log.created_at|date:'F j, Y · g:i:s A' }}</time></dd></div>
+                            <div><dt>Account role</dt><dd>{% include 'admin/audit/_role.html' %}</dd></div>
+                            {% if log.user %}
+                            {% with account_name=log.user.get_full_name|default:log.user.username %}
+                            <div><dt>Account</dt><dd>{{ account_name }}</dd>{% if log.user.username != account_name and log.user.username != log.user.email %}<dd class="audit-meta-secondary">{{ log.user.username }}</dd>{% endif %}</div>
+                            {% if log.user.email and log.user.email != account_name %}<div><dt>Email address</dt><dd>{{ log.user.email }}</dd></div>{% endif %}
+                            <div><dt>Account ID</dt><dd>#USER-{{ log.user.id }}</dd></div>
+                            {% endwith %}
+                            {% endif %}
+                        </dl>
+                        <h4 class="audit-action-label">Full activity</h4>
+                        <div class="audit-full-action">{{ log.action|default:'No action description recorded.' }}</div>
+                        {% if log.user and not log.user.deleted_at %}<a class="ac-button audit-account-link" href="{% url 'admin_user_detail' log.user.id %}">View account<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>{% endif %}
+                    </section>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include 'components/account_table_footer.html' with page=logs page_key='page' pagination_label='Audit log' %}
+{% else %}
+<div class="ac-empty">
+    {% if has_filters %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No matching activities' empty_description='Try another search or clear your filters to see recorded activity.' reset_filters=True %}{% else %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No activity recorded yet' empty_description='Recorded account activity and system changes will appear here.' %}{% endif %}
+</div>
+{% endif %}

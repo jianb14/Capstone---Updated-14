@@ -1,0 +1,26 @@
+<div class="ac-workspace ase-profile-security">
+<dialog class="ac-dialog ase-invite-dialog ase-email-dialog" id="adminEmailModal" data-email-dialog{% if open_email_setup %} data-auto-open{% endif %} aria-labelledby="adminEmailTitle">
+    <div class="ac-dialog-shell">
+        <header class="ac-dialog-header">
+            <div><h2 id="adminEmailTitle">Verify admin email</h2><p class="ase-note">Confirm your password, then verify an inbox you can access.</p></div>
+            <button class="ac-close" type="button" data-close-email aria-label="Close email verification">{% include 'admin/user/_icon.html' with icon='close' %}</button>
+        </header>
+        <div class="ac-dialog-body">
+            <p class="ase-note">Current email: <strong data-admin-email-value>{{ user.email }}</strong>. Your email changes only after successful verification.</p>
+            <form class="ase-form" data-security-flow data-send-url="{% url 'admin_security_action' 'email' 'send' %}" data-confirm-url="{% url 'admin_security_action' 'email' 'confirm' %}" data-resend-url="{% url 'admin_security_action' 'email' 'resend' %}"{% if pending_security %} data-pending-stage="{{ pending_security.stage }}" data-pending-code="{% if pending_security.stage == 'code' %}1{% else %}0{% endif %}" data-pending-recipient="{{ pending_security.recipient }}" data-code-server-now="{{ pending_security.server_now }}" data-code-expires-at="{{ pending_security.expires_at }}" data-code-resend-at="{{ pending_security.resend_available_at }}"{% endif %}>
+                {% csrf_token %}
+                <div data-security-fields>
+                    <label for="adminSetupEmail">Your accessible email <span class="ase-required" aria-hidden="true">*</span></label>
+                    <input id="adminSetupEmail" name="email" type="email" value="{{ pending_security.email|default:'' }}" maxlength="254" autocomplete="email" required>
+                    <label for="adminSetupPassword">Current password <span class="ase-required" aria-hidden="true">*</span></label>
+                    <div class="password-visibility-field"><input id="adminSetupPassword" name="current_password" type="password" autocomplete="current-password" maxlength="1024" required>{% include 'components/password_visibility.html' with input_id='adminSetupPassword' password_label='current password' %}</div>
+                </div>
+                {% include 'admin/security/_code_field.html' with code_id='adminSetupCode' %}
+                <p class="ase-feedback" role="status" aria-live="polite" tabindex="-1"></p>
+                <div class="ase-actions"><button class="ac-button ac-primary ase-submit" type="submit">Send verification code</button><button class="ac-button" data-security-resend type="button" hidden>Resend code</button><button class="ac-button ase-back" type="button" data-security-back hidden>Edit email</button></div>
+            </form>
+        </div>
+        <footer class="ac-dialog-footer"><button class="ac-button" type="button" data-close-email>Cancel</button></footer>
+    </div>
+</dialog>
+</div>

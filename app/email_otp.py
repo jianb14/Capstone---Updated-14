@@ -40,11 +40,14 @@ def mask_email(email):
 
 
 def eligible(user, purpose):
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.deleted_at:
         return False
     if purpose == EmailOTPChallenge.SIGNUP:
-        return not user.email_verified and not user.is_superuser and not signup_expired(user)
-    return purpose in (EmailOTPChallenge.RESET, EmailOTPChallenge.CHANGE) and user.has_usable_password()
+        return user.role == 'customer' and not user.email_verified and not user.is_superuser and not signup_expired(user)
+    if purpose == EmailOTPChallenge.DELETE:
+        return user.role == 'customer' and not user.is_staff and not user.is_superuser and user.has_usable_password() and user.email_verified
+    return (purpose in (EmailOTPChallenge.RESET, EmailOTPChallenge.CHANGE) and user.has_usable_password()
+            and not (user.role == 'admin' and not user.email_verified))
 
 
 def invalidate(user, purpose):
@@ -98,9 +101,9 @@ def send_code(user, purpose, context, *, replacement_email='', pending_password_
         challenge.code_digest = code_digest(challenge, code)
         challenge.save()
     label = {EmailOTPChallenge.SIGNUP: 'account verification', EmailOTPChallenge.RESET: 'password reset',
-             EmailOTPChallenge.CHANGE: 'password change'}[purpose]
+             EmailOTPChallenge.CHANGE: 'password change', EmailOTPChallenge.DELETE:'account deletion'}[purpose]
     subject = {'signup': 'Verify your Balloorina account', 'reset': 'Balloorina Password Reset',
-               'change': 'Confirm your Balloorina password change'}[purpose]
+               'change': 'Confirm your Balloorina password change', 'delete':'Confirm your Balloorina account deletion'}[purpose]
     body = (
         f'Hi {user.first_name or user.username},\n\n'
         f'Your {label} code is:\n\n'
@@ -146,14 +149,14 @@ def get_challenge(context, purpose, lock=False):
 
 def bound(challenge, user, context):
     return bool(challenge and user and challenge.sent_at and not challenge.consumed_at
-                and user.is_active and user.email.casefold() == challenge.email_snapshot
+                and user.is_active and not user.deleted_at and user.email.casefold() == challenge.email_snapshot
                 and context.get('email') == (challenge.replacement_email or challenge.email_snapshot)
                 and constant_time_compare(challenge.session_digest, digest('session', context.get('binding', '')))
                 and constant_time_compare(challenge.password_digest, digest('password', user.password)))
 
 
 def grant_valid(challenge, user, context):
-    return bool(bound(challenge, user, context) and challenge.purpose == EmailOTPChallenge.RESET
+    return bool(eligible(user, EmailOTPChallenge.RESET) and bound(challenge, user, context) and challenge.purpose == EmailOTPChallenge.RESET
                 and challenge.verified_at and challenge.grant_expires_at
                 and challenge.grant_expires_at > timezone.now())
 
@@ -195,6 +198,8 @@ def verify_code(request, purpose, context, code):
                  and constant_time_compare(challenge.code_digest, code_digest(challenge, code)))
         if purpose == EmailOTPChallenge.CHANGE:
             valid = valid and request.user.is_authenticated and request.user.pk == user.pk and bool(challenge.pending_password_hash)
+        if purpose == EmailOTPChallenge.DELETE:
+            valid = valid and request.user.is_authenticated and user is not None and request.user.pk == user.pk
         if valid:
             # Only wrong guesses count against the account budget.
             RequestRateBucket.objects.filter(pk__in=keys, count__gt=0).update(count=F('count') - 1)

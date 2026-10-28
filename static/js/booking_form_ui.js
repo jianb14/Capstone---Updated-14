@@ -1,6 +1,7 @@
 /* Shared presentation for the create, edit and request-change booking wizards. */
-(() => {
+AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
     'use strict';
+    scope.capture(['BookingFormUI']);
     const paths = {
         info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
         image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/>',
@@ -96,16 +97,19 @@
         }
         root.querySelectorAll('.reference-dropzone').forEach(setupUpload);
     }
-    document.addEventListener('DOMContentLoaded',()=>{
+    scope.ready(()=>{
         for(const root of document.querySelectorAll('#bookingModalOverlay,#editBookingModal')) {
             enhance(root);
-            new MutationObserver(records=>{
+            const observer = new MutationObserver(records=>{
                 for(const record of records) {
                     if(record.type==='attributes' && record.target.matches('.design-chip,.palette-swatch'))record.target.setAttribute('aria-pressed',String(record.target.classList.contains('selected')));
                     for(const node of record.addedNodes)enhance(node);
                 }
-            }).observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+            });
+            observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+            scope.cleanup(() => observer.disconnect());
         }
     });
     window.BookingFormUI={icon,renderPreview};
-})();
+
+}, -10);

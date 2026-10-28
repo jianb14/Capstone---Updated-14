@@ -1,0 +1,150 @@
+.profile-dialog {
+    --dialog-bg: #151515;
+    --dialog-text: #f4f4f5;
+    --dialog-muted: #a1a1aa;
+    --dialog-border: #333337;
+    --dialog-field-bg: #1c1c1c;
+    --dialog-hover: rgba(255, 255, 255, .07);
+    width: min(520px, calc(100% - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--dialog-border);
+    border-radius: 18px;
+    background: var(--dialog-bg);
+    color: var(--dialog-text);
+    font: inherit;
+    box-shadow: 0 20px 70px rgba(0, 0, 0, .25);
+}
+
+.profile-dialog[open] { display: flex; flex-direction: column; animation: profile-dialog-in 180ms ease-out; }
+.profile-dialog::backdrop { background: rgba(0, 0, 0, .65); backdrop-filter: blur(6px); }
+[data-theme="light"] .profile-dialog {
+    --dialog-bg: #fff;
+    --dialog-text: #18181b;
+    --dialog-muted: #686871;
+    --dialog-border: #e4e4e7;
+    --dialog-field-bg: #f9fafb;
+    --dialog-hover: rgba(0, 0, 0, .045);
+}
+
+.profile-dialog__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+    padding: 24px 24px 20px;
+}
+.profile-dialog__header > div { min-width: 0; }
+.profile-dialog__header h2 { margin: 0; font-size: 1.25rem; font-weight: 600; line-height: 1.4; color: var(--dialog-text); }
+.profile-dialog__header p { margin: 6px 0 0; color: var(--dialog-muted); font-size: .8rem; line-height: 1.6; }
+.profile-dialog__close {
+    display: grid;
+    place-items: center;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    margin: -5px -8px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--dialog-muted);
+    cursor: pointer;
+}
+.profile-dialog__close:hover { background: var(--dialog-hover); color: var(--dialog-text); }
+.profile-dialog__form { display: flex; flex-direction: column; min-height: 0; }
+.profile-dialog__fields {
+    display: grid;
+    gap: 20px;
+    min-height: 0;
+    padding: 0 24px 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--dialog-muted) transparent;
+}
+.profile-dialog__fields .form-group { min-width: 0; margin: 0; }
+.profile-dialog__names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.profile-dialog .form-group label { margin-bottom: 7px; color: var(--dialog-text); font-size: .8rem; letter-spacing: 0; }
+.profile-dialog #editProfileForm input, .profile-dialog .password-input-wrapper input {
+    min-width: 0;
+    min-height: 46px;
+    border-radius: 10px;
+    border: 1px solid var(--dialog-border);
+    background: var(--dialog-field-bg);
+    color: var(--dialog-text);
+    padding: 12px 14px;
+    font-size: .875rem;
+    line-height: 1.5;
+}
+.profile-dialog .password-input-wrapper input { padding-right: 50px; }
+.profile-dialog #editProfileForm input:focus, .profile-dialog .password-input-wrapper input:focus {
+    outline: none;
+    border-color: var(--dialog-muted);
+    box-shadow: none;
+    transform: none;
+}
+
+.profile-dialog__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+    padding: 22px 24px 24px;
+}
+.profile-dialog__cancel, .profile-dialog .profile-dialog__submit, .profile-dialog #btnSavePassword {
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: .85rem;
+    font-weight: 500;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: background 150ms ease;
+    transform: none;
+    box-shadow: none;
+}
+.profile-dialog__cancel { border: 1px solid var(--dialog-border); background: transparent; color: var(--dialog-text); }
+.profile-dialog__cancel:hover { background: var(--dialog-hover); }
+.profile-dialog .profile-dialog__submit, .profile-dialog #btnSavePassword { border: 1px solid var(--dialog-text); background: var(--dialog-text); color: var(--dialog-bg); }
+.profile-dialog .profile-dialog__submit:hover:not(:disabled), .profile-dialog #btnSavePassword:hover:not(:disabled) { opacity: .85; transform: none; box-shadow: none; }
+.profile-dialog #btnSavePassword:disabled { cursor: wait; opacity: .55; }
+.profile-dialog__note, .profile-dialog__resume { margin: 0; color: var(--dialog-muted); font-size: .78rem; line-height: 1.7; }
+.profile-dialog__resume a { color: var(--dialog-text); text-underline-offset: 3px; }
+.profile-dialog__note { padding: 12px 14px; border-radius: 10px; background: var(--dialog-hover); }
+.profile-dialog__message { margin: 0; padding: 12px 14px; border: 1px solid rgba(239, 68, 68, .3); border-radius: 10px; background: rgba(239, 68, 68, .07); color: #f87171; font-size: .8rem; line-height: 1.6; overflow-wrap: anywhere; }
+[data-theme="light"] .profile-dialog__message { color: #b91c1c; }
+.profile-dialog [hidden] { display: none; }
+.profile-dialog button:focus-visible { outline: 2px solid var(--dialog-muted); outline-offset: 2px; }
+.profile-dialog__message:focus { outline: none; }
+.profile-dialog .field-error { line-height: 1.5; }
+#editProfileForm .form-group.has-error .field-error { display: block; }
+
+@media (max-width: 480px) {
+    .profile-dialog { width: calc(100% - 24px); max-height: calc(100dvh - 24px); border-radius: 16px; }
+    .profile-dialog__header { padding: 20px 20px 18px; }
+    .profile-dialog__fields { padding-inline: 20px; gap: 18px; }
+    .profile-dialog__names { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .profile-dialog__actions { padding: 20px; }
+}
+@media (max-width: 420px) {
+    .profile-dialog__actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+    .profile-dialog__actions .profile-dialog__submit { grid-row: 1; }
+    .profile-dialog__actions button { width: 100%; }
+}
+@keyframes profile-dialog-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .profile-dialog[open] { animation: none; }
+    .profile-dialog button { transition: none; }
+}

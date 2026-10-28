@@ -1,0 +1,15 @@
+{% load account_ui %}
+<footer class="account-table-footer" data-list-footer>
+    <div class="account-table-summary">
+        <span class="account-page-size">Show <select name="per_page" data-list-size aria-label="Rows per page" data-account-select><option value="4"{% if per_page == 4 %} selected{% endif %}>4</option><option value="8"{% if per_page == 8 %} selected{% endif %}>8</option></select></span>
+        <p role="status" aria-live="polite">Showing <strong>{{ page.start_index }}–{{ page.end_index }}</strong> of <strong>{{ page.paginator.count }}</strong></p>
+    </div>
+    <div class="account-pagination" role="navigation" aria-label="{{ pagination_label|default:'Table' }} pages">
+        {% if page.has_previous %}<a data-list-page data-page-key="{{ page_key }}" href="{% account_page_url page_key page.previous_page_number tab %}" aria-label="Previous page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></a>{% else %}<span aria-disabled="true" aria-label="Previous page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></span>{% endif %}
+        {% account_page_range page as page_numbers %}
+        {% for number in page_numbers %}
+            {% if number == page.paginator.ELLIPSIS %}<span class="account-page-ellipsis">{{ number }}</span>{% elif number == page.number %}<span class="is-current" aria-current="page" aria-label="Page {{ number }}">{{ number }}</span>{% else %}<a data-list-page data-page-key="{{ page_key }}" href="{% account_page_url page_key number tab %}" aria-label="Page {{ number }}">{{ number }}</a>{% endif %}
+        {% endfor %}
+        {% if page.has_next %}<a data-list-page data-page-key="{{ page_key }}" href="{% account_page_url page_key page.next_page_number tab %}" aria-label="Next page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></a>{% else %}<span aria-disabled="true" aria-label="Next page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></span>{% endif %}
+    </div>
+</footer>

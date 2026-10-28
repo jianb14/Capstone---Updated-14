@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function () {
+AccountPages.register('report_concern', 'concern', function(scope) {
     'use strict';
     const form = document.getElementById('concernForm');
     if (!form) return;
@@ -24,7 +24,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const cancelSubmit = document.getElementById('confirmCancelConcern');
     const cancelFeedback = document.getElementById('cancelConcernFeedback');
     const lightbox = document.getElementById('concernImageLightbox');
-    const tickets = new Map(JSON.parse(document.getElementById('concern-ticket-data').textContent).map(ticket => [String(ticket.id), ticket]));
+    const tickets = new Map();
+    function syncTickets() {
+        tickets.clear();
+        JSON.parse(document.getElementById('concern-ticket-data').textContent).forEach(ticket=>tickets.set(String(ticket.id),ticket));
+    }
+    syncTickets();
+    AccountPages.listen(scope.root,'account:list-updated',syncTickets);
     let submitting = false;
     let cancelling = false;
     let attempted = false;
@@ -98,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const syncSubjectCount = () => { subjectCount.textContent = subject.value.length + '/150'; };
     subject.addEventListener('input', syncSubjectCount);
     syncSubjectCount();
-    document.addEventListener('click', event => { if (!dropdown.contains(event.target)) toggleMenu(false); });
+    AccountPages.listen(document, 'click', event => { if (!dropdown.contains(event.target)) toggleMenu(false); });
     toggleMenu(false);
     syncCategory();
 
@@ -188,10 +194,12 @@ document.addEventListener('DOMContentLoaded', function () {
         announce(feedback, 'Submitting your concern. Please wait.');
         try {
             const { response, data } = await post(form.action, new FormData(form));
+            if (!scope.active) return;
             if (!response.ok || !data.success) throw new Error(data.message || data.error || 'Please review your details and try again.');
             announce(feedback, data.message);
             // Retain the submission key until the server confirms success, including after a lost response.
-            window.location.assign(data.redirect_url);
+            if (window.AccountNavigation) window.AccountNavigation.navigate(data.redirect_url,{force:true});
+            else window.location.assign(data.redirect_url);
         } catch (error) {
             announce(feedback, requestError(error), true);
             submitting = false;
@@ -200,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function () {
             form.setAttribute('aria-busy', 'false');
         }
     });
-    window.addEventListener('pageshow', () => {
+    AccountPages.listen(window, 'pageshow', () => {
         submitting = false; submit.disabled = false; submit.textContent = 'Submit Concern';
         form.setAttribute('aria-busy', 'false');
     });
@@ -260,14 +268,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (activeTicket === String(ticket.id) && detail.open) renderTicket(ticket);
     }
-    document.addEventListener('click', event => {
+    function openDetails(id) {
+        const ticket=tickets.get(String(id));
+        if (!ticket) return;
+        activeTicket=String(id);
+        renderTicket(ticket);
+        if (!detail.open) detail.showModal();
+    }
+    AccountPages.listen(document, 'click', event => {
         const view = event.target.closest('[data-view-id]');
         const cancel = event.target.closest('[data-cancel-id]');
         const close = event.target.closest('[data-close-dialog]');
         if (view) {
-            activeTicket = view.dataset.viewId;
-            renderTicket(tickets.get(activeTicket));
-            detail.showModal();
+            openDetails(view.dataset.viewId);
         }
         if (cancel) openCancel(cancel.dataset.cancelId);
         if (close && !(close.dataset.closeDialog === 'concernCancelModal' && cancelling)) {
@@ -282,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
         announce(cancelFeedback, '');
         try {
             const { response, data } = await post(cancelForm.action, new FormData(cancelForm));
+            if (!scope.active) return;
             if (data.ticket) updateTicket(data.ticket);
             if (!response.ok || !data.success) throw new Error(data.message || 'We could not cancel this concern. Please try again.');
             confirm.close();
@@ -301,4 +315,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     confirm.addEventListener('cancel', event => { if (cancelling) event.preventDefault(); });
     lightbox.addEventListener('close', () => document.getElementById('concernLightboxImg').removeAttribute('src'));
+    scope.ready(()=>{
+        const url=new URL(location.href), id=url.searchParams.get('concern_id');
+        if (!id) return;
+        openDetails(id);
+        url.searchParams.delete('concern_id'); url.searchParams.delete('from_notif');
+        // The server selected the correct history page, including older tickets.
+        const page=scope.root.querySelector('[data-concerns-page]')?.dataset.concernsPage;
+        if (page) url.searchParams.set('page',page);
+        history.replaceState(history.state,'',url);
+    });
 });

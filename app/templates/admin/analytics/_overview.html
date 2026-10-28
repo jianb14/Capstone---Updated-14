@@ -1,0 +1,43 @@
+<div class="ar-kpis">
+{% for kpi in kpis %}
+  <article class="ac-kpi ar-kpi ar-accent-{{ kpi.accent }}" data-kpi="{{ kpi.key }}" style="--ar-order:{{ forloop.counter0 }}">
+    <div class="ac-kpi-head"><span>{{ kpi.label }}</span>{% include 'admin/analytics/_icon.html' with icon=kpi.icon %}</div>
+    <strong>{{ kpi.value }}</strong><p>{{ kpi.note }}</p>
+    {% if kpi.delta %}<div class="ar-delta">{% if kpi.delta.direction == 'up' %}↗{% elif kpi.delta.direction == 'down' %}↘{% else %}—{% endif %} {{ kpi.delta.text }}</div>{% endif %}
+  </article>
+{% endfor %}
+</div>
+<div class="ar-chart-grid">
+  <article class="ar-chart-card ar-trend" style="--ar-order:6">
+    <header><div><h2>Performance over time</h2><p>Bookings grouped by {{ filters.basis_label|lower }}.</p></div>
+      <div class="ar-chart-tabs" role="group" aria-label="Trend metric">
+        <button type="button" data-trend="bookings" aria-pressed="true">Bookings</button>
+        <button type="button" data-trend="completed_value" aria-pressed="false">Completed value</button>
+        <button type="button" data-trend="collections" aria-pressed="false">Collections</button>
+      </div></header>
+    <div class="ar-trend-key"><span><i></i>Selected period</span>{% if filters.previous_start %}<span><i class="ar-dashed"></i>Previous period</span>{% endif %}</div>
+    {% if total_bookings or previous_count %}<div class="ar-chart-frame"><canvas data-chart="trend" role="img" aria-label="Booking performance trend"></canvas></div>
+    {% else %}{% include 'admin/analytics/_empty.html' %}{% endif %}
+    <p class="ar-chart-caption" data-trend-caption>Each point shows bookings in that date interval. Previous dates are aligned by day within each period.</p>
+    <details class="ar-data"><summary>View trend data</summary><div class="ar-data-scroll" data-trend-table></div></details>
+  </article>
+  <article class="ar-chart-card ar-status" style="--ar-order:7">
+    <header><div><h2>Booking status</h2><p>Current status of the selected bookings.</p></div><span class="ar-total">{{ total_bookings }} total</span></header>
+    {% if total_bookings %}
+    <div class="ar-donut-frame"><canvas data-chart="status" role="img" aria-label="Booking status distribution"></canvas><div class="ar-donut-center"><strong>{{ total_bookings }}</strong><small>bookings</small></div></div>
+    <ul class="ar-status-list" aria-label="Status totals">{% for status in statuses %}<li class="ar-accent-{{ status.color }}"><span><i></i>{{ status.label }}</span><span><strong>{{ status.count }}</strong><small>{{ status.share }}%</small></span></li>{% endfor %}</ul>
+    {% else %}{% include 'admin/analytics/_empty.html' with title='No status data yet' %}{% endif %}
+  </article>
+  <article class="ar-chart-card" style="--ar-order:8">
+    <header><div><h2>Event mix</h2><p>Which celebrations make up this period?</p></div><span class="ar-total">By bookings</span></header>
+    {% if total_bookings %}<div class="ar-chart-frame ar-bars"><canvas data-chart="events" role="img" aria-label="Bookings by event type"></canvas></div>
+    <details class="ar-data"><summary>View event data</summary><ul>{% for event in event_rows %}<li><span>{{ event.label }}</span><strong>{{ event.count }}</strong></li>{% endfor %}</ul></details>
+    {% else %}{% include 'admin/analytics/_empty.html' with title='No event data yet' %}{% endif %}
+  </article>
+  <article class="ar-chart-card" style="--ar-order:9">
+    <header><div><h2>Setup demand</h2><p>Most selected main packages or solo entrance arches.</p></div><span class="ar-total">By bookings</span></header>
+    {% if total_bookings %}<div class="ar-chart-frame ar-bars"><canvas data-chart="setups" role="img" aria-label="Bookings by main setup"></canvas></div>
+    <details class="ar-data"><summary>View setup data</summary><ul>{% for setup in setup_rows %}<li><span>{{ setup.label }}</span><strong>{{ setup.count }}</strong></li>{% endfor %}</ul></details>
+    {% else %}{% include 'admin/analytics/_empty.html' with title='No setup data yet' %}{% endif %}
+  </article>
+</div>

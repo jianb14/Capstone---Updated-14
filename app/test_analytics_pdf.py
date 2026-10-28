@@ -23,11 +23,12 @@ TEMPLATE = "admin/analytics_pdf_template.html"
 
 KPI_ROWS = [
     ("Total Bookings", "15"),
-    ("Total Revenue", "PHP 11,598.00"),
+    ("Completed Booking Value", "PHP 11,598.00"),
+    ("Verified Collections", "PHP 8,000.00"),
     ("Completion Rate", "13.30%"),
     ("Cancellation Rate", "6.70%"),
-    ("Avg. Booking Value", "PHP 5,799.00"),
-    ("Active Customers", "6"),
+    ("Average Completed Value", "PHP 5,799.00"),
+    ("Customers with Bookings", "6"),
     ("Completed", "2"),
     ("Cancelled", "1"),
 ]
@@ -39,6 +40,7 @@ CONTEXT = {
     "selected_event_type": "All",
     "total_bookings": 15,
     "total_revenue": "11,598.00",
+    "verified_collections": "8,000.00",
     "completion_rate": "13.30",
     "cancellation_rate": "6.70",
     "avg_booking_value": "5,799.00",
@@ -74,11 +76,11 @@ class AnalyticsPdfKpiTests(TestCase):
     def test_kpi_section_uses_the_shared_data_table(self):
         html = self._render()
         self.assertIn("<h2>Key Performance Indicators</h2>", html)
-        self.assertIn('<table class="data">', html)
+        self.assertIn('<table class="data"', html)
         self.assertIn(">Metric<", html)
         self.assertIn(">Value<", html)
 
-    def test_kpi_table_lists_all_eight_metrics(self):
+    def test_kpi_table_lists_all_report_metrics(self):
         html = self._render()
         for label, _value in KPI_ROWS:
             self.assertIn(

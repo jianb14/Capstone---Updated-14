@@ -1,0 +1,15 @@
+<div class="ar-scope"><div><span class="ar-scope-label">{{ filters.basis_label }}{% if filters.event_type != 'all' %} · {{ filters.event_type|default:'Unspecified event' }}{% endif %}</span><h2>{{ filters.period_label }}</h2><p>{{ filters.comparison_label }}</p></div><small>Updated {{ generated_at|date:'g:i A' }} · Philippine time</small></div>
+{% include 'admin/dashboard/_kpis.html' %}
+<div class="db-charts">
+  <article class="ar-chart-card db-trend"><header><div><h2>Booking activity</h2><p>One date basis for the KPIs and both charts.</p></div><div class="ar-chart-tabs" role="group" aria-label="Trend metric"><button type="button" data-trend="bookings" aria-pressed="true">Bookings</button><button type="button" data-trend="completed_value" aria-pressed="false">Completed value</button><button type="button" data-trend="collections" aria-pressed="false">Collections</button></div></header>
+    <div class="ar-trend-key"><span><i></i>Selected period</span>{% if filters.previous_start %}<span><i class="ar-dashed"></i>Previous period</span>{% endif %}</div>
+    {% if total_bookings or previous_count %}<div class="ar-chart-frame" data-chart-frame="trend"><canvas data-chart="trend" role="img" aria-label="Booking activity trend"></canvas></div>{% else %}{% include 'admin/analytics/_empty.html' %}{% endif %}
+    <p class="ar-chart-caption" data-trend-caption>Each point counts bookings in that date interval.</p>
+    <details class="ar-data"><summary>View trend data</summary><div class="ar-data-scroll" data-trend-table></div></details>
+  </article>
+  <article class="ar-chart-card db-status"><header><div><h2>Booking status</h2><p>Latest recorded status of the selected bookings.</p></div><span class="ar-total">{{ total_bookings }} total</span></header>
+    {% if total_bookings %}<div class="ar-donut-frame" data-chart-frame="status"><canvas data-chart="status" role="img" aria-label="Booking status distribution"></canvas><div class="ar-donut-center"><strong>{{ total_bookings }}</strong><small>bookings</small></div></div><ul class="ar-status-list">{% for status in statuses %}<li class="ar-accent-{{ status.color }}"><span><i></i>{{ status.label }}</span><span><strong>{{ status.count }}</strong><small>{{ status.share }}%</small></span></li>{% endfor %}</ul>{% else %}{% include 'admin/analytics/_empty.html' with title='No booking status data' %}{% endif %}
+  </article>
+</div>
+<p class="db-definitions"><strong>About these figures:</strong> Completed booking value uses the saved price of completed bookings. Verified collections counts only verified payments applied to the selected bookings, regardless of payment date. These are booking-cohort figures, not a receipt-date or profit report. Current operations shows today's workload. <a href="{{ analytics_url }}">Explore detailed analytics</a></p>
+{{ charts|json_script:'dashboardChartData' }}

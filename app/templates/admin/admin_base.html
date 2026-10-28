@@ -1,11 +1,13 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-effect="radial" data-admin-shell>
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin Dashboard - Balloorina{% endblock %}</title>
+    <script src="{% static 'js/admin_sidebar.js' %}?v=20261026b"></script>
+    <script src="{% static 'js/account_pages.js' %}?v=20261025a"></script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,12 +25,19 @@
     
     <!-- Theme Toggle -->
     <link rel="stylesheet" href="{% static 'css/admin_light_mode.css' %}?v=20261017a">
-    <script src="{% static 'js/theme-toggle.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/theme_controls.css' %}?v=20261026b">
+    <link rel="stylesheet" href="{% static 'css/customer_notifications.css' %}?v=20261026b">
+    <link rel="stylesheet" href="{% static 'css/account_menu.css' %}?v=20261026b">
+    <link rel="stylesheet" href="{% static 'css/admin_header.css' %}?v=20261026e">
+    <link rel="stylesheet" href="{% static 'css/admin_navigation.css' %}?v=20261026a">
+    <link rel="stylesheet" href="{% static 'css/admin_sidebar.css' %}?v=20261026c">
+    <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
+    <script src="{% static 'js/theme-toggle.js' %}?v=20261026a"></script>
 </head>
 
 <body>
     <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+    <div class="sidebar-overlay" aria-hidden="true"></div>
 
     <!-- Include Navbar/Sidebar -->
     {% include 'components/admin_navbar.html' %}
@@ -43,36 +52,10 @@
     </main>
 
     <!-- JavaScript -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            function toggleMobileSidebar() {
-                const sidebar = document.querySelector('.sidebar');
-                const overlay = document.querySelector('.sidebar-overlay');
-                sidebar.classList.add('mobile-open');
-                overlay.classList.add('active');
-            }
-
-            function closeMobileSidebar() {
-                const sidebar = document.querySelector('.sidebar');
-                const overlay = document.querySelector('.sidebar-overlay');
-                sidebar.classList.remove('mobile-open');
-                overlay.classList.remove('active');
-            }
-
-            document.querySelectorAll('.sidebar a').forEach(item => {
-                item.addEventListener('click', () => {
-                    if (window.innerWidth < 1025) {
-                        closeMobileSidebar();
-                    }
-                });
-            });
-
-            window.toggleMobileSidebar = toggleMobileSidebar;
-            window.closeMobileSidebar = closeMobileSidebar;
-
-        });
-    </script>
+    <script src="{% static 'js/customer_notifications.js' %}?v=20261026e"></script>
+    <script src="{% static 'js/account_menu.js' %}?v=20261026b"></script>
+    <script src="{% static 'js/admin_navigation.js' %}?v=20261026a"></script>
+    <script>window.AdminSidebar?.mount();</script>
 
     {% block extra_js %}{% endblock %}
 

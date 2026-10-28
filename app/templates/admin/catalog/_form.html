@@ -1,0 +1,17 @@
+<form method="post" enctype="multipart/form-data" action="{{ form_url }}" id="catalogEditorForm" data-catalog-form novalidate>{% csrf_token %}
+    <div class="catalog-fields">{% for field in form %}<div class="catalog-field{% if resource == 'gallery-image' or field.name == 'available_for' or field.field.widget.input_type == 'file' %} catalog-wide{% endif %}" data-field="{{ field.name }}" data-required="{{ field.field.required|yesno:'true,false' }}">
+        {% if field.field.widget.input_type == 'checkbox' and field.name != 'available_for' %}
+            <span class="catalog-control-label">{% if field.name == 'is_active' %}{% if resource == 'gallery-image' %}Visibility{% else %}Status{% endif %}{% elif field.name == 'is_balloon' %}Balloon settings{% endif %}</span>
+            <label class="catalog-checkbox-label" for="{{ field.id_for_label }}">{{ field }}<span>{{ field.label }}</span></label>
+            {% if field.name == 'is_balloon' %}<small class="catalog-field-help">Enable only for balloon categories. Other decorations do not use this color limit.</small>{% endif %}
+        {% else %}<label for="{{ field.id_for_label }}">{{ field.label }}{% if field.name == 'caption' %}<span class="catalog-optional"> (optional)</span>{% endif %}{% if field.field.required %}<span class="catalog-required" aria-label="required">*</span>{% endif %}</label>
+        {% if field.field.widget.input_type == 'file' %}
+            <div class="catalog-dropzone" data-upload-zone data-limit="{{ upload_limit }}">{{ field }}{% include 'admin/catalog/_icon.html' with icon='upload' %}<strong>Choose images or drag &amp; drop them here</strong><span>Images only · Up to {{ upload_limit }} photo{{ upload_limit|pluralize }} · 10 MB each</span><button type="button" class="ac-button" data-upload-browse>Browse Files</button></div>
+            <div class="catalog-upload-previews" data-upload-previews></div>
+            {% if preview %}<figure class="catalog-current-image"><img src="{{ preview }}" alt="Current image"><figcaption>Current image. Upload a new photo to replace it.</figcaption></figure>{% endif %}
+        {% else %}{{ field }}{% endif %}{% endif %}
+        <p class="catalog-field-error" id="catalog_error_{{ field.name }}" data-error-for="{{ field.name }}" role="alert" hidden></p>
+        {% if field.name == 'caption' %}<small class="catalog-field-help">Up to 255 characters.</small>{% endif %}
+    </div>{% endfor %}</div>
+    <p class="ac-feedback" data-form-feedback role="status" aria-live="polite"></p>
+</form>

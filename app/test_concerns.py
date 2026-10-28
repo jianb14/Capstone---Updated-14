@@ -263,13 +263,14 @@ class ConcernConcurrencyTests(TransactionTestCase):
                     close_old_connections()
             with ThreadPoolExecutor(max_workers=2) as pool:
                 admin_status, cancel_status = list(pool.map(act, [True, False]))
-            self.assertEqual(admin_status, 302)
             ticket.refresh_from_db()
             if ticket.status == 'cancelled':
+                self.assertEqual(admin_status, 409)
                 self.assertEqual(cancel_status, 200)
                 self.assertFalse(ticket.admin_notes)
                 self.assertIsNone(ticket.processing_started_at)
             else:
+                self.assertEqual(admin_status, 200)
                 self.assertEqual(ticket.status, 'in_progress')
                 self.assertEqual(cancel_status, 409)
                 self.assertEqual(ticket.admin_notes, 'Working on it')

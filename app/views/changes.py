@@ -7,9 +7,9 @@ from ..booking_changes import (apply_change, audit, change_payment_summary, chec
 from ..booking_lifecycle import process_booking, payment_was_received
 
 
-def _locked_change(request, booking_id, change_id, staff=False):
+def _locked_change(request, booking_id, change_id, as_admin=False):
     booking = get_object_or_404(Booking.objects.select_for_update(), pk=booking_id)
-    if (staff and request.user.role not in ('admin', 'staff')) or (not staff and (request.user.role != 'customer' or booking.user_id != request.user.pk)):
+    if (as_admin and request.user.role != 'admin') or (not as_admin and (request.user.role != 'customer' or booking.user_id != request.user.pk)):
         raise PermissionError()
     change = get_object_or_404(BookingChangeRequest.objects.select_for_update(), pk=change_id, booking=booking)
     change.booking = booking
@@ -77,10 +77,11 @@ def request_booking_change(request, booking_id):
         messages.error(request, ' '.join(exc.messages))
         return redirect(f'{reverse("customer_profile")}?open_edit={booking.pk}')
     request._submission_succeeded = True
-    messages.success(request, 'Change request submitted. Your original booking stays reserved while our team reviews it.')
+    notice = 'Change request submitted. Your original booking stays reserved while our team reviews it.'
     url = f'{reverse("customer_profile")}?booking_id={booking.pk}&modal=details'
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'success':True, 'redirect':url})
+        return JsonResponse({'success':True, 'redirect':url, 'message':notice})
+    messages.success(request,notice)
     return redirect(url)
 
 
@@ -89,7 +90,7 @@ def request_booking_change(request, booking_id):
 @schedule_atomic
 def admin_booking_change_action(request, booking_id, change_id, action):
     try:
-        change = _locked_change(request, booking_id, change_id, staff=True)
+        change = _locked_change(request, booking_id, change_id, as_admin=True)
     except PermissionError:
         return HttpResponseForbidden('Not allowed')
     try:
@@ -134,6 +135,13 @@ def admin_booking_change_action(request, booking_id, change_id, action):
 @require_POST
 @schedule_atomic
 def customer_booking_change_action(request, booking_id, change_id, action):
+    wants_json = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    notice = ''
+    def success(text):
+        nonlocal notice
+        notice = text
+        if not wants_json:
+            messages.success(request,text)
     try:
         change = _locked_change(request, booking_id, change_id)
     except PermissionError:
@@ -168,10 +176,10 @@ def customer_booking_change_action(request, booking_id, change_id, action):
                 change.status = 'awaiting_payment'
                 change.save()
                 audit(change, 'Customer accepted quote; awaiting verified additional payment.', request.user)
-                messages.success(request, 'Quote accepted. Submit the additional payment before the deadline to finalize your changes.')
+                success('Quote accepted. Submit the additional payment before the deadline to finalize your changes.')
             else:
                 apply_change(change, request.user)
-                messages.success(request, 'Your accepted changes have been applied.')
+                success('Your accepted changes have been applied.')
         elif action == 'withdraw':
             if change.status not in BookingChangeRequest.ACTIVE_STATUSES:
                 raise ValidationError('This request is already closed.')
@@ -181,11 +189,16 @@ def customer_booking_change_action(request, booking_id, change_id, action):
             change.hold_start = change.hold_end = None
             change.save()
             audit(change, 'Withdrawn by customer; original booking retained.', request.user)
-            messages.success(request, 'Request withdrawn. Your original booking is unchanged.')
+            success('Request withdrawn. Your original booking is unchanged.')
         else:
             raise ValidationError('Unknown request action.')
     except ValidationError as exc:
+        if wants_json:
+            return JsonResponse({'success':False,'message':' '.join(exc.messages)},status=400)
         messages.error(request, ' '.join(exc.messages))
+    if wants_json:
+        return JsonResponse({'success':True,'message':notice,
+            'redirect':f'{reverse("customer_profile")}?booking_id={booking_id}&modal=details'})
     return redirect(f'{reverse("customer_profile")}?booking_id={booking_id}&modal=details')
 
 

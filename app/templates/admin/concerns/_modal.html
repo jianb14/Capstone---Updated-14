@@ -1,0 +1,26 @@
+<dialog class="ac-dialog" id="concernDetailModal" aria-labelledby="concernModalTitle">
+    <div class="ac-dialog-shell">
+        <header class="ac-dialog-header"><div><small id="acTicketNumber">Concern details</small><h2 id="concernModalTitle">Concern details</h2></div><button type="button" class="ac-close" aria-label="Close concern details" data-close-dialog><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+        <div class="ac-dialog-body">
+            <p id="acDetailFeedback" class="ac-feedback" role="status" aria-live="polite"></p>
+            <div id="acDetailContent" hidden>
+                <div class="ac-detail-top"><span id="acDetailCategory"></span><span id="acDetailStatus" class="ac-status"></span></div>
+                <dl class="ac-detail-meta"><div><dt>Customer</dt><dd id="acDetailCustomer"></dd><dd id="acDetailEmail" class="ac-muted"></dd></div><div><dt>Submitted</dt><dd id="acDetailCreated"></dd><dt>Last updated</dt><dd id="acDetailUpdated"></dd></div></dl>
+                <section class="ac-detail-message"><h3>What happened</h3><p id="acDetailMessage"></p></section>
+                <section id="acDetailAttachments"><h3>Attachments</h3><div id="acDetailImages" class="ac-attachments"></div></section>
+                <section id="acReadOnlyUpdate"><h3>Customer update</h3><p id="acReadOnlyNotes"></p><p id="cancelledConcernNote" hidden>This concern was withdrawn by the customer and cannot be updated.</p></section>
+                <form id="concernUpdateForm" method="post">
+                    {% csrf_token %}
+                    <h3>Update concern</h3><p class="ac-muted ac-form-hint">The customer can see your update and receives a notification when the status changes.</p>
+                    <label for="acUpdateStatus">Status <span aria-hidden="true">*</span></label>
+                    <select name="status" id="acUpdateStatus" aria-label="Concern status" data-admin-select required><option value="new">New</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option></select>
+                    <label for="acUpdateNotes">Update for the customer <span class="ac-muted">(optional)</span></label>
+                    <textarea name="admin_notes" id="acUpdateNotes" maxlength="10000" rows="4" placeholder="Share what your team is doing or how the issue was resolved."></textarea>
+                    <p id="acUpdateFeedback" class="ac-feedback" role="status" aria-live="polite" tabindex="-1"></p>
+                </form>
+            </div>
+        </div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-close-dialog>Close</button><button type="submit" form="concernUpdateForm" class="ac-button ac-primary" id="acUpdateSubmit" hidden>Save update</button></footer>
+    </div>
+</dialog>
+<dialog class="ac-image-dialog" id="concernImageLightbox" aria-label="Concern attachment"><button type="button" class="ac-close" aria-label="Close attachment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><img alt="Customer concern attachment"></dialog>

@@ -203,8 +203,16 @@ def _result(job, data):
 
 def complete_request(job_id, token, data, *, failed=False, error_code='', assets=(), interrupted_only=False):
     with transaction.atomic():
+        # Account removal takes the same user-before-job lock. A late provider
+        # response must not recreate chat content or orphan generated files.
+        owner_id = AiRequest.objects.filter(pk=job_id).values_list('user_id',flat=True).first()
+        owner = User.objects.select_for_update().filter(pk=owner_id,is_active=True,deleted_at__isnull=True).first() if owner_id else None
         job = AiRequest.objects.select_for_update(of=('self',)).select_related('session', 'user_message').filter(pk=job_id).first()
-        if not job or job.state not in ACTIVE or job.lease_token != token:
+        if not owner or not job or job.state not in ACTIVE or job.lease_token != token:
+            if assets:
+                from .account_deletion import queue_account_media, purge_account_media
+                queue_account_media(asset['name'] for asset in assets)
+                transaction.on_commit(lambda:purge_account_media(limit=20))
             return False
         if interrupted_only:
             now = timezone.now()
@@ -370,7 +378,12 @@ def _execute_request(job_id, token):
         if services.detect_frustration(job.input_text):
             from .views.chat import _notify_admins_new_chat_request
             with transaction.atomic():
-                session = ChatSession.objects.select_for_update().get(pk=job.session_id)
+                owner = User.objects.select_for_update().filter(pk=job.user_id,is_active=True,deleted_at__isnull=True).first()
+                if not owner:
+                    return
+                session = ChatSession.objects.select_for_update().filter(pk=job.session_id).first()
+                if not session:
+                    return
                 session.is_admin_support, session.status = True, 'active_admin'
                 session.assigned_admin = job.user_message.receiver
                 session.last_client_message_at = timezone.now()

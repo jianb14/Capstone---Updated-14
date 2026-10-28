@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_gallery.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_gallery.css' %}?v=20261025caption">
 
 <div class="page-header detail-page-header">
     <div>
@@ -35,7 +35,7 @@
             <input type="hidden" name="scroll_target" value="{{ scroll_target }}">
             {% endif %}
             <div class="form-grid">
-                <div class="form-group span-3 gallery-category-group">
+                <div class="form-group span-3 gallery-category-group{% if errors.category %} has-error{% endif %}">
                     <label for="category">Category</label>
                     <div class="custom-filter-dropdown form-category-dropdown" id="formCategoryDropdown">
                         <div class="dropdown-trigger">
@@ -50,19 +50,19 @@
                         </div>
                         <ul class="dropdown-options">
                             {% for cat in categories %}
-                            <li data-value="{{ cat.id }}" {% if gallery_image and gallery_image.category.id == cat.id %}class="selected"{% endif %}>{{ cat.name }}</li>
+                            <li data-value="{{ cat.id }}" {% if selected_category_id == cat.id|stringformat:'s' %}class="selected"{% endif %}>{{ cat.name }}</li>
                             {% endfor %}
                         </ul>
                         <select name="category" id="category" class="filter-select" required>
-                            {% if not gallery_image %}
+                            {% if not selected_category_id %}
                             <option value="" selected disabled hidden>Select Category</option>
                             {% endif %}
                             {% for cat in categories %}
-                            <option value="{{ cat.id }}" {% if gallery_image and gallery_image.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                            <option value="{{ cat.id }}" {% if selected_category_id == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <p class="field-error" data-error-for="category"></p>
+                    <p class="field-error" data-error-for="category">{{ errors.category }}</p>
                 </div>
                 {% if gallery_image %}
                 <div class="form-group span-3 current-image-panel">
@@ -73,11 +73,11 @@
                     </div>
                 </div>
                 {% endif %}
-                <div class="form-group span-3">
+                <div class="form-group span-3{% if errors.image %} has-error{% endif %}">
                     <div class="image-field-header">
                         <label for="image">Image{% if gallery_image %} (optional: upload a new file to replace current image){% endif %}</label>
                     </div>
-                    <div class="custom-file-input" data-current-file="{% if gallery_image and gallery_image.image %}{{ gallery_image.image.name|escapejs }}{% endif %}">
+                    <div class="custom-file-input" data-current-file="{% if gallery_image and gallery_image.image %}{{ gallery_image.image.name }}{% endif %}">
                         <input type="file" name="image" id="image" class="real-file-input" accept="image/*">
                         <button type="button" class="file-trigger-btn">Choose File</button>
                         <span class="file-name-text" id="imageFileNameText">
@@ -88,17 +88,20 @@
                             {% endif %}
                         </span>
                     </div>
-                    <p class="field-error" data-error-for="image"></p>
+                    <p class="field-error" data-error-for="image">{{ errors.image }}</p>
+                    {% if upload_needs_reselect %}<p class="gallery-caption-help">Please choose your image file again before saving.</p>{% endif %}
                     {% if gallery_image %}
                     <label for="is_active" class="active-toggle-box image-active-row">
-                        <input type="checkbox" name="is_active" id="is_active" {% if gallery_image.is_active %}checked{% endif %}>
+                        <input type="checkbox" name="is_active" id="is_active" {% if form_is_active %}checked{% endif %}>
                         <span>Active (visible on gallery page)</span>
                     </label>
                     {% endif %}
                 </div>
-                <div class="form-group span-3">
+                <div class="form-group span-3{% if errors.caption %} has-error{% endif %}">
                     <label for="caption">Caption (optional)</label>
-                    <input type="text" name="caption" id="caption" value="{{ gallery_image.caption|default:'' }}" placeholder="Short description">
+                    <textarea name="caption" id="caption" rows="4" maxlength="{{ caption_max_length }}" aria-describedby="captionHelp captionError" aria-invalid="{% if errors.caption %}true{% else %}false{% endif %}" placeholder="Short description">{{ caption_value }}</textarea>
+                    <p class="gallery-caption-help" id="captionHelp">Up to {{ caption_max_length }} characters. <span id="captionCount">{{ caption_value|length }}</span>/{{ caption_max_length }}</p>
+                    <p class="field-error" data-error-for="caption" id="captionError" aria-live="polite">{{ errors.caption }}</p>
                 </div>
             </div>
             <div class="form-actions">
@@ -132,6 +135,9 @@
         const form = document.getElementById('galleryImageForm');
         const categoryGroup = select ? select.closest('.form-group') : null;
         const imageGroup = fileInput ? fileInput.closest('.form-group') : null;
+        const captionInput = document.getElementById('caption');
+        const captionGroup = captionInput.closest('.form-group');
+        const captionCount = document.getElementById('captionCount');
         const fileButton = fileWrapper ? fileWrapper.querySelector('.file-trigger-btn') : null;
         const fileNameText = document.getElementById('imageFileNameText');
         const currentImagePreview = document.getElementById('currentImagePreview');
@@ -143,9 +149,10 @@
         const isCreateMode = {% if gallery_image %}false{% else %}true{% endif %};
 
         function setFieldError(fieldName, message) {
-            const group = fieldName === 'category' ? categoryGroup : imageGroup;
+            const group = fieldName === 'category' ? categoryGroup : fieldName === 'caption' ? captionGroup : imageGroup;
             if (!group) return;
             group.classList.add('has-error');
+            if (fieldName === 'caption') captionInput.setAttribute('aria-invalid', 'true');
             const error = group.querySelector(`[data-error-for="${fieldName}"]`);
             if (error) {
                 error.textContent = message;
@@ -153,9 +160,10 @@
         }
 
         function clearFieldError(fieldName) {
-            const group = fieldName === 'category' ? categoryGroup : imageGroup;
+            const group = fieldName === 'category' ? categoryGroup : fieldName === 'caption' ? captionGroup : imageGroup;
             if (!group) return;
             group.classList.remove('has-error');
+            if (fieldName === 'caption') captionInput.setAttribute('aria-invalid', 'false');
             const error = group.querySelector(`[data-error-for="${fieldName}"]`);
             if (error) {
                 error.textContent = '';
@@ -165,6 +173,18 @@
         function closeMenu() {
             dropdown.classList.remove('open');
         }
+
+        const selectedOption = [...options].find(option => option.dataset.value === select.value);
+        if (selectedOption) valueText.textContent = selectedOption.textContent.trim();
+
+        captionInput.addEventListener('input', () => {
+            captionCount.textContent = captionInput.value.length;
+            if (captionInput.value.trim().length > captionInput.maxLength) {
+                setFieldError('caption', `Use ${captionInput.maxLength} characters or fewer for the caption.`);
+            } else {
+                clearFieldError('caption');
+            }
+        });
 
         trigger.addEventListener('click', function () {
             dropdown.classList.toggle('open');
@@ -236,6 +256,13 @@
 
             form.addEventListener('submit', function (e) {
                 let firstInvalidField = null;
+
+                if (captionInput.value.trim().length > captionInput.maxLength) {
+                    setFieldError('caption', `Use ${captionInput.maxLength} characters or fewer for the caption.`);
+                    firstInvalidField = captionInput;
+                } else {
+                    clearFieldError('caption');
+                }
 
                 if (!select.value) {
                     setFieldError('category', 'Category is required*');

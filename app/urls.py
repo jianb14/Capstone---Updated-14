@@ -1,7 +1,12 @@
 from django.urls import path
+from .catalog_admin import catalog_action
+from .content_admin import content_action
+from .views.admin_security import (admin_email_setup, admin_security_action, admin_invitation_list,
+    admin_invitation_revoke, admin_invitation_open, admin_invitation_accept)
 from .views.auth import continue_verification, dismiss_signup_verification, change_signup_email, verify_change_password_otp
 from .views.designs import evaluate_user_design, user_design_preview
 from .views.ai_health import ai_health
+from .views.navigation import admin_global_search
 from .views.profiles import cancel_concern
 from .views.ai import ai_design_brief
 from .views.changes import (request_booking_change, admin_booking_change_action,
@@ -57,11 +62,9 @@ from .views import (
     admin_canvas_category_create,
     admin_canvas_category_delete,
     admin_canvas_category_edit,
-    admin_canvas_label_create,
-    admin_canvas_label_delete,
-    admin_canvas_label_edit,
     admin_concern_update,
     admin_concerns,
+    admin_concern_details,
     admin_faq_create,
     admin_faq_delete,
     admin_faq_edit,
@@ -146,7 +149,6 @@ from .views import (
 
 
     clear_all_notifications,
-    create_admin_account,
     create_booking,
     create_paymongo_checkout,
     customer_profile,
@@ -165,6 +167,9 @@ from .views import (
     hide_notification,
     like_review,
     mark_customer_notification_read,
+    customer_notification_feed,
+    admin_notification_feed,
+    mark_admin_notification_read,
     mark_notifications_read,
     my_designs_page,
     my_payments,
@@ -195,7 +200,19 @@ from .views import (
     view_booking,
 )
 
+from .views.account import account_deletion_status, delete_my_account, account_deleted
+
 urlpatterns = [
+    path('staff/page-content/<str:workspace>/<str:resource>/<str:action>/<int:pk>/', content_action, name='admin_content_action'),
+    path('staff/security/email/', admin_email_setup, name='admin_email_setup'),
+    path('staff/security/<str:purpose>/<str:action>/', admin_security_action, name='admin_security_action'),
+    path('staff/admin-invitations/', admin_invitation_list, name='admin_invitation_list'),
+    path('staff/admin-invitations/<uuid:invitation_id>/revoke/', admin_invitation_revoke, name='admin_invitation_revoke'),
+    path('admin-invitation/<uuid:invitation_id>/<str:token>/', admin_invitation_open, name='admin_invitation_open'),
+    path('admin-invitation/accept/', admin_invitation_accept, name='admin_invitation_accept'),
+    path('my-profile/deletion-status/',account_deletion_status,name='account_deletion_status'),
+    path('my-profile/delete-account/',delete_my_account,name='delete_my_account'),
+    path('account-deleted/',account_deleted,name='account_deleted'),
     path("my-designs/evaluate/", evaluate_user_design, name="evaluate_user_design"),
     path("", HomePageView.as_view(), name="home"),
     path("about/", AboutPageView.as_view(), name="about"),
@@ -238,6 +255,7 @@ urlpatterns = [
     ),
     path("logout/", user_logout, name="logout"),
     path("dashboard/", dashboard, name="dashboard"),
+    path("api/staff/search/", admin_global_search, name="admin_global_search"),
     path("dashboard/ai-health/", ai_health, name="ai_health"),
     path(
         "customer/", customer_profile, name="customer_profile"
@@ -256,7 +274,6 @@ urlpatterns = [
     path("change-password/", change_password, name="change_password"),
     path("admin-profile/", admin_profile, name="admin_profile"),
     path("staff/settings/", admin_site_settings, name="admin_site_settings"),
-    path("make-me-admin-secret-123/", create_admin_account),
     path("reviews/", reviews_page, name="reviews"),
     path("reviews/<int:review_id>/like/", like_review, name="like_review"),
     path("reviews/<int:review_id>/edit/", edit_review, name="edit_review"),
@@ -350,6 +367,9 @@ urlpatterns = [
         RedirectView.as_view(pattern_name="admin_concerns", permanent=True),
     ),
     path("staff/concerns/", admin_concerns, name="admin_concerns"),
+    path('staff/concerns/<int:id>/details/', admin_concern_details, name='admin_concern_details'),
+    path('staff/notifications/', admin_notification_feed, name='admin_notification_feed'),
+    path('staff/notifications/<str:id>/read/', mark_admin_notification_read, name='mark_admin_notification_read'),
     path("staff/analytics/", admin_analytics, name="admin_analytics"),
     path(
         "staff/analytics/export/excel/",
@@ -384,7 +404,7 @@ urlpatterns = [
         name="mark_notifications_read",
     ),
     path(
-        "staff/notifications/<int:id>/hide/",
+        "staff/notifications/<str:id>/hide/",
         hide_notification,
         name="hide_notification",
     ),
@@ -488,6 +508,7 @@ urlpatterns = [
     ),
     # Admin Package Management
     path("staff/packages/", admin_package_list, name="admin_package_list"),
+    path("staff/catalog/<str:resource>/<str:action>/<int:pk>/", catalog_action, name="admin_catalog_action"),
     path("staff/packages/create/", admin_package_create, name="admin_package_create"),
     path(
         "staff/packages/<int:id>/edit/", admin_package_edit, name="admin_package_edit"
@@ -578,6 +599,7 @@ urlpatterns = [
         name="admin_chat_unread_poll",
     ),
     # Customer Notifications
+    path('notifications/', customer_notification_feed, name='customer_notification_feed'),
     path(
         "notifications/<int:id>/read/",
         mark_customer_notification_read,
@@ -641,21 +663,6 @@ urlpatterns = [
         "staff/canvas-assets/category/<int:id>/delete/",
         admin_canvas_category_delete,
         name="admin_canvas_category_delete",
-    ),
-    path(
-        "staff/canvas-assets/label/create/",
-        admin_canvas_label_create,
-        name="admin_canvas_label_create",
-    ),
-    path(
-        "staff/canvas-assets/label/<int:id>/edit/",
-        admin_canvas_label_edit,
-        name="admin_canvas_label_edit",
-    ),
-    path(
-        "staff/canvas-assets/label/<int:id>/delete/",
-        admin_canvas_label_delete,
-        name="admin_canvas_label_delete",
     ),
     path(
         "staff/canvas-assets/asset/create/",

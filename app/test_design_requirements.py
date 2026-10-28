@@ -232,7 +232,8 @@ class DesignRequirementsTests(TestCase):
         self.assertContains(response, 'Shared balloon asset')
         self.assertNotContains(response, 'Official panel')
         self.assertNotIn(self.panels, response.context['categories'])
-        self.assertContains(response, 'name="kind" value="entrance"')
+        self.assertContains(response, 'name="kind"')
+        self.assertEqual(response.context['selected_kind'], 'entrance')
 
     def test_asset_cannot_be_shared_outside_category_types(self):
         self.client.force_login(self.admin)

@@ -1,6 +1,7 @@
 /* Customer-only booking dialogs. HTML comes from the owner-checked modal endpoint. */
-(function () {
+AccountPages.enhance('customer_profile', 'customer_booking_details.js', function(scope) {
     'use strict';
+    scope.capture(['CustomerBookingModals', 'closeBookingModal', 'openBookingModal', 'openEventDesignModal']);
     let active = null;
     let request = null;
     let sequence = 0;
@@ -34,8 +35,9 @@
         }
     }
     function disposeMap(root) {
-        const map = root.querySelector('#booking_modal_map')?.__bookingMapCtx?.map;
-        if (map) map.remove();
+        const context = root.querySelector('#booking_modal_map')?.__bookingMapCtx;
+        if (context?.destroy) context.destroy();
+        else if (context?.map) context.map.remove();
     }
     function finish(restoreFocus) {
         if (!active) return;
@@ -145,7 +147,7 @@
             if (active === session) root.removeAttribute('aria-busy');
         }
     }
-    document.addEventListener('click', event => {
+    AccountPages.listen(document, 'click', event => {
         const button = event.target.closest('[data-booking-close], [data-view-design], [data-edit-booking], [data-cancel-booking]');
         if (!button) {
             if (active && event.target === active.root && active.root.classList.contains('customer-booking-modal')) close();
@@ -156,10 +158,10 @@
         else if (button.dataset.editBooking) window.openEditModal(button.dataset.editBooking);
         else if (button.dataset.cancelBooking) window.openDeleteModal(button.dataset.cancelBooking);
     });
-    document.addEventListener('keydown', event => {
+    AccountPages.listen(document, 'keydown', event => {
         if (event.key === 'Escape') event.bookingPickerWasOpen = Array.from(document.querySelectorAll('.booking-picker-pop')).some(pop => pop.getClientRects().length);
     }, true);
-    document.addEventListener('keydown', event => {
+    AccountPages.listen(document, 'keydown', event => {
         if (!active || document.querySelector('.swal2-container')) return;
         // Nested date/time picker popovers handle their own Escape/Tab first.
         if (event.bookingPickerWasOpen) return;
@@ -171,7 +173,7 @@
         if (event.shiftKey && (document.activeElement === first || !focusable.includes(document.activeElement))) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && (document.activeElement === last || !focusable.includes(document.activeElement))) { event.preventDefault(); first.focus(); }
     });
-    document.addEventListener('DOMContentLoaded', () => {
+    scope.ready(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.has('open_edit')) return; // Existing edit initializer uses owner-checked pre-rendered data.
         const id = params.get('booking_id');
@@ -185,4 +187,7 @@
     window.openBookingModal = (id, section) => open(id, section);
     window.openEventDesignModal = id => open(id, 'design');
     window.closeBookingModal = () => close();
-})();
+
+    scope.cleanup(() => { request?.abort(); close(false); });
+
+}, -20);

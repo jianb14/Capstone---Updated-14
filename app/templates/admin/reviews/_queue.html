@@ -1,0 +1,16 @@
+{% if reviews %}
+<div class="ac-table-scroll"><table class="ac-table rv-table">
+    <thead><tr><th scope="col">Customer</th><th scope="col">Review</th><th scope="col">Rating</th><th scope="col">Testimonial</th><th scope="col">Submitted</th><th scope="col">Actions</th></tr></thead>
+    <tbody>{% for review in reviews %}<tr data-review-row="{{ review.id }}">
+        <td><span class="rv-customer">{{ review.user.get_full_name|default:review.user.username }}</span><small>{{ review.user.email }}</small></td>
+        <td><small>#REV-{{ review.id }} · {{ review.booking.event_type }}</small><span class="rv-comment-preview">{{ review.comment|default:'No written comment.' }}</span>{% if review.images.all %}<small class="rv-photo-count">{% include 'admin/reviews/_icon.html' with icon='image' %}{{ review.images.all|length }} photo{{ review.images.all|length|pluralize }}</small>{% endif %}</td>
+        <td><span class="rv-rating">{% include 'admin/reviews/_icon.html' with icon='star' %}{% if review.rating >= 1 and review.rating <= 5 %}{{ review.rating }}<small>/ 5</small>{% else %}Unrated{% endif %}</span></td>
+        <td>{% if review.is_testimonial %}<span class="ac-status ac-status--resolved">Featured</span>{% else %}<span class="ac-status">Not featured</span>{% endif %}</td>
+        <td><span class="ac-date">{{ review.created_at|date:'M d, Y' }}</span><small>{{ review.created_at|date:'g:i A' }}</small></td>
+        <td><div class="rv-actions"><a class="ac-icon-btn" href="{% url 'admin_review_detail' review.id %}" data-review-detail="{{ review.id }}" aria-label="View review #REV-{{ review.id }}" title="View details">{% include 'admin/reviews/_icon.html' with icon='eye' %}</a><form method="post" action="{% url 'admin_review_toggle_testimonial' review.id %}" data-review-feature="{{ review.id }}">{% csrf_token %}<input type="hidden" name="is_testimonial" value="{% if review.is_testimonial %}0{% else %}1{% endif %}"><button type="submit" class="ac-icon-btn rv-feature{% if review.is_testimonial %} is-featured{% endif %}" aria-label="{% if review.is_testimonial %}Unfeature{% else %}Feature{% endif %} review #REV-{{ review.id }}" aria-pressed="{% if review.is_testimonial %}true{% else %}false{% endif %}" title="{% if review.is_testimonial %}Remove from featured testimonials{% else %}Feature on Home and About{% endif %}">{% include 'admin/reviews/_icon.html' with icon='star' %}</button></form></div></td>
+    </tr>{% endfor %}</tbody>
+</table></div>
+{% include 'components/account_table_footer.html' with page=reviews page_key='page' pagination_label='Reviews' %}
+{% else %}<div class="ac-empty">
+    {% if has_filters %}{% include 'components/account_empty_state.html' with empty_kind='concerns' empty_title='No matching reviews' empty_description='Try another customer, rating or testimonial filter to find the review you need.' reset_filters=True %}{% else %}{% include 'components/account_empty_state.html' with empty_kind='concerns' empty_title='No reviews yet' empty_description='Customer feedback will appear here after clients review their completed events.' %}{% endif %}
+</div>{% endif %}

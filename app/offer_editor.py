@@ -7,6 +7,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.template.loader import render_to_string
 
 from .design_validation import eligible_assets
 from .models import AddOn, AdditionalOnly, CanvasCategory, DesignOffer, Package
@@ -26,6 +27,7 @@ class OfferDetailsForm(forms.Form):
     is_featured = forms.BooleanField(required=False, label='Mark as Most Popular')
     design_enabled = forms.BooleanField(required=False, label='Available in Create Design')
     design_max_colors = forms.IntegerField(required=False, min_value=1, max_value=MAX_INTEGER, label='Maximum balloon colors')
+    is_active = forms.BooleanField(required=False, initial=True, label='Active offer')
 
     def __init__(self, *args, kind, **kwargs):
         super().__init__(*args, **kwargs)
@@ -144,7 +146,7 @@ def validate_images(request, item):
 def editor_response(request, kind, item=None, form=None, raw_rows=None, row_errors=None, image_errors=None):
     offer = DesignOffer.objects.filter(**{kind: item}).first() if item else None
     if form is None:
-        initial = {key: getattr(item, key, '') for key in ('name', 'description', 'price', 'solo_price', 'notes', 'is_featured')} if item else {}
+        initial = {key: getattr(item, key, '') for key in ('name', 'description', 'price', 'solo_price', 'notes', 'is_featured', 'is_active')} if item else {}
         initial.update(design_enabled=bool(offer and offer.is_enabled), design_max_colors=offer.max_balloon_colors if offer else None)
         form = OfferDetailsForm(kind=kind, initial=initial)
     categories = list(CanvasCategory.objects.filter(**{'available_' + kind: True}).order_by('order', 'name'))
@@ -155,7 +157,15 @@ def editor_response(request, kind, item=None, form=None, raw_rows=None, row_erro
         'editor_data': {'rows': rows, 'categories': [{'id': c.pk, 'name': c.name, 'balloon': c.is_balloon, 'active': c.is_active} for c in categories],
                         'previews': previews, 'row_errors': row_errors or {}, 'image_errors': image_errors or []},
         'inclusions_json': json.dumps(rows), 'row_errors': row_errors or {}, 'image_errors': image_errors or [],
+        'catalog_modal': request.resolver_match.url_name == 'admin_catalog_action',
+        'editor_action': request.get_full_path(),
+        'catalog_name_wide': kind == 'entrance' or request.resolver_match.url_name != 'admin_catalog_action',
+        'catalog_price_wide': request.resolver_match.url_name != 'admin_catalog_action',
     }
+    if context['catalog_modal']:
+        return JsonResponse({'html': render_to_string('admin/package/_offer_editor.html', context, request),
+            'footer_html': render_to_string('admin/package/_offer_actions.html', context, request),
+            'title': ('Edit ' if item else 'Add ') + CATALOG[kind][1].lower(), 'offer_editor': True})
     return render(request, 'admin/package/offer_form.html', context)
 
 
@@ -174,7 +184,8 @@ def offer_editor(request, kind, item_id=None):
     rows, row_errors = validate_rows(raw_rows, categories)
     uploads, removed, image_errors = validate_images(request, item)
     if valid_details and form.cleaned_data['design_enabled']:
-        if item and not item.is_active:
+        active = form.cleaned_data['is_active'] if 'is_active' in request.POST or 'active_present' in request.POST else item.is_active if item else True
+        if not active:
             form.add_error('design_enabled', 'Activate this catalog offer before enabling it in Create Design.')
         if not any(row['row_type'] == 'item' and row['required_minimum'] > 0 for row in rows):
             form.add_error('design_enabled', 'Select at least one required category before enabling the designer.')
@@ -193,6 +204,8 @@ def offer_editor(request, kind, item_id=None):
         for field in ('name', 'price', 'description', 'solo_price', 'notes', 'is_featured'):
             if field in form.fields:
                 setattr(item, field, data[field])
+        if 'is_active' in request.POST or 'active_present' in request.POST:
+            item.is_active = data['is_active']
         item.save()
         offer, _ = DesignOffer.objects.get_or_create(kind=kind, **{kind: item})
         store_inclusions(offer, rows, data['design_max_colors'], data['design_enabled'])
@@ -201,7 +214,7 @@ def offer_editor(request, kind, item_id=None):
             item.preview_images.create(image=upload, order=item.preview_images.count())
         from .views.common import log_action
         log_action(request.user, f"{'Created' if creating else 'Updated'} {CATALOG[kind][1].lower()} '{item.name}'.")
-    messages.success(request, f'{CATALOG[kind][1]} saved successfully.')
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'success': True, 'redirect_url': reverse('admin_package_list')})
+        return JsonResponse({'success': True, 'redirect_url': reverse('admin_package_list'), 'message': f'{CATALOG[kind][1]} saved successfully.'})
+    messages.success(request, f'{CATALOG[kind][1]} saved successfully.')
     return redirect('admin_package_list')

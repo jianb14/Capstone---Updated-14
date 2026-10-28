@@ -2,9 +2,11 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261025b">
+<link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
 <link rel="stylesheet" href="{% static 'css/password_requirements.css' %}?v=20261025b">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="{% static 'js/theme-toggle.js' %}"></script>
+{% include 'components/password_visibility_assets.html' %}
 
 <div class="body auth-with-back">
     {% include 'components/auth_back_link.html' %}
@@ -58,11 +60,9 @@
             <!-- Password with Show/Hide Toggle -->
             <div class="field-group">
                 <label class="input-label" for="password">Password <span style="color: red;">*</span></label>
-                <div class="password-container">
+                <div class="password-container password-visibility-field">
                     <input type="password" class="pass-input" id="password" name="password" placeholder="Create a password (at least 8 characters)" data-label="Password" required>
-                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
-                        <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
-                    </button>
+                    {% include 'components/password_visibility.html' with input_id='password' password_label='password' %}
                 </div>
                 {% include 'components/password_requirements.html' with requirements_id='passwordRequirements' rule_prefix='rule-' %}
                 <small class="field-error"></small>
@@ -71,11 +71,9 @@
             <!-- Confirm Password with Show/Hide Toggle -->
             <div class="field-group">
                 <label class="input-label" for="confirm_password">Confirm Password <span style="color: red;">*</span></label>
-                <div class="password-container">
+                <div class="password-container password-visibility-field">
                     <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter your password to confirm" data-label="Confirm Password" required>
-                    <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')">
-                        <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
-                    </button>
+                    {% include 'components/password_visibility.html' with input_id='confirm_password' password_label='confirmation password' %}
                 </div>
                 <small class="field-error"></small>
             </div>
@@ -107,19 +105,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{% static 'js/email_otp.js' %}"></script>
 <script>
-    function togglePassword(fieldId) {
-        const passwordField = document.getElementById(fieldId);
-        const toggleButton = passwordField.nextElementSibling;
-        const icon = toggleButton.querySelector('img');
-        
-        if (passwordField.type === 'password') {
-            passwordField.type = 'text';
-            icon.src = "{% static 'images/eye-hide.png' %}";
-        } else {
-            passwordField.type = 'password';
-            icon.src = "{% static 'images/eye-view.png' %}";
-        }
-    }
 
     document.addEventListener("DOMContentLoaded", function() {
         const Toast = Swal.mixin({

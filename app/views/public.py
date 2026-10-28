@@ -4,6 +4,7 @@ from .common import *  # noqa: F401,F403
 from .admin import _seed_about_defaults, _seed_service_defaults  # noqa: F401
 from ..home_statistics import get_customers_served, get_home_statistics
 from ..design_previews import preview_bytes, preview_version
+from ..package_catalog import ordered_packages
 
 
 class HomePageView(TemplateView):
@@ -41,9 +42,8 @@ class AboutPageView(TemplateView):
         about_content = AboutContent.objects.first()
         if about_content is None:
             about_content = AboutContent.objects.create()
-        # Prefill blank CMS fields / empty Core Values table with the same
-        # defaults the client template falls back to (fresh DB safety).
-        _seed_about_defaults(about_content)
+            # Seed a new page once; a public visit must not restore deleted items.
+            _seed_about_defaults(about_content)
         context["about_content"] = about_content
         context['customers_served'] = get_customers_served()
 
@@ -92,9 +92,7 @@ class ServicesPageView(TemplateView):
         context["service_content"] = ServiceContent.objects.first()
         if context["service_content"] is None:
             context["service_content"] = ServiceContent.objects.create()
-        # Fresh-DB safety: punuin ang blangkong CMS fields / Services table
-        # gamit ang mga default na kapareho ng client fallbacks.
-        _seed_service_defaults(context["service_content"])
+            _seed_service_defaults(context["service_content"])
         context["services"] = Service.objects.filter(is_active=True).order_by("display_order")
 
         # Interactive widgets: instant price estimator + comparison table data
@@ -369,9 +367,7 @@ class PackagePageView(TemplateView):
         service_charge_config = get_service_charge_config()
         context.update(
             {
-                "packages": Package.objects.all().order_by(
-                    "-is_featured", "-created_at"
-                ),
+                "packages": ordered_packages(),
                 "addons": AddOn.objects.filter(is_active=True).order_by("-created_at"),
                 "additionals": AdditionalOnly.objects.filter(is_active=True).order_by(
                     "-created_at"
@@ -487,7 +483,7 @@ def edit_review(request, review_id):
     review = get_object_or_404(Review, id=review_id, user=request.user)
 
     rating = request.POST.get("rating")
-    comment = request.POST.get("comment")
+    comment = (request.POST.get("comment") or '').strip()
     images_to_delete = request.POST.getlist("delete_images[]")
     new_images = request.FILES.getlist("images")
 

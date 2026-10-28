@@ -7,6 +7,7 @@
     <meta name="referrer" content="same-origin">
     <title>Verify your email | Balloorina</title>
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
     <link rel="stylesheet" href="{% static 'css/email_otp.css' %}">
     <script src="{% static 'js/theme-toggle.js' %}"></script>
 </head>
@@ -43,7 +44,7 @@
             </div>
             <nav class="otp-links" aria-label="Verification options">
                 {% if is_signup %}{% if request.session.pending_signup %}<a href="{% url 'change_signup_email' %}">Change email address</a>{% else %}<a href="{% url 'register' %}">Review signup details</a>{% endif %}<a href="{% url 'login' %}">Back to login</a>
-                {% elif is_change %}<a href="{% if request.user.role == 'admin' or request.user.role == 'staff' %}{% url 'admin_profile' %}{% else %}{% url 'customer_profile' %}{% endif %}">Back to profile</a>
+                {% elif is_change %}<a href="{% if request.user.role == 'admin' %}{% url 'admin_profile' %}{% else %}{% url 'customer_profile' %}{% endif %}">Back to profile</a>
                 {% else %}<a href="{% url 'forgot_password' %}">Use a different email</a><a href="{% url 'login' %}">Back to login</a>{% endif %}
             </nav>
         </section>

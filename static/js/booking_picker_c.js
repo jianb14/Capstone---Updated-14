@@ -316,6 +316,11 @@ function init(cfg) {
   try { if (eEl) H.makeTime(eEl, 'end', getIso); } catch (e) {}
   var gr = { dateId: cfg.dateId, startId: cfg.startId, endId: cfg.endId };
   groups.push(gr);
+  var ownerRoot = dateEl.closest('[data-account-page]');
+  AccountPages.cleanup(function () {
+    groups = groups.filter(function (item) { return item !== gr; });
+    H.pops = H.pops.filter(function (item) { return !ownerRoot || !ownerRoot.contains(item.pop); });
+  });
   dateEl.addEventListener('change', function () { refresh(gr); });
   if (sEl) sEl.addEventListener('change', function () { refresh(gr); });
   refresh(gr);

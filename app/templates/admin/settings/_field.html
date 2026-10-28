@@ -1,0 +1,12 @@
+<div class="cfg-field ss-field{% if field.errors %} has-error{% endif %}{% if field.name == 'address' or field.name == 'notes' or field.name == 'admin_emails_for_notifications' or field.name == 'contact_phone' or field.name == 'max_saved_designs' %} cfg-full{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="cfg-required" aria-hidden="true">*</span>{% else %} <span class="cfg-optional">(optional)</span>{% endif %}</label>
+    {% if field.name == 'admin_emails_for_notifications' %}
+    <div class="cfg-email-recipients" data-email-recipients>
+        <div class="cfg-email-tags" hidden></div>
+        {{ field }}
+        <span class="cfg-sr-only" id="ss_admin_emails_status" role="status" aria-live="polite"></span>
+    </div>
+    {% else %}{{ field }}{% endif %}
+    <p class="cfg-field-error" id="{{ field.id_for_label }}_error" data-error-for="{{ field.name }}">{{ field.errors.0 }}</p>
+    {% if field.help_text %}<p class="cfg-help" id="{{ field.id_for_label }}_help">{{ field.help_text }}</p>{% endif %}
+</div>

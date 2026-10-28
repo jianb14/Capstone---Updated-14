@@ -245,7 +245,9 @@ class OTPAccountFlowTests(TestCase):
 
     def test_admin_returns_to_admin_profile_after_change_verification(self):
         self.user.role = 'admin'
-        self.user.save(update_fields=['role'])
+        # Unverified administrators now finish their own email bootstrap first.
+        self.user.email_verified = True
+        self.user.save(update_fields=['role', 'email_verified'])
         self.client.force_login(self.user)
         self.start_change()
         self.assertRedirects(self.verify_change(), reverse('admin_profile'), fetch_redirect_response=False)

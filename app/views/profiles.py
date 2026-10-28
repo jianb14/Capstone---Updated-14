@@ -6,9 +6,12 @@ from .common import _cleanup_legacy_booking_request_states  # noqa: F401
 from django.db.models import Avg
 from django.utils.formats import date_format
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 from PIL import Image
 from ..booking_lifecycle import lifecycle_display
 from ..booking_changes import eligibility
+from ..profile_forms import EditProfileForm
+from ..account_lists import account_page_size
 from ..request_protection import deduplicate_submission
 
 
@@ -121,6 +124,8 @@ def report_concern(request):
                         subject=stored_subject, message=message_text, submission_key=submission_key)
                     for image in images:
                         ConcernImage.objects.create(concern=ticket, image=image)
+                    AdminNotification.objects.create(user=request.user, concern=ticket,
+                        message=f'submitted concern #CON-{ticket.pk}: {ticket.subject}')
                     log_action(request.user, f'Submitted concern ticket #{ticket.id}.')
                     send_admin_alert_email(
                         f'New Concern Ticket #{ticket.id}',
@@ -128,7 +133,7 @@ def report_concern(request):
                         f'Customer: {request.user.get_full_name() or request.user.username} ({request.user.email})\n'
                         f'Category: {ticket.get_category_display()}\nSubject: {ticket.subject}\n\n'
                         f'Message:\n{ticket.message}\n\n'
-                        f"Review it here: {request.build_absolute_uri('/staff/concerns/')}")
+                        f"Review it here: {request.build_absolute_uri(reverse('admin_concerns'))}?concern_id={ticket.pk}")
                 return _concern_submitted(request, ticket)
 
     if form_error_message:
@@ -136,14 +141,27 @@ def report_concern(request):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'message': form_error_message}, status=400)
 
-    my_tickets = ConcernTicket.objects.filter(user=request.user).prefetch_related('images').order_by(
-        "-created_at"
-    )[:20]
+    per_page = account_page_size(request)
+    tickets = ConcernTicket.objects.filter(user=request.user)
+    page_number = request.GET.get('page')
+    if request.GET.get('concern_id'):
+        try:
+            concern_id = int(request.GET['concern_id'])
+        except ValueError:
+            raise Http404('Concern not found')
+        selected = get_object_or_404(tickets, pk=concern_id)
+        ahead = tickets.filter(Q(created_at__gt=selected.created_at)
+            | Q(created_at=selected.created_at, pk__gt=selected.pk)).count()
+        page_number = ahead // per_page + 1
+    tickets_page = Paginator(tickets.prefetch_related('images').order_by('-created_at', '-pk'), per_page).get_page(page_number)
+    my_tickets = tickets_page.object_list
     return render(
         request,
         "client/report_concern.html",
         {
             "my_tickets": my_tickets,
+            "tickets_page": tickets_page,
+            "per_page": per_page,
             "form_data": form_data,
             "form_error_toasts": form_error_toasts,
             "form_error_message": form_error_message,
@@ -158,6 +176,7 @@ def cancel_concern(request, id):
     if request.user.role != 'customer':
         return HttpResponseForbidden('Not allowed')
     with transaction.atomic():
+        User.objects.select_for_update().get(pk=request.user.pk)
         ticket = get_object_or_404(ConcernTicket.objects.select_for_update(), pk=id, user=request.user)
         if ticket.status == 'cancelled':
             success = True
@@ -178,14 +197,37 @@ def cancel_concern(request, id):
 
 
 @login_required
+@require_GET
 def dashboard(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-    return render(request, "admin/dashboard.html", build_dashboard_context(request))
+    from django.core.exceptions import ValidationError
+    from ..dashboard_reporting import build_dashboard, dashboard_filters
+    try:
+        context = build_dashboard_context(request)
+    except ValidationError as error:
+        message = ' '.join(error.messages)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'error': message}, status=400)
+        context = build_dashboard(dashboard_filters({}))
+        context['filter_error'] = message
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        response = JsonResponse({
+            'html': render_to_string('admin/dashboard/_results.html', context, request=request),
+            'operations_html': render_to_string('admin/dashboard/_operations.html', context, request=request),
+            'filters': context['filters'].params(),
+            'analytics_url': context['analytics_url'],
+            'updated': context['generated_at'].strftime('%I:%M %p').lstrip('0'),
+        })
+    else:
+        response = render(request, 'admin/dashboard.html', context)
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required
-def my_profile(request):
+@never_cache
+def my_profile(request, *, profile_form=None):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
@@ -207,7 +249,13 @@ def my_profile(request):
             "confirmed_count": confirmed_count,
             "completed_count": completed_count,
             "activity_logs": activity_logs,
+            "profile_form": profile_form if profile_form is not None else EditProfileForm(initial={
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'phone_number': request.user.phone_number,
+            }),
         },
+        status=400 if profile_form is not None and profile_form.is_bound else 200,
     )
 
 
@@ -294,6 +342,10 @@ def customer_profile(request):
     search_query = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "all")
     sort_date = request.GET.get("sort_date", "id_desc")
+    if status_filter != 'all' and status_filter not in dict(Booking.STATUS_CHOICES):
+        status_filter = 'all'
+    if sort_date not in ('id_desc', 'id_asc', 'newest', 'oldest'):
+        sort_date = 'id_desc'
 
     user_bookings = Booking.objects.filter(user=request.user).prefetch_related("design_deliveries", "images", "designs", "reviews", "payments", "change_requests__payments")
 
@@ -305,9 +357,10 @@ def customer_profile(request):
 
     # Apply Search Filter (by ID or Event Type)
     if search_query:
-        if search_query.isdigit():
+        identifier = search_query.removeprefix('#')
+        if identifier.isascii() and identifier.isdecimal() and len(identifier) <= 19 and int(identifier) <= 9223372036854775807:
             user_bookings = user_bookings.filter(
-                Q(id=search_query) | Q(event_type__icontains=search_query)
+                Q(id=int(identifier)) | Q(event_type__icontains=search_query)
             )
         else:
             user_bookings = user_bookings.filter(event_type__icontains=search_query)
@@ -322,12 +375,13 @@ def customer_profile(request):
     elif sort_date == "id_asc":
         user_bookings = user_bookings.order_by("id")
     elif sort_date == "oldest":
-        user_bookings = user_bookings.order_by("event_date")
+        user_bookings = user_bookings.order_by("event_date", "id")
     else:
-        user_bookings = user_bookings.order_by("-event_date")
+        user_bookings = user_bookings.order_by("-event_date", "-id")
 
     # Pagination
-    paginator = Paginator(user_bookings, 10)  # Show 10 bookings per page
+    per_page = account_page_size(request)
+    paginator = Paginator(user_bookings, per_page)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -384,6 +438,7 @@ def customer_profile(request):
         "client/customer_profile.html",
         {
             "page_obj": page_obj,
+            "per_page": per_page,
             "edit_link_booking": edit_link_booking,
             "user_bookings": page_obj,  # To maintain some backward compatibility for template logic, though page_obj is better
             "total_bookings": total_bookings,
@@ -468,76 +523,65 @@ def _sync_customer_booking_payment_states(user):
 @login_required
 @require_POST
 def submit_review(request, id):
+    wants_json = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if request.user.role != "customer":
-        return HttpResponseForbidden("Not allowed")
+        return JsonResponse({'message': 'Not allowed.'}, status=403) if wants_json else HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking, id=id, user=request.user)
-
     referer = request.META.get("HTTP_REFERER", "")
-    fallback_redirect = "customer_profile"
-    if "my-reviews" in referer or "my_reviews" in referer:
-        fallback_redirect = "my_reviews"
+    fallback_redirect = "my_reviews" if "my-reviews" in referer or "my_reviews" in referer else "customer_profile"
 
-    if booking.status != "completed":
-        messages.error(request, "You can only review completed bookings.")
+    def invalid(message, field=None):
+        if wants_json:
+            return JsonResponse({'message': message, 'errors': {field: message} if field else {}}, status=400)
+        messages.error(request, message)
         return redirect(fallback_redirect)
 
-    # Check if already reviewed
-    if booking.reviews.filter(user=request.user).exists():
-        messages.error(request, "You have already reviewed this booking.")
-        return redirect(fallback_redirect)
-
-    rating = request.POST.get("rating")
-    comment = request.POST.get("comment")
-
-    if rating and comment:
-        # Validate rating range
+    # Serialize concurrent submissions for the same booking.
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().get(pk=booking.pk)
+        if booking.status != "completed":
+            return invalid("You can only review completed bookings.")
+        if booking.reviews.filter(user=request.user).exists():
+            return invalid("You have already reviewed this booking.")
         try:
-            rating_val = int(rating)
+            rating = int(request.POST.get('rating') or 0)
         except (ValueError, TypeError):
-            messages.error(request, "Invalid rating value.")
-            return redirect(fallback_redirect)
-        if rating_val < 1 or rating_val > 5:
-            messages.error(request, "Rating must be between 1 and 5.")
-            return redirect(fallback_redirect)
-
-        images = request.FILES.getlist("images")
-
+            rating = 0
+        comment = (request.POST.get('comment') or '').strip()
+        if not 1 <= rating <= 5:
+            return invalid('Rating must be between 1 and 5.', 'rating')
+        if not comment:
+            return invalid('Please enter your review.', 'comment')
+        images = request.FILES.getlist('images')
         if len(images) > 4:
-            messages.error(request, "You can only upload a maximum of 4 pictures.")
-            return redirect(fallback_redirect)
-
-        review = Review.objects.create(
-            user=request.user, booking=booking, rating=rating, comment=comment
-        )
-
-        for img in images:
-            ReviewImage.objects.create(review=review, image=img)
-
+            return invalid('You can only upload a maximum of 4 pictures.')
+        review = Review.objects.create(user=request.user, booking=booking, rating=rating, comment=comment)
+        for image in images:
+            ReviewImage.objects.create(review=review, image=image)
         log_action(request.user, f"Submitted a review for booking #{booking.id}.")
-
-        # Notify Admin
-        AdminNotification.objects.create(
-            booking=booking, user=request.user, message="submitted a new review."
-        )
-
-        messages.success(request, "Thank you for your review!")
-        # On success, if they were in my_reviews, redirect them to my_reviews to see it immediately.
-        # Otherwise redirect to the main reviews board.
-        if fallback_redirect == "my_reviews":
-            return redirect("my_reviews")
-        return redirect("reviews")  # Redirect to the new reviews page
-    else:
-        messages.error(request, "Please provide both a rating and a comment.")
-
-    return redirect(fallback_redirect)
+        AdminNotification.objects.create(booking=booking, user=request.user, message="submitted a new review.")
+    if wants_json:
+        return JsonResponse({'status': 'success', 'message': 'Thank you for your review!', 'review_id': review.pk}, status=201)
+    messages.success(request, 'Thank you for your review!')
+    return redirect('my_reviews' if fallback_redirect == 'my_reviews' else 'reviews')
 
 
+@never_cache
 @login_required
+@require_http_methods(['GET'])
 def admin_profile(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-    return render(request, "admin/admin_profile.html")
+    from ..admin_security import pending_challenge
+    unverified = not request.user.email_verified
+    return render(request, "admin/admin_profile.html", {
+        'pending_security': pending_challenge(request, 'email') if unverified else {},
+        'open_email_setup': unverified and (request.session.get('admin_email_setup_required')
+                                            or request.GET.get('verify_email') == '1'),
+        'recent_activity': AuditLog.objects.filter(user=request.user).order_by('-created_at', '-pk')[:5],
+        'password_code_pending': bool(request.session.get('email_otp_change')),
+    })
 
 
 # =============================================================================
@@ -547,15 +591,21 @@ def admin_profile(request):
 @login_required
 def update_my_profile(request):
     if request.method == "POST":
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-        phone_number = request.POST.get("phone_number", "").strip()
+        form = EditProfileForm(request.POST)
+        if not form.is_valid():
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success':False,'message':'Please check your profile details.',
+                    'errors':{name:list(errors) for name,errors in form.errors.items()}},status=400)
+            return my_profile(request, profile_form=form)
 
         user = request.user
-        user.first_name = first_name
-        user.last_name = last_name
-        user.phone_number = phone_number
-        user.save()
+        user.first_name = form.cleaned_data['first_name']
+        user.last_name = form.cleaned_data['last_name']
+        user.phone_number = form.cleaned_data['phone_number']
+        user.save(update_fields=['first_name', 'last_name', 'phone_number'])
         log_action(user, "Updated their profile information.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success':True,'message':'Profile updated successfully.',
+                'redirect_url':reverse('my_profile')})
         messages.success(request, "Profile updated successfully.")
     return redirect("my_profile")

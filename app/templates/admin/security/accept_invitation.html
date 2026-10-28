@@ -1,0 +1,51 @@
+{% extends 'auth/login.html' %}
+{% load static %}
+{% block title %}Accept admin invitation | Balloorina{% endblock %}
+{% block auth_extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261026g">
+<link rel="stylesheet" href="{% static 'css/admin_security.css' %}?v=20261028k">
+<link rel="stylesheet" href="{% static 'css/password_requirements.css' %}?v=20261025b">
+{% endblock %}
+{% block auth_overlays %}
+<div class="ac-workspace ase-accept-workspace">
+<dialog class="ac-dialog ase-invite-dialog ase-accept-dialog" id="adminAcceptModal" aria-labelledby="adminAcceptTitle" data-admin-accept-modal data-login-url="{% url 'login' %}">
+    <div class="ac-dialog-shell">
+        <header class="ac-dialog-header">
+            <div><h2 id="adminAcceptTitle">{% if valid %}Welcome to the team{% else %}Invitation unavailable{% endif %}</h2><p class="ase-note">{% if valid %}Set up your password to finish creating your admin account.{% else %}This invitation cannot be used to create an account.{% endif %}</p></div>
+            <button type="button" class="ac-close" data-close-accept aria-label="Close admin account setup">{% include 'admin/user/_icon.html' with icon='close' %}</button>
+        </header>
+        <div class="ac-dialog-body">
+            {% if valid %}
+                <p class="ase-intro">Hello {{ invitation.first_name }}. Create a password for <strong>{{ invitation.email }}</strong>.</p>
+                <p class="ase-note ase-access-note">Your account will have administrator access. Only authorized administrators can invite other admins.</p>
+                {% if user.is_authenticated %}
+                    <p class="ase-feedback" role="alert">Sign out of your current account, then reopen the invitation from your email.</p>
+                    <a class="ac-button" href="{% url 'logout' %}">Sign out</a>
+                {% else %}
+                    <form action="{% url 'admin_invitation_accept' %}" method="post" class="ase-form" data-invitation-accept novalidate>
+                        {% csrf_token %}
+                        <div class="ase-accept-field">
+                            <label for="invitationPassword">Create password <span class="ase-required" aria-hidden="true">*</span></label>
+                            <div class="password-visibility-field"><input name="password" id="invitationPassword" type="password" minlength="8" maxlength="1024" autocomplete="new-password" aria-describedby="invitationPasswordHelp{% if form.password.errors %} invitationPasswordError{% endif %}"{% if form.password.errors %} aria-invalid="true"{% endif %} required>{% include 'components/password_visibility.html' with input_id='invitationPassword' password_label='new password' %}</div>
+                            <p class="ase-field-error" id="invitationPasswordError" data-invitation-error="password" role="alert"{% if not form.password.errors %} hidden{% endif %}>{{ form.password.errors|join:' ' }}</p>
+                        </div>
+                        {% include 'components/password_requirements.html' with requirements_id='invitationPasswordHelp' rule_prefix='invite-rule-' %}
+                        <div class="ase-accept-field">
+                            <label for="invitationConfirm">Confirm password <span class="ase-required" aria-hidden="true">*</span></label>
+                            <div class="password-visibility-field"><input name="confirm_password" id="invitationConfirm" type="password" maxlength="1024" autocomplete="new-password"{% if form.confirm_password.errors %} aria-invalid="true" aria-describedby="invitationConfirmError"{% endif %} required>{% include 'components/password_visibility.html' with input_id='invitationConfirm' password_label='confirmation password' %}</div>
+                            <p class="ase-field-error" id="invitationConfirmError" data-invitation-error="confirm_password" role="alert"{% if not form.confirm_password.errors %} hidden{% endif %}>{{ form.confirm_password.errors|join:' ' }}</p>
+                        </div>
+                        <p class="ase-feedback" data-invitation-feedback role="status" aria-live="polite">{{ invitation_error|default:'' }}{% if form.non_field_errors %}{{ form.non_field_errors|join:' ' }}{% endif %}</p>
+                        <div class="ase-actions"><button class="ac-button ac-primary" type="submit">Create my admin account</button></div>
+                    </form>
+                {% endif %}
+            {% else %}
+                <p class="ase-intro">This link is expired, used, revoked or no longer authorized. Ask the main administrator to send a new invitation.</p>
+            {% endif %}
+        </div>
+        <footer class="ac-dialog-footer"><button class="ac-button" type="button" data-close-accept>{% if valid %}Cancel{% else %}Go to sign in{% endif %}</button></footer>
+    </div>
+</dialog>
+</div>
+{% endblock %}
+{% block auth_extra_js %}<script src="{% static 'js/admin_invitation_accept.js' %}?v=20261027b"></script>{% endblock %}

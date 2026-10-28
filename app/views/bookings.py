@@ -226,7 +226,7 @@ def booking_page(request):
 
 @login_required
 def admin_calendar(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     _cleanup_legacy_booking_request_states()
@@ -356,7 +356,7 @@ def admin_calendar(request):
 @schedule_atomic
 def admin_blocked_date_create(request):
     """Create a blockout date that clients cannot book."""
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     raw_date = (request.POST.get("date") or "").strip()
@@ -451,7 +451,7 @@ def admin_blocked_date_create(request):
 @require_POST
 def admin_blocked_date_delete(request, id):
     """Remove a blockout date, making it bookable again."""
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     blocked = get_object_or_404(BlockedDate, id=id)
@@ -1067,6 +1067,13 @@ def booking_design_download(request, id, design_id):
 # DELETE BOOKING
 # -------------------------
 
+def _booking_edit_error(request, id, message, *, profile=False):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success':False,'message':message},status=400)
+    messages.error(request,message)
+    return redirect('customer_profile') if profile else redirect('edit_booking',id=id)
+
+
 @login_required
 @schedule_atomic
 def edit_booking(request, id):
@@ -1076,14 +1083,12 @@ def edit_booking(request, id):
         return HttpResponseForbidden("Not allowed")
 
     if booking.status in ('pending_payment', 'confirmed'):
+        if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success':False,'message':'This booking now requires a change request. Reopen Request Changes from your booking list.'},status=409)
         return redirect('request_booking_change', booking_id=booking.pk)
     # Pending bookings retain direct editing; approved bookings use proposals.
     if booking.status != "pending":
-        messages.error(
-            request,
-            "Confirmed bookings can no longer be edited. Please review details before submission.",
-        )
-        return redirect("customer_profile")
+        return _booking_edit_error(request, id, "Confirmed bookings can no longer be edited. Please review details before submission.", profile=True)
 
     if request.method == "POST":
         start_time = request.POST.get("start_time")
@@ -1103,8 +1108,7 @@ def edit_booking(request, id):
                 request.POST.get("event_date", ""), "%Y-%m-%d"
             ).date()
         except (ValueError, TypeError):
-            messages.error(request, "Invalid event date format.")
-            return redirect("edit_booking", id=id)
+            return _booking_edit_error(request, id, "Invalid event date format.")
 
         # Validate time formats (prevents 500 on malformed input)
         for time_value in (start_time, end_time):
@@ -1112,26 +1116,23 @@ def edit_booking(request, id):
                 try:
                     datetime.strptime(time_value, "%H:%M")
                 except (ValueError, TypeError):
-                    messages.error(request, "Invalid time format.")
-                    return redirect("edit_booking", id=id)
+                    return _booking_edit_error(request, id, "Invalid time format.")
 
         # Validate total price (same as create)
         try:
             total_price_val = Decimal(request.POST.get("total_price", "0"))
         except (InvalidOperation, TypeError, ValueError):
-            messages.error(request, "Invalid price format.")
-            return redirect("edit_booking", id=id)
+            return _booking_edit_error(request, id, "Invalid price format.")
+        if not total_price_val.is_finite():
+            return _booking_edit_error(request, id, "Invalid price format.")
         if total_price_val <= 0:
-            messages.error(request, "Total price must be greater than 0.")
-            return redirect("edit_booking", id=id)
+            return _booking_edit_error(request, id, "Total price must be greater than 0.")
         MAX_PRICE = Decimal("99999999.99")
         if total_price_val > MAX_PRICE:
-            messages.error(request, "Total price exceeds the maximum allowed value.")
-            return redirect("edit_booking", id=id)
+            return _booking_edit_error(request, id, "Total price exceeds the maximum allowed value.")
 
         if booking_date < today:
-            messages.error(request, "Cannot change to a past date.")
-            return redirect("edit_booking", id=id)
+            return _booking_edit_error(request, id, "Cannot change to a past date.")
 
         # Booking Lead Time Check (Site Settings): hindi pwedeng i-reschedule
         # sa rush date. Pati parehong araw na inuurong lang ang oras, sakop —
@@ -1139,15 +1140,11 @@ def edit_booking(request, id):
         # kapag rush ang petsa, kahit hindi ito binago).
         lead_days, min_bookable_date = get_booking_lead_time_policy()
         if lead_days > 0 and booking_date < min_bookable_date:
-            messages.error(
-                request,
-                get_lead_time_violation_message(
+            return _booking_edit_error(request, id, get_lead_time_violation_message(
                     booking_date,
                     lead_days=lead_days,
                     min_date=min_bookable_date,
-                ),
-            )
-            return redirect("edit_booking", id=id)
+                ))
 
         # Same-day past-time guard (Manila wall-clock): bawal ang start/end na
         # tapos na o kasalukuyang minuto ngayong araw (hal. 5PM na, 1PM-3PM).
@@ -1160,8 +1157,7 @@ def edit_booking(request, id):
                 if not _value:
                     continue
                 if datetime.combine(booking_date, datetime.strptime(_value, "%H:%M").time()) <= _now_dt:
-                    messages.error(request, _msg)
-                    return redirect("edit_booking", id=id)
+                    return _booking_edit_error(request, id, _msg)
 
         if start_time and end_time:
             # ⏱️ Duration & overtime policy (same rules sa create_booking):
@@ -1171,17 +1167,12 @@ def edit_booking(request, id):
                 start_time, end_time, start_date=booking_date
             )
             if overtime_info["error"]:
-                messages.error(request, overtime_info["error"])
-                return redirect("edit_booking", id=id)
+                return _booking_edit_error(request, id, overtime_info["error"])
 
             # Start window: 7:00 AM – 6:00 PM (operating hours).
             start_dt_obj = datetime.strptime(start_time, "%H:%M")
             if start_dt_obj.hour < 7 or start_dt_obj.hour >= 18:
-                messages.error(
-                    request,
-                    "Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.",
-                )
-                return redirect("edit_booking", id=id)
+                return _booking_edit_error(request, id, "Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.")
 
             new_start = datetime.combine(booking_date, start_dt_obj.time())
             new_end = datetime.combine(
@@ -1208,26 +1199,23 @@ def edit_booking(request, id):
                 if new_start < b_end and new_end > b_start:
                     existing_start = format_time_12h(b.event_time)
                     existing_end = format_time_12h(b_end.time())
-                    messages.error(
-                        request,
-                        f"This time slot is already booked ({existing_start} to {existing_end}). "
-                        f"Please choose a different time.",
-                    )
-                    return redirect("edit_booking", id=id)
+                    return _booking_edit_error(request, id, f"This time slot is already booked ({existing_start} to {existing_end}). "
+                        f"Please choose a different time.")
 
         if end_time:
             special_requests = f"{special_requests}\n(End Time: {end_time})".strip()
 
-        booking.event_type = request.POST.get("event_type")
+        event_type = (request.POST.get('event_type') or '').strip()
+        if not event_type or len(event_type) > 50:
+            return _booking_edit_error(request, id, 'Enter an event type with at most 50 characters.')
+        booking.event_type = event_type
         booking.event_date = request.POST.get("event_date")
         booking.event_time = start_time
         event_location = (request.POST.get("event_location") or "").strip()
         if len(event_location) < 10:
-            messages.error(
-                request,
-                "Please enter a complete venue address (at least 10 characters).",
-            )
-            return redirect("edit_booking", id=id)
+            return _booking_edit_error(request, id, "Please enter a complete venue address (at least 10 characters).")
+        if len(event_location) > 255:
+            return _booking_edit_error(request, id, 'Use at most 255 characters for the venue address.')
         booking.event_location = event_location
         booking.package_type = request.POST.get("package_type")
         booking.special_requests = special_requests
@@ -1259,8 +1247,7 @@ def edit_booking(request, id):
             new_palette = _clean_optional_field(request.POST.get("color_palette"), 100)
             design_error = _validate_design_preferences(new_theme, new_palette)
             if design_error:
-                messages.error(request, design_error)
-                return redirect("edit_booking", id=id)
+                return _booking_edit_error(request, id, design_error)
             booking.design_theme = new_theme
             booking.color_palette = new_palette
         if "motto_text" in request.POST:
@@ -1283,17 +1270,12 @@ def edit_booking(request, id):
             # ang pin, i-reject — legacy form na walang keys ay hindi apektado.
             edit_map_flag = (request.POST.get("map_available") or "1").strip()
             if (new_lat is None or new_lng is None) and edit_map_flag != "0":
-                messages.error(
-                    request,
-                    "Please drop a pin or pick from search so we can compute your exact logistics fee.",
-                )
-                return redirect("edit_booking", id=id)
+                return _booking_edit_error(request, id, "Please drop a pin or pick from search so we can compute your exact logistics fee.")
 
         if "event_lat" in request.POST or "event_lng" in request.POST:
             quote = compute_logistics_quote(booking.event_lat, booking.event_lng)
             if quote["in_cavite"] is False and not quote["configured"]:
-                messages.error(request, "We couldn't calculate logistics for this venue location. Please contact our team before continuing.")
-                return redirect("edit_booking", id=id)
+                return _booking_edit_error(request, id, "We couldn't calculate logistics for this venue location. Please contact our team before continuing.")
 
         if request.FILES.get("reference_image"):
             booking.reference_image = request.FILES.get("reference_image")
@@ -1301,8 +1283,7 @@ def edit_booking(request, id):
         try:
             ensure_available(booking)
         except ValidationError as exc:
-            messages.error(request, ' '.join(exc.messages))
-            return redirect('edit_booking', id=id)
+            return _booking_edit_error(request, id, ' '.join(exc.messages))
 
         # Remove deleted images
         remove_images = request.POST.getlist("remove_images[]")
@@ -1348,6 +1329,8 @@ def edit_booking(request, id):
         booking.save()
 
         log_action(request.user, f"Edited booking #{booking.id}.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success':True,'message':'Booking updated successfully!'})
         messages.success(request, "Booking updated successfully!")
         return redirect("customer_profile")
 
@@ -1366,6 +1349,8 @@ def delete_booking(request, id):
         return HttpResponseForbidden("Not allowed")
 
     if booking.status != "pending":
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success':False,'message':'Only pending bookings can be deleted.'},status=409)
         messages.error(request, "Only pending bookings can be deleted.")
         return redirect("customer_profile")
 
@@ -1373,6 +1358,8 @@ def delete_booking(request, id):
         booking_id = booking.id
         booking.delete()
         log_action(request.user, f"Deleted booking #{booking_id}.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success':True,'message':'Booking deleted successfully!'})
         messages.success(request, "Booking deleted successfully!")
         return redirect("customer_profile")
 
@@ -1383,7 +1370,7 @@ def delete_booking(request, id):
 
 @login_required
 def admin_booking_list(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     # Auto-expire pending bookings in the past
@@ -1508,7 +1495,7 @@ def admin_booking_list(request):
 
 @login_required
 def admin_booking_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     check_booking_expirations()
@@ -1554,8 +1541,8 @@ def admin_booking_detail(request, id):
 @require_POST
 @transaction.atomic
 def admin_booking_logistics_override(request, id):
-    """Admin/staff manual logistics fee — override/clear + recompute ng total."""
-    if request.user.role not in ["admin", "staff"]:
+    """Admin manual logistics fee — override/clear + recompute ng total."""
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
@@ -1645,9 +1632,9 @@ def _validate_design_delivery_image(uploaded_file):
 @login_required
 @require_POST
 def admin_booking_design_upload(request, id):
-    """Admin/staff → mag-upload ng backdrop design MATAGAL na bayad
+    """Admin → mag-upload ng backdrop design MATAGAL na bayad
     (status confirmed/completed lang, hindi pa-confirmed na pending)."""
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking, id=id)
@@ -1709,7 +1696,7 @@ def admin_booking_design_upload(request, id):
 @login_required
 @require_POST
 def admin_booking_design_delete(request, id, design_id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking, id=id)
@@ -1744,7 +1731,7 @@ def admin_booking_design_delete(request, id, design_id):
 @transaction.atomic
 @schedule_atomic
 def admin_booking_action(request, id, action):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(Booking.objects.select_for_update(), id=id)

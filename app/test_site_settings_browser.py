@@ -18,7 +18,7 @@ class SiteSettingsBrowserTests(StaticLiveServerTestCase):
         self.client.force_login(admin)
         ServiceChargeConfig.objects.create(pk=1, amount=1000, notes='Original notes.', shop_lat='14.4', shop_lng='120.9')
         with sync_playwright() as p:
-            browser = p.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless=True)
+            browser = p.chromium.launch(executable_path='C:/Program Files/Google/Chrome/Application/chrome.exe', headless=True)
             try:
                 context = browser.new_context()
                 context.add_init_script('window.Swal = {mixin: () => ({fire: () => Promise.resolve({})}), fire: () => Promise.resolve({}), stopTimer() {}, resumeTimer() {}, DismissReason: {cancel: "cancel"}};')
@@ -43,24 +43,20 @@ class SiteSettingsBrowserTests(StaticLiveServerTestCase):
                         expect(save).to_be_disabled()
                         page.locator('#ss_max_saved_designs').fill('0')
                         save.click()
-                        expect(page.locator('#ss_design_limit_error')).to_be_visible()
+                        expect(page.locator('[data-error-for=max_saved_designs]')).to_be_visible()
                         expect(save).to_be_enabled()
                         page.locator('#ss_max_saved_designs').fill('25')
-                        expect(page.locator('#ss_design_limit_error')).to_be_hidden()
+                        expect(page.locator('[data-error-for=max_saved_designs]')).to_be_hidden()
                         # Simulate Leaflet's pane stacking without a network map.
-                        page.locator('#ss_shop_map').evaluate('el => { el.style.position="relative"; const pane=document.createElement("div"); pane.style.cssText="position:absolute;inset:0;z-index:1000;background:#ccc"; el.replaceChildren(pane); el.scrollIntoView({block:"center"}); }')
+                        page.locator('#ss_shop_map').evaluate('el => { el.style.cssText="display:block;position:relative;height:250px"; const pane=document.createElement("div"); pane.style.cssText="position:absolute;inset:0;z-index:1000;background:#ccc"; el.replaceChildren(pane); el.scrollIntoView({block:"center"}); }')
                         page.wait_for_timeout(100)
                         self.assertTrue(page.locator('.ss-savebar').evaluate('el => {const r=el.getBoundingClientRect(); const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return el.contains(hit);}'))
-                        if width > 600:
-                            for field in ('ss_contact_phone', 'ss_change_cutoff'):
-                                self.assertEqual(page.locator('#' + field).evaluate('el=>getComputedStyle(el.closest(".ss-field")).gridColumn'), '1 / -1')
-                        for field in ('ss_payment_window', 'ss_design_lead', 'ss_change_cutoff'):
-                            expect(page.locator('#' + field).locator('..').locator('svg')).to_be_visible()
                         self.assertLessEqual(page.locator('.ss-page').evaluate('el=>el.scrollWidth-el.clientWidth'), 1)
                 notes.fill('Saved with the common button.')
                 page.locator('#ss_logistics_per_km_rate').fill('55')
-                with page.expect_navigation(wait_until='domcontentloaded'):
+                with page.expect_response(lambda response: response.url.endswith(reverse('admin_site_settings')) and response.request.method == 'POST'):
                     save.click()
+                expect(page.locator('#ss_feedback')).to_have_text('All site settings saved successfully.')
                 expect(page.locator('#ss_max_saved_designs')).to_have_value('25')
                 expect(page.locator('#ss_logistics_notes')).to_have_value('Saved with the common button.')
                 self.assertFalse(errors, errors)

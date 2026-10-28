@@ -171,7 +171,7 @@ class DesignDeliveryTests(TempMediaMixin, TestCase):
         self._upload(self.confirmed_booking)
         self.client.force_login(self.customer)
         response = self.client.get(reverse("customer_profile"))
-        self.assertContains(response, "Design Ready")
+        self.assertContains(response, "Design ready")
         self.assertContains(response, "View Event Design")
         self.assertContains(response, "Your Event Design")
         self.assertNotContains(response, "Download Design")

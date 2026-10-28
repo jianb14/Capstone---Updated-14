@@ -1,0 +1,23 @@
+{% include 'admin/analytics/_kpis.html' with cards=booking_kpis %}
+<div class="ar-section-note"><h2>When do committed events happen?</h2><p>These charts use actual event dates and start times for confirmed, cancel-requested and completed bookings within the selected cohort. Pending, cancelled and expired bookings are excluded from demand.</p></div>
+<div class="ar-chart-grid">
+  {% include 'admin/analytics/_bar.html' with title='Events by calendar month' subtitle='Seasonality across all years in the selected cohort.' chart='months' rows=insights.months has_data=insights.committed_count %}
+  {% include 'admin/analytics/_bar.html' with title='Events by weekday' subtitle='Committed event dates, Monday to Sunday.' chart='weekdays' rows=insights.weekdays has_data=insights.committed_count %}
+  {% include 'admin/analytics/_bar.html' with title='Event start times' subtitle='Philippine time, grouped by start hour.' chart='hours' rows=insights.hours has_data=insights.known_time %}
+  <article class="ar-chart-card ar-outcomes"><header><div><h2>Bookings that did not proceed</h2><p>Separate outcomes across all selected bookings.</p></div></header>
+    <dl><div><dt>Cancelled</dt><dd>{{ cancelled_count }}<small>{{ cancellation_rate }}% of bookings</small></dd></div>
+      <div><dt>Expired</dt><dd>{{ insights.expired }}<small>{{ insights.expired_rate }}% of bookings</small></dd></div></dl>
+    <p>Expiry is a recorded status, not proof of a particular cancellation reason.</p>
+    <p>{{ insights.unknown_time }} committed bookings have no recorded start time and are excluded from the hourly chart.</p>
+  </article>
+</div>
+<div class="ar-section-note"><h2>Which offers do customers select?</h2><p>Recorded choices across all statuses. Each selection counts once per booking; a booking may contain a package, an entrance arch and a welcome stand.</p></div>
+<div class="ar-chart-grid">
+  {% include 'admin/analytics/_bar.html' with title='Package selections' subtitle='Main package demand in the selected cohort.' chart='packages' rows=insights.offers.packages has_data=insights.offers.packages %}
+  {% include 'admin/analytics/_bar.html' with title='Entrance arch selections' subtitle='Solo entrance arches and package add-ons.' chart='arches' rows=insights.offers.arches has_data=insights.offers.arches %}
+  {% include 'admin/analytics/_bar.html' with title='Welcome stand selections' subtitle='Optional welcome stands attached to a booking.' chart='stands' rows=insights.offers.stands has_data=insights.offers.stands %}
+</div>
+<details class="ar-offer-values"><summary>Completed booking value by selected offer</summary><p>These are whole booking totals for completed bookings containing each offer, including other items and fees. They overlap and must not be added together as item revenue.</p>
+  {% for group, rows in insights.offers.items %}{% if group != 'unclassified' %}<h3>{{ group|title }}</h3><ul>{% for row in rows %}<li><span>{{ row.label }}</span><strong>₱{{ row.completed_value|floatformat:"2g" }}</strong></li>{% empty %}<li>No selections.</li>{% endfor %}</ul>{% endif %}{% endfor %}
+</details>
+{% if insights.offers.unclassified %}<p class="ar-quality-note">{{ insights.offers.unclassified }} historical selections could not be categorized reliably and are excluded from the offer charts.</p>{% endif %}

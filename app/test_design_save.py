@@ -80,6 +80,6 @@ class DesignSaveSizeTests(SimpleTestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_non_customer_still_rejected(self):
-        self.user.role = "staff"
+        self.user.role = "admin"
         response = save_user_design(self.request({"canvas_json": "{}"}))
         self.assertEqual(response.status_code, 403)

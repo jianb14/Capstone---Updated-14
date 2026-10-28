@@ -112,7 +112,11 @@ class ChangePaymentOverviewTests(TestCase):
         self.client.post(reverse('customer_booking_change_action', args=[self.booking.pk, change.pk, 'withdraw']))
         response = self.overview()
         self.assertEqual(response.context['action_required_total_count'], 0)
-        change = self.accepted_upgrade()
+        # A new proposal is a separate submission, rather than a transport retry
+        # of the just-withdrawn payload (the request deduplicator preserves retries).
+        change = self.submit(package_type='Package B', change_reason='New upgrade after withdrawal')
+        self.quote(change)
+        self.accept(change)
         change.expires_at = self.now - timedelta(minutes=1)
         change.save()
         response = self.overview()
@@ -161,7 +165,7 @@ class ChangePaymentOverviewTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_pagination_counts_change_actions_and_finds_off_page_booking(self):
-        for index in range(7):
+        for index in range(9):
             booking = fixtures.Booking.objects.get(pk=self.booking.pk)
             booking.pk = None
             booking.save()
@@ -172,7 +176,7 @@ class ChangePaymentOverviewTests(TestCase):
                 original_total=6000, quoted_total=8000, additional_due=2000,
                 original=fixtures.snapshot(booking), proposed={**fixtures.snapshot(booking), 'package_type':'Package B'})
         response = self.overview(ar_page=2)
-        self.assertEqual(response.context['action_required_total_count'], 7)
+        self.assertEqual(response.context['action_required_total_count'], 9)
         self.assertEqual(len(response.context['action_required_page_obj']), 1)
         self.assertEqual(response.context['action_required_page_obj'].number, 2)
 

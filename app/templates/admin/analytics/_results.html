@@ -1,0 +1,21 @@
+<div class="ar-scope" data-report-period="{{ filters.preset }}">
+  <div><span class="ar-scope-label">{{ filters.basis_label }}{% if filters.event_type != 'all' %} · {{ filters.event_type|default:'Unspecified event' }}{% endif %}</span>
+    <h2>{{ filters.period_label }}</h2><p>{{ filters.comparison_label }}</p>
+  </div><small>Updated {{ generated_at|date:'g:i A' }} · Philippine time</small>
+</div>
+<nav class="ar-view-tabs" aria-label="Analytics views">
+  {% for tab in tabs %}<a href="{{ tab.url }}" data-report-tab="{{ tab.key }}" {% if filters.tab == tab.key %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}
+</nav>
+<div class="ar-view-content" data-report-view="{{ filters.tab }}">
+{% if filters.tab == 'bookings' %}{% include 'admin/analytics/_bookings.html' %}
+{% elif filters.tab == 'payments' %}{% include 'admin/analytics/_payments.html' %}
+{% elif filters.tab == 'customers' %}{% include 'admin/analytics/_customers.html' %}
+{% else %}{% include 'admin/analytics/_overview.html' %}{% endif %}
+</div>
+<aside class="ar-definitions"><h2>How to read this report</h2>
+  <p>Booking figures follow the selected booking date basis and event type. Statuses and payments reflect their latest recorded state.</p>
+  <p><strong>Completed booking value</strong> is the final price of completed bookings. <strong>Verified collections</strong> includes only verified payments credited to the selected bookings, regardless of payment date; it excludes pending, rejected and unapplied change payments. It is not a net revenue or refund report.</p>
+  <p>Payments received uses the date range independently of booking dates, with the same event type filter. Receipt timestamps take priority; verification timestamps are used only where receipt timestamps are missing. Undated verified payments are flagged and excluded from dated collections.</p>
+  <p>Rates use all selected bookings as the denominator. Setup demand counts the main setup once per booking; optional add-ons are excluded. Event and setup charts group selections beyond the top six into one total.</p>
+</aside>
+{{ charts|json_script:'analyticsChartData' }}

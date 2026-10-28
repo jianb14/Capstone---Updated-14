@@ -1,0 +1,3 @@
+<div class="catalog-details"><div class="catalog-detail-heading"><div><h3>{{ name }}</h3><p class="ac-muted">#{{ item.pk }}</p></div><span class="catalog-badge{% if item.is_active %} is-active{% endif %}">{% if item.is_active %}Visible{% else %}Hidden{% endif %}</span></div>
+{% if item.image %}<div class="catalog-detail-images"><button type="button" data-photo-url="{{ item.image.url }}" aria-label="Open full-size photo"><img src="{{ item.image.url }}" alt="{{ item.title }}"></button></div>{% endif %}
+<dl class="catalog-detail-grid content-detail-grid">{% for label,value in details %}<div><dt>{{ label }}</dt><dd>{{ value|default_if_none:'—'|linebreaksbr }}</dd></div>{% endfor %}</dl></div>

@@ -24,14 +24,14 @@ all are reserved in one transaction or none are consumed.
 | `booking_daily` | 20 / 24 hours | Account; same creation requests |
 | `booking_change` | 10 / 10 minutes | Account; pending-booking edits and amendment requests |
 | `payment_submit` | 5 / 10 minutes | Account; shared by manual proof, PayMongo checkout, and amendment payment |
-| `chat_send` | 30 / minute | Account; chat API and staff thread replies |
+| `chat_send` | 30 / minute | Account; chat API and admin thread replies |
 | `support_request` | 5 / 10 minutes | Account; request a human agent |
 | `concern` | 5 / hour | Account |
 | `review_submit` | 5 / hour | Account |
 | `review_edit` | 20 / hour | Account |
 | `reaction` | 30 / minute | Account; review likes and support chat reactions |
 | `design_save` | 30 / 10 minutes | Account; design library and chat design saves |
-| `upload_requests` | 20 / minute | Account; multipart uploads, including staff uploads |
+| `upload_requests` | 20 / minute | Account; multipart uploads, including admin uploads |
 | `upload_bytes` | 128 MiB / 24 hours | Account; combined multipart file sizes |
 | `report_export` | 10 / 10 minutes | Account; Excel and PDF analytics exports share a budget |
 | `receipt_download` | 20 / 10 minutes | Account; payment receipt PDF generation |

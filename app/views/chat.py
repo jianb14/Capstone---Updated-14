@@ -116,7 +116,7 @@ def _chat_message_json(message, current_user):
 
 def _get_chat_session_for_user(request, session_id):
     """
-    Shared permission helper: the session owner (client) or an admin/staff
+    Shared permission helper: the session owner (client) or an admin
     may read a support session. Returns (session, error_response).
     """
     try:
@@ -161,7 +161,7 @@ def _pinned_messages_json(session):
             ),
             "pinned_by_is_admin": (
                 msg.pinned_by_id is not None and (
-                    getattr(msg.pinned_by, "role", None) in ["admin", "staff"]
+                    getattr(msg.pinned_by, "role", None) == 'admin'
                     or getattr(msg.pinned_by, "is_superuser", False)
                 )
             ),
@@ -207,7 +207,7 @@ def _admin_support_chat_sessions():
             unread_admin_count=Count(
                 'messages',
                 filter=Q(messages__is_read=False)
-                & ~Q(messages__sender__role__in=['admin', 'staff'])
+                & ~Q(messages__sender__role='admin')
                 & ~Q(messages__sender__is_superuser=True),
             ),
         )
@@ -1255,7 +1255,7 @@ def admin_chat_unread_poll(request):
 def _notify_admins_new_chat_request(session, requester):
     try:
         admin_accounts = User.objects.filter(
-            Q(role__in=["admin", "staff"]) | Q(is_superuser=True),
+            Q(role='admin') | Q(is_superuser=True),
             is_active=True,
         ).distinct()
         for admin_account in admin_accounts:

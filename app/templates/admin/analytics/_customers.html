@@ -1,0 +1,7 @@
+{% include 'admin/analytics/_kpis.html' with cards=insights.customer_kpis %}
+<div class="ar-section-note"><h2>Customers and completed experiences</h2><p>Uses completed events in the selected booking cohort up to today. A returning customer had a completed event on an earlier date before their first completed event in this cohort. Future reservations do not make a customer returning.</p></div>
+<div class="ar-chart-grid">
+  {% include 'admin/analytics/_bar.html' with title='First-time and returning customers' subtitle='Each customer appears once in this view.' chart='customer_types' rows=insights.customers.types has_data=insights.customers.completed_customers %}
+  {% include 'admin/analytics/_bar.html' with title='Review rating distribution' subtitle='Valid 1–5 star reviews of these completed events.' chart='ratings' rows=insights.customers.ratings has_data=insights.customers.reviews %}
+</div>
+<div class="ar-quality-note"><strong>Read ratings with their sample size</strong><p>{{ insights.customers.reviews }} reviews cover {{ insights.customers.reviewed_bookings }} of {{ insights.customers.eligible_completed }} completed events. An event without a review is not counted as an unhappy customer. “—” means there is no eligible denominator, rather than a zero rating.</p></div>

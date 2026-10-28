@@ -1,0 +1,12 @@
+<dialog class="ac-dialog um-detail-dialog" id="userDetailModal" aria-labelledby="userDetailTitle">
+    <div class="ac-dialog-shell"><header class="ac-dialog-header"><div><h2 id="userDetailTitle">Account details</h2><p class="um-modal-subtitle">Profile information and recent account activity.</p></div><button type="button" class="ac-close" data-close-user aria-label="Close account details">{% include 'admin/user/_icon.html' with icon='close' %}</button></header>
+        <div class="ac-dialog-body"><p id="userDetailFeedback" class="ac-feedback" role="status" aria-live="polite"></p><div id="userDetailContent">{{ initial_detail_html|default:''|safe }}</div></div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-close-user>Done</button></footer>
+    </div>
+</dialog>
+<dialog class="ac-dialog um-confirm-dialog" id="userAccessModal" aria-labelledby="userAccessTitle" aria-describedby="userAccessDescription">
+    <div class="ac-dialog-shell"><header class="ac-dialog-header"><div><span class="um-confirm-symbol" aria-hidden="true">{% include 'admin/user/_icon.html' with icon='shield' %}</span><h2 id="userAccessTitle">Change account access?</h2></div><button type="button" class="ac-close" data-close-access aria-label="Cancel account access change">{% include 'admin/user/_icon.html' with icon='close' %}</button></header>
+        <form id="userAccessForm" method="post"><div class="ac-dialog-body">{% csrf_token %}<p id="userAccessDescription"></p><div class="um-email-notice">{% include 'admin/user/_icon.html' with icon='mail' %}<p>An email notification will be sent to <strong id="userAccessEmail"></strong>.</p></div><p class="um-records-note">Existing bookings and payment records will be kept. This action does not cancel any bookings.</p><p id="userAccessFeedback" class="ac-feedback" role="alert" tabindex="-1"></p></div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-close-access autofocus>Cancel</button><button type="submit" class="ac-button um-confirm-submit" id="userAccessSubmit">Confirm</button></footer></form>
+    </div>
+</dialog>

@@ -77,7 +77,6 @@ from ..models import (
     BlockedDate,
     CanvasAsset,
     CanvasCategory,
-    CanvasLabel,
     ChatMessage,
     ChatNotification,
     ChatSession,
@@ -136,7 +135,7 @@ def _is_admin_user(user):
     return (
         getattr(user, "is_authenticated", False)
         and (
-            getattr(user, "role", None) in ["admin", "staff"]
+            getattr(user, "role", None) == 'admin'
             or getattr(user, "is_superuser", False)
         )
     )

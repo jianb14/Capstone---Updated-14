@@ -95,7 +95,7 @@ images remain labeled **AI concepts**. Mixed requests can return both. Deleted
 or deactivated gallery images are filtered out of subsequent status/history
 responses.
 
-Admins/staff can open `/dashboard/ai-health/` (admins also have an **AI Health**
+Admins can open `/dashboard/ai-health/` (admins also have an **AI Health**
 sidebar link). It reports recorded failures, active jobs, quality repairs,
 request trends and token usage when the provider returned it. Latency and usage
 are sampled from the latest 500 requests in the selected period. Estimated text

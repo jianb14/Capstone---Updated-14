@@ -1,4 +1,9 @@
 {% extends 'client/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/gallery_viewer.css' %}?v=20261025d">
+{% endblock %}
 
 {% block content %}
 
@@ -19,7 +24,7 @@
 
             <div class="gallery-grid">
                 {% for img in gallery_images %}
-                <div class="gallery-item" data-category="{{ img.category_id }}">
+                <div class="gallery-item" data-category="{{ img.category_id }}" data-category-name="{{ img.category.name }}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="View {{ img.category.name }} photo">
                     <img src="{% url 'gallery_image_preview' img.id %}?v={{ img.preview_version }}" data-full-image="{{ img.image.url }}" alt="{{ img.caption|default:'Gallery image' }}" loading="{% if forloop.counter <= 4 %}eager{% else %}lazy{% endif %}" decoding="async">
                     {% if img.caption %}
                     <div class="gallery-caption">{{ img.caption }}</div>
@@ -46,11 +51,23 @@
     </div>
 
     <!-- Lightbox Modal -->
-    <div class="gallery-lightbox" id="galleryLightbox">
-        <button class="lightbox-close" id="lightboxClose">&times;</button>
-        <img class="lightbox-img" id="lightboxImg" src="" alt="">
-        <div class="lightbox-caption" id="lightboxCaption"></div>
-    </div>
+    <dialog class="gallery-viewer" id="galleryLightbox" aria-label="Gallery image" aria-describedby="lightboxCaption">
+        <header class="gallery-viewer__toolbar">
+            <span id="lightboxCategory">Gallery</span>
+            <button type="button" class="gallery-viewer__close" id="lightboxClose" aria-label="Close image preview" autofocus>
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
+        <div class="gallery-viewer__body" id="lightboxBody">
+            <div class="gallery-viewer__image">
+                <img id="lightboxImg" alt="">
+            </div>
+            <section class="gallery-viewer__details" id="lightboxDetails" aria-label="Image description" hidden>
+                <h2>Description</h2>
+                <p id="lightboxCaption" tabindex="0"></p>
+            </section>
+        </div>
+    </dialog>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -135,6 +152,28 @@
             const lightboxImg = document.getElementById('lightboxImg');
             const lightboxCaption = document.getElementById('lightboxCaption');
             const lightboxClose = document.getElementById('lightboxClose');
+            const lightboxBody = document.getElementById('lightboxBody');
+            const lightboxDetails = document.getElementById('lightboxDetails');
+            const lightboxCategory = document.getElementById('lightboxCategory');
+            let previousOverflow = '';
+
+            function openLightbox(item) {
+                const img = item.querySelector('img');
+                const caption = item.querySelector('.gallery-caption')?.textContent.trim() || '';
+                lightboxImg.src = img.dataset.fullImage;
+                lightboxImg.alt = img.alt;
+                lightboxCategory.textContent = item.dataset.categoryName || 'Gallery';
+                lightboxCaption.textContent = caption;
+                lightboxDetails.hidden = !caption;
+                lightboxBody.classList.toggle('has-caption', Boolean(caption));
+                if (caption) lightbox.setAttribute('aria-describedby', 'lightboxCaption');
+                else lightbox.removeAttribute('aria-describedby');
+                if (!lightbox.open) {
+                    previousOverflow = document.body.style.overflow;
+                    document.body.style.overflow = 'hidden';
+                    lightbox.showModal();
+                }
+            }
 
             items.forEach(item => {
                 const img = item.querySelector('img');
@@ -147,29 +186,28 @@
                 };
                 img.addEventListener('error', fallback, { once: true });
                 if (img.complete && !img.naturalWidth) fallback();
-                item.addEventListener('click', () => {
-                    const caption = item.querySelector('.gallery-caption');
-                    lightboxImg.src = img.dataset.fullImage;
-                    lightboxImg.alt = img.alt;
-                    lightboxCaption.textContent = caption ? caption.textContent : '';
-                    lightbox.classList.add('active');
-                    document.body.style.overflow = 'hidden';
+                item.addEventListener('click', () => openLightbox(item));
+                item.addEventListener('keydown', event => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    openLightbox(item);
                 });
             });
             scheduleLayout();
 
             lightboxClose.addEventListener('click', closeLightbox);
-            lightbox.addEventListener('click', (e) => {
-                if (e.target === lightbox) closeLightbox();
+            lightbox.addEventListener('click', event => {
+                if (event.target !== lightbox) return;
+                const rect = lightbox.getBoundingClientRect();
+                if (event.clientX < rect.left || event.clientX > rect.right ||
+                    event.clientY < rect.top || event.clientY > rect.bottom) closeLightbox();
             });
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closeLightbox();
+            lightbox.addEventListener('close', () => {
+                document.body.style.overflow = previousOverflow;
             });
 
             function closeLightbox() {
-                lightbox.classList.remove('active');
-                document.body.style.overflow = '';
+                if (lightbox.open) lightbox.close();
             }
         });
     </script>

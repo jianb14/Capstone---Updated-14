@@ -61,7 +61,7 @@ class AboutStatisticsTests(TestCase):
         url = reverse('admin_about_content')
         response = self.client.get(url)
         self.assertEqual(response.context['customers_served'], 1)
-        self.assertContains(response, 'id="preview_customers_served" value="1" class="form-control" readonly')
+        self.assertNotContains(response, 'aria-label="Automatic customer count"')
         self.assertNotContains(response, 'name="story_stat_number"')
         self.assertNotContains(response, 'name="story_stat_text"')
         response = self.client.post(url, {

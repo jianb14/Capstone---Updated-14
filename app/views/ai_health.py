@@ -18,7 +18,7 @@ from ..models import AiRequest
 @login_required
 def ai_health(request):
     if not _is_admin_user(request.user):
-        return HttpResponseForbidden('Staff access required')
+        return HttpResponseForbidden('Admin access required')
     days = int(request.GET.get('days', '7')) if request.GET.get('days', '7') in ('1', '7', '30') else 7
     now = timezone.now()
     base = AiRequest.objects.filter(created_at__gte=now-timedelta(days=days))

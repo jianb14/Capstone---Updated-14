@@ -1,6 +1,9 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const root = document.querySelector('.offer-editor');
+window.initOfferEditor = (scope = document) => {
+    const root = scope.querySelector('.offer-editor');
     if (!root) return;
+    if (root.dataset.initialized) return;
+    root.dataset.initialized = 'true';
+    const lifecycle = new AbortController();
     const form = document.getElementById('offerEditorForm');
     const data = JSON.parse(document.getElementById('offer-editor-data').textContent);
     const categories = new Map(data.categories.map(category => [Number(category.id), category]));
@@ -21,10 +24,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const save = document.getElementById('saveOfferButton');
     const saveLabel = save.textContent;
     const state = document.getElementById('offerSaveStatus');
+    const setSaveStatus = message => {if (state) state.textContent = message;};
     const errorSummary = document.getElementById('offerErrorSummary');
     let openCategorySelect = null;
     let validationShown = !errorSummary.hidden;
     let inclusionErrors = [];
+    const panels = [...root.querySelectorAll('[data-offer-panel]')];
+    const panelTabs = [...root.querySelectorAll('[data-offer-panel-tab]')];
+    function showPanel(key, focus = false) {
+        if (!panelTabs.length) return;
+        panels.forEach(panel => {
+            panel.hidden = panel.dataset.offerPanel !== key;
+            panel.setAttribute('role', 'tabpanel');
+            panel.setAttribute('aria-labelledby', `offer-tab-${panel.dataset.offerPanel}`);
+        });
+        panelTabs.forEach(tab => {const active=tab.dataset.offerPanelTab===key;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;});
+        if (focus) panelTabs.find(tab=>tab.dataset.offerPanelTab===key)?.focus();
+    }
+    panelTabs.forEach((tab,index) => {
+        tab.addEventListener('click', () => showPanel(tab.dataset.offerPanelTab));
+        tab.addEventListener('keydown', event => {
+            let next;
+            if(event.key==='ArrowRight') next=(index+1)%panelTabs.length;
+            else if(event.key==='ArrowLeft') next=(index+panelTabs.length-1)%panelTabs.length;
+            else if(event.key==='Home') next=0;
+            else if(event.key==='End') next=panelTabs.length-1;
+            else return;
+            event.preventDefault();showPanel(panelTabs[next].dataset.offerPanelTab,true);
+        });
+    });
+    showPanel('details');
 
     function refreshValidationSummary() {
         if (!validationShown) return;
@@ -33,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasErrors) {
             errorSummary.hidden = true;
             validationShown = false;
-            state.textContent = 'Changes are saved together.';
+            setSaveStatus('Changes are saved together.');
         }
     }
 
@@ -159,10 +188,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.addEventListener('pointerdown', event => {
+    root.addEventListener('pointerdown', event => {
         if (openCategorySelect && !(event.target instanceof Node && openCategorySelect.wrapper.contains(event.target))) openCategorySelect.close();
     });
-    window.addEventListener('resize', () => openCategorySelect?.close());
+    window.addEventListener('resize', () => openCategorySelect?.close(), {signal:lifecycle.signal});
 
     function syncRows() {
         document.getElementById('offerInclusions').value = JSON.stringify(rows.map((row, index) => ({
@@ -182,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updatePreview() {
         syncRows();
         document.getElementById('inclusionCount').textContent = `${rows.length} inclusion${rows.length === 1 ? '' : 's'}`;
+        const tabCount=root.querySelector('[data-offer-inclusion-count]');if(tabCount)tabCount.textContent=rows.length;
         document.getElementById('emptyInclusions').hidden = rows.length > 0;
         document.getElementById('customerPreviewName').textContent = fieldValue('name') || 'Your offer name';
         document.getElementById('customerPreviewDescription').textContent = fieldValue('description');
@@ -320,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const term = search.value.trim().toLowerCase(); options.replaceChildren();
         data.categories.filter(category => category.name.toLowerCase().includes(term)).forEach(category => {
             const used = rows.some(row => row.row_type === 'item' && Number(row.category_id) === Number(category.id));
-            const button = document.createElement('button'); button.type = 'button'; button.className = 'oe-category-option'; button.disabled = used || !category.active;
+            const button = document.createElement('button'); button.type = 'button'; button.className = root.closest('.catalog-dialog') ? 'oe-category-option ac-button' : 'oe-category-option'; button.disabled = used || !category.active;
             const name = document.createElement('span'); name.textContent = category.name; button.appendChild(name);
             const status = document.createElement('small'); status.textContent = used ? 'Already included' : category.active ? 'Add item +' : 'Hidden'; button.appendChild(status);
             button.addEventListener('click', () => {
@@ -406,21 +436,33 @@ document.addEventListener('DOMContentLoaded', () => {
         errorSummary.hidden = false;
         errorSummary.textContent = 'Please review the marked fields. Your changes and selected images have been kept.';
         const first = form.querySelector('[aria-invalid="true"]');
-        if (first) { first.closest('details')?.setAttribute('open', ''); first.focus(); first.scrollIntoView({behavior: 'smooth', block: 'center'}); }
-        else { errorSummary.focus(); errorSummary.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+        if (first) {showPanel(first.closest('[data-offer-panel]')?.dataset.offerPanel || 'details'); first.closest('details')?.setAttribute('open', ''); first.focus(); first.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+        else {showPanel(Object.keys(result.row_errors || {}).length?'inclusions':result.image_errors?.length?'photos':'details');errorSummary.focus(); errorSummary.scrollIntoView({behavior: 'smooth', block: 'center'}); }
     }
     form.addEventListener('submit', async event => {
         event.preventDefault(); syncRows(); const payload = new FormData(form);
-        save.disabled = true; save.textContent = 'Saving…'; state.textContent = 'Saving your offer…';
+        save.disabled = true; save.textContent = 'Saving…'; setSaveStatus('Saving your offer…');
+        root.dispatchEvent(new CustomEvent('catalog:busy', {bubbles:true, detail:true}));
         try {
             const response = await fetch(form.action || window.location.href, {method: 'POST', body: payload, headers: {'X-Requested-With': 'XMLHttpRequest'}});
             const result = await response.json();
-            if (response.ok && result.success) { window.location.assign(result.redirect_url); return; }
-            displayErrors(result); state.textContent = 'Review the marked fields to continue.';
+            if (response.ok && result.success) {
+                if (root.closest('[data-catalog-content]')) root.dispatchEvent(new CustomEvent('catalog:saved', {bubbles:true, detail:result}));
+                else window.location.assign(result.redirect_url);
+                return;
+            }
+            const hasValidation = Object.keys(result.errors || {}).length || Object.keys(result.row_errors || {}).length || result.image_errors?.length;
+            if (!hasValidation) throw new Error(result.message || result.error || 'The offer could not be saved. Your changes are still here. Please try again.');
+            displayErrors(result); setSaveStatus('Review the marked fields to continue.');
         } catch (error) {
             validationShown = false;
-            errorSummary.hidden = false; errorSummary.textContent = 'The offer could not be saved. Your changes are still here. Please try again.'; state.textContent = 'Not saved. Please try again.';
-        } finally { save.disabled = false; save.textContent = saveLabel; }
+            const message = error instanceof SyntaxError || error instanceof TypeError ?
+                'The offer could not be saved. Your changes are still here. Please try again.' : error.message;
+            errorSummary.hidden = false; errorSummary.textContent = message; setSaveStatus('Not saved. Please try again.');
+            root.dispatchEvent(new CustomEvent('catalog:failed', {bubbles:true, detail:{message}}));
+        } finally { save.disabled = false; save.textContent = saveLabel; root.dispatchEvent(new CustomEvent('catalog:busy', {bubbles:true, detail:false})); }
     });
     renderRows(data.row_errors || {}); showImageMessages(data.image_errors || []); renderImages();
-});
+    return () => { lifecycle.abort(); openCategorySelect?.close(); newImages.forEach(image => URL.revokeObjectURL(image.url)); };
+};
+document.addEventListener('DOMContentLoaded', () => window.initOfferEditor());

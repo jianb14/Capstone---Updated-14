@@ -1,0 +1,19 @@
+{% if users %}
+<div class="ac-table-scroll um-table-scroll"><table class="ac-table um-table">
+    <thead><tr><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Phone</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Actions</th></tr></thead>
+    <tbody>{% for u in users %}<tr data-user-row="{{ u.pk }}">
+        <td><div class="um-account"><span class="um-avatar" aria-hidden="true">{{ u.first_name|default:u.username|slice:':1'|upper }}</span><div><strong>{{ u.get_full_name|default:u.username }}</strong><span class="um-email">{{ u.email|default:'No email address' }}</span><small>#USER-{{ u.pk }} &middot; {{ u.username }}</small></div></div></td>
+        <td>{% include 'admin/user/_role.html' %}</td>
+        <td class="um-phone">{{ u.phone_number|default:'Not provided' }}</td>
+        <td><span class="ac-status {% if u.is_active %}ac-status--resolved{% else %}ac-status--cancelled{% endif %}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span>{% if not u.email_verified %}<small class="um-verification">Email unverified</small>{% endif %}</td>
+        <td><span class="ac-date">{{ u.date_joined|date:'M d, Y' }}</span></td>
+        <td><div class="um-actions"><a href="{% url 'admin_user_detail' u.pk %}" class="ac-icon-btn um-view" data-user-id="{{ u.pk }}" aria-label="View user #USER-{{ u.pk }}" title="View details">{% include 'admin/user/_icon.html' with icon='eye' %}</a>{% include 'admin/user/_access_button.html' %}{% if u == request.user %}<small class="um-you">You</small>{% endif %}</div></td>
+    </tr>{% endfor %}</tbody>
+</table></div>
+{% include 'components/account_table_footer.html' with page=users page_key='page' pagination_label='Users' %}
+{% else %}
+<div class="ac-empty">
+    {% if has_filters %}{% include 'components/account_empty_state.html' with empty_kind='users' empty_title='No matching users' empty_description='Try another name, email or account ID, or clear your filters.' reset_filters=True %}
+    {% else %}{% include 'components/account_empty_state.html' with empty_kind='users' empty_title='No users yet' empty_description='Registered accounts will appear here when people join Balloorina.' %}{% endif %}
+</div>
+{% endif %}

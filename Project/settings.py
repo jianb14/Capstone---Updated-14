@@ -97,6 +97,8 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'app.admin_security_middleware.AdminEmailSetupMiddleware',
+    'app.account_lifecycle.CustomerAccountLifecycleMiddleware',
     'app.request_limits.RequestLimitsMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -351,6 +353,10 @@ PASSWORD_CHANGE_OTP_RATE_LIMIT_PER_IP = max(1, env_int('PASSWORD_CHANGE_OTP_RATE
 PASSWORD_CHANGE_OTP_RATE_LIMIT_PER_EMAIL = max(1, env_int('PASSWORD_CHANGE_OTP_RATE_LIMIT_PER_EMAIL', 3))
 PASSWORD_CHANGE_OTP_RATE_LIMIT_WINDOW_SECONDS = max(60, env_int('PASSWORD_CHANGE_OTP_RATE_LIMIT_WINDOW_SECONDS', 3600))
 PASSWORD_CHANGE_OTP_COOLDOWN_SECONDS = max(1, env_int('PASSWORD_CHANGE_OTP_COOLDOWN_SECONDS', 60))
+ACCOUNT_DELETION_OTP_RATE_LIMIT_PER_IP = max(1, env_int('ACCOUNT_DELETION_OTP_RATE_LIMIT_PER_IP', 5))
+ACCOUNT_DELETION_OTP_RATE_LIMIT_PER_EMAIL = max(1, env_int('ACCOUNT_DELETION_OTP_RATE_LIMIT_PER_EMAIL', 3))
+ACCOUNT_DELETION_OTP_RATE_LIMIT_WINDOW_SECONDS = max(60, env_int('ACCOUNT_DELETION_OTP_RATE_LIMIT_WINDOW_SECONDS', 3600))
+ACCOUNT_DELETION_OTP_COOLDOWN_SECONDS = max(1, env_int('ACCOUNT_DELETION_OTP_COOLDOWN_SECONDS', 60))
 
 # Verification-email resend abuse protections
 VERIFICATION_RESEND_RATE_LIMIT_PER_IP = env_int("VERIFICATION_RESEND_RATE_LIMIT_PER_IP", 5)

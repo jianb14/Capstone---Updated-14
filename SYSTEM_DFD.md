@@ -235,4 +235,4 @@ flowchart TB
 - Booking approval flow in code transitions `pending -> pending_payment`, then payment verification transitions booking to `confirmed`.
 - Payment supports both manual GCash submission and PayMongo checkout/webhook ingestion.
 - AI chat includes moderation state/events and may return warning/ban payloads without saving normal chat messages.
-- Admin and Staff share many management pages, while some actions (for example concern status update endpoint) are restricted to `admin` role.
+- Admin management pages and actions require the `admin` role; Customer accounts have no administrator access.

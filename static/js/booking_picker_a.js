@@ -42,7 +42,7 @@ g._BKP = { MO: MO, A: A, RD: RD, why: why, fire: fire, pops: [],
   outsideCloser: function (pop, input, close, extra) {
     if (!pop || !close) return;
     g._BKP.track(pop, close, extra);
-    document.addEventListener('pointerdown', function (e) {
+    AccountPages.listen(document, 'pointerdown', function (e) {
       try {
         if (pop.hidden) return;
         if (pop.contains(e.target) || e.target === input) return;
@@ -52,7 +52,7 @@ g._BKP = { MO: MO, A: A, RD: RD, why: why, fire: fire, pops: [],
         close();
       } catch (err) {}
     }, true);
-    document.addEventListener('focusin', function (e) {
+    AccountPages.listen(document, 'focusin', function (e) {
       try {
         if (pop.hidden) return;
         if (e.target === input || pop.contains(e.target)) return;

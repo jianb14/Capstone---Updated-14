@@ -304,6 +304,7 @@
                 });
         }
 
+        AccountPages.cleanup(() => { cancelSearch(); map.remove(); });
         var searchFields = [addressInput, searchInput].filter(function (field, idx, fields) {
             return field && fields.indexOf(field) === idx;
         });
@@ -356,7 +357,7 @@
                 }
             });
         }
-        document.addEventListener('click', function (e) {
+        AccountPages.listen(document, 'click', function (e) {
             if (!suggestionsEl) return;
             if (suggestionsEl.contains(e.target)) return;
             if (searchFields.indexOf(e.target) !== -1) return;
@@ -391,7 +392,7 @@
 
         // I-layout ulit kapag unang beses na lumitaw ang modal/tab ang resize
         setTimeout(function () { try { map.invalidateSize(); } catch (e) { /* noop */ } }, 250);
-        global.addEventListener('resize', function () {
+        AccountPages.listen(global, 'resize', function () {
             try { map.invalidateSize(); } catch (e) { /* noop */ }
         });
 
@@ -623,6 +624,15 @@
             expandBtn: null
         };
         mapEl.__bookingMapCtx = ctx;
+        let destroyed = false;
+        ctx.destroy = function () {
+            if (destroyed) return;
+            destroyed = true;
+            if (expandedCtx === ctx) collapseMap();
+            map.remove();
+            delete mapEl.__bookingMapCtx;
+        };
+        AccountPages.cleanup(ctx.destroy);
         if (frame) attachExpandControl(ctx, opts);
 
         invalidateLater(ctx);

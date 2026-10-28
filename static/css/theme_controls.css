@@ -1,0 +1,28 @@
+/* A small outline control; the selected theme spreads from its position. */
+.navbar .theme-toggle-btn { position:relative; display:grid; place-items:center; flex:none; width:40px; height:40px; padding:9px; border:0; border-radius:50%; background:transparent; color:#a1a1aa; isolation:isolate; transition:background-color 140ms,color 140ms; }
+[data-theme="light"] .navbar .theme-toggle-btn { color:#71717a; }
+.navbar .theme-toggle-btn:hover { color:#f4f4f5; background:rgba(255,255,255,.055); }
+[data-theme="light"] .navbar .theme-toggle-btn:hover { color:#18181b; background:rgba(0,0,0,.035); }
+.navbar .theme-toggle-btn:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
+.navbar .theme-toggle-btn .theme-icon-sun,
+.navbar .theme-toggle-btn .theme-icon-moon { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.5; opacity:1; transform-origin:center; }
+.navbar .theme-toggle-btn.is-switching svg { animation:theme-icon-in 300ms cubic-bezier(.2,.8,.2,1); }
+.navbar .mobile-theme-row .theme-toggle-btn { width:40px; height:40px; padding:9px; }
+@media(max-width:968px) {
+    .navbar .profile-dropdown > .theme-toggle-btn,
+    .navbar .nav-right-guest > .theme-toggle-btn { display:none; }
+}
+html.theme-revealing::view-transition-group(root) { animation:none; }
+html.theme-revealing::view-transition { pointer-events:none; }
+html.theme-revealing::view-transition-image-pair(root) { isolation:isolate; }
+html.theme-revealing::view-transition-old(root),
+html.theme-revealing::view-transition-new(root) { animation:none; mix-blend-mode:normal; }
+html.theme-revealing::view-transition-old(root) { z-index:1; }
+html.theme-revealing::view-transition-new(root) { z-index:2; }
+html.theme-revealing *,html.theme-revealing *::before,html.theme-revealing *::after { transition:none !important; }
+@keyframes theme-icon-in { from { opacity:.35; transform:rotate(-40deg) scale(.7); } to { opacity:1; transform:rotate(0) scale(1); } }
+@media(prefers-reduced-motion:reduce) {
+    .navbar .theme-toggle-btn,.navbar .profile-avatar-chevron { transition:none; }
+    .navbar .theme-toggle-btn.is-switching svg { animation:none; }
+    html.theme-animating *,html.theme-animating *::before,html.theme-animating *::after { transition:none !important; }
+}

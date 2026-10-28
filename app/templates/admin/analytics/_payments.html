@@ -1,0 +1,22 @@
+{% include 'admin/analytics/_kpis.html' with cards=insights.payment_kpis %}
+<div class="ar-section-note"><h2>Collections received in this period</h2><p>Verified, applied payments dated {{ filters.period_label }}, regardless of the booking date. The event type filter still applies. {{ insights.collections.delta.text }}.</p></div>
+{% if insights.collections.fallback_count or insights.collections.undated_count %}<div class="ar-quality-note"><strong>Payment date coverage</strong><p>{{ insights.collections.fallback_count }} payments in this period use their verification date because no receipt date is recorded. {{ insights.collections.undated_count }} verified payments across all dates have neither timestamp and are excluded from the dated totals.</p></div>{% endif %}
+<div class="ar-chart-grid">
+  <article class="ar-chart-card"><header><div><h2>Collections over time</h2><p>Recorded receipt or submission date; verified payments only.</p></div></header>
+    <div class="ar-trend-key"><span><i></i>Selected period</span>{% if filters.previous_start %}<span><i class="ar-dashed"></i>Previous period</span>{% endif %}</div>
+    {% if insights.collections.has_trend %}<div class="ar-chart-frame"><canvas data-chart="receipts" role="img" aria-label="Collections over time"></canvas></div>
+    {% else %}{% include 'admin/analytics/_empty.html' with title='No dated collections in these periods' %}{% endif %}
+    <details class="ar-data"><summary>View collection data</summary><div class="ar-data-scroll" data-receipt-table></div></details>
+  </article>
+  {% include 'admin/analytics/_bar.html' with title='Collections by payment method' subtitle='Verified amounts received within the date range.' chart='methods' rows=insights.collections.methods has_data=insights.collections.methods currency=True %}
+</div>
+<div class="ar-section-note"><h2>Payment progress of selected bookings</h2><p>Uses {{ filters.basis_label|lower }} and the selected period. Pending quotations, cancelled and expired bookings are excluded from collectible balances. Pending or rejected payments do not reduce balances.</p></div>
+<div class="ar-chart-grid">
+  {% include 'admin/analytics/_bar.html' with title='Booking payment progress' subtitle='Derived from verified applied payments, not cached status labels.' chart='payment_progress' rows=insights.payment_progress has_data=insights.payable_count %}
+  <article class="ar-chart-card ar-outcomes"><header><div><h2>Balance reconciliation</h2><p>{{ insights.payable_count }} approved or completed bookings in the cohort.</p></div></header>
+    <dl><div><dt>Booking value</dt><dd>₱{{ insights.payable_value|floatformat:"2g" }}</dd></div>
+      <div><dt>Verified credit toward value</dt><dd>₱{{ insights.credited_capped|floatformat:"2g" }}</dd></div>
+      <div><dt>Remaining balance</dt><dd>₱{{ insights.remaining_balance|floatformat:"2g" }}</dd></div></dl>
+    <p>Credit is capped at each booking's price for this reconciliation. Excess payments do not offset balances of other bookings. This is not a profit or net-refund report.</p>
+  </article>
+</div>

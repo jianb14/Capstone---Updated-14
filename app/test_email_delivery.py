@@ -64,6 +64,21 @@ class BrevoEmailDeliveryTests(TestCase):
             "password": "Passw0rd!", "confirm_password": "Passw0rd!",
         }
 
+    def test_admin_security_codes_and_invitation_use_configured_brevo_backend(self):
+        self.admin.is_superuser = True
+        self.admin.save(update_fields=['is_superuser'])
+        self.client.force_login(self.admin)
+        data = {'first_name': 'Jamie', 'last_name': 'Rivera', 'email': 'invited-admin@example.com',
+                'phone_number': '09171234567', 'current_password': 'Passw0rd!'}
+        self.assertEqual(self.client.post(reverse('admin_security_action', args=['invite', 'send']), data, secure=True).status_code, 200)
+        payload = self.payload('Balloorina admin verification code', ['admin@example.com'])
+        code = re.search(r'\b\d{6}\b', payload['textContent']).group()
+        self.post.reset_mock()
+        self.assertEqual(self.client.post(reverse('admin_security_action', args=['invite', 'confirm']), {'code': code}, secure=True).status_code, 200)
+        payload = self.payload('You are invited to administer Balloorina', ['invited-admin@example.com'])
+        self.assertIn('/admin-invitation/', payload['textContent'])
+        self.assertFalse(User.objects.filter(email='invited-admin@example.com').exists())
+
     def test_registration_code_verifies_account_then_allows_login(self):
         response = self.client.post(reverse("register"), self.registration_data(), secure=True)
         self.assertRedirects(response, reverse("verify_account_otp"), fetch_redirect_response=False)
@@ -121,11 +136,21 @@ class BrevoEmailDeliveryTests(TestCase):
                 self.assertContains(response, text)
         self.assertFalse(AuditLog.objects.filter(action="Verification email resent.").exists())
 
-    def test_admin_password_reset_uses_brevo(self):
+    def test_admin_password_reset_is_retired_without_sending_mail(self):
         self.client.force_login(self.admin)
         response = self.client.post(reverse("admin_user_reset_password", args=[self.user.pk]))
-        self.assertEqual(response.status_code, 302)
-        self.payload("Password Reset Request", [self.user.email])
+        self.assertEqual(response.status_code, 403)
+        self.post.assert_not_called()
+
+    def test_account_access_change_uses_brevo(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("admin_user_toggle", args=[self.user.pk]),
+            {"action": "deactivate", "expected_active": "1"})
+        self.assertEqual(response.status_code, 200)
+        payload = self.payload("account has been deactivated", [self.user.email])
+        self.assertIn("htmlContent", payload)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
 
     def test_booking_alert_uses_configured_admin_addresses(self):
         ServiceChargeConfig.objects.create(pk=1, shop_lat="14.414", shop_lng="120.982")

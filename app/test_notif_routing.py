@@ -49,29 +49,35 @@ class NotifRoutingTests(TestCase):
         self.assertEqual(_customer_notif_target_url(notif), f"{reverse('customer_profile')}?booking_id={self.booking.id}&modal=design&from_notif=1")
 
     def test_customer_payment_verified_goes_to_payment_history(self):
+        payment = Payment.objects.create(booking=self.booking, amount=1000,
+            payment_status='verified', payment_method='gcash', transaction_ref='notif-verified')
         notif = self._customer_notif(
             f"Your payment of PHP 1,000.00 for Booking #{self.booking.id} "
             "has been verified. Thank you!"
         )
         url = _customer_notif_target_url(notif)
-        self.assertEqual(url, f"{reverse('my_payments')}?tab=payment_history")
+        self.assertEqual(url, f"{reverse('my_payments')}?tab=payment_history&payment_id={payment.id}&from_notif=1")
 
-    def test_customer_payment_reminder_goes_to_payment_history(self):
+    def test_customer_payment_reminder_goes_to_action_required(self):
+        self.booking.status='confirmed'
+        self.booking.save(update_fields=['status'])
         notif = self._customer_notif(
             f"Payment Reminder: Booking #{self.booking.id} for 2099-06-15 "
             "still has outstanding balance. Please settle your payment "
             "to secure your slot. Thank you!"
         )
         url = _customer_notif_target_url(notif)
-        self.assertEqual(url, f"{reverse('my_payments')}?tab=payment_history")
+        self.assertEqual(url, f"{reverse('my_payments')}?tab=action_required&booking_id={self.booking.id}&from_notif=1")
 
     def test_customer_booking_approved_goes_to_action_required(self):
+        self.booking.status='pending_payment'
+        self.booking.save(update_fields=['status'])
         notif = self._customer_notif(
             f"Great news! Your booking #{self.booking.id} has been approved! "
             "Please proceed to payment to confirm your slot."
         )
         url = _customer_notif_target_url(notif)
-        self.assertEqual(url, f"{reverse('my_payments')}?tab=action_required")
+        self.assertEqual(url, f"{reverse('my_payments')}?tab=action_required&booking_id={self.booking.id}&from_notif=1")
 
     def test_customer_booking_confirmed_stays_on_profile_detail(self):
         notif = self._customer_notif(

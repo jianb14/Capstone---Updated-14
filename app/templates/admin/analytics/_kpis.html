@@ -1,0 +1,8 @@
+<div class="ar-kpis">
+{% for kpi in cards %}
+  <article class="ac-kpi ar-kpi ar-accent-{{ kpi.accent }}" data-kpi="{{ kpi.key }}" style="--ar-order:{{ forloop.counter0 }}">
+    <div class="ac-kpi-head"><span>{{ kpi.label }}</span>{% include 'admin/analytics/_icon.html' with icon=kpi.icon %}</div>
+    <strong>{{ kpi.value }}</strong><p>{{ kpi.note }}</p>
+  </article>
+{% endfor %}
+</div>

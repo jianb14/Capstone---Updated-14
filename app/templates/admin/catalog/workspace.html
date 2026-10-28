@@ -1,0 +1,33 @@
+{% extends 'admin/admin_base.html' %}{% load static %}
+{% block title %}{{ title }} | Balloorina{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261026g">
+{% if workspace == 'packages' %}<link rel="stylesheet" href="{% static 'css/offer_editor.css' %}?v=20261022d">{% endif %}
+<link rel="stylesheet" href="{% static 'css/admin_catalog.css' %}?v=20261028f">
+<link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028a">
+{% block workspace_css %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="ac-workspace catalog-workspace {% block workspace_class %}{% endblock %}" data-catalog-root data-list-url="{{ list_url }}">
+    <div hidden>{% csrf_token %}</div>
+    {% block workspace_header %}<header class="ac-header page-header"><h1>{{ title }}</h1><p class="page-subtitle">{{ subtitle }}</p></header>{% endblock %}
+    <div data-catalog-workspace>{% block workspace_body %}{% include 'admin/catalog/_workspace.html' %}{% endblock %}</div>
+    <dialog class="ac-dialog catalog-dialog" data-catalog-dialog aria-labelledby="catalogDialogTitle"><div class="ac-dialog-shell">
+        <header class="ac-dialog-header"><div><h2 id="catalogDialogTitle">Details</h2><p data-dialog-subtitle>Keep your content accurate and ready to use.</p></div><button class="ac-close" type="button" data-catalog-close aria-label="Close dialog">{% include 'admin/catalog/_icon.html' with icon='close' %}</button></header>
+        <div class="ac-dialog-body" data-catalog-body><p class="ac-feedback" data-dialog-feedback role="status" aria-live="polite"></p><div data-catalog-content></div></div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-catalog-close>Close</button></footer>
+    </div></dialog>
+    <dialog class="ac-dialog catalog-confirm" data-delete-dialog aria-labelledby="catalogDeleteTitle"><div class="ac-dialog-shell">
+        <header class="ac-dialog-header"><div><h2 id="catalogDeleteTitle">Delete selected items?</h2><p>This action cannot be undone.</p></div><button type="button" class="ac-close" data-delete-cancel aria-label="Cancel deletion">{% include 'admin/catalog/_icon.html' with icon='close' %}</button></header>
+        <div class="ac-dialog-body"><p data-delete-description></p>{% block delete_options %}{% endblock %}<p class="ac-feedback" data-delete-feedback role="alert"></p></div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-delete-cancel>Cancel</button><button type="button" class="ac-button catalog-danger" data-delete-confirm>Delete items</button></footer>
+    </div></dialog>
+    <dialog class="ac-image-dialog" data-catalog-image aria-label="Content photo"><button type="button" class="ac-close" data-image-close aria-label="Close photo">{% include 'admin/catalog/_icon.html' with icon='close' %}</button><img alt="Content photo"></dialog>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/admin_selects.js' %}?v=20261026c"></script>
+<script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script>
+{% if workspace == 'packages' %}<script src="{% static 'js/offer_editor.js' %}?v=20261028catalog5"></script>{% endif %}
+<script src="{% static 'js/admin_catalog.js' %}?v=20261028f"></script>
+{% endblock %}

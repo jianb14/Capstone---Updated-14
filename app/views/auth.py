@@ -233,7 +233,7 @@ def verify_email(request, uidb64, token):
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
 
-    if not user or not email_verification_token_generator.check_token(user, token):
+    if not user or user.role != 'customer' or not email_verification_token_generator.check_token(user, token):
         messages.info(request, 'This verification link is invalid or expired. Log in to continue verification.')
         return redirect('login')
     if user.email_verified:
@@ -286,7 +286,9 @@ def user_login(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            if not user.is_superuser and not getattr(user, "email_verified", True):
+            if user.role not in dict(User.ROLE_CHOICES):
+                return render(request, "auth/login.html", {"error": "Invalid email or password."})
+            if user.role == 'customer' and not user.is_superuser and not getattr(user, "email_verified", True):
                 if signup_lifecycle.signup_expired(user):
                     signup_lifecycle.forget_signup(request)
                     messages.info(request, 'This signup has expired. Please register again.')
@@ -311,8 +313,11 @@ def user_login(request):
                 ):
                     return redirect(destination)
                 return redirect("home")
-            elif user.role in ["admin", "staff"]:
+            elif user.role == 'admin':
                 request.session.pop('login_return_to', None)
+                if not user.email_verified:
+                    request.session['admin_email_setup_required'] = True
+                    return redirect(reverse('admin_profile') + '?verify_email=1#admin-email-verification')
                 messages.success(request, "Login successful! Welcome to the dashboard.")
                 return redirect("dashboard")
         else:
@@ -430,7 +435,7 @@ def forgot_password_request(request):
 
 
 def _profile_route(user):
-    return 'admin_profile' if user.role in ('admin', 'staff') else 'customer_profile'
+    return 'admin_profile' if user.role == 'admin' else 'customer_profile'
 
 
 def _otp_template_context(context, purpose):
@@ -491,11 +496,21 @@ def _otp_page(request, purpose):
     from django.db import OperationalError
     key = email_otp.session_key(purpose)
     context = request.session.get(key)
+    inline_change = purpose == EmailOTPChallenge.CHANGE and request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    def inline_response(message='', *, success=False, status=200, **extra):
+        data = _otp_template_context(context,purpose) if context else {}
+        data.pop('digits',None)
+        response = JsonResponse({**data,'success':success,'message':message,**extra},status=status)
+        if extra.get('retry_after'):
+            response['Retry-After'] = str(extra['retry_after'])
+        return response
     entry = {EmailOTPChallenge.SIGNUP: 'resend_verification', EmailOTPChallenge.RESET: 'forgot_password',
              EmailOTPChallenge.CHANGE: (_profile_route(request.user) if request.user.is_authenticated else 'login')}[purpose]
     route = {EmailOTPChallenge.SIGNUP: 'verify_account_otp', EmailOTPChallenge.RESET: 'verify_password_otp',
              EmailOTPChallenge.CHANGE: 'verify_change_password_otp'}[purpose]
     if not context:
+        if inline_change:
+            return inline_response('Start your password change again from your profile.',status=400,restart=True)
         return redirect(entry)
     try:
         challenge = email_otp.get_challenge(context, purpose)
@@ -505,17 +520,27 @@ def _otp_page(request, purpose):
             messages.info(request, 'This signup session has expired. Please register again.')
             return redirect('register')
         if purpose == EmailOTPChallenge.CHANGE and (not email_otp.bound(challenge, user, context) or user.pk != request.user.pk):
+            if inline_change:
+                return inline_response('Start your password change again from your profile.',status=400,restart=True)
             messages.error(request, 'Start your password change again from your profile.')
             return redirect(entry)
         if request.method == 'POST' and request.POST.get('action') == 'resend':
             limited, message = _otp_send_limit(request, context['email'], purpose)
             if limited:
+                if inline_change:
+                    return inline_response(message,status=getattr(request,'_email_limit_status',429),
+                        retry_after=request._email_retry_after,resend_wait=request._email_retry_after)
                 data = _otp_template_context(context, purpose)
                 data['resend_wait'] = request._email_retry_after
                 return _otp_rate_response(request, message, 'auth/verify_otp.html', data)
             replacement, accepted = _resend_bound_code(request, context, purpose)
             if accepted or not challenge:
                 request.session[key] = replacement
+            if inline_change:
+                if accepted:
+                    context = replacement
+                    return inline_response(_otp_notice(purpose),success=True)
+                return inline_response('We could not send a new code. Your password has not changed. Please try again later.',status=503)
             if purpose == EmailOTPChallenge.CHANGE and not accepted:
                 messages.error(request, 'We could not send a new code. Your password has not changed. Please try again later.')
             else:
@@ -539,23 +564,37 @@ def _otp_page(request, purpose):
                     update_session_auth_hash(request, user)
                     request.session.pop(key, None)
                     log_action(user, 'Changed password using an email one-time code.')
+                    if inline_change:
+                        return JsonResponse({'success':True,'verified':True,'message':'Your password was successfully updated!',
+                            'redirect_url':reverse('my_profile')})
                     messages.success(request, 'Your password was successfully updated!')
                     return redirect(_profile_route(user))
                 return redirect('reset_password_otp')
+            if inline_change:
+                return inline_response('The code is invalid, expired, or already used. Please check it or request a new code.',status=400)
             messages.error(request, 'The code is invalid, expired, or already used. Please check it or request a new code.')
     except ValidationError as error:
+        if inline_change:
+            return inline_response(' '.join(error.messages),status=400)
         messages.error(request, ' '.join(error.messages))
     except RateLimited as error:
+        if inline_change:
+            return inline_response(str(error),status=429,retry_after=error.retry_after,verify_wait=error.retry_after)
         request._email_retry_after = error.retry_after
         request._email_limit_status = 429
         data = _otp_template_context(context, purpose)
         data['verify_wait'] = error.retry_after
         return _otp_rate_response(request, str(error), 'auth/verify_otp.html', data)
     except OperationalError:
+        if inline_change:
+            return JsonResponse({'success':False,'message':'Request protection is temporarily unavailable. Please try again in 5 seconds.',
+                'retry_after':5},status=503)
         request._email_retry_after = 5
         request._email_limit_status = 503
         return _otp_rate_response(request, 'Request protection is temporarily unavailable. Please try again in 5 seconds.',
                                   'auth/verify_otp.html', _otp_template_context(context, purpose))
+    if inline_change:
+        return inline_response(success=True)
     return render(request, 'auth/verify_otp.html', _otp_template_context(context, purpose))
 
 
@@ -689,7 +728,8 @@ def password_reset_confirm(request, uidb64, token):
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
 
-    is_valid_link = bool(user and default_token_generator.check_token(user, token))
+    is_valid_link = bool(user and not (user.role == 'admin' and not user.email_verified)
+                         and default_token_generator.check_token(user, token))
 
     if request.method == "POST":
         if not is_valid_link:
@@ -772,11 +812,3 @@ def change_password(request):
             for error in items:
                 messages.error(request, error)
     return redirect(_profile_route(request.user))
-
-
-def create_admin_account(request):
-    User = get_user_model()
-    if not User.objects.filter(username="admin").exists():
-        User.objects.create_superuser("admin", "admin@example.com", "admin12345", role="admin")
-        return HttpResponse("Admin account created! Username: admin, Password: admin12345. PLEASE DELETE THIS ROUTE AFTER USE.")
-    return HttpResponse("Admin already exists.")

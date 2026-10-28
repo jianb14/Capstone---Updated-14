@@ -151,11 +151,13 @@ def _refresh_paymongo_payment_record(payment):
 
 @login_required
 def my_payments(request):
+    from ..account_lists import account_page_size
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
     check_booking_expirations()
     user = request.user
+    per_page = account_page_size(request)
     allowed_tabs = {"action_required", "remaining_balances", "payment_history"}
     active_tab = request.GET.get("tab", "action_required").strip()
     if active_tab not in allowed_tabs:
@@ -164,6 +166,8 @@ def my_payments(request):
     # Payment history filters
     search_query = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "").strip()
+    if status_filter not in ('pending', 'verified', 'rejected'):
+        status_filter = ''
 
     # Include abandoned PayMongo attempts so failed/expired checkouts remain
     # visible in the customer's history as an audit trail (they are excluded
@@ -172,8 +176,18 @@ def my_payments(request):
         Payment.objects.filter(booking__user=user)
         .select_related("booking", "change_request")
         .prefetch_related("booking__images", "booking__payments")
-        .order_by("-created_at")
+        .order_by("-created_at", "-id")
     )
+
+    selected_payment = None
+    if request.GET.get('payment_id'):
+        try:
+            selected_id = int(request.GET['payment_id'])
+        except ValueError:
+            raise Http404('Payment not found')
+        selected_payment = get_object_or_404(payments_qs, pk=selected_id)
+        active_tab = 'payment_history'
+        search_query = status_filter = ''
 
     if search_query:
         payments_qs = payments_qs.filter(
@@ -198,8 +212,12 @@ def my_payments(request):
     total_records = payments_qs.count()
     total_pending_payment_count = pending_count
 
-    payments_paginator = Paginator(payments_qs, 6)
+    payments_paginator = Paginator(payments_qs, per_page)
     payments_page_number = request.GET.get("payments_page", 1)
+    if selected_payment:
+        ahead = payments_qs.filter(Q(created_at__gt=selected_payment.created_at)
+            | Q(created_at=selected_payment.created_at, id__gt=selected_payment.id)).count()
+        payments_page_number = ahead // per_page + 1
     payments_page_obj = payments_paginator.get_page(payments_page_number)
 
     # Attach booking/payment summary fields for detailed tables and modal
@@ -411,13 +429,35 @@ def my_payments(request):
     action_required_total_count = len(action_required_list)
     partial_total_count = len(partial_bookings)
 
-    ar_paginator = Paginator(action_required_list, 6)
+    # A notification may point beyond page one or to a booking whose payment
+    # progress has changed since the notice was issued.
+    target_index = None
+    if request.GET.get('booking_id') and request.GET.get('from_notif') == '1':
+        try:
+            booking_id = int(request.GET['booking_id'])
+        except ValueError:
+            raise Http404('Booking not found')
+        get_object_or_404(Booking, pk=booking_id, user=user)
+        for tab, rows in (('action_required', action_required_list), ('remaining_balances', partial_bookings)):
+            target_index = next((i for i, row in enumerate(rows)
+                if (row.booking_id if getattr(row, 'is_change_payment', False) else row.pk) == booking_id), None)
+            if target_index is not None:
+                active_tab = tab
+                break
+        if target_index is None:
+            return redirect(f'{reverse("customer_profile")}?booking_id={booking_id}&modal=details&from_notif=1')
+
+    ar_paginator = Paginator(action_required_list, per_page)
     ar_page_number = request.GET.get("ar_page", 1)
+    if target_index is not None and active_tab == 'action_required':
+        ar_page_number = target_index // per_page + 1
     action_required_page_obj = ar_paginator.get_page(ar_page_number)
 
     # Paginate partial bookings (Remaining Balances)
-    partial_paginator = Paginator(partial_bookings, 6)
+    partial_paginator = Paginator(partial_bookings, per_page)
     partial_page_number = request.GET.get("partial_page", 1)
+    if target_index is not None and active_tab == 'remaining_balances':
+        partial_page_number = target_index // per_page + 1
     partial_page_obj = partial_paginator.get_page(partial_page_number)
 
     return render(
@@ -439,6 +479,7 @@ def my_payments(request):
             "action_required_page_obj": action_required_page_obj,
             "payments_page_obj": payments_page_obj,
             "active_tab": active_tab,
+            "per_page": per_page,
         },
     )
 
@@ -455,7 +496,7 @@ def download_payment_receipt_pdf(request, payment_id):
 
     # Customers may only download their own receipts, and only for verified
     # payments (a pending/rejected payment is not an official billing record).
-    # Admins/staff may download any receipt.
+    # Admins may download any receipt.
     if request.user.role == "customer":
         if payment.booking.user != request.user:
             return HttpResponseForbidden("Not allowed")
@@ -465,7 +506,7 @@ def download_payment_receipt_pdf(request, payment_id):
                 "Receipts are only available once the payment has been verified.",
             )
             return redirect("my_payments")
-    elif request.user.role not in ["admin", "staff"]:
+    elif request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     response = HttpResponse(
@@ -799,7 +840,7 @@ def submit_payment(request, booking_id):
         payment.receipt_image = receipt_image
     payment.save()
 
-    # Notify admin/staff of the new payment
+    # Notify admin of the new payment
     AdminNotification.objects.create(
         booking=booking,
         user=request.user,
@@ -929,7 +970,7 @@ def payment_cancel(request, booking_id):
 
 @login_required
 def admin_payment_list(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     check_booking_expirations()
@@ -1105,7 +1146,7 @@ def admin_payment_list(request):
 
 @login_required
 def admin_payment_detail(request, id):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     check_booking_expirations()
@@ -1174,7 +1215,7 @@ def admin_payment_detail(request, id):
 @transaction.atomic
 @schedule_atomic
 def admin_payment_action(request, id, action):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     # Where to land after the action. The payments list table passes
@@ -1351,7 +1392,7 @@ def admin_payment_action(request, id, action):
 
 @login_required
 def admin_gcash_config(request):
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     config = GCashConfig.objects.first()
@@ -1406,7 +1447,7 @@ def admin_send_payment_reminder(request, booking_id):
     balance. Creates an in-app Notification and emails the customer.
     Rate-limited to one reminder per PAYMENT_REMINDER_COOLDOWN_HOURS.
     """
-    if request.user.role not in ["admin", "staff"]:
+    if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
     booking = get_object_or_404(

@@ -1708,12 +1708,12 @@ nav.scrolled {
 
 .packages-carousel {
     position: relative;
-    overflow-x: hidden;
+    overflow-x: clip;
     overflow-y: visible;
     max-width: 1240px;
     /* fixed container width para 3 cards maayos (mas malapad na cards) */
     margin: 0 auto;
-    padding: 3rem 0 4rem;
+    padding: 3rem 2px 4rem;
 }
 
 .carousel-track {
@@ -2196,7 +2196,7 @@ nav.scrolled {
     cursor: pointer;
     z-index: 10;
     border-radius: 999px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
     transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease,
         transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -2205,8 +2205,8 @@ nav.scrolled {
     background: var(--pkg-blue);
     color: #000000;
     border-color: var(--pkg-blue);
-    transform: translateY(-50%) scale(1.06);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+    transform: translateY(-50%) scale(1.03);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.24);
 }
 
 .carousel-btn:active {
@@ -2383,10 +2383,25 @@ nav.scrolled {
 /* VIEWPORT */
 .addons-carousel,
 .additionals-carousel {
-    overflow-x: hidden;
+    overflow-x: clip;
     overflow-y: visible;
     width: 100%;
     padding-top: 10px;
+}
+
+.packages-carousel,
+.addons-carousel,
+.additionals-carousel {
+    touch-action: pan-y pinch-zoom;
+    cursor: grab;
+}
+
+.packages-carousel.is-dragging,
+.addons-carousel.is-dragging,
+.additionals-carousel.is-dragging {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* TRACK — gap 1rem para EKSAKTO ang card width na kapareho ng package cards */
@@ -2758,13 +2773,19 @@ nav.scrolled {
 @media screen and (max-width: 768px) {
     .packages-carousel {
         max-width: 100%;
-        padding: 1rem 0;
+        padding: 2.5rem 2px 3rem;
     }
 
     .package-card {
         flex: 0 0 100%;
         /* 1 card full width */
         padding: 3rem 2rem;
+    }
+
+    /* The raised desktop card would pull its badge into the clipping edge. */
+    .packages-carousel .package-card.featured {
+        margin-top: 0;
+        margin-bottom: 0;
     }
 
     .addons-grid {
@@ -2929,7 +2950,8 @@ nav.scrolled {
     box-sizing: border-box;
 }
 
-.view-reviews-btn i {
+.view-reviews-btn svg {
+    flex-shrink: 0;
     transition: transform 0.3s ease;
 }
 
@@ -2937,8 +2959,8 @@ nav.scrolled {
     opacity: 1;
 }
 
-.view-reviews-btn:hover i {
-    transform: translateX(-4px);
+.view-reviews-btn:hover svg {
+    transform: translateX(4px);
     text-decoration: none !important;
 }
 
@@ -3290,6 +3312,8 @@ nav.scrolled {
 
 .contact-info p {
     line-height: 1.6 !important;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .footer-divider {
@@ -3312,6 +3336,7 @@ nav.scrolled {
 
 .footer-bottom p {
     font-size: 0.95rem;
+    overflow-wrap: anywhere;
 }
 
 /* Bottom policy links (Guidelines / Terms / Privacy) — right side */
@@ -4640,14 +4665,14 @@ nav.scrolled {
     background: #ffffff;
     color: #111111;
     border-color: #e4e4e7;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .carousel-btn:hover {
     background: #111111;
     color: #ffffff;
     border-color: #111111;
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* CTA: white button in dark mode, black button in light mode */

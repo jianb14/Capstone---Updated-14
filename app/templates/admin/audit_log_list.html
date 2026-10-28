@@ -1,235 +1,29 @@
-
 {% extends 'admin/admin_base.html' %}
 {% load static %}
-
+{% block title %}Audit Logs | Balloorina{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_audit_log.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261026g">
+<link rel="stylesheet" href="{% static 'css/admin_audit_log.css' %}?v=20261026f">
 {% endblock %}
-
 {% block content %}
-<div class="page-container">
-
-    <!-- Header & Filters -->
-    <div class="page-header">
-        <div class="header-title">
-            <h1>System Audit Logs</h1>
-            <p class="page-subtitle">Monitor system activities, user actions, and security logs in real-time.</p>
-        </div>
-    </div>
-
-    <div class="search-bar">
-        <form method="GET" action="" id="filterForm">
-            <div class="search-controls">
-                <!-- Search with Icon -->
-                <div class="search-input-wrapper">
-                    <span class="search-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.3-4.3"></path>
-                        </svg>
-                    </span>
-                    <input type="text" id="searchInput" name="search" placeholder="Search logs..." value="{{ search_query }}">
-                </div>
-
-                <!-- Role Custom Dropdown -->
-                <div class="custom-filter-dropdown" id="roleDropdown">
-                    <div class="dropdown-trigger">
-                        <span id="roleDropdownText">
-                            {% if role_filter == 'admin' %}
-                            Admin
-                            {% elif role_filter == 'customer' %}
-                            Customer
-                            {% else %}
-                            All Roles
-                            {% endif %}
-                        </span>
-                        <span class="dropdown-caret" aria-hidden="true"></span>
-                    </div>
-                    <ul class="dropdown-options">
-                        <li data-value="" {% if not role_filter %}class="selected"{% endif %}>All Roles</li>
-                        <li data-value="admin" {% if role_filter == 'admin' %}class="selected"{% endif %}>Admin</li>
-                        <li data-value="customer" {% if role_filter == 'customer' %}class="selected"{% endif %}>Customer</li>
-                    </ul>
-                    <select name="role" class="filter-select" id="roleFilterSelect">
-                        <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
-                        <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
-                        <option value="customer" {% if role_filter == 'customer' %}selected{% endif %}>Customer</option>
-                    </select>
-                </div>
-
-                <!-- Date Range -->
-                <div class="date-filter-group">
-                    <div class="date-input-wrapper">
-                        <input type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()" title="Start Date">
-                    </div>
-                    <span class="range-sep">-</span>
-                    <div class="date-input-wrapper">
-                        <input type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()" title="End Date">
-                    </div>
-                </div>
+<div class="ac-workspace audit-workspace" data-audit-workspace data-list-url="{% url 'admin_audit_log' %}">
+    <header class="page-header ac-header"><h1>System Audit Logs</h1><p class="page-subtitle">Review recorded account activity and system changes.</p></header>
+    <section class="ac-queue" aria-labelledby="auditHistoryTitle">
+        <div class="ac-queue-heading"><div><h2 id="auditHistoryTitle">Activity history</h2><p>Select an activity to view its full details.</p></div><button type="button" class="ac-button" id="auditDatesToggle" aria-expanded="{% if date_from or date_to %}true{% else %}false{% endif %}" aria-controls="auditDateFilters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16l-6 7v8l-4 2V11Z"/></svg>Dates</button></div>
+        <form id="auditFilters" method="get" action="{% url 'admin_audit_log' %}">
+            <div class="ac-toolbar">
+                <div class="ac-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><input type="search" name="search" value="{{ search_query }}" maxlength="150" placeholder="Search activity, user or log ID..." aria-label="Search audit logs" autocomplete="off"><button type="button" class="ac-search-clear" aria-label="Clear search"{% if not search_query %} hidden{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div>
+                <select name="role" aria-label="Filter account role" data-admin-select><option value="">All roles</option><option value="admin"{% if role_filter == 'admin' %} selected{% endif %}>Admin</option><option value="customer"{% if role_filter == 'customer' %} selected{% endif %}>Customer</option><option value="system"{% if role_filter == 'system' %} selected{% endif %}>System / removed account</option></select>
             </div>
+            <div class="ac-dates" id="auditDateFilters"{% if not date_from and not date_to %} hidden{% endif %}><label>From<input type="date" name="date_from" value="{{ date_from }}"></label><label>To<input type="date" name="date_to" value="{{ date_to }}"></label><button type="submit" class="ac-button ac-primary">Apply dates</button><button type="button" class="ac-button" data-audit-reset-dates>Clear dates</button></div>
+            <noscript><button type="submit" class="ac-button">Apply filters</button></noscript>
         </form>
-    </div>
-
-    <div id="log-content">
-        <!-- Table -->
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Action</th>
-                        <th>Date & Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td data-label="User">
-                            {% if log.user %}
-                                <div class="user-info">
-                                    <span class="username">{{ log.user.username }}</span>
-                                    <span class="email">{{ log.user.email }}</span>
-                                </div>
-                            {% else %}
-                                <span class="system-user">System / Deleted User</span>
-                            {% endif %}
-                        </td>
-                        
-                        <td data-label="Role">
-                            {% if log.user %}
-                                {% if log.user.role == 'admin' %}
-                                    <span class="role-badge admin">Admin</span>
-                                {% else %}
-                                    <span class="role-badge customer">Customer</span>
-                                {% endif %}
-                            {% else %}
-                                <span class="role-badge unknown">Unknown</span>
-                            {% endif %}
-                        </td>
-
-                        <td data-label="Action">
-                            {{ log.action }}
-                        </td>
-
-                        <td data-label="Date">
-                            {{ log.created_at|date:"M d, Y" }} <br>
-                            <small>{{ log.created_at|time:"H:i A" }}</small>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4">
-                            <div class="empty-state">
-                                <div class="empty-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="11" cy="11" r="8"></circle>
-                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                        <line x1="8" y1="11" x2="14" y2="11"></line>
-                                    </svg>
-                                </div>
-                                <h3>No audit logs found</h3>
-                                <p>We couldn't find any logs matching your current filters.</p>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        {% if logs.has_other_pages %}
-        <div class="pagination">
-            {% if logs.has_previous %}
-                <a href="?page={{ logs.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
-            {% else %}
-                <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
-            {% endif %}
-
-            <span class="current-page">Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span>
-
-            {% if logs.has_next %}
-                <a href="?page={{ logs.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
-            {% else %}
-                <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
-            {% endif %}
-        </div>
-        {% endif %}
-    </div>
+        <p class="ac-feedback" id="auditListFeedback" role="status" aria-live="polite">{{ filter_error }}</p>
+        <div id="auditLogResults" class="ac-loading">{% include 'admin/audit/_list.html' %}</div>
+    </section>
 </div>
 {% endblock %}
-
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('searchInput');
-    const filterForm = document.getElementById('filterForm');
-    const roleDropdown = document.getElementById('roleDropdown');
-    const roleTrigger = roleDropdown ? roleDropdown.querySelector('.dropdown-trigger') : null;
-    const roleOptions = roleDropdown ? roleDropdown.querySelectorAll('.dropdown-options li') : [];
-    const roleText = document.getElementById('roleDropdownText');
-    const roleFilter = document.getElementById('roleFilterSelect');
-    const contentContainer = document.getElementById('log-content');
-    let debounceTimer;
-
-    // Live Search
-    if (searchInput && contentContainer) {
-        searchInput.addEventListener('input', function (e) {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                const query = e.target.value;
-                const url = new URL(window.location.href);
-                url.searchParams.set('search', query);
-                url.searchParams.delete('page');
-
-                contentContainer.style.opacity = '0.5';
-                contentContainer.style.transition = 'opacity 0.2s ease-in-out';
-
-                fetch(url.toString())
-                    .then(response => response.text())
-                    .then(html => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        const newContent = doc.getElementById('log-content');
-                        if (newContent) {
-                            contentContainer.innerHTML = newContent.innerHTML;
-                        }
-                        window.history.pushState({ path: url.toString() }, '', url.toString());
-                    })
-                    .catch(error => console.error('Error:', error))
-                    .finally(() => contentContainer.style.opacity = '1');
-            }, 300);
-        });
-    }
-
-    // Custom Dropdown Logic
-    function closeDropdown() {
-        if (roleDropdown) roleDropdown.classList.remove('open');
-    }
-
-    if (roleTrigger && roleOptions.length && roleFilter && filterForm) {
-        roleTrigger.addEventListener('click', function () {
-            roleDropdown.classList.toggle('open');
-        });
-
-        roleOptions.forEach(option => {
-            option.addEventListener('click', function () {
-                const val = this.getAttribute('data-value') || '';
-                roleFilter.value = val;
-                roleText.textContent = this.textContent.trim();
-                roleOptions.forEach(opt => opt.classList.remove('selected'));
-                this.classList.add('selected');
-                closeDropdown();
-                filterForm.submit();
-            });
-        });
-
-        document.addEventListener('click', function (e) {
-            if (roleDropdown && !roleDropdown.contains(e.target)) closeDropdown();
-        });
-    }
-});
-</script>
+<script src="{% static 'js/admin_selects.js' %}?v=20261026c"></script>
+<script src="{% static 'js/admin_audit_log.js' %}?v=20261026b"></script>
 {% endblock %}

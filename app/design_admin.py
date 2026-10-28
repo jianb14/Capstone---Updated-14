@@ -86,7 +86,7 @@ def configure_design_offer(kind):
     def decorate(view):
         @wraps(view)
         def wrapped(request, *args, **kwargs):
-            if request.user.role not in ('admin', 'staff'):
+            if request.user.role != 'admin':
                 return HttpResponseForbidden('Not allowed')
             if request.method != 'POST' or 'inclusions' in request.POST:
                 from .offer_editor import offer_editor
@@ -138,7 +138,7 @@ def configure_canvas_availability(is_asset=False):
     def decorate(view):
         @wraps(view)
         def wrapped(request, *args, **kwargs):
-            if request.user.role not in ('admin', 'staff'):
+            if request.user.role != 'admin':
                 return HttpResponseForbidden('Not allowed')
             if 'id' in kwargs:
                 model = CanvasAsset if is_asset else CanvasCategory

@@ -1,0 +1,111 @@
+/* Payment details share the account palette and keep the header within reach. */
+#bookingModal[data-payment-details] {
+    display:none; padding:20px; z-index:11000; opacity:1; visibility:visible;
+    background:rgba(0,0,0,.6); backdrop-filter:blur(6px); transition:none;
+}
+#bookingModal[data-payment-details].active { display:flex; }
+#bookingModal[data-payment-details] .cp-modal {
+    display:flex; flex-direction:column; width:min(740px,100%); max-width:none;
+    max-height:calc(100dvh - 40px); overflow:hidden; margin:0; padding:0;
+    border:1px solid var(--account-line); border-radius:18px;
+    background:var(--account-bg); color:var(--account-text);
+    box-shadow:0 20px 70px rgba(0,0,0,.24); transform:none; transition:none;
+}
+#bookingModal[data-payment-details].active .cp-modal { animation:payment-details-in 180ms cubic-bezier(.22,1,.36,1); }
+#bookingModal[data-payment-details] .cp-modal-header {
+    position:static; flex:none; align-items:flex-start; gap:18px; padding:24px 24px 20px;
+    border:0; background:var(--account-bg);
+}
+#bookingModal[data-payment-details] .cp-modal-header > div { min-width:0; }
+#bookingModal[data-payment-details] .cp-modal-header h3 {
+    margin:0; font-size:20px; line-height:1.4; font-weight:600;
+    letter-spacing:-.02em; color:var(--account-text);
+}
+#bookingModal[data-payment-details] #modal-description { margin:6px 0 0; color:var(--account-muted); font-size:12px; line-height:1.7; }
+#bookingModal[data-payment-details] .cp-modal-close {
+    display:grid; place-items:center; flex:0 0 36px; width:36px; height:36px;
+    margin:-5px -6px 0 0; padding:8px; border:0; border-radius:9px;
+    background:transparent; color:var(--account-muted); cursor:pointer;
+}
+#bookingModal[data-payment-details] .cp-modal-close svg { width:20px; height:20px; pointer-events:none; }
+#bookingModal[data-payment-details] .cp-modal-close:hover { background:var(--account-hover); color:var(--account-text); }
+#bookingModal[data-payment-details] .cp-modal-body {
+    display:flex; flex-direction:column; gap:24px; min-height:0; padding:0 24px 24px;
+    overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--account-line) transparent;
+}
+#bookingModal[data-payment-details] .mp-mhero {
+    gap:18px; margin:0; padding:18px; border:1px solid var(--account-line); border-radius:12px;
+    background:var(--account-soft); color:var(--account-text);
+}
+#bookingModal[data-payment-details] .mp-mhero-info { flex:1; min-width:0; }
+#bookingModal[data-payment-details] .mp-mhero-title { font-size:16px; font-weight:500; line-height:1.5; color:var(--account-text); overflow-wrap:anywhere; }
+#bookingModal[data-payment-details] .mp-mhero-sub { margin-top:7px; color:var(--account-muted); font-size:11px; line-height:1.8; overflow-wrap:anywhere; }
+#bookingModal[data-payment-details] .mp-mhero-meta { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin-top:14px; }
+#bookingModal[data-payment-details] .mp-mhero-detail { display:grid; grid-template-columns:16px minmax(0,1fr); gap:8px; align-items:start; }
+#bookingModal[data-payment-details] .mp-mhero-detail > svg { display:block; width:16px; height:16px; margin-top:1px; color:var(--account-muted); }
+#bookingModal[data-payment-details] .mp-mhero-detail > div { min-width:0; }
+#bookingModal[data-payment-details] .mp-mhero-detail-value { display:block; margin-top:3px; color:var(--account-text); font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+#bookingModal[data-payment-details] .mp-pill-caption { color:var(--account-muted); font-size:10px; line-height:1.6; font-weight:400; letter-spacing:0; text-transform:none; }
+#bookingModal[data-payment-details] .mp-pill {
+    display:inline-flex; align-items:center; justify-content:center; min-height:22px; max-width:100%;
+    padding:3px 8px; border-radius:6px; font-size:10px; font-weight:500; line-height:1.5;
+    letter-spacing:0; text-transform:none; white-space:normal; overflow-wrap:anywhere;
+}
+#bookingModal[data-payment-details] .cp-modal-section { margin:0; padding:0; border:0; background:transparent; }
+#bookingModal[data-payment-details] #modal-payment-summary-section { order:1; }
+#bookingModal[data-payment-details] #modal-payment-detail-section { order:2; }
+#bookingModal[data-payment-details] #modal-activity-section { order:3; }
+#bookingModal[data-payment-details] .cp-modal-section-title {
+    gap:9px; margin:0 0 16px; padding:0; border:0; color:var(--account-text);
+    font-size:13px; font-weight:500; line-height:1.5; letter-spacing:0; text-transform:none;
+}
+#bookingModal[data-payment-details] .cp-modal-section-title svg { width:18px; height:18px; padding:0; border-radius:0; background:transparent; color:var(--account-muted); stroke-width:1.5; }
+#bookingModal[data-payment-details] .mp-mstats { grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+#bookingModal[data-payment-details] .mp-mstat { gap:8px; padding:14px; border:1px solid var(--account-line); border-radius:10px; background:transparent; }
+#bookingModal[data-payment-details] .mp-mstat-label,
+#bookingModal[data-payment-details] .mp-mref-label,
+#bookingModal[data-payment-details] .mp-mrow-label { color:var(--account-muted); font-size:11px; font-weight:400; line-height:1.6; letter-spacing:0; text-transform:none; }
+#bookingModal[data-payment-details] .mp-mstat-value { font-size:17px; font-weight:500; line-height:1.5; color:var(--account-text); }
+#bookingModal[data-payment-details] .mp-mrow-green { color:var(--account-kpi-green); }
+#bookingModal[data-payment-details] .mp-mrow-amber { color:var(--account-kpi-amber); }
+#bookingModal[data-payment-details] .mp-mfoot { align-items:flex-end; gap:14px; margin-top:14px; }
+#bookingModal[data-payment-details] .mp-mfoot-meta,
+#bookingModal[data-payment-details] .mp-mfoot-latest { font-size:11px; line-height:1.7; color:var(--account-muted); }
+#bookingModal[data-payment-details] .mp-mrows { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 24px; }
+#bookingModal[data-payment-details] .mp-mrow { flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:6px; margin:0; padding:0; border:0; min-width:0; }
+#bookingModal[data-payment-details] .mp-mrow-value { color:var(--account-text); font-size:13px; font-weight:400; line-height:1.7; text-align:left; overflow-wrap:anywhere; }
+#bookingModal[data-payment-details] .mp-mrow-strong { font-size:17px; font-weight:500; }
+#bookingModal[data-payment-details] .mp-mrefs { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 24px; margin-top:20px; padding:16px; border:1px solid var(--account-line); border-radius:10px; background:var(--account-soft); }
+#bookingModal[data-payment-details] .mp-mref { gap:6px; }
+#bookingModal[data-payment-details] .mp-mref-value { color:var(--account-text); font-family:inherit; font-size:11px; line-height:1.8; letter-spacing:0; word-break:normal; overflow-wrap:anywhere; }
+#bookingModal[data-payment-details] .mp-mcallout { margin:0; padding:14px 16px; border-radius:10px; background:var(--account-soft); }
+#bookingModal[data-payment-details] #modal-pay-notes-field { margin-top:18px; }
+#bookingModal[data-payment-details] .mp-mcallout-value { color:var(--account-text); font-size:12px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere; }
+#bookingModal[data-payment-details] .mp-activity-progress { margin:0; font-size:11px; font-weight:400; color:var(--account-muted); }
+#bookingModal[data-payment-details] .mp-activity-status { font-weight:500; letter-spacing:0; text-transform:none; }
+#bookingModal[data-payment-details] .mp-activity-amount { font-weight:500; font-size:12px; }
+#bookingModal[data-payment-details] .mp-activity-tag { border-color:var(--account-line); font-weight:400; text-transform:none; letter-spacing:0; }
+#bookingModal[data-payment-details] .payment-details-footer { display:flex; justify-content:flex-end; flex:none; padding:14px 24px 20px; background:var(--account-bg); }
+#bookingModal[data-payment-details] .payment-details-done { min-height:38px; padding:9px 20px; border:1px solid var(--account-line); border-radius:9px; background:transparent; color:var(--account-text); font:inherit; font-size:12px; cursor:pointer; }
+#bookingModal[data-payment-details] .payment-details-done:hover { background:var(--account-hover); }
+#bookingModal[data-payment-details] button:focus-visible,
+#bookingModal[data-payment-details] .cp-modal-body:focus-visible { outline:2px solid var(--account-muted); outline-offset:2px; }
+@keyframes payment-details-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+@media(max-width:560px) {
+    #bookingModal[data-payment-details] { padding:12px; }
+    #bookingModal[data-payment-details] .cp-modal { max-height:calc(100dvh - 24px); border-radius:15px; }
+    #bookingModal[data-payment-details] .cp-modal-header { padding:20px 18px 18px; }
+    #bookingModal[data-payment-details] .cp-modal-header h3 { font-size:18px; }
+    #bookingModal[data-payment-details] .cp-modal-body { padding:0 18px 20px; gap:22px; }
+    #bookingModal[data-payment-details] .mp-mhero { flex-direction:column; padding:14px; gap:14px; }
+    #bookingModal[data-payment-details] .mp-mhero-status { align-items:flex-start; }
+    #bookingModal[data-payment-details] .mp-mstats { grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); }
+    #bookingModal[data-payment-details] .mp-mrefs { grid-template-columns:minmax(0,1fr); }
+    #bookingModal[data-payment-details] .mp-mfoot { flex-wrap:wrap; }
+    #bookingModal[data-payment-details] .payment-details-footer { padding:12px 18px 18px; }
+}
+@media(max-width:360px) {
+    #bookingModal[data-payment-details] .mp-mrows,
+    #bookingModal[data-payment-details] .mp-mstats { grid-template-columns:minmax(0,1fr); }
+}
+@media(prefers-reduced-motion:reduce) { #bookingModal[data-payment-details].active .cp-modal { animation:none; } }

@@ -98,7 +98,9 @@ class HomeStatisticsAdminTests(TestCase):
         admin = self.client.get(self.url)
         home = self.client.get(reverse('home'))
         self.assertEqual(admin.context['home_stats'], home.context['home_stats'])
-        self.assertContains(admin, 'name="support_hours"')
+        self.assertContains(admin, 'Edit Support hours')
+        dialog = self.client.get(reverse('admin_content_action', args=('home', 'support', 'section', self.content.pk)))
+        self.assertIn('name="support_hours"', dialog.json()['html'])
         for field in ('stat_events_styled', 'stat_rating', 'stat_satisfaction', 'stat_response_time'):
             self.assertNotContains(admin, f'name="{field}"')
 

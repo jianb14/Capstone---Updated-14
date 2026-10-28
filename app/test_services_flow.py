@@ -79,8 +79,8 @@ class ServiceLoginContinuationTests(TestCase):
                 self.client.get(reverse('login'), {'next': destination})
                 self.assertRedirects(self.login(next=destination), reverse('home'), fetch_redirect_response=False)
 
-    def test_staff_keeps_dashboard_destination(self):
-        self.user.role = 'staff'
+    def test_admin_keeps_dashboard_destination(self):
+        self.user.role = 'admin'
         self.user.save(update_fields=['role'])
         self.client.get(reverse('login'), {'next': reverse('booking_page') + '?from=estimate'})
         self.assertRedirects(self.login(), reverse('dashboard'), fetch_redirect_response=False)

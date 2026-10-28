@@ -1,0 +1,14 @@
+<div class="custom-filter-dropdown" id="{{ dropdown_id }}" data-review-filter>
+    <button type="button" class="dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="{{ select_id }}-options" aria-label="{{ label }}">
+        <span id="{{ text_id }}">{{ initial_text }}</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <ul class="dropdown-options" id="{{ select_id }}-options" role="listbox" aria-label="{{ label }}"></ul>
+    <select id="{{ select_id }}" class="filter-select" aria-label="{{ label }}" hidden>
+        {% if select_id == 'star-filter' %}
+        <option value="all">Rating (All)</option><option value="5">5 Stars</option><option value="4">4 Stars</option><option value="3">3 Stars</option><option value="2">2 Stars</option><option value="1">1 Star</option>
+        {% elif select_id == 'sort-filter' %}
+        <option value="newest">Newest First</option><option value="highest">Highest Rated</option><option value="most-liked">Most Liked</option>
+        {% else %}<option value="all">Package (All)</option>{% endif %}
+    </select>
+</div>

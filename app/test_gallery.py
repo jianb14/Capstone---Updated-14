@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from PIL import Image
 
-from .models import GalleryCategory, GalleryImage
+from .models import GalleryCategory, GalleryImage, User
 
 
 class GalleryPreviewTests(TestCase):
@@ -73,3 +73,91 @@ class GalleryPreviewTests(TestCase):
 
     def test_preview_endpoint_is_read_only(self):
         self.assertEqual(self.client.post(self.url).status_code, 405)
+
+
+class GalleryCaptionAdminTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='gallery-caption-admin', role='admin', email_verified=True)
+        self.client.force_login(self.admin)
+        self.category = GalleryCategory.objects.create(name='Birthday')
+        self.other_category = GalleryCategory.objects.create(name='Corporate')
+        self.image = GalleryImage.objects.create(category=self.category,
+            image='gallery/original-caption.png', caption='Original caption', is_active=True)
+        self.edit_url = reverse('admin_gallery_image_edit', args=[self.image.pk])
+        self.create_url = reverse('admin_gallery_image_create')
+
+    def upload(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        output = io.BytesIO()
+        Image.new('RGB', (4, 4), '#999999').save(output, 'PNG')
+        return SimpleUploadedFile('new-caption-image.png', output.getvalue(), content_type='image/png')
+
+    def test_overlong_edit_preserves_input_without_changing_any_saved_fields(self):
+        caption = 'x' * 256
+        response = self.client.post(self.edit_url, {
+            'category': self.other_category.pk, 'caption': caption,
+            'image': self.upload(), 'next': '/staff/gallery/', 'scroll_target': 'gallery-images-section',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Use 255 characters or fewer for the caption.')
+        self.assertEqual(response.context['caption_value'], caption)
+        self.assertEqual(response.context['selected_category_id'], str(self.other_category.pk))
+        self.assertFalse(response.context['form_is_active'])
+        self.assertTrue(response.context['upload_needs_reselect'])
+        self.assertEqual(response.context['next_url'], '/staff/gallery/')
+        self.image.refresh_from_db()
+        self.assertEqual(self.image.caption, 'Original caption')
+        self.assertEqual(self.image.category_id, self.category.pk)
+        self.assertTrue(self.image.is_active)
+        self.assertEqual(self.image.image.name, 'gallery/original-caption.png')
+
+    def test_overlong_create_does_not_insert_an_image(self):
+        response = self.client.post(self.create_url, {
+            'category': self.category.pk, 'caption': 'long ' * 100, 'image': self.upload(),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('caption', response.context['errors'])
+        self.assertEqual(GalleryImage.objects.count(), 1)
+        self.assertContains(response, 'long ' * 99)
+
+    def test_exact_limit_saves_for_both_create_and_edit(self):
+        caption = 'é' * 255
+        response = self.client.post(self.create_url, {
+            'category': self.category.pk, 'caption': caption, 'image': self.upload(),
+        })
+        self.assertRedirects(response, reverse('admin_gallery'))
+        created = GalleryImage.objects.exclude(pk=self.image.pk).get()
+        self.assertEqual(created.caption, caption)
+        self.assertTrue(created.is_active)
+        response = self.client.post(self.edit_url, {
+            'category': self.other_category.pk, 'caption': caption, 'is_active': 'on',
+        })
+        self.assertRedirects(response, reverse('admin_gallery'))
+        self.image.refresh_from_db()
+        self.assertEqual(self.image.caption, caption)
+        self.assertEqual(self.image.category_id, self.other_category.pk)
+
+    def test_caption_remains_optional_and_edit_does_not_require_new_upload(self):
+        response = self.client.post(self.edit_url, {'category': self.category.pk, 'caption': ''})
+        self.assertRedirects(response, reverse('admin_gallery'))
+        self.image.refresh_from_db()
+        self.assertEqual(self.image.caption, '')
+        self.assertFalse(self.image.is_active)
+        self.assertEqual(self.image.image.name, 'gallery/original-caption.png')
+
+    def test_required_field_errors_preserve_caption_and_category(self):
+        response = self.client.post(self.create_url, {'category': self.other_category.pk, 'caption': 'Keep this text'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['errors'], {'image': 'Image is required.'})
+        self.assertEqual(response.context['caption_value'], 'Keep this text')
+        self.assertEqual(response.context['selected_category_id'], str(self.other_category.pk))
+        response = self.client.post(self.edit_url, {'caption': 'y' * 256})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.context['errors']), {'category', 'caption'})
+
+    def test_caption_field_exposes_its_limit_and_existing_value(self):
+        response = self.client.get(self.edit_url)
+        self.assertContains(response, 'maxlength="255"')
+        self.assertContains(response, 'Up to 255 characters.')
+        self.assertContains(response, 'Original caption</textarea>')
+        self.assertContains(response, '<span id="captionCount">16</span>', html=True)

@@ -64,7 +64,7 @@ class LogisticsSettingsTests(TestCase):
         self.assertContains(response, 'The total is capped at', count=3)
 
     def test_logistics_settings_require_admin_role(self):
-        staff = User.objects.create_user(username='logistics-staff', role='staff')
-        self.client.force_login(staff)
+        customer = User.objects.create_user(username='logistics-customer', role='customer')
+        self.client.force_login(customer)
         self.assertEqual(self.client.post(reverse('admin_site_settings'), self.data).status_code, 403)
         self.assertEqual(self.client.post(reverse('admin_service_charge_update'), self.data).status_code, 403)

@@ -1,334 +1,44 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
-
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/admin_user.css' %}?v=20260916g">
-
-<!-- Page Header -->
-<div class="page-header ph-flush">
-    <h1>User Management</h1>
-    <p class="page-subtitle">View, add, edit, and manage all registered customer accounts.</p>
-</div>
-
-<!-- User Summary Cards (same design as Admin Booking) -->
-<div class="booking-summary-grid user-summary-grid">
-    <div class="booking-summary-card booking-summary-card--total">
-        <div class="booking-summary-head">
-            <span class="booking-summary-label">Total Users</span>
-            <span class="booking-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-            </span>
-        </div>
-        <div class="booking-summary-value">{{ user_summary.total }}</div>
-        <div class="booking-summary-sub">All registered users</div>
-    </div>
-    <div class="booking-summary-card booking-summary-card--confirmed">
-        <div class="booking-summary-head">
-            <span class="booking-summary-label">Active</span>
-            <span class="booking-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <path d="M22 4 12 14.01l-3-3"></path>
-                </svg>
-            </span>
-        </div>
-        <div class="booking-summary-value">{{ user_summary.active }}</div>
-        <div class="booking-summary-sub">Active user accounts</div>
-    </div>
-    <div class="booking-summary-card booking-summary-card--cancelled">
-        <div class="booking-summary-head">
-            <span class="booking-summary-label">Inactive</span>
-            <span class="booking-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="m15 9-6 6"></path>
-                    <path d="m9 9 6 6"></path>
-                </svg>
-            </span>
-        </div>
-        <div class="booking-summary-value">{{ user_summary.inactive }}</div>
-        <div class="booking-summary-sub">Deactivated accounts</div>
-    </div>
-    
-    <div class="booking-summary-card booking-summary-card--expired">
-        <div class="booking-summary-head">
-            <span class="booking-summary-label">Customers</span>
-            <span class="booking-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-            </span>
-        </div>
-        <div class="booking-summary-value">{{ user_summary.customers }}</div>
-        <div class="booking-summary-sub">Customer accounts</div>
-    </div>
-</div>
-
-<!-- Search Bar -->
-<div class="search-bar">
-    <form method="get">
-        <input type="text" name="search" id="searchInput" value="{{ request.GET.search|default:'' }}"
-            placeholder="Search users..." autocomplete="off">
-        <div class="custom-filter-dropdown" id="roleDropdown">
-            <div class="dropdown-trigger">
-                <span id="roleDropdownText">
-                    {% if request.GET.role == 'admin' %}
-                    Admin
-                    {% elif request.GET.role == 'customer' %}
-                    Customer
-                    {% else %}
-                    All Roles
-                    {% endif %}
-                </span>
-                <span class="dropdown-caret" aria-hidden="true"></span>
-            </div>
-            <ul class="dropdown-options">
-                <li data-value="" {% if not request.GET.role %}class="selected"{% endif %}>All Roles</li>
-                <li data-value="admin" {% if request.GET.role == 'admin' %}class="selected"{% endif %}>Admin</li>
-                <li data-value="customer" {% if request.GET.role == 'customer' %}class="selected"{% endif %}>Customer</li>
-            </ul>
-            <select name="role" id="roleFilterSelect" class="filter-select">
-                <option value="" {% if not request.GET.role %}selected{% endif %}>All Roles</option>
-                <option value="admin" {% if request.GET.role == 'admin' %}selected{% endif %}>Admin</option>
-                <option value="customer" {% if request.GET.role == 'customer' %}selected{% endif %}>Customer</option>
-            </select>
-        </div>
-
-        <div class="custom-filter-dropdown" id="userStatusDropdown">
-            <div class="dropdown-trigger">
-                <span id="userStatusDropdownText">
-                    {% if request.GET.status == 'active' %}
-                    Active
-                    {% elif request.GET.status == 'inactive' %}
-                    Inactive
-                    {% else %}
-                    All Status
-                    {% endif %}
-                </span>
-                <span class="dropdown-caret" aria-hidden="true"></span>
-            </div>
-            <ul class="dropdown-options">
-                <li data-value="" {% if not request.GET.status %}class="selected"{% endif %}>All Status</li>
-                <li data-value="active" {% if request.GET.status == 'active' %}class="selected"{% endif %}>Active</li>
-                <li data-value="inactive" {% if request.GET.status == 'inactive' %}class="selected"{% endif %}>Inactive</li>
-            </ul>
-            <select name="status" id="statusFilterSelect" class="filter-select">
-                <option value="" {% if not request.GET.status %}selected{% endif %}>All Status</option>
-                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
-                <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
-            </select>
-        </div>
-
-    </form>
-</div>
-
-<!-- User Table -->
-<div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>USERNAME</th>
-                <th>NAME</th>
-                <th>EMAIL</th>
-                <th>ROLE</th>
-                <th>PHONE</th>
-                <th>STATUS</th>
-                {% if user.role == 'admin' %}
-                <th>ACTIONS</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody id="userTableBody">
-            {% for u in users %}
-            <tr>
-                <td data-label="Username">{{ u.username }}</td>
-                <td data-label="Name">{{ u.first_name }} {{ u.last_name }}</td>
-                <td data-label="Email">{{ u.email }}</td>
-                <td data-label="Role">
-                    <span class="role-badge {{ u.role }}">{{ u.role|upper }}</span>
-                </td>
-                <td data-label="Phone">{{ u.phone_number|default:"—" }}</td>
-                <td data-label="Status">
-                    <span class="status-badge {% if u.is_active %}active{% else %}inactive{% endif %}">
-                        {{ u.is_active|yesno:"Active,Inactive" }}
-                    </span>
-                </td>
-
-                {% if user.role == 'admin' %}
-                <td data-label="Actions">
-                    <div class="action-buttons">
-                        <a href="{% url 'admin_user_detail' u.id %}" title="View user"><i class="far fa-eye"></i></a>
-                        <a href="{% url 'admin_user_edit' u.id %}" title="Edit"><i class="far fa-edit"></i></a>
-                        <a href="{% url 'admin_user_toggle' u.id %}" title="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}">
-                            {% if u.is_active %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check-circle"></i>{% endif %}
-                        </a>
-                        <a href="{% url 'admin_user_delete' u.id %}"
-                            data-swal-confirm="true"
-                            data-swal-title="Delete user?"
-                            data-swal-text="Are you sure you want to delete this user?"
-                            data-swal-confirm-text="Yes, delete user" title="Delete"><i class="far fa-trash-alt"></i></a>
-                    </div>
-                </td>
-                {% endif %}
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem; color: #888;">No users found matching your
-                    criteria.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Pagination -->
-{% if users.has_other_pages %}
-<div class="pagination">
-    {% if users.has_previous %}
-    <a href="?page={{ users.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.role %}&role={{ request.GET.role }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
-        class="page-link"><img src="{% static 'images/left-white.png' %}" alt=""></a>
-    {% else %}
-    <span class="page-link disabled"><img src="{% static 'images/left-white.png' %}" alt=""></span>
-    {% endif %}
-
-    <span class="current-page">Page {{ users.number }} of {{ users.paginator.num_pages }}</span>
-
-    {% if users.has_next %}
-    <a href="?page={{ users.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.role %}&role={{ request.GET.role }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
-        class="page-link"><img src="{% static 'images/next-white.png' %}" alt=""></a>
-    {% else %}
-    <span class="page-link disabled"><img src="{% static 'images/next-white.png' %}" alt=""></span>
-    {% endif %}
-</div>
-{% endif %}
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const searchInput = document.getElementById('searchInput');
-        const roleFilter = document.getElementById('roleFilterSelect');
-        const roleDropdown = document.getElementById('roleDropdown');
-        const roleTrigger = roleDropdown ? roleDropdown.querySelector('.dropdown-trigger') : null;
-        const roleOptions = roleDropdown ? roleDropdown.querySelectorAll('.dropdown-options li') : [];
-        const roleText = document.getElementById('roleDropdownText');
-        const tableBody = document.getElementById('userTableBody');
-        const paginationContainer = document.querySelector('.pagination');
-
-        let timeout = null;
-
-        function fetchUsers() {
-            const searchQuery = searchInput.value;
-            const roleQuery = roleFilter.value;
-            const statusSelect = document.getElementById('statusFilterSelect');
-            const statusQuery = statusSelect ? statusSelect.value : '';
-
-            // Construct URL
-            const url = new URL(window.location.href);
-            url.searchParams.set('search', searchQuery);
-            url.searchParams.set('role', roleQuery);
-            url.searchParams.set('status', statusQuery);
-            url.searchParams.set('page', 1); // Reset to page 1 on new search/filter
-
-            // Update URL in browser without reload
-            window.history.pushState({}, '', url);
-
-            // Fetch data
-            fetch(url)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-
-                    // Update Table and Pagination
-                    tableBody.innerHTML = doc.getElementById('userTableBody').innerHTML;
-                    if (paginationContainer && doc.querySelector('.pagination')) {
-                        paginationContainer.innerHTML = doc.querySelector('.pagination').innerHTML;
-                    }
-                });
-        }
-
-        // Event Listeners
-        searchInput.addEventListener('input', function () {
-            clearTimeout(timeout);
-            timeout = setTimeout(fetchUsers, 300); // Delay para hindi lag (debounce)
-        });
-
-        roleFilter.addEventListener('change', fetchUsers);
-
-        const statusFilterSelect = document.getElementById('statusFilterSelect');
-        const userStatusDropdown = document.getElementById('userStatusDropdown');
-        const userStatusTrigger = userStatusDropdown ? userStatusDropdown.querySelector('.dropdown-trigger') : null;
-        const userStatusOptions = userStatusDropdown ? userStatusDropdown.querySelectorAll('.dropdown-options li') : [];
-        const userStatusText = document.getElementById('userStatusDropdownText');
-
-        if (statusFilterSelect) {
-            statusFilterSelect.addEventListener('change', fetchUsers);
-        }
-
-        if (userStatusTrigger && userStatusOptions.length) {
-            userStatusTrigger.addEventListener('click', function () {
-                userStatusDropdown.classList.toggle('open');
-            });
-
-            userStatusOptions.forEach(option => {
-                option.addEventListener('click', function () {
-                    const selectedValue = this.getAttribute('data-value') || '';
-                    statusFilterSelect.value = selectedValue;
-                    userStatusText.textContent = this.textContent.trim();
-                    userStatusOptions.forEach(opt => opt.classList.remove('selected'));
-                    this.classList.add('selected');
-                    userStatusDropdown.classList.remove('open');
-                    fetchUsers();
-                });
-            });
-
-            document.addEventListener('click', function (e) {
-                if (userStatusDropdown && !userStatusDropdown.contains(e.target)) {
-                    userStatusDropdown.classList.remove('open');
-                }
-            });
-        }
-
-        function closeRoleMenu() {
-            if (!roleDropdown) return;
-            roleDropdown.classList.remove('open');
-        }
-
-        if (roleTrigger && roleOptions.length) {
-            roleTrigger.addEventListener('click', function () {
-                roleDropdown.classList.toggle('open');
-            });
-
-            roleOptions.forEach(option => {
-                option.addEventListener('click', function () {
-                    const selectedValue = this.getAttribute('data-value') || '';
-                    roleFilter.value = selectedValue;
-                    roleText.textContent = this.textContent.trim();
-                    roleOptions.forEach(opt => opt.classList.remove('selected'));
-                    this.classList.add('selected');
-                    closeRoleMenu();
-                    fetchUsers();
-                });
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!roleDropdown.contains(e.target)) {
-                    closeRoleMenu();
-                }
-            });
-
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') {
-                    closeRoleMenu();
-                }
-            });
-        }
-    });
-</script>
-
+{% block title %}User Management | Balloorina{% endblock %}
+{% block extra_css %}
+{% include 'components/password_visibility_assets.html' %}
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261026g">
+<link rel="stylesheet" href="{% static 'css/admin_users_workspace.css' %}?v=20261028b">
+<link rel="stylesheet" href="{% static 'css/admin_security.css' %}?v=20261028k">
+<link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028a">
 {% endblock %}
+{% block content %}
+<div class="ac-workspace um-workspace" data-users-url="{% url 'admin_user_list' %}" data-details-pattern="{% url 'admin_user_detail' 0 %}"{% if initial_user %} data-initial-user="{{ initial_user.pk }}"{% endif %}>
+    <header class="page-header ac-header ase-directory-header"><div><h1>User Management</h1><p class="page-subtitle">Review registered accounts and manage access with email notifications.</p></div>{% if can_invite_admin %}<button type="button" class="ac-button ac-primary" data-open-invite>{% include 'admin/user/_icon.html' with icon='shield' %}Create admin</button>{% endif %}</header>
+    {% if not user.email_verified %}
+    <aside class="um-email-notice um-email-setup" role="note" aria-labelledby="adminEmailNoticeTitle">
+        {% include 'admin/user/_icon.html' with icon='mail' %}
+        <div><h2 id="adminEmailNoticeTitle">Verify your admin email</h2><p>Your admin email is not verified. Go to My Profile &rarr; Admin email verification to set up and verify an email you can access.</p></div>
+        <a class="ac-button" href="{% url 'admin_profile' %}#admin-email-verification">Go to My Profile {% include 'admin/user/_icon.html' with icon='arrow' %}</a>
+    </aside>
+    {% endif %}
+    <section class="ac-kpis um-kpis" aria-label="All registered accounts">
+        <article class="ac-kpi ac-kpi--total"><div class="ac-kpi-head"><span>Total users</span>{% include 'admin/user/_icon.html' with icon='users' %}</div><strong data-user-stat="total">{{ user_summary.total }}</strong><p>All registered accounts</p></article>
+        <article class="ac-kpi um-kpi-active"><div class="ac-kpi-head"><span>Active</span>{% include 'admin/user/_icon.html' with icon='check' %}</div><strong data-user-stat="active">{{ user_summary.active }}</strong><p>Accounts with access enabled</p></article>
+        <article class="ac-kpi um-kpi-inactive"><div class="ac-kpi-head"><span>Inactive</span>{% include 'admin/user/_icon.html' with icon='ban' %}</div><strong data-user-stat="inactive">{{ user_summary.inactive }}</strong><p>Accounts with access disabled</p></article>
+        <article class="ac-kpi um-kpi-customers"><div class="ac-kpi-head"><span>Customers</span>{% include 'admin/user/_icon.html' with icon='user' %}</div><strong data-user-stat="customers">{{ user_summary.customers }}</strong><p>Registered customer accounts</p></article>
+    </section>
+    <section class="ac-queue um-directory" aria-labelledby="userDirectoryTitle">
+        <div class="ac-queue-heading"><div><h2 id="userDirectoryTitle">Account directory</h2><p>Find an account, view its activity or update its access.</p></div><span class="um-readonly-note">{% include 'admin/user/_icon.html' with icon='shield' %}Profiles are read-only</span></div>
+        <form id="userFilters" method="get" action="{% url 'admin_user_list' %}">
+            <div class="ac-toolbar">
+                <div class="ac-search">{% include 'admin/user/_icon.html' with icon='search' %}<input type="search" name="search" value="{{ search_query }}" maxlength="150" placeholder="Search name, email, phone or user ID..." aria-label="Search users" autocomplete="off"><button type="button" class="ac-search-clear" aria-label="Clear user search"{% if not search_query %} hidden{% endif %}>{% include 'admin/user/_icon.html' with icon='close' %}</button></div>
+                <select name="role" aria-label="Filter user role" data-admin-select><option value="">All roles</option><option value="admin"{% if role_filter == 'admin' %} selected{% endif %}>Admin</option><option value="customer"{% if role_filter == 'customer' %} selected{% endif %}>Customer</option></select>
+                <select name="status" aria-label="Filter account status" data-admin-select><option value="">All statuses</option><option value="active"{% if status_filter == 'active' %} selected{% endif %}>Active</option><option value="inactive"{% if status_filter == 'inactive' %} selected{% endif %}>Inactive</option></select>
+            </div>
+            <noscript><button type="submit" class="ac-button">Apply filters</button></noscript>
+        </form>
+        <p id="userListFeedback" class="ac-feedback" role="status" aria-live="polite"></p>
+        <div id="userResults" class="ac-loading">{% include 'admin/user/_queue.html' %}</div>
+    </section>
+    {% include 'admin/user/_modals.html' %}
+    {% if can_invite_admin %}{% include 'admin/security/_invite_modal.html' %}{% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/admin_selects.js' %}?v=20261026c"></script><script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script><script src="{% static 'js/admin_users.js' %}?v=20261028b"></script><script src="{% static 'js/admin_security.js' %}?v=20261028k"></script>{% endblock %}

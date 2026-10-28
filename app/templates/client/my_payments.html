@@ -1,22 +1,25 @@
-{% extends "client/base.html" %}
-{% load static humanize %}
+{% extends "client/account_base.html" %}
+{% load static humanize account_ui %}
+{% block title %}My Payments | Balloorina.ph{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261023wrap">
+{% block account_css %}
+<link data-account-style rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261023wrap">
+<link data-account-style rel="stylesheet" href="{% static 'css/payment_details.css' %}?v=20261026b">
 {% endblock %}
 
-{% block content %}
+{% block account_page %}my_payments{% endblock %}
+{% block account_content %}
 
 <div class="mp-page">
 
 <!-- Booking Detail Modal -->
-<div class="cp-modal-overlay" id="bookingModal">
-    <div class="cp-modal">
+<div class="cp-modal-overlay" id="bookingModal" data-payment-details role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modal-main-title" aria-describedby="modal-description">
+    <div class="cp-modal" tabindex="-1">
         <div class="cp-modal-header">
-            <h3 id="modal-main-title">Booking Details</h3>
-            <button class="cp-modal-close" onclick="closeBookingModal()">&times;</button>
+            <div><h3 id="modal-main-title">Payment Details</h3><p id="modal-description">Review this payment and its booking.</p></div>
+            <button type="button" class="cp-modal-close" onclick="closeBookingModal()" aria-label="Close payment details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
-        <div class="cp-modal-body">
+        <div class="cp-modal-body" tabindex="0" role="region" aria-label="Payment and booking details">
             <!-- Hero summary -->
             <div class="mp-mhero">
                 <div class="mp-mhero-info">
@@ -27,12 +30,16 @@
                         <span id="modal-event-date">-</span>
                         <span id="modal-event-time-wrap"><span class="mp-mhero-sep">&middot;</span><span id="modal-event-time">-</span></span>
                     </p>
-                    <p class="mp-mhero-loc">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        <span id="modal-location">-</span>
-                        <span class="mp-mhero-sep">&middot;</span>
-                        <span id="modal-package">-</span>
-                    </p>
+                    <div class="mp-mhero-meta">
+                        <div class="mp-mhero-detail">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                            <div><span class="mp-pill-caption">Location</span><span class="mp-mhero-detail-value" id="modal-location">-</span></div>
+                        </div>
+                        <div class="mp-mhero-detail">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5v8l-9 5-9-5V8l9-5Zm0 9 9-4M12 12 3 8m9 4v9M7.5 5.5l9 5"/></svg>
+                            <div><span class="mp-pill-caption">Package</span><span class="mp-mhero-detail-value" id="modal-package">-</span></div>
+                        </div>
+                    </div>
                 </div>
                 <span class="mp-mhero-status">
                     <span class="mp-pill-caption">Booking Status</span>
@@ -112,7 +119,7 @@
                 </div>
                 <div class="mp-mrefs">
                     <div class="mp-mref">
-                        <span class="mp-mref-label">Transaction Ref</span>
+                        <span class="mp-mref-label">Transaction reference</span>
                         <span class="mp-mref-value mp-mono" id="modal-pay-ref">-</span>
                     </div>
                     <div class="mp-mref">
@@ -138,71 +145,65 @@
                 </div>
             </div>
         </div>
+        <footer class="payment-details-footer"><button type="button" class="payment-details-done" onclick="closeBookingModal()">Done</button></footer>
     </div>
 </div>
 
-<section class="cp-shell mp-shell">
-    <div class="pu-head">
+<section class="cp-shell mp-shell" data-account-list data-results-id="payment-list-results">
+    <div class="pu-head account-page-header">
         <div class="pu-head-text">
-            <span class="pu-eyebrow">Payments Overview</span>
-            <h1 class="pu-title">My Payments</h1>
-            <p class="pu-sub">Track your payment receipts and booking balances.</p>
+
+            <h1 class="pu-title account-page-title">My Payments</h1>
+            <p class="pu-sub account-page-subtitle">Track your payment receipts and booking balances.</p>
         </div>
     </div>
 
-    <div class="cp-stats-grid mp-stats">
-        <div class="cp-stat-card cp-stat-card--pending">
-            <div class="mp-stat-head">
-                <div class="cp-stat-label">Pending</div>
-                <div class="mp-stat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                </div>
+    <div class="cp-stats-grid mp-stats account-kpis">
+        <div class="account-kpi cp-stat-card cp-stat-card--pending">
+            <div class="mp-stat-head account-kpi-head">
+                <div class="cp-stat-label account-kpi-label">Pending</div>
+                <div class="mp-stat-icon account-kpi-icon" aria-hidden="true">{% include 'components/account_icon.html' with icon='clock' %}</div>
             </div>
-            <div class="cp-stat-value">{{ pending_count }}</div>
-            <span class="mp-stat-sub">Waiting for review</span>
+            <div class="cp-stat-value account-kpi-value">{{ pending_count }}</div>
+            <span class="mp-stat-sub account-kpi-note">Waiting for review</span>
         </div>
-        <div class="cp-stat-card cp-stat-card--verified">
-            <div class="mp-stat-head">
-                <div class="cp-stat-label">Verified</div>
-                <div class="mp-stat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                </div>
+        <div class="account-kpi cp-stat-card cp-stat-card--verified">
+            <div class="mp-stat-head account-kpi-head">
+                <div class="cp-stat-label account-kpi-label">Verified</div>
+                <div class="mp-stat-icon account-kpi-icon" aria-hidden="true">{% include 'components/account_icon.html' with icon='check' %}</div>
             </div>
-            <div class="cp-stat-value">{{ verified_count }}</div>
-            <span class="mp-stat-sub">Approved and ready</span>
+            <div class="cp-stat-value account-kpi-value">{{ verified_count }}</div>
+            <span class="mp-stat-sub account-kpi-note">Approved and ready</span>
         </div>
-        <div class="cp-stat-card cp-stat-card--rejected">
-            <div class="mp-stat-head">
-                <div class="cp-stat-label">Rejected</div>
-                <div class="mp-stat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                </div>
+        <div class="account-kpi cp-stat-card cp-stat-card--rejected">
+            <div class="mp-stat-head account-kpi-head">
+                <div class="cp-stat-label account-kpi-label">Rejected</div>
+                <div class="mp-stat-icon account-kpi-icon" aria-hidden="true">{% include 'components/account_icon.html' with icon='rejected' %}</div>
             </div>
-            <div class="cp-stat-value">{{ rejected_count }}</div>
-            <span class="mp-stat-sub">Needs re-upload</span>
+            <div class="cp-stat-value account-kpi-value">{{ rejected_count }}</div>
+            <span class="mp-stat-sub account-kpi-note">Needs re-upload</span>
         </div>
-        <div class="cp-stat-card cp-stat-card--total">
-            <div class="mp-stat-head">
-                <div class="cp-stat-label">Total Pending Payments</div>
-                <div class="mp-stat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
-                </div>
+        <div class="account-kpi cp-stat-card cp-stat-card--total">
+            <div class="mp-stat-head account-kpi-head">
+                <div class="cp-stat-label account-kpi-label">Total Pending Payments</div>
+                <div class="mp-stat-icon account-kpi-icon" aria-hidden="true">{% include 'components/account_icon.html' with icon='card' %}</div>
             </div>
-            <div class="cp-stat-value">{{ total_pending_payment_count }}</div>
-            <span class="mp-stat-sub">Awaiting settlement</span>
+            <div class="cp-stat-value account-kpi-value">{{ total_pending_payment_count }}</div>
+            <span class="mp-stat-sub account-kpi-note">Awaiting settlement</span>
         </div>
     </div>
 
-    <div class="cp-tabs" id="paymentsTabs">
-        <button type="button" class="cp-tab-btn{% if active_tab == 'action_required' %} is-active{% endif %}" data-tab-target="action_required">
+    <div id="payment-list-results" data-list-results>
+    <div class="cp-tabs" id="paymentsTabs" aria-label="Payment categories">
+        <a class="cp-tab-btn{% if active_tab == 'action_required' %} is-active{% endif %}" data-tab-target="action_required" data-list-tab href="{% account_page_url 'ar_page' 1 'action_required' %}">
             Action Required ({{ action_required_total_count }})
-        </button>
-        <button type="button" class="cp-tab-btn{% if active_tab == 'remaining_balances' %} is-active{% endif %}" data-tab-target="remaining_balances">
+        </a>
+        <a class="cp-tab-btn{% if active_tab == 'remaining_balances' %} is-active{% endif %}" data-tab-target="remaining_balances" data-list-tab href="{% account_page_url 'partial_page' 1 'remaining_balances' %}">
             Remaining Balances ({{ partial_total_count }})
-        </button>
-        <button type="button" class="cp-tab-btn{% if active_tab == 'payment_history' %} is-active{% endif %}" data-tab-target="payment_history">
+        </a>
+        <a class="cp-tab-btn{% if active_tab == 'payment_history' %} is-active{% endif %}" data-tab-target="payment_history" data-list-tab href="{% account_page_url 'payments_page' 1 'payment_history' %}">
             Payment History ({{ total_records }})
-        </button>
+        </a>
     </div>
 
     <div class="cp-tab-panel{% if active_tab == 'action_required' %} is-active{% endif %}" data-tab-panel="action_required">
@@ -211,29 +212,20 @@
             <h2>Action Required</h2>
             <p>Initial payments, receipt re-uploads, and booking change payments to complete or track. ({{ action_required_total_count }} total)</p>
         </div>
-        <div class="mp-card-list">
+        <div class="account-table-wrap" tabindex="0" role="region" aria-label="Action Required table"><table class="account-table{% if not action_required_page_obj %} is-empty{% endif %}"><thead><tr><th scope="col">Booking</th><th scope="col">Event date</th><th scope="col">Amount due</th><th scope="col">Status</th><th scope="col" class="account-actions-cell">Actions</th></tr></thead><tbody>
             {% for b in action_required_page_obj %}
             {% if b.is_change_payment %}
-                {% include 'client/booking/_change_payment_card.html' with change=b %}
+                {% include 'client/booking/_change_payment_row.html' with change=b %}
             {% else %}
-            <article class="mp-card mp-card--pending">
-                <div class="mp-card-head">
-                    <div class="mp-card-info">
-                        <h3 class="mp-card-title">#{{ b.id }} &middot; {{ b.event_type|default:"Event" }}</h3>
-                        <p class="mp-card-sub">{{ b.event_date|date:"M d, Y" }}{% if b.time_range_display %} &middot; {{ b.time_range_display }}{% endif %}</p>
-                        <p class="mp-card-sub">{{ b.event_location|default:"No location set" }}</p>
-                    </div>
-                    <div class="mp-card-amount">
-                        <span class="mp-card-amount-value">&#8369;{{ b.booking_remaining|floatformat:2 }}</span>
-                        <span class="mp-card-amount-label">{% if b.total_verified_paid > 0 %}Balance due{% else %}Full amount{% endif %}</span>
-                    </div>
-                </div>
-                <div class="mp-card-meta">
-                    <span class="mp-chip">{{ b.package_type|default:"No Package" }}</span>
+            <tr data-payment-row>
+        <td><strong class="account-cell-title">#{{ b.id }} · {{ b.event_type|default:'Event' }}</strong><span class="account-cell-sub">{{ b.package_type|default:'Custom booking' }}</span></td>
+        <td><span class="account-cell-title">{{ b.event_date|date:'M d, Y' }}</span><span class="account-cell-sub">{{ b.time_range_display|default:'Time not specified' }}</span></td>
+        <td><span class="account-amount">₱{{ b.booking_remaining|floatformat:2|intcomma }}</span><span class="account-cell-sub">₱{{ b.total_verified_paid|floatformat:2|intcomma }} verified</span></td>
+        <td>
+
                     <span class="mp-status mp-status--pending">Pending Payment</span>
-                </div>
-                <div class="mp-card-foot">
-                    <div class="mp-actions">
+                </td>
+        <td class="account-actions-cell"><div class="account-row-actions">
                         <button type="button" class="cp-btn-row cp-btn-view cp-btn-view-icon"
                                     aria-label="View Details"
                                     data-tooltip="View Details"
@@ -276,33 +268,15 @@
                         {% else %}
                         <a href="{% url 'payment_page' b.id %}" class="mp-btn-pay">{{ b.payment_action_display }}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
                         {% endif %}
-                    </div>
-                </div>
-            </article>
+                    </div></td>
+    </tr>
             {% endif %}
             {% empty %}
-            <div class="mp-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>
-                <h3>You're all caught up</h3>
-                <p>No bookings need payment right now.</p>
-            </div>
-            {% endfor %}
+            <tr><td colspan="5" class="account-empty-cell">{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title="You're all caught up" empty_description="No bookings need payment right now." %}</td></tr>
+            {% endfor %}</tbody></table>
         </div>
-        {% if action_required_page_obj.has_other_pages %}
-        <div class="cp-pagination">
-            {% if action_required_page_obj.has_previous %}
-            <a class="cp-page-link" href="?ar_page={{ action_required_page_obj.previous_page_number }}&tab=action_required"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></a>
-            {% else %}
-            <span class="cp-page-link disabled"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></span>
-            {% endif %}
-            <span class="cp-current-page">Page {{ action_required_page_obj.number }} of {{ action_required_page_obj.paginator.num_pages }}</span>
-            {% if action_required_page_obj.has_next %}
-            <a class="cp-page-link" href="?ar_page={{ action_required_page_obj.next_page_number }}&tab=action_required"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></a>
-            {% else %}
-            <span class="cp-page-link disabled"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></span>
-            {% endif %}
-        </div>
-        {% endif %}
+        {% if action_required_page_obj %}<p class="account-table-scroll-hint">Swipe to see all columns</p>{% endif %}
+        {% include 'components/account_table_footer.html' with page=action_required_page_obj page_key='ar_page' tab='action_required' pagination_label='Payments' %}
     </div>
     </div>
 
@@ -312,30 +286,17 @@
                 <h2>Remaining Balances</h2>
                 <p>Bookings with partially paid amounts that need settlement. ({{ partial_total_count }} total)</p>
             </div>
-            <div class="mp-card-list">
+            <div class="account-table-wrap" tabindex="0" role="region" aria-label="Remaining Balances table"><table class="account-table{% if not partial_page_obj %} is-empty{% endif %}"><thead><tr><th scope="col">Booking</th><th scope="col">Event date</th><th scope="col">Amount due</th><th scope="col">Status</th><th scope="col" class="account-actions-cell">Actions</th></tr></thead><tbody>
             {% for b in partial_page_obj %}
-            <article class="mp-card mp-card--balance">
-                <div class="mp-card-head">
-                    <div class="mp-card-info">
-                        <h3 class="mp-card-title">#{{ b.id }} &middot; {{ b.event_type|default:"Event" }}</h3>
-                        <p class="mp-card-sub">{{ b.event_date|date:"M d, Y" }} &middot; {{ b.time_range_display|default:"Time not specified" }}</p>
-                        <p class="mp-card-sub">{{ b.event_location|default:"No location set" }}</p>
-                    </div>
-                    <div class="mp-card-amount">
-                        <span class="mp-card-amount-value">&#8369;{{ b.booking_remaining|floatformat:2 }}</span>
-                        <span class="mp-card-amount-label">Balance due</span>
-                    </div>
-                </div>
-                <div class="mp-progress">
-                    <div class="mp-progress-fill" style="width: {% widthratio b.total_verified_paid b.total_price 100 %}%"></div>
-                </div>
-                <p class="mp-progress-note">&#8369;{{ b.total_verified_paid|floatformat:2 }} paid of &#8369;{{ b.total_price|floatformat:2 }}</p>
-                <div class="mp-card-meta">
-                    <span class="mp-chip">{{ b.package_type|default:"No Package" }}</span>
+            <tr data-payment-row>
+        <td><strong class="account-cell-title">#{{ b.id }} · {{ b.event_type|default:'Event' }}</strong><span class="account-cell-sub">{{ b.package_type|default:'Custom booking' }}</span></td>
+        <td><span class="account-cell-title">{{ b.event_date|date:'M d, Y' }}</span><span class="account-cell-sub">{{ b.time_range_display|default:'Time not specified' }}</span></td>
+        <td><span class="account-amount">₱{{ b.booking_remaining|floatformat:2|intcomma }}</span><span class="account-cell-sub">₱{{ b.total_verified_paid|floatformat:2|intcomma }} verified</span></td>
+        <td>
+
                     <span class="mp-status mp-status--info">Partially Paid</span>
-                </div>
-                <div class="mp-card-foot">
-                    <div class="mp-actions">
+                </td>
+        <td class="account-actions-cell"><div class="account-row-actions">
                         <button type="button" class="cp-btn-row cp-btn-view cp-btn-view-icon"
                                     aria-label="View Details"
                                     data-tooltip="View Details"
@@ -378,32 +339,14 @@
                         {% else %}
                         <a href="{% url 'payment_page' b.id %}" class="mp-btn-pay">Pay Balance<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
                         {% endif %}
-                    </div>
-                </div>
-            </article>
+                    </div></td>
+    </tr>
             {% empty %}
-            <div class="mp-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"></path><circle cx="12" cy="12" r="10"></circle></svg>
-                <h3>Nothing to settle</h3>
-                <p>No bookings with remaining balances right now.</p>
+            <tr><td colspan="5" class="account-empty-cell">{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title="Nothing to settle" empty_description="No bookings with remaining balances right now." %}</td></tr>
+            {% endfor %}</tbody></table>
             </div>
-            {% endfor %}
-            </div>
-            {% if partial_page_obj.has_other_pages %}
-            <div class="cp-pagination">
-                {% if partial_page_obj.has_previous %}
-                <a class="cp-page-link" href="?partial_page={{ partial_page_obj.previous_page_number }}&tab=remaining_balances"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></a>
-                {% else %}
-                <span class="cp-page-link disabled"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></span>
-                {% endif %}
-                <span class="cp-current-page">Page {{ partial_page_obj.number }} of {{ partial_page_obj.paginator.num_pages }}</span>
-                {% if partial_page_obj.has_next %}
-                <a class="cp-page-link" href="?partial_page={{ partial_page_obj.next_page_number }}&tab=remaining_balances"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></a>
-                {% else %}
-                <span class="cp-page-link disabled"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></span>
-                {% endif %}
-            </div>
-            {% endif %}
+            {% if partial_page_obj %}<p class="account-table-scroll-hint">Swipe to see all columns</p>{% endif %}
+        {% include 'components/account_table_footer.html' with page=partial_page_obj page_key='partial_page' tab='remaining_balances' pagination_label='Payments' %}
         </div>
     </div>
 
@@ -414,22 +357,18 @@
             <p>Every payment you've submitted — verified, pending or rejected. ({{ total_records }} total)</p>
         </div>
 
-        <div class="mp-card-list">
+        <form class="account-toolbar" data-list-filter method="get">
+            <input type="hidden" name="tab" value="payment_history">
+            <div class="account-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m17 17 4 4"/></svg><input type="search" name="search" data-list-search aria-label="Search payment history" placeholder="Search booking ID or reference…" value="{{ search_query }}" autocomplete="off"><button type="button" data-list-clear aria-label="Clear payment search"{% if not search_query %} hidden{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+            <select name="status" data-account-select aria-label="Payment status"><option value="">All statuses</option><option value="pending"{% if status_filter == 'pending' %} selected{% endif %}>Pending</option><option value="verified"{% if status_filter == 'verified' %} selected{% endif %}>Verified</option><option value="rejected"{% if status_filter == 'rejected' %} selected{% endif %}>Rejected</option></select>
+        </form>
+<div class="account-table-wrap" tabindex="0" role="region" aria-label="Payment History table"><table class="account-table{% if not payments_page_obj %} is-empty{% endif %}"><thead><tr><th scope="col">Booking</th><th scope="col">Payment</th><th scope="col">Amount</th><th scope="col">Status</th><th scope="col" class="account-actions-cell">Actions</th></tr></thead><tbody>
             {% for pay in payments_page_obj %}
-            <article class="mp-card mp-card--history mp-card--{{ pay.payment_status }}">
-                <div class="mp-card-head">
-                    <div class="mp-card-info">
-                        <h3 class="mp-card-title">#{{ pay.booking.id }} &middot; {{ pay.booking.event_type|default:"Event" }}</h3>
-                        <p class="mp-card-sub">{{ pay.booking.event_date|date:"M d, Y" }}{% if pay.booking.time_range_display %} &middot; {{ pay.booking.time_range_display }}{% endif %}</p>
-                        <p class="mp-card-sub">{{ pay.get_payment_method_display }} &middot; {{ pay.get_payment_type_display }}</p>
-                    </div>
-                    <div class="mp-card-amount">
-                        <span class="mp-card-amount-value">&#8369;{{ pay.amount|floatformat:2 }}</span>
-                        <span class="mp-card-amount-label">{{ pay.created_at|date:"M d, Y" }}</span>
-                    </div>
-                </div>
-                <div class="mp-card-meta">
-                    {% if pay.change_request_id %}<span class="mp-chip">Booking change #{{ pay.change_request_id }}</span>{% endif %}
+            <tr data-payment-row>
+            <td><strong class="account-cell-title">#{{ pay.booking_id }} · {{ pay.booking.event_type|default:'Event' }}</strong><span class="account-cell-sub">{{ pay.booking.event_date|date:'M d, Y' }}</span>{% if pay.change_request_id and not pay.applied_to_booking %}<span class="account-cell-sub">Not yet applied to the original balance</span>{% endif %}</td>
+            <td><span class="account-cell-title">{{ pay.get_payment_method_display }}</span><span class="account-cell-sub">{{ pay.get_payment_type_display }} · {{ pay.created_at|date:'M d, Y' }}</span><span class="account-cell-sub">{{ pay.transaction_ref|default:'No reference' }}</span></td>
+            <td><span class="account-amount">₱{{ pay.amount|floatformat:2|intcomma }}</span></td>
+            <td><div class="account-payment-statuses">
                     {% if pay.is_failed_attempt %}
                     <span class="mp-status mp-status--rejected">{{ pay.failed_label }}</span>
                     {% elif pay.payment_status == 'verified' %}
@@ -439,10 +378,9 @@
                     {% else %}
                     <span class="mp-status mp-status--pending">{{ pay.get_payment_status_display }}</span>
                     {% endif %}
-                </div>
-                {% if pay.change_request_id and not pay.applied_to_booking %}<p class="mp-change-note">This payment is for a booking change. It is separate from your original booking balance until the changes are finalized.</p>{% endif %}
-                <div class="mp-card-foot">
-                    <div class="mp-actions">
+                    {% if pay.change_request_id %}<span class="mp-chip account-payment-kind">Booking change #{{ pay.change_request_id }}</span>{% endif %}
+                </div></td>
+            <td class="account-actions-cell"><div class="account-row-actions">
                         <button type="button" class="cp-btn-row cp-btn-view cp-btn-view-icon"
                                     aria-label="View Details"
                                     data-tooltip="View Details"
@@ -493,37 +431,24 @@
                         {% if pay.is_failed_attempt and pay.can_retry %}
                         <a href="{{ pay.pending_info_url }}" class="cp-btn-row cp-btn-pending-info">Try Again</a>
                         {% endif %}
-                    </div>
-                </div>
-            </article>
+                    </div></td>
+        </tr>
             {% empty %}
-            <div class="mp-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                <h3>No payments yet</h3>
-                <p>Your submitted payments will appear here.</p>
-            </div>
-            {% endfor %}
+            <tr><td colspan="5" class="account-empty-cell">{% if search_query or status_filter %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title="No matching payments" empty_description="Try another reference or clear your filters to see your payments." reset_filters=True %}{% else %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title="No payments yet" empty_description="Your submitted payments will appear here." %}{% endif %}</td></tr>
+            {% endfor %}</tbody></table>
         </div>
-        {% if payments_page_obj.has_other_pages %}
-        <div class="cp-pagination">
-            {% if payments_page_obj.has_previous %}
-            <a class="cp-page-link" href="?payments_page={{ payments_page_obj.previous_page_number }}&tab=payment_history"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></a>
-            {% else %}
-            <span class="cp-page-link disabled"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></span>
-            {% endif %}
-            <span class="cp-current-page">Page {{ payments_page_obj.number }} of {{ payments_page_obj.paginator.num_pages }}</span>
-            {% if payments_page_obj.has_next %}
-            <a class="cp-page-link" href="?payments_page={{ payments_page_obj.next_page_number }}&tab=payment_history"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></a>
-            {% else %}
-            <span class="cp-page-link disabled"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></span>
-            {% endif %}
-        </div>
-        {% endif %}
+        {% if payments_page_obj %}<p class="account-table-scroll-hint">Swipe to see all columns</p>{% endif %}
+        {% include 'components/account_table_footer.html' with page=payments_page_obj page_key='payments_page' tab='payment_history' pagination_label='Payments' %}
+    </div>
     </div>
     </div>
 </section>
 
 <script>
+AccountPages.register('my_payments', "template", function(scope) {
+const paymentModal=document.getElementById('bookingModal');
+let paymentModalOpener=null, paymentPreviousOverflow=null;
+
 function activatePaymentsTab(tabName, syncUrl = true) {
     const buttons = document.querySelectorAll('.cp-tab-btn');
     const panels = document.querySelectorAll('.cp-tab-panel');
@@ -543,25 +468,15 @@ function activatePaymentsTab(tabName, syncUrl = true) {
     }
 }
 
-document.querySelectorAll('.cp-tab-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        activatePaymentsTab(this.dataset.tabTarget, true);
-    });
-});
-
-(() => {
-    const urlTab = new URL(window.location.href).searchParams.get('tab');
-    const firstBtn = document.querySelector('.cp-tab-btn');
-    const initialTab = urlTab || (firstBtn ? firstBtn.dataset.tabTarget : 'action_required');
-    activatePaymentsTab(initialTab, false);
-})();
-
 function openBookingModal(btn) {
     const d = btn.dataset;
     const viewSource = d.source || 'action_required';
     const isHistory = viewSource === 'history';
     const isRemainingBalances = viewSource === 'remaining_balances';
     const isActionRequired = viewSource === 'action_required';
+    document.getElementById('modal-description').textContent=isHistory
+        ? 'Review this payment and its booking.'
+        : 'Review your booking balance and payment progress.';
     const modalTitle = document.getElementById('modal-main-title');
     const bookingSectionTitle = document.getElementById('modal-booking-section-title');
     const paymentSummaryTitle = document.getElementById('modal-payment-summary-title');
@@ -697,7 +612,7 @@ function openBookingModal(btn) {
         const notesField = document.getElementById('modal-pay-notes-field');
         const notesVal = d.payNotes || '';
         const payStatus = (d.payStatus || '').toLowerCase();
-        
+
         if (payStatus === 'rejected' && notesVal.trim()) {
             document.getElementById('modal-pay-notes').textContent = notesVal;
             notesField.style.display = '';
@@ -798,21 +713,60 @@ function openBookingModal(btn) {
         if (activitySection) activitySection.style.display = 'none';
     }
 
-    document.getElementById('bookingModal').classList.add('active');
+    if (!paymentModal.classList.contains('active')) {
+        paymentModalOpener=btn;
+        paymentPreviousOverflow=document.body.style.overflow;
+    }
+    paymentModal.classList.add('active');
+    paymentModal.setAttribute('aria-hidden','false');
+    paymentModal.querySelector('.cp-modal-body').scrollTop=0;
     document.body.style.overflow = 'hidden';
+    paymentModal.querySelector('.cp-modal-close').focus({preventScroll:true});
 }
 
 function closeBookingModal() {
-    document.getElementById('bookingModal').classList.remove('active');
-    document.body.style.overflow = '';
+    if (!paymentModal.classList.contains('active')) return;
+    paymentModal.classList.remove('active');
+    paymentModal.setAttribute('aria-hidden','true');
+    if (paymentPreviousOverflow!==null) document.body.style.overflow=paymentPreviousOverflow;
+    paymentPreviousOverflow=null;
+    if (scope.active && paymentModalOpener?.isConnected) paymentModalOpener.focus({preventScroll:true});
+    paymentModalOpener=null;
 }
 
 document.getElementById('bookingModal').addEventListener('click', function(e) {
     if (e.target === this) closeBookingModal();
 });
 
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeBookingModal();
+AccountPages.listen(document, 'keydown', function(e) {
+    if (!paymentModal.classList.contains('active')) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeBookingModal(); return; }
+    if (e.key !== 'Tab') return;
+    const items=[...paymentModal.querySelectorAll('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(element=>element.getClientRects().length);
+    const first=items[0],last=items.at(-1);
+    if (e.shiftKey && (document.activeElement===first || !paymentModal.contains(document.activeElement))) { e.preventDefault();last?.focus(); }
+    else if (!e.shiftKey && (document.activeElement===last || !paymentModal.contains(document.activeElement))) { e.preventDefault();first?.focus(); }
+});
+scope.cleanup(closeBookingModal);
+
+scope.ready(()=>{
+    const url=new URL(location.href);
+    if (url.searchParams.get('from_notif')!=='1') return;
+    const paymentId=url.searchParams.get('payment_id'), bookingId=url.searchParams.get('booking_id');
+    const buttons=[...scope.root.querySelectorAll('.cp-tab-panel.is-active [data-booking-id]')];
+    const target=buttons.find(button=>paymentId ? button.dataset.currentPaymentId===paymentId : button.dataset.bookingId===bookingId);
+    if (target) openBookingModal(target);
+    url.searchParams.delete('from_notif'); url.searchParams.delete('payment_id'); url.searchParams.delete('booking_id');
+    const tab=scope.root.querySelector('.cp-tab-btn.is-active')?.dataset.tabTarget;
+    if (tab) url.searchParams.set('tab',tab);
+    if (paymentId) url.searchParams.set('payments_page','{{ payments_page_obj.number }}');
+    else if (tab==='action_required') url.searchParams.set('ar_page','{{ action_required_page_obj.number }}');
+    else if (tab==='remaining_balances') url.searchParams.set('partial_page','{{ partial_page_obj.number }}');
+    history.replaceState(history.state,'',url);
+});
+
+    scope.expose({activatePaymentsTab, openBookingModal, closeBookingModal});
+
 });
 </script>
 </div>

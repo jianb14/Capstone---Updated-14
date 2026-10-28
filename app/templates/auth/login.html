@@ -1,10 +1,13 @@
 ﻿{% load static %}
 
-
 {% block content %}
+<title>{% block title %}Login | Balloorina{% endblock %}</title>
 <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+<link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="{% static 'js/theme-toggle.js' %}"></script>
+{% include 'components/password_visibility_assets.html' %}
+{% block auth_extra_css %}{% endblock %}
 
 <div class="body auth-with-back">
     {% include 'components/auth_back_link.html' %}
@@ -18,7 +21,7 @@
 
         <!-- Login Form -->
         {% include 'components/pending_verification.html' %}
-        <form method="post" id="loginForm" novalidate>
+        <form method="post" action="{% url 'login' %}" id="loginForm" novalidate>
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.session.login_return_to|default:'' }}">
             
@@ -32,11 +35,9 @@
             <!-- Password Input with Show/Hide Toggle -->
             <div class="field-group">
                 <label class="input-label" for="password">Password</label>
-                <div class="password-container">
+                <div class="password-container password-visibility-field">
                     <input type="password" class="pass-input" id="password" name="password" placeholder="Enter your account password" data-label="Password" required>
-                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
-                        <img class="pass-icon" src="{% static 'images/eye-view.png' %}" alt="eye">
-                    </button>
+                    {% include 'components/password_visibility.html' with input_id='password' password_label='password' %}
                 </div>
                 <small class="field-error"></small>
             </div>
@@ -61,23 +62,12 @@
     </div>
 </div>
 
+{% block auth_overlays %}{% endblock %}
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{% static 'js/email_otp.js' %}"></script>
 <!-- Password Toggle Script and SweetAlert2 -->
 <script>
-function togglePassword(fieldId) {
-    const passwordField = document.getElementById(fieldId);
-    const toggleButton = passwordField.nextElementSibling;
-    const icon = toggleButton.querySelector('img');
-    
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        icon.src = "{% static 'images/eye-hide.png' %}";
-    } else {
-        passwordField.type = 'password';
-        icon.src = "{% static 'images/eye-view.png' %}";
-    }
-}
 
 document.addEventListener("DOMContentLoaded", function() {
     const Toast = Swal.mixin({
@@ -195,5 +185,6 @@ document.addEventListener("DOMContentLoaded", function() {
     {% endif %}
 });
 </script>
+{% block auth_extra_js %}{% endblock %}
 {% endblock %}
 

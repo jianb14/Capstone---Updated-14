@@ -1,0 +1,55 @@
+<div id="{% if editing %}editReviewModal{% else %}reviewModal{% endif %}" class="modal-overlay review-dialog" role="dialog" aria-modal="true" aria-labelledby="{% if editing %}editReviewTitle{% else %}createReviewTitle{% endif %}" tabindex="-1">
+    <div class="modal-card">
+        <header class="modal-header">
+            <div>
+                <h2 id="{% if editing %}editReviewTitle{% else %}createReviewTitle{% endif %}">{% if editing %}Edit Review{% else %}Leave a Review{% endif %}</h2>
+                <p>Share your experience with your event setup.</p>
+            </div>
+            <button type="button" class="review-icon-button modal-close" onclick="{% if editing %}closeEditModal(){% else %}closeReviewModal(){% endif %}" aria-label="{% if editing %}Close edit review{% else %}Close review form{% endif %}">{% include 'components/review_close_icon.html' %}</button>
+        </header>
+        <form id="{% if editing %}editReviewForm{% else %}reviewForm{% endif %}" method="POST" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if editing %}<input type="hidden" id="edit-review-id">{% else %}<input type="hidden" id="review_booking_id" name="booking_id">{% endif %}
+            <div class="review-dialog__fields">
+                <div class="form-group">
+                    <label id="{% if editing %}editRatingLabel{% else %}createRatingLabel{% endif %}">Rating <span class="review-required">*</span></label>
+                    <div class="star-rating" {% if editing %}id="edit-star-rating"{% endif %} role="radiogroup" aria-labelledby="{% if editing %}editRatingLabel{% else %}createRatingLabel{% endif %}" aria-required="true">
+                        {% for star in '12345' %}
+                        <input type="radio" id="{% if editing %}edit-{% endif %}star{{ star }}" name="rating" value="{{ star }}" aria-label="{{ star }} {% if star == '1' %}star{% else %}stars{% endif %}" aria-describedby="{% if editing %}edit_review{% else %}review{% endif %}_rating_error">
+                        <label for="{% if editing %}edit-{% endif %}star{{ star }}" title="{{ star }} stars" aria-hidden="true">★</label>
+                        {% endfor %}
+                    </div>
+                    <div id="{% if editing %}edit-{% endif %}star-description" class="review-rating-description" aria-live="polite">Select a rating</div>
+                    <small class="review-field-error" id="{% if editing %}edit_review{% else %}review{% endif %}_rating_error" role="alert"></small>
+                </div>
+                <div class="form-group reviews-group">
+                    <label for="{% if editing %}edit-comment{% else %}review_comment{% endif %}">Your Review <span class="review-required">*</span></label>
+                    <textarea id="{% if editing %}edit-comment{% else %}review_comment{% endif %}" name="comment" placeholder="Tell us about your experience…" required aria-describedby="{% if editing %}edit_review{% else %}review{% endif %}_comment_error"></textarea>
+                    <small class="review-field-error" id="{% if editing %}edit_review{% else %}review{% endif %}_comment_error" role="alert"></small>
+                </div>
+                <div class="form-group reviews-group">
+                    <label for="{% if editing %}edit_images_ui{% else %}review_images_ui{% endif %}">Photos <span class="review-optional">(optional)</span></label>
+                    <div id="{% if editing %}edit{% else %}create{% endif %}-unified-images-preview" class="image-preview-grid"></div>
+                    <div class="review-upload-zone" data-review-upload="{% if editing %}edit_images_ui{% else %}review_images_ui{% endif %}" role="group" aria-label="Upload review photos" aria-describedby="{% if editing %}edit{% else %}create{% endif %}UploadHint">
+                        <svg class="review-upload-zone__icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17H6a4 4 0 0 1-.8-7.9 7 7 0 0 1 13.6 0A4 4 0 0 1 18 17h-1M12 21V10m-4 4 4-4 4 4"/></svg>
+                        <p class="review-upload-zone__title">Choose images or drag &amp; drop them here</p>
+                        <p class="review-upload-zone__hint" id="{% if editing %}edit{% else %}create{% endif %}UploadHint">Images only &middot; Up to 4 photos in total</p>
+                        <button type="button" class="file-choose-btn" onclick="document.getElementById('{% if editing %}edit_images_ui{% else %}review_images_ui{% endif %}').click()">
+                            Browse Files
+                        </button>
+                    </div>
+                    <span id="{% if editing %}editImagesStatus{% else %}createReviewImagesStatus{% endif %}" class="file-status review-upload-status" role="status">No file chosen</span>
+                    <p class="review-upload-error review-upload-type-error" role="alert" hidden>Please choose image files only.</p>
+                    <div id="{% if editing %}edit{% else %}create{% endif %}ImageLimitError" class="review-upload-error" role="alert" style="display:none">You can only have a maximum of 4 images total.</div>
+                    <input type="file" id="{% if editing %}edit_images_ui{% else %}review_images_ui{% endif %}" multiple accept="image/*" hidden>
+                    <input type="file" id="{% if editing %}edit_images{% else %}review_images{% endif %}" name="images" multiple hidden>
+                    {% if editing %}<div id="edit-images-remove-inputs"></div>{% endif %}
+                </div>
+            </div>
+            <footer class="review-dialog__actions">
+                <button type="button" class="review-dialog__cancel" onclick="{% if editing %}closeEditModal(){% else %}closeReviewModal(){% endif %}">Cancel</button>
+                <button type="submit" class="btn-submit-review">{% if editing %}Save Changes{% else %}Submit Review{% endif %}</button>
+            </footer>
+        </form>
+    </div>
+</div>

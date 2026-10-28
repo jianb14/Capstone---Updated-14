@@ -24,9 +24,66 @@ class User(AbstractUser):
         null=True, blank=True, db_index=True,
         help_text='Expiry for new website signups only; null preserves legacy and verified accounts.',
     )
+    deleted_at = models.DateTimeField(null=True, blank=True, editable=False, db_index=True,
+        help_text='Permanent account removal; only an anonymous transaction owner remains.')
+
+    class Meta(AbstractUser.Meta):
+        permissions = [('invite_administrator', 'Can invite administrator accounts')]
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+
+class AccountMediaRemoval(models.Model):
+    """Durable retry queue for files detached during permanent account removal."""
+    key = models.CharField(max_length=64, primary_key=True)
+    name = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    attempted_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+
+
+class AdminSecurityChallenge(models.Model):
+    """Password- and session-bound proof for privileged email actions."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    purpose = models.CharField(max_length=12, choices=[('email', 'Verify admin email'), ('invite', 'Invite admin')])
+    email_snapshot = models.EmailField()
+    target_email = models.EmailField()
+    payload = models.JSONField(default=dict)
+    code_digest = models.CharField(max_length=64)
+    session_digest = models.CharField(max_length=64)
+    password_digest = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'purpose', 'created_at'], name='admin_challenge_actor_idx')]
+
+
+class AdminInvitation(models.Model):
+    """No account exists until the intended recipient accepts the single-use link."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField()
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    phone_number = models.CharField(max_length=20)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='admin_invitations')
+    creator_email = models.EmailField()
+    creator_password_digest = models.CharField(max_length=64)
+    token_digest = models.CharField(max_length=64)
+    status = models.CharField(max_length=10, default='pending', choices=[
+        ('pending', 'Pending'), ('accepted', 'Accepted'), ('revoked', 'Revoked'), ('expired', 'Expired')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_invitation')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(models.functions.Lower('email'), condition=models.Q(status='pending'),
+                                               name='one_pending_admin_invite_email')]
 
 
 class EmailOTPChallenge(models.Model):
@@ -34,7 +91,9 @@ class EmailOTPChallenge(models.Model):
     SIGNUP = 'signup'
     RESET = 'reset'
     CHANGE = 'change'
-    PURPOSES = ((SIGNUP, 'Account verification'), (RESET, 'Password recovery'), (CHANGE, 'Password change'))
+    DELETE = 'delete'
+    PURPOSES = ((SIGNUP, 'Account verification'), (RESET, 'Password recovery'),
+                (CHANGE, 'Password change'), (DELETE, 'Account deletion'))
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_otp_challenges')
@@ -606,7 +665,7 @@ class ChatMessage(models.Model):
     @property
     def is_from_admin(self):
         return (
-            getattr(self.sender, 'role', None) in ['admin', 'staff']
+            getattr(self.sender, 'role', None) == 'admin'
             or getattr(self.sender, 'is_superuser', False)
         )
 
@@ -840,6 +899,7 @@ class AuditLog(models.Model):
 # -----------------------------
 class AdminNotification(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='admin_notifications', null=True, blank=True)
+    concern = models.ForeignKey('ConcernTicket', on_delete=models.CASCADE, related_name='admin_notifications', null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='caused_admin_notifications', null=True, blank=True)
     message = models.TextField()
     is_read = models.BooleanField(default=False)
@@ -962,13 +1022,18 @@ class ServiceChargeConfig(models.Model):
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='notifications')
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    concern = models.ForeignKey('ConcernTicket', on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [models.CheckConstraint(
+            check=(models.Q(booking__isnull=False, concern__isnull=True)
+                | models.Q(booking__isnull=True, concern__isnull=False)),
+            name='notification_has_one_target')]
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.message[:30]}..."
@@ -1099,26 +1164,9 @@ class CanvasCategory(models.Model):
         return self.name
 
 
-class CanvasLabel(models.Model):
-    category = models.ForeignKey(CanvasCategory, on_delete=models.CASCADE, related_name='labels')
-    name = models.CharField(max_length=120)
-    order = models.PositiveIntegerField(default=1, help_text="Lower number = shown first")
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['category__order', 'order', 'name']
-        unique_together = ('category', 'name')
-
-    def __str__(self):
-        return f"{self.name} ({self.category.name})"
-
-
 class CanvasAsset(models.Model):
     builtin_key = models.CharField(max_length=40, null=True, blank=True, unique=True, editable=False)
     category = models.ForeignKey(CanvasCategory, on_delete=models.CASCADE, related_name='assets')
-    label_ref = models.ForeignKey(CanvasLabel, on_delete=models.SET_NULL, related_name='assets', null=True, blank=True)
     label = models.CharField(max_length=150)
     subgroup = models.CharField(max_length=120, blank=True, default='')
     image = models.ImageField(upload_to='canvas_assets/', blank=True, null=True)
@@ -1140,7 +1188,7 @@ class CanvasAsset(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['category__order', 'label_ref__order', 'subgroup', 'sort_order', 'id']
+        ordering = ['category__order', 'subgroup', 'sort_order', 'id']
 
     def __str__(self):
         return f"{self.label} ({self.category.name})"

@@ -20,6 +20,7 @@ def start_deadline_worker():
         def run():
             from .booking_lifecycle import process_booking_deadlines
             from .signup_lifecycle import process_signup_cleanup
+            from .account_deletion import purge_account_media
             while not _stop.is_set():
                 try:
                     close_old_connections()
@@ -33,6 +34,13 @@ def start_deadline_worker():
                     process_signup_cleanup()
                 except Exception:
                     logger.exception('Pending signup cleanup failed; retrying on a later interval')
+                finally:
+                    connections.close_all()
+                try:
+                    close_old_connections()
+                    purge_account_media(limit=100)
+                except Exception:
+                    logger.exception('Account media cleanup failed; retrying on a later interval')
                 finally:
                     connections.close_all()
                 _stop.wait(60)

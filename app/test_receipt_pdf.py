@@ -246,13 +246,15 @@ class ReceiptLogoPlacementTests(TestCase):
         self.assertEqual(reader.metadata.title, f'Payment Receipt | PAY-{self.payment.pk:06d}')
 
     def test_long_references_and_names_are_preserved_across_pages(self):
+        from .payment_receipt import build_payment_receipt
+
+        # Exercise PDF wrapping without persisting oversized values beyond model limits.
         self.payment.transaction_ref = 'LONGREFERENCE' * 18
         self.payment.gcash_sender_name = 'Sender <Name> & Family ' * 10
         self.payment.gcash_reference_number = '1234567890' * 10
-        self.payment.save()
         self.booking.package_type = 'Package & extras ' * 20
-        self.booking.save()
-        reader = PdfReader(io.BytesIO(self._get_pdf()))
+        self.payment.booking = self.booking
+        reader = PdfReader(io.BytesIO(build_payment_receipt(self.payment, '10:00 AM')))
         text = ''.join(page.extract_text() for page in reader.pages)
         collapsed = ''.join(text.split())
         self.assertIn(self.payment.transaction_ref, collapsed)
@@ -260,7 +262,7 @@ class ReceiptLogoPlacementTests(TestCase):
         self.assertIn(''.join(self.booking.package_type.split()), collapsed)
         self.assertIn('Total booking price', text)
 
-    def test_unverified_staff_receipt_does_not_claim_payment_is_verified(self):
+    def test_unverified_admin_receipt_does_not_claim_payment_is_verified(self):
         from .payment_receipt import build_payment_receipt
         self.payment.payment_status = 'pending'
         data = build_payment_receipt(self.payment, '10:00 AM')
@@ -270,7 +272,7 @@ class ReceiptLogoPlacementTests(TestCase):
 
 
 class ReceiptPdfAccessControlTests(TestCase):
-    """Only the owner (or admin/staff) may download a receipt."""
+    """Only the owner or admin may download a receipt."""
 
     def setUp(self):
         self.owner = User.objects.create_user(

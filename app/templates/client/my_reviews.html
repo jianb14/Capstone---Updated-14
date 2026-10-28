@@ -1,53 +1,65 @@
-﻿{% extends 'client/base.html' %}
+{% extends 'client/account_base.html' %}
 {% load static %}
+{% block title %}My Reviews | Balloorina.ph{% endblock %}
 
-{% block content %}
+{% block account_page %}my_reviews{% endblock %}
+{% block account_content %}
 <link rel="stylesheet" href="{% static 'css/my_reviews.css' %}?v=20260921f">
+<link rel="stylesheet" href="{% static 'css/review_controls.css' %}?v=20261025c">
+<link rel="stylesheet" href="{% static 'css/my_reviews_layout.css' %}?v=20261025b">
+<link rel="stylesheet" href="{% static 'css/review_motion.css' %}?v=20261025a">
+<script src="{% static 'js/review_controls.js' %}?v=20261025account1" defer></script>
+<script src="{% static 'js/review_page.js' %}?v=20261025account1" defer></script>
+<script src="{% static 'js/review_motion.js' %}?v=20261025account1" defer></script>
 
-<div class="reviews-page">
-    <div class="my-reviews-container">
+<div class="reviews-page" data-review-page="my_reviews">
+    <div class="my-reviews-container" data-review-page-content>
 
-        <!-- Page header + stats -->
-        <div class="mr-page-header">
+        <header class="mr-page-header account-page-header">
             <div class="mr-header-text">
-                <h2 class="my-reviews-title">My Reviews</h2>
-                <p class="my-reviews-subtitle">Your feedback helps us style better celebrations.</p>
+                <h1 class="my-reviews-title account-page-title">My Reviews</h1>
+                <p class="my-reviews-subtitle account-page-subtitle">A little feedback makes the next celebration even better.</p>
             </div>
-            <div class="mr-stats">
+            <a href="{% url 'reviews' %}" class="mr-community-link">View all reviews <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+        </header>
+            <div class="mr-stats" aria-label="Your review summary">
                 <div class="mr-stat">
+                    <div class="mr-stat-top"><span class="mr-stat-label">Awaiting review</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h4"/></svg></div>
                     <span class="mr-stat-num">{{ pending_page_obj.paginator.count }}</span>
-                    <span class="mr-stat-label">Pending</span>
+                    <span class="mr-stat-note">Completed events to share</span>
                 </div>
                 <div class="mr-stat">
+                    <div class="mr-stat-top"><span class="mr-stat-label">Published</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H12l-9 1 2-6a8.5 8.5 0 1 1 16-3.5Z"/><path d="M8 11h8m-8 4h5"/></svg></div>
                     <span class="mr-stat-num">{{ published_count }}</span>
-                    <span class="mr-stat-label">Published</span>
+                    <span class="mr-stat-note">Experiences you have shared</span>
                 </div>
-                {% if published_count %}
                 <div class="mr-stat">
-                    <span class="mr-stat-num">{{ avg_rating|floatformat:1 }}</span>
-                    <span class="mr-stat-label">Avg Rating</span>
+                    <div class="mr-stat-top"><span class="mr-stat-label">Average rating</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></div>
+                    <span class="mr-stat-num">{% if published_count %}{{ avg_rating|floatformat:1 }}<small>/ 5</small>{% else %}&mdash;{% endif %}</span>
+                    <span class="mr-stat-note">{% if published_count %}Across your published reviews{% else %}Starts with your first review{% endif %}</span>
                 </div>
-                {% endif %}
             </div>
-        </div>
 
-        {% if pending_reviews %}
-        <div class="pending-reviews-section">
+        <div class="mr-columns">
+        <section class="pending-reviews-section" id="awaiting-reviews" aria-labelledby="awaitingReviewsTitle">
             <div class="pending-reviews-heading">
-                <h3 class="mr-section-label">Awaiting Your Review</h3>
+                <div><h2 class="mr-section-label" id="awaitingReviewsTitle">Awaiting your review <span class="mr-count">{{ pending_page_obj.paginator.count }}</span></h2><p class="mr-section-description">How did your celebration go?</p></div>
             </div>
             <div class="pending-reviews-list">
                 {% for b in pending_reviews %}
                 <div class="pending-review-card">
-                    <span class="pending-index">{{ forloop.counter|stringformat:"02d" }}</span>
+                    <time class="mr-event-date" datetime="{{ b.event_date|date:'Y-m-d' }}"><span>{{ b.event_date|date:'M' }}</span><strong>{{ b.event_date|date:'d' }}</strong></time>
                     <div class="pending-info">
                         <h4>{{ b.event_type|default:'Event' }}</h4>
-                        <p class="pending-meta">{{ b.package_type|default:'Custom Booking' }} &middot; {{ b.event_date|date:"F d, Y" }}</p>
+                        <p class="pending-meta">{{ b.package_type|default:'Custom Booking' }}</p>
+                        <span class="mr-event-year">{{ b.event_date|date:'Y' }} <span aria-hidden="true">&middot;</span> Completed event</span>
                     </div>
-                    <button class="btn-leave-review" onclick="openReviewModal('{{ b.id }}')">
-                        Leave a Review <i class="fas fa-arrow-right btn-arrow-icon"></i>
+                    <button type="button" class="btn-leave-review" onclick="openReviewModal('{{ b.id }}')">
+                        Leave a Review <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
                     </button>
                 </div>
+                {% empty %}
+                {% include 'components/review_empty_state.html' with kind='pending' title='All caught up' subtitle='Completed bookings will appear here when they are ready for your review.' %}
                 {% endfor %}
             </div>
 
@@ -89,11 +101,12 @@
             </div>
             {% endif %}
 
-        </div>
-        {% endif %}
+        </section>
         
+        <section class="mr-published-section" aria-labelledby="publishedReviewsTitle">
         <div class="published-heading">
-            <h3 class="mr-section-label">Published Reviews</h3>
+            <h2 class="mr-section-label" id="publishedReviewsTitle">Published reviews <span class="mr-count">{{ published_count }}</span></h2>
+            <p class="mr-section-description">Your words, shared with the community.</p>
         </div>
         <div class="reviews-list">
             {% if reviews %}
@@ -115,22 +128,9 @@
                         </span>
                         <span class="review-card-sub">Posted {{ review.created_at|timesince }} ago</span>
                     </div>
-                    <span class="your-review-badge"><i class="fa-regular fa-circle-check"></i> Your Review</span>
+                    <span class="your-review-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg> Published</span>
 
-                    <div class="review-options">
-                        <button class="options-btn" type="button" onclick="toggleReviewDropdown(event, {{ review.id }})">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <div id="dropdown-{{ review.id }}" class="review-dropdown">
-                            <button type="button"
-                                onclick="openEditModal({{ review.id }}, {{ review.rating }}, '{{ review.comment|escapejs }}', '{{ review.images_json|escapejs }}')">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button type="button" class="delete-opt" onclick="deleteReview({{ review.id }})">
-                                <i class="fas fa-trash-alt"></i> Delete
-                            </button>
-                        </div>
-                    </div>
+                    {% include 'components/review_options.html' %}
                 </div>
 
                 <div class="review-rating-row">
@@ -155,9 +155,7 @@
                 </div>
                 {% endif %}
 
-                <div class="review-content">
-                    "{{ review.comment|linebreaksbr }}"
-                </div>
+                <div class="review-content">{{ review.comment|linebreaksbr }}</div>
 
                 <div class="review-actions">
                     <button class="review-action-btn like-btn {% if review.is_liked_by_user %}liked{% endif %}"
@@ -214,167 +212,30 @@
             {% endif %}
 
             {% else %}
-            <div class="no-reviews-custom">
-                <div class="nr-icon"><i class="fa-regular fa-comment-dots"></i></div>
-                <h4>No Published Reviews Yet</h4>
-                <p>You haven't submitted any reviews. Share your experience after your event!</p>
-            </div>
+            {% include 'components/review_empty_state.html' with title='No published reviews yet' subtitle='Share your experience after a completed event. Your reviews will appear here.' %}
             {% endif %}
         </div>
-    </div>
-</div>
-
-<!-- REVIEW MODAL -->
-<div id="reviewModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h2>Leave a Review</h2>
-            <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+        </section>
         </div>
-
-        <form id="reviewForm" method="POST" action="" enctype="multipart/form-data">
-            {% csrf_token %}
-            <input type="hidden" id="review_booking_id" name="booking_id">
-
-            <div class="form-group">
-                <label>Rating</label>
-                <div class="star-rating">
-                    <input type="radio" id="star5" name="rating" value="5" />
-                    <label for="star5" title="5 stars">&#9733;</label>
-
-                    <input type="radio" id="star4" name="rating" value="4" />
-                    <label for="star4" title="4 stars">&#9733;</label>
-
-                    <input type="radio" id="star3" name="rating" value="3" />
-                    <label for="star3" title="3 stars">&#9733;</label>
-
-                    <input type="radio" id="star2" name="rating" value="2" />
-                    <label for="star2" title="2 stars">&#9733;</label>
-
-                    <input type="radio" id="star1" name="rating" value="1" />
-                    <label for="star1" title="1 star">&#9733;</label>
-                </div>
-                <div id="star-description"
-                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; min-height: 1.2rem;">
-                    Select a rating</div>
-                <small class="review-field-error" id="review_rating_error"></small>
-            </div>
-
-            <div class="form-group reviews-group">
-                <label for="review_comment">Your Review</label>
-                <textarea id="review_comment" name="comment" placeholder="Tell us about your experience..."></textarea>
-                <small class="review-field-error" id="review_comment_error"></small>
-            </div>
-
-            <div class="form-group reviews-group" style="margin-bottom: 0.5rem;">
-                <label>Upload Pictures (Optional)</label>
-                
-                <div id="create-unified-images-preview" class="image-preview-grid"></div>
-
-                <div class="file-input-shell">
-                    <label for="review_images_ui" class="file-choose-btn">Choose Files</label>
-                    <span id="createReviewImagesStatus" class="file-status">No file chosen</span>
-                </div>
-                <small class="file-hint">You can select up to 4 images.</small>
-
-                <div id="createImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
-                    You can only have a maximum of 4 images total.
-                </div>
-                
-                <input type="file" id="review_images_ui" multiple accept="image/*" class="file-input" style="display: none;">
-                <input type="file" id="review_images" name="images" multiple style="display: none;">
-            </div>
-
-            <button type="submit" class="btn-submit-review">Submit Review</button>
-        </form>
     </div>
 </div>
 
-<!-- IMAGE EXPAND MODAL -->
-<div id="imageModal" class="image-modal-overlay">
-    <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
-    <img class="image-modal-content" id="expandedImg">
-</div>
-
-<!-- EDIT REVIEW MODAL -->
-<div id="editReviewModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h2>Edit a Review</h2>
-            <button class="modal-close" onclick="closeEditModal()">&times;</button>
-        </div>
-
-        <form id="editReviewForm" enctype="multipart/form-data">
-            {% csrf_token %}
-            <input type="hidden" id="edit-review-id">
-
-            <div class="form-group">
-                <label>Rating</label>
-                <div class="star-rating" id="edit-star-rating">
-                    <input type="radio" id="edit-star5" name="rating" value="5" />
-                    <label for="edit-star5" title="5 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star4" name="rating" value="4" />
-                    <label for="edit-star4" title="4 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star3" name="rating" value="3" />
-                    <label for="edit-star3" title="3 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star2" name="rating" value="2" />
-                    <label for="edit-star2" title="2 stars">&#9733;</label>
-
-                    <input type="radio" id="edit-star1" name="rating" value="1" />
-                    <label for="edit-star1" title="1 star">&#9733;</label>
-                </div>
-                <div id="edit-star-description"
-                    style="text-align: right; color: #888; font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1rem; min-height: 1.2rem;">
-                    Select a rating</div>
-                <small class="review-field-error" id="edit_review_rating_error"></small>
-            </div>
-
-            <div class="form-group reviews-group">
-                <label for="edit-comment">Your Review</label>
-                <textarea id="edit-comment" name="comment" placeholder="Tell us about your experience..."></textarea>
-                <small class="review-field-error" id="edit_review_comment_error"></small>
-            </div>
-
-            <!-- Unified Review Images -->
-            <div class="form-group reviews-group" style="margin-bottom: 0.5rem;">
-                <label>Review Pictures (Max 4 total)</label>
-                <div id="edit-unified-images-preview" class="image-preview-grid">
-                    <!-- Populated via JS -->
-                </div>
-
-                <div class="file-input-shell">
-                    <label for="edit_images_ui" class="file-choose-btn">Choose Files</label>
-                    <span id="editImagesStatus" class="file-status">No file chosen</span>
-                </div>
-                <small class="file-hint">You can select up to 4 images.</small>
-
-                <div id="editImageLimitError" style="color: #ef4444; font-size: 0.85rem; margin: 2px 0 0 0; display: none;">
-                    You can only have a maximum of 4 images total.
-                </div>
-                
-                <input type="file" id="edit_images_ui" multiple accept="image/*" class="file-input" style="display: none;">
-                <input type="file" id="edit_images" name="images" multiple style="display: none;">
-                
-                <div id="edit-images-remove-inputs"></div>
-            </div>
-
-            <button type="submit" class="btn-submit-review">Save Changes</button>
-        </form>
-    </div>
-</div>
+{% include 'components/review_form_modal.html' %}
+{% include 'components/review_form_modal.html' with editing=True %}
+{% include 'components/review_image_modal.html' %}
 
 <script>
-    const Toast = AppToast.mixin({ timer: 2000 }); // 2s para mabilis ma-reload
+AccountPages.register('my_reviews', "template", function(scope) {
+    scope.capture(['createReviewAccumulatedFiles', 'currentReviewExistingImagesCount', 'editReviewAccumulatedFiles']);
 
-    document.addEventListener('DOMContentLoaded', () => {
+
+    scope.ready(() => {
         const reviewFormObj = document.getElementById('reviewForm');
         const reviewCommentInput = document.getElementById('review_comment');
         const reviewRatingErrorEl = document.getElementById('review_rating_error');
         const reviewCommentErrorEl = document.getElementById('review_comment_error');
         let createReviewSubmitAttempted = false;
+        reviewFormObj?.addEventListener('reset', () => { createReviewSubmitAttempted = false; });
 
         const setCreateReviewFieldError = (field, message) => {
             if (field === 'rating') {
@@ -416,7 +277,8 @@
         };
 
         if (reviewFormObj) {
-            reviewFormObj.addEventListener('submit', function (e) {
+            reviewFormObj.addEventListener('submit', async function (e) {
+                e.preventDefault();
                 createReviewSubmitAttempted = true;
                 const firstInvalid = validateCreateReviewForm();
                 if (firstInvalid) {
@@ -424,7 +286,9 @@
                     if (firstInvalid === 'comment' && reviewCommentInput) {
                         reviewCommentInput.focus();
                     }
+                    return;
                 }
+                await window.ReviewPage.save(this);
             });
 
             const createReviewStars = reviewFormObj.querySelectorAll('input[name="rating"]');
@@ -438,29 +302,6 @@
         if (reviewCommentInput) {
             reviewCommentInput.addEventListener('input', () => {
                 if (createReviewSubmitAttempted) validateCreateReviewForm();
-            });
-        }
-
-        // --- IMAGE LIGHTBOX LOGIC ---
-        const imageModal = document.getElementById("imageModal");
-        const expandedImg = document.getElementById("expandedImg");
-        const reviewImages = document.querySelectorAll(".review-uploaded-img");
-
-        if (imageModal && expandedImg) {
-            reviewImages.forEach(img => {
-                img.addEventListener('click', function () {
-                    imageModal.style.display = "flex";
-                    expandedImg.src = this.src;
-                    setTimeout(() => {
-                        imageModal.classList.add('show');
-                    }, 10);
-                });
-            });
-
-            imageModal.addEventListener('click', function (e) {
-                if (e.target === imageModal) {
-                    closeImageModal();
-                }
             });
         }
 
@@ -510,15 +351,6 @@
 
         editStarInputs.forEach(input => {
             input.addEventListener('change', () => updateEditStars(null));
-        });
-
-        // Close dropdowns when clicking outside
-        window.addEventListener('click', function (e) {
-            if (!e.target.closest('.review-options')) {
-                document.querySelectorAll('.review-dropdown').forEach(d => {
-                    d.classList.remove('show');
-                });
-            }
         });
 
         // --- MULTI-IMAGE UNIFIED PREVIEW LOGIC ---
@@ -577,7 +409,9 @@
                         el.style.borderRadius = '5px';
                         el.style.border = '1px solid #444';
 
-                        const delLabel = document.createElement('div');
+                        const delLabel = document.createElement('button');
+                        delLabel.type = 'button';
+                        delLabel.setAttribute('aria-label', 'Remove image');
                         delLabel.style.position = 'absolute';
                         delLabel.style.top = '-5px';
                         delLabel.style.right = '-5px';
@@ -592,7 +426,9 @@
                         delLabel.style.cursor = 'pointer';
                         delLabel.style.fontSize = '18px';
                         delLabel.style.transition = 'background 0.2s';
-                        delLabel.innerHTML = '&times;';
+                        delLabel.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+                    delLabel.style.padding = '0';
+                    delLabel.style.border = '0';
                         delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
                         delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
                         
@@ -630,6 +466,7 @@
         const editReviewRatingErrorEl = document.getElementById('edit_review_rating_error');
         const editReviewCommentErrorEl = document.getElementById('edit_review_comment_error');
         let editReviewSubmitAttempted = false;
+        editForm?.addEventListener('reset', () => { editReviewSubmitAttempted = false; });
 
         const setEditReviewFieldError = (field, message) => {
             if (field === 'rating') {
@@ -682,73 +519,7 @@
                     return;
                 }
 
-                const reviewId = document.getElementById('edit-review-id').value;
-                const formData = new FormData(this);
-                // Get CSRF token from the form's own hidden input
-                const csrfToken = formData.get('csrfmiddlewaretoken') || '';
-
-                try {
-                    const response = await fetch(`/reviews/${reviewId}/edit/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': csrfToken },
-                        body: formData
-                    });
-
-                    // Maaaring HTML ang error body (hal. 404/500) — huwag mag-throw
-                    // sa unang parse, kundi mapupunta sa catch.
-                    const data = await response.json().catch(() => ({}));
-                    if (response.ok) {
-                        closeEditModal(); // Close immediately on success
-                        Toast.fire({
-                            icon: 'success',
-                            title: data.message || 'Review updated successfully!'
-                        }).then(async () => {
-                            // Smooth reload: Fetch new HTML and replace the review card only
-                            try {
-                                const resp = await fetch(window.location.href);
-                                const html = await resp.text();
-                                const doc = new DOMParser().parseFromString(html, 'text/html');
-                                const newCard = doc.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
-                                const currentCard = document.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
-                                
-                                if (newCard && currentCard) {
-                                    currentCard.outerHTML = newCard.outerHTML;
-                                    // Rebind image click events for the new card
-                                    const updatedCard = document.querySelector(`.like-btn[data-id="${reviewId}"]`).closest('.review-card');
-                                    const imgs = updatedCard.querySelectorAll(".review-uploaded-img");
-                                    const imageModal = document.getElementById("imageModal");
-                                    const expandedImg = document.getElementById("expandedImg");
-                                    imgs.forEach(img => {
-                                        img.addEventListener('click', function () {
-                                            if(imageModal && expandedImg) {
-                                                imageModal.style.display = "flex";
-                                                expandedImg.src = this.src;
-                                                setTimeout(() => imageModal.classList.add('show'), 10);
-                                            }
-                                        });
-                                    });
-                                } else {
-                                    location.reload();
-                                }
-                            } catch (e) {
-                                location.reload();
-                            }
-                        });
-                    } else {
-                        // Maaaring HTML ang error body — huwag mag-throw.
-                        const data = await response.json().catch(() => ({}));
-                        Toast.fire({
-                            icon: 'error',
-                            title: data.message || 'Update failed'
-                        });
-                    }
-                } catch (err) {
-                    console.error(err);
-                    Toast.fire({
-                        icon: 'error',
-                        title: 'An error occurred while updating.'
-                    });
-                }
+                await window.ReviewPage.save(this, document.getElementById('edit-review-id').value);
             });
 
             const editReviewStars = editForm.querySelectorAll('input[name="rating"]');
@@ -765,14 +536,6 @@
             });
         }
     });
-
-    function toggleReviewDropdown(e, id) {
-        e.stopPropagation();
-        document.querySelectorAll('.review-dropdown').forEach(d => {
-            if (d.id !== `dropdown-${id}`) d.classList.remove('show');
-        });
-        document.getElementById(`dropdown-${id}`).classList.toggle('show');
-    }
 
     // Pass images as a JSON string to avoid parsing complex JS arrays in HTML onClick attributes
     function openEditModal(id, rating, comment, imagesJson) {
@@ -796,8 +559,6 @@
 
         const descriptions = { 1: "1 Star - Poor", 2: "2 Stars - Fair", 3: "3 Stars - Good", 4: "4 Stars - Very Good", 5: "5 Stars - Excellent" };
         document.getElementById('edit-star-description').textContent = descriptions[rating] || "Select a rating";
-
-
 
         // Setup Unified Images Preview
         window.editReviewAccumulatedFiles = new DataTransfer();
@@ -831,7 +592,9 @@
                     el.style.borderRadius = '5px';
                     el.style.border = '1px solid #444';
 
-                    const delLabel = document.createElement('div');
+                    const delLabel = document.createElement('button');
+                    delLabel.type = 'button';
+                    delLabel.setAttribute('aria-label', 'Remove image');
                     delLabel.style.position = 'absolute';
                     delLabel.style.top = '-5px';
                     delLabel.style.right = '-5px';
@@ -847,7 +610,9 @@
                     delLabel.style.fontSize = '18px';
                     delLabel.style.transition = 'background 0.2s';
                     delLabel.title = "Remove image";
-                    delLabel.innerHTML = '&times;';
+                    delLabel.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+                    delLabel.style.padding = '0';
+                    delLabel.style.border = '0';
                     
                     delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
                     delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
@@ -876,14 +641,11 @@
             console.error("Error parsing existing images:", e);
         }
 
-        const modal = document.getElementById('editReviewModal');
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('show'), 10);
+        window.ReviewUI.open('editReviewModal');
     }
 
     function closeEditModal() {
-        const modal = document.getElementById('editReviewModal');
-        modal.classList.remove('show');
+        window.ReviewUI.close('editReviewModal');
         document.getElementById('editReviewForm').reset();
         document.querySelectorAll('#editReviewForm .review-field-error').forEach((el) => {
             el.textContent = '';
@@ -894,78 +656,19 @@
         document.querySelectorAll('#editReviewForm textarea.has-error').forEach((el) => {
             el.classList.remove('has-error');
         });
-        setTimeout(() => modal.style.display = 'none', 300);
+
     }
 
     async function deleteReview(id) {
-        AppToast.confirm({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            confirmText: 'Yes, delete it!',
-            confirmButtonColor: '#dc2626',
-            danger: true
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                const csrfToken = '{{ csrf_token }}';
-                try {
-                    const response = await fetch(`/reviews/${id}/delete/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': csrfToken }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json().catch(() => ({}));
-                        AppToast.fire({
-                            icon: 'success',
-                            title: data.message || 'Your review has been deleted.'
-                        }).then(() => {
-                            const currentCard = document.querySelector(`.like-btn[data-id="${id}"]`)?.closest('.review-card');
-                            if (currentCard) {
-                                currentCard.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-                                currentCard.style.opacity = '0';
-                                currentCard.style.transform = 'scale(0.95)';
-                                setTimeout(() => {
-                                    currentCard.remove();
-                                    // Make sure no-reviews message shows up if empty
-                                    if(document.querySelectorAll('.review-card').length === 0) {
-                                        location.reload(); // Best way to render empty state easily
-                                    }
-                                }, 400);
-                            } else {
-                                location.reload();
-                            }
-                        });
-                    } else {
-                        // Maaaring HTML ang error body (hal. 404/500), kaya
-                        // huwag mag-throw — para hindi ma-trigger ang catch
-                        // at hindi mag-double-fire ang toast.
-                        const data = await response.json().catch(() => ({}));
-                        Toast.fire({
-                            icon: 'error',
-                            title: data.message || 'Delete failed'
-                        });
-                    }
-                } catch (err) {
-                    console.error(err);
-                    Toast.fire({
-                        icon: 'error',
-                        title: 'An error occurred while deleting.'
-                    });
-                }
-            }
-        });
+        return window.ReviewPage.deleteReview(id);
     }
 
     function closeImageModal() {
-        const imageModal = document.getElementById("imageModal");
-        imageModal.classList.remove('show');
-        setTimeout(() => {
-            imageModal.style.display = "none";
-        }, 300); // match standard transition
+        window.ReviewUI.close('imageModal');
     }
 
     // --- ENHANCED STAR RATING LOGIC ---
-    document.addEventListener("DOMContentLoaded", function () {
+    scope.ready(function () {
         function setupStarRating(containerSelector, nameAttr, defaultDescId) {
             const container = document.querySelector(containerSelector);
             if (!container) return;
@@ -1035,15 +738,13 @@
 
     // --- CREATE REVIEW MODAL FUNCTIONS ---
     function openReviewModal(id) {
-        const modal = document.getElementById('reviewModal');
         document.getElementById('reviewForm').action = `/booking/${id}/review/`;
         document.getElementById('review_booking_id').value = id;
-        modal.classList.add('show');
+        window.ReviewUI.open('reviewModal');
     }
 
     function closeReviewModal() {
-        const modal = document.getElementById('reviewModal');
-        modal.classList.remove('show');
+        window.ReviewUI.close('reviewModal');
         document.getElementById('reviewForm').reset();
         document.querySelectorAll('#reviewForm .review-field-error').forEach((el) => {
             el.textContent = '';
@@ -1119,7 +820,9 @@
                     el.style.borderRadius = '5px';
                     el.style.border = '1px solid #444';
 
-                    const delLabel = document.createElement('div');
+                    const delLabel = document.createElement('button');
+                    delLabel.type = 'button';
+                    delLabel.setAttribute('aria-label', 'Remove image');
                     delLabel.style.position = 'absolute';
                     delLabel.style.top = '-5px';
                     delLabel.style.right = '-5px';
@@ -1134,7 +837,9 @@
                     delLabel.style.cursor = 'pointer';
                     delLabel.style.fontSize = '18px';
                     delLabel.style.transition = 'background 0.2s';
-                    delLabel.innerHTML = '&times;';
+                    delLabel.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+                    delLabel.style.padding = '0';
+                    delLabel.style.border = '0';
                     delLabel.onmouseenter = function() { this.style.background = '#ef4444'; };
                     delLabel.onmouseleave = function() { this.style.background = 'rgba(0,0,0,0.7)'; };
                     
@@ -1164,21 +869,10 @@
         });
     }
 
-    // Modal click-outside handler
-    window.onclick = function (event) {
-        const imageModal = document.getElementById('imageModal');
-        const editModal = document.getElementById('editReviewModal');
-        const reviewModal = document.getElementById('reviewModal');
 
-        if (event.target == imageModal) {
-            closeImageModal();
-        } else if (event.target == editModal) {
-            closeEditModal();
-        } else if (event.target == reviewModal) {
-            closeReviewModal();
-        }
-    }
+    scope.expose({openEditModal, closeEditModal, deleteReview, closeImageModal, openReviewModal, closeReviewModal, renderCreateReviewImagePreviews});
+
+});
 </script>
 {% endblock %}
-
 

@@ -7,8 +7,10 @@
     <meta name="referrer" content="same-origin">
     <title>Change signup email | Balloorina</title>
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
     <link rel="stylesheet" href="{% static 'css/email_otp.css' %}">
     <script src="{% static 'js/theme-toggle.js' %}"></script>
+    {% include 'components/password_visibility_assets.html' %}
 </head>
 <body>
 <main class="body otp-shell">
@@ -28,7 +30,10 @@
                 </div>
                 <div class="field-group">
                     <label for="password" class="input-label">Signup password</label>
-                    <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-help">
+                    <div class="password-visibility-field">
+                        <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-help">
+                        {% include 'components/password_visibility.html' with input_id='password' password_label='signup password' %}
+                    </div>
                     <p class="otp-helper" id="password-help">Enter the password you used to create this account.</p>
                 </div>
                 <button class="otp-primary" type="submit">Send Code to New Email</button>

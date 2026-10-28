@@ -52,14 +52,28 @@ def _latest_booking_review_id(booking):
 
 def _customer_notif_target_url(notif):
     """Target URL ng isang customer Notification batay sa message text."""
+    if getattr(notif, 'concern_id', None):
+        if notif.concern.user_id == notif.user_id:
+            return f"{reverse('report_concern')}?concern_id={notif.concern_id}&from_notif=1"
+        return reverse('report_concern')
     msg = (getattr(notif, "message", "") or "").lower()
     booking = getattr(notif, "booking", None)
+
+    if booking is not None and booking.user_id != notif.user_id:
+        return reverse('customer_profile')
+
+    def booking_details():
+        return f"{reverse('customer_profile')}?booking_id={booking.id}&modal=details&from_notif=1"
 
     if booking is not None and 'booking change request' in msg:
         return f"{reverse('customer_profile')}?booking_id={booking.id}&modal=details&from_notif=1"
 
     if booking is not None and "backdrop design" in msg:
         return f"{reverse('customer_profile')}?booking_id={booking.id}&modal=design&from_notif=1"
+
+    if booking is not None and (any(word in msg for word in ('expired', 'not approved', 'cancelled', 'canceled'))
+            and not msg.startswith('your payment')):
+        return booking_details()
 
     # Payment-related: verified / rejected / received / reminder / proceed-to-payment.
     # Diretso sa detalye ng pinakabagong payment ng booking (hindi list) —
@@ -78,15 +92,29 @@ def _customer_notif_target_url(notif):
             "receipt",
         )
     ):
-        url = reverse("my_payments")
-        # Verified/rejected/received/reminder/expired-payment -> history tab;
-        # "proceed to payment" (booking approved) -> action-required tab.
-        if "proceed to payment" in msg or "approved" in msg:
-            return f"{url}?tab=action_required"
-        return f"{url}?tab=payment_history"
+        if booking is None:
+            return reverse('my_payments')
+        url = reverse('my_payments')
+        if 'proceed to payment' in msg or 'payment reminder' in msg:
+            if booking.status in ('pending_payment', 'confirmed'):
+                return f'{url}?tab=action_required&booking_id={booking.id}&from_notif=1'
+            return booking_details()
+        # Notifications predate later payments. Keep older notices attached to
+        # a record that already existed when the notice was created.
+        records = list(booking.payments.all())
+        records = [payment for payment in records if payment.created_at <= notif.created_at]
+        amount = re.search(r'\bPHP\s*(\d[\d,]*(?:\.\d{2})?)', notif.message, re.I)
+        if amount:
+            from decimal import Decimal
+            matching = [payment for payment in records if payment.amount == Decimal(amount.group(1).replace(',', ''))]
+            records = matching or records
+        if records:
+            payment = max(records, key=lambda record: (record.created_at, record.id))
+            return f'{url}?tab=payment_history&payment_id={payment.id}&from_notif=1'
+        return booking_details()
 
     # Review-related (hal. completed booking na humihingi ng review).
-    if "review" in msg or "rate" in msg:
+    if re.search(r'\b(?:review|rate)\b', msg):
         return reverse("my_reviews")
 
     # Chat-related.
@@ -154,69 +182,10 @@ def _admin_notif_target_url(notif_type, message, booking):
 
 def admin_notifications(request):
     """Inject pending booking and admin notifications for admin users."""
-    if request.user.is_authenticated and request.user.role in ("admin", "staff"):
-        from django.utils import timezone
-        
-        # 1. Fetch legacy Booking notifications (new bookings)
-        recent_bookings = Booking.objects.filter(
-            admin_notif_hidden=False
-        ).select_related('user')
-        
-        # 2. Fetch new AdminNotification events (edits, cancels, reviews)
-        recent_events = AdminNotification.objects.filter(
-            is_hidden=False
-        ).select_related('booking', 'user')
-
-        # Unified list of dictionaries
-        unified_notifs = []
-
-        for b in recent_bookings:
-            unified_notifs.append({
-                'id': f'b_{b.id}',
-                'type': 'booking',
-                'raw_id': b.id,
-                'booking': b,
-                'user': b.user,
-                'message': f"booked a {b.event_type}",
-                'created_at': b.created_at,
-                'is_read': b.admin_notified,
-                'target_url': _admin_notif_target_url(
-                    'booking', f"booked a {b.event_type}", b
-                ),
-            })
-
-        for e in recent_events:
-            unified_notifs.append({
-                'id': f'n_{e.id}',
-                'type': 'event',
-                'raw_id': e.id,
-                'booking': e.booking,
-                'user': e.user or getattr(e.booking, 'user', None),
-                'message': e.message,
-                'created_at': e.created_at,
-                'is_read': e.is_read,
-                'target_url': _admin_notif_target_url(
-                    'event', e.message, e.booking
-                ),
-            })
-
-        # Sort combined list by created_at (newest first)
-        unified_notifs.sort(key=lambda x: x['created_at'], reverse=True)
-
-        today = timezone.localtime().date()
-        notif_today = []
-        notif_earlier = []
-        unread_count = 0
-
-        for notif in unified_notifs:
-            notif_date = timezone.localtime(notif['created_at']).date()
-            if notif_date == today:
-                notif_today.append(notif)
-            else:
-                notif_earlier.append(notif)
-                
-            if not notif['is_read']:
-                unread_count += 1
+    if request.user.is_authenticated and request.user.role == 'admin':
+        from .admin_notifications import unread_count
+        # Header content is fetched on demand; rendering an admin page only needs counters.
+        total_unread = unread_count()
 
         # Sidebar action badges (pareho ng Chat badge — itago kapag 0)
         # Pending payments must match the admin action queue: exclude abandoned
@@ -224,9 +193,9 @@ def admin_notifications(request):
         from .views import _abandoned_paymongo_payment_query
 
         return {
-            'notif_today': notif_today,
-            'notif_earlier': notif_earlier,
-            'notif_count': unread_count,
+            'notif_today': [],
+            'notif_earlier': [],
+            'notif_count': total_unread,
             'pending_bookings_count': Booking.objects.filter(status='pending').count(),
             'pending_payments_count': (
                 Payment.objects.filter(payment_status='pending')
@@ -267,7 +236,8 @@ def chat_notifications(request):
 def customer_notifications(request):
     """Inject notifications for the logged-in customer."""
     if request.user.is_authenticated and request.user.role == 'customer':
-        notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:10]
+        notifications = (Notification.objects.filter(user=request.user).select_related('booking', 'concern')
+            .prefetch_related('booking__payments').order_by('-created_at', '-id')[:20])
         unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
         # Lagyan bawat notif ng tamang deep-link (payment -> My Payments, atbp.)
         # para hindi lahat bumabagsak sa booking detail.

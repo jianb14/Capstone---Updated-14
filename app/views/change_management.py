@@ -135,7 +135,7 @@ def request_review_url(request, change):
 @login_required
 @require_GET
 def admin_booking_change_detail(request, change_id):
-    if request.user.role not in ('admin', 'staff'):
+    if request.user.role != 'admin':
         return HttpResponseForbidden('Not allowed')
     process_booking_deadlines()
     change = get_object_or_404(request_queue().select_related('booking__user', 'reviewed_by').prefetch_related('images', 'payments'), pk=change_id)

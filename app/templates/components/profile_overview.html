@@ -1,0 +1,37 @@
+<div class="my-profile-page" data-profile-layout>
+    <div class="my-profile-wrapper">
+        <header class="profile-page-heading account-page-header"><h1 class="account-page-title">My Profile</h1><p class="account-page-subtitle">Manage your personal details, security, and account.</p></header>
+        <div class="my-profile-card">
+            <div class="my-profile-header">
+                <div class="avatar-wrapper"><div class="my-profile-avatar">{{ user.first_name|default:user.username|slice:':1'|upper }}</div></div>
+                <div class="my-profile-title"><h2>{{ user.get_full_name|default:user.username }}</h2><p>Member since {{ user.date_joined|date:'F Y' }}</p></div>
+                <span class="profile-email-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 12 2 2 4-4"/><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6Z"/></svg>{% if user.email_verified %}Email verified{% else %}Email not verified{% endif %}</span>
+            </div>
+            <div class="my-profile-body">
+                <section class="profile-section profile-personal" aria-labelledby="profilePersonalTitle">
+                    <div class="section-title-row"><div><h3 class="section-title" id="profilePersonalTitle"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M5 16v-1a3 3 0 0 1 6 0v1m3-6h4m-4 4h4"/></svg>Personal information</h3><p class="profile-section-description">Your contact details for bookings and updates.</p></div><button type="button" class="btn-edit-profile" onclick="openProfileModal()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6L16 3Zm-2 2 5 5"/></svg>Edit profile</button></div>
+                    <dl class="info-grid-modern">
+                        <div class="info-group"><dt>First name</dt><dd class="info-val">{{ user.first_name|default:'Not specified' }}</dd></div>
+                        <div class="info-group"><dt>Last name</dt><dd class="info-val">{{ user.last_name|default:'Not specified' }}</dd></div>
+                        <div class="info-group"><dt>Email address</dt><dd class="info-val">{{ user.email|default:'Not specified' }}</dd></div>
+                        <div class="info-group"><dt>Phone number</dt><dd class="info-val">{{ user.phone_number|default:'Not specified' }}</dd></div>
+                    </dl>
+                </section>
+                <section class="profile-section profile-security" aria-labelledby="profileSecurityTitle">
+                    <h3 class="section-title" id="profileSecurityTitle"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg>Account security</h3>
+                    <p class="profile-section-description">Keep your account protected with a strong password.</p>
+                    <div class="profile-security-row"><div><strong>Password</strong><p>Changing your password requires email verification.</p></div><button type="button" class="btn-change-password" onclick="openPasswordModal()">Change password</button></div>
+                    <div class="last-login-row"><svg class="last-login-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>{% if user.last_login %}Last sign in {{ user.last_login|date:'M d, Y' }} at {{ user.last_login|time:'g:i A' }}{% else %}Your account is ready to use.{% endif %}</span></div>
+                </section>
+                <section class="profile-section profile-activity" aria-labelledby="profileActivityTitle">
+                    <h3 class="section-title" id="profileActivityTitle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5m4-2v5l3 2"/></svg>Recent activity</h3><p class="profile-section-description">The latest updates to your account.</p>
+                    {% if activity_logs %}<ul class="activity-timeline" id="activityTimeline">
+                        {% for log in activity_logs %}<li class="activity-item{% if forloop.counter > 4 %} activity-extra{% endif %}"><span class="activity-marker" aria-hidden="true"><span></span></span><div class="activity-content"><p class="activity-text">{{ log.action }}</p><span class="activity-time">{{ log.created_at|timesince }} ago · {{ log.created_at|date:'M d, Y' }}</span></div></li>{% endfor %}
+                    </ul>{% if activity_logs|length > 4 %}<button type="button" class="btn-activity-toggle" id="btnActivityToggle" onclick="toggleActivity()" aria-expanded="false" aria-controls="activityTimeline"><span id="activityToggleLabel">Show all activity ({{ activity_logs|length }})</span><svg class="toggle-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>{% endif %}
+                    {% else %}<div class="profile-activity-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><strong>No recent activity</strong><p>Your account updates will appear here.</p></div>{% endif %}
+                </section>
+                <section class="profile-section profile-delete-section" aria-labelledby="profileDeleteTitle"><div><h3 class="section-title" id="profileDeleteTitle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>Delete account</h3><p class="profile-section-description">Permanently remove your profile and saved content. Active bookings and unsettled payments must be resolved first.</p></div><button type="button" id="deleteAccountButton" class="profile-delete-button">Delete account</button></section>
+            </div>
+        </div>
+    </div>
+</div>

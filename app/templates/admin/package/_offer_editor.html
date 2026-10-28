@@ -1,0 +1,98 @@
+<div class="offer-editor" data-offer-kind="{{ offer_kind }}">
+    <header class="oe-page-header"{% if catalog_modal %} hidden{% endif %}>
+        <div><a class="oe-back" href="{% url 'admin_package_list' %}"><svg class="oe-back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Packages</a>
+            <h1>{% if catalog_item %}Edit{% else %}Create{% endif %} {{ offer_label }}</h1>
+            <p>Set up what is included. Your customers and the design builder will use this same list.</p>
+        </div><span class="oe-context-badge">{% if catalog_item %}Editing offer{% else %}New offer{% endif %}</span>
+    </header>
+    <form method="post" action="{{ editor_action }}" enctype="multipart/form-data" id="offerEditorForm" novalidate>
+        {% csrf_token %}<input type="hidden" name="inclusions" id="offerInclusions" value="{{ inclusions_json }}">
+        <input type="hidden" name="remove_preview_ids" id="removedPreviewIds" value="">
+        {% if catalog_modal %}<nav class="catalog-offer-nav" role="tablist" aria-label="Offer settings"><button type="button" id="offer-tab-details" role="tab" data-offer-panel-tab="details" aria-controls="offer-panel-details" aria-selected="true">Details</button><button type="button" id="offer-tab-inclusions" role="tab" data-offer-panel-tab="inclusions" aria-controls="offer-panel-inclusions" aria-selected="false" tabindex="-1">Inclusions <span data-offer-inclusion-count>0</span></button><button type="button" id="offer-tab-photos" role="tab" data-offer-panel-tab="photos" aria-controls="offer-panel-photos" aria-selected="false" tabindex="-1">Photos</button><button type="button" id="offer-tab-visibility" role="tab" data-offer-panel-tab="visibility" aria-controls="offer-panel-visibility" aria-selected="false" tabindex="-1">Visibility</button></nav>{% endif %}
+        <div id="offerErrorSummary" class="oe-error-summary" role="alert" tabindex="-1" {% if not offer_form.errors and not row_errors and not image_errors %}hidden{% endif %}>Please review the marked fields before saving.</div>
+        <div class="oe-layout">
+            <div class="oe-main">
+                <section class="oe-card" aria-labelledby="basicDetailsTitle" data-offer-panel="details" id="offer-panel-details">
+                    <div class="oe-section-heading"><span class="oe-step">01</span><div><h2 id="basicDetailsTitle">Basic details</h2><p>The name, pricing, and details customers will see.</p></div></div>
+                    <div class="oe-fields">
+                        {% include 'components/offer_field.html' with field=offer_form.name wide=catalog_name_wide %}
+                        {% if offer_kind == 'entrance' %}
+                            {% include 'components/offer_field.html' with field=offer_form.price %}
+                            {% include 'components/offer_field.html' with field=offer_form.solo_price %}
+                        {% else %}
+                            {% include 'components/offer_field.html' with field=offer_form.price wide=catalog_price_wide %}
+                        {% endif %}
+                        {% if offer_kind == 'package' %}{% include 'components/offer_field.html' with field=offer_form.description wide=True %}{% endif %}
+                        {% if offer_kind != 'entrance' %}{% include 'components/offer_field.html' with field=offer_form.notes wide=True %}{% endif %}
+                    </div>
+                </section>
+                <section class="oe-card" aria-labelledby="inclusionsTitle" data-offer-panel="inclusions" id="offer-panel-inclusions">
+                    <div class="oe-section-heading"><span class="oe-step">02</span><div><h2 id="inclusionsTitle">Inclusions</h2><p>Add each item once. Mark the essentials required for booking a design.</p></div><span class="oe-count" id="inclusionCount">0 items</span></div>
+                    <div class="oe-list-head" aria-hidden="true"><span>Quantity{% if catalog_modal %}<span class="catalog-optional"> (optional)</span>{% endif %}</span><span>Item</span><span>Required in design</span><span></span></div>
+                    <div id="inclusionRows" class="oe-inclusion-list"></div>
+                    <p id="emptyInclusions" class="oe-empty">Start with a canvas item, or add a service such as setup and delivery.</p>
+                    <p class="oe-field-error" id="inclusionsError" role="status"></p>
+                    <div class="oe-add-actions"><button type="button" class="{% if catalog_modal %}ac-button{% else %}oe-button oe-button-outline{% endif %}" id="addCanvasItem"><span aria-hidden="true">+</span> Add Item</button><button type="button" class="{% if catalog_modal %}ac-button{% else %}oe-button oe-button-quiet{% endif %}" id="addService"><span aria-hidden="true">+</span> Add Service</button></div>
+                    <p class="oe-help">Leave quantity blank for “Included” with no quantity limit. One catalog placement counts as one design element.</p>
+                    <div class="oe-balloon-settings" id="balloonSettings" hidden>
+                        <div><h3>Balloon settings</h3><p>One shared color limit for all balloon items in this offer.</p></div>
+                        {% include 'components/offer_field.html' with field=offer_form.design_max_colors %}
+                    </div>
+                </section>
+                <section class="oe-card" aria-labelledby="previewImagesTitle" data-offer-panel="photos" id="offer-panel-photos">
+                    <div class="oe-section-heading"><span class="oe-step">03</span><div><h2 id="previewImagesTitle">Preview images{% if catalog_modal %}<span class="catalog-optional"> (optional)</span>{% endif %}</h2><p>Show customers examples of this setup when they book.</p></div><span class="oe-count" id="previewImageCount">0/2</span></div>
+                    <input type="file" id="previewImageInput" name="preview_images" accept="image/*" multiple class="oe-file-input" tabindex="-1" aria-label="Choose preview images">
+                    <div class="oe-dropzone" id="previewDropzone" role="group" aria-label="Preview image upload">
+                        <svg class="oe-upload-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 23H8a6 6 0 0 1-1-12 9 9 0 0 1 17-1 6.5 6.5 0 0 1 0 13h-2M16 29V14m-5 5 5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <strong>Choose images or drag &amp; drop them here</strong>
+                        <span>Images only · Up to 2 preview images in total</span>
+                        <button type="button" class="{% if catalog_modal %}ac-button{% else %}oe-button oe-button-outline{% endif %}" id="browsePreviewImages" aria-describedby="previewImageErrors">Browse Files</button>
+                    </div>
+                    <div id="previewImageCards" class="oe-image-list"></div>
+                    <div id="previewImageErrors" class="oe-field-error" role="status" aria-live="polite">{% for error in image_errors %}<p>{{ error }}</p>{% endfor %}</div>
+                </section>
+                <section class="oe-card" aria-labelledby="visibilityTitle" data-offer-panel="visibility" id="offer-panel-visibility">
+                    <div class="oe-section-heading"><span class="oe-step">04</span><div><h2 id="visibilityTitle">Visibility</h2><p>Choose how this offer is presented.</p></div></div>
+                    <input type="hidden" name="active_present" value="1"><label class="oe-setting-label">{{ offer_form.is_active }}<span><strong>Active offer</strong><small>Make this offer available to customers.</small></span></label>
+                    <label class="oe-setting-label">{{ offer_form.design_enabled }}<span><strong>Available in Create Design</strong><small>Requires at least one required canvas item and active assets for every included category.</small></span></label>
+                    <div class="oe-field-error" id="error_design_enabled">{{ offer_form.design_enabled.errors }}</div>
+                    {% if offer_kind == 'package' %}<label class="oe-setting-label">{{ offer_form.is_featured }}<span><strong>Mark as Most Popular</strong><small>Feature this package in your customer catalog.</small></span></label>{% endif %}
+                </section>
+            </div>
+            <aside class="oe-preview-column" aria-label="Live customer preview">
+                <div class="oe-preview-card"><p class="oe-eyebrow">CUSTOMER PREVIEW</p><h2 id="customerPreviewName">Your offer name</h2><p id="customerPreviewDescription" class="oe-preview-description"></p><p id="customerPreviewPrice" class="oe-preview-price">₱0</p><span class="oe-preview-price-note" {% if offer_kind != 'entrance' %}hidden{% endif %}>Solo price</span>
+                    <div id="customerPreviewImages" class="oe-preview-images"></div>
+                    <div class="oe-preview-inclusions"><h3>What's included</h3><ul id="customerPreviewInclusions"></ul></div>
+                    <p id="customerPreviewNotes" class="oe-preview-notes"></p><p class="oe-preview-caption">Updates as you edit. Changes are published when you save.</p>
+                </div>
+                <div class="oe-guidance"><strong>One list. One setup.</strong><p>Canvas items control the design allowances. Services appear in the offer details and do not need to be placed on the canvas.</p><a href="{% url 'admin_canvas_assets' %}?kind={{ offer_kind }}" target="_blank" rel="noopener">Manage canvas categories <span aria-hidden="true">↗</span></a></div>
+            </aside>
+        </div>
+        {% if not catalog_modal %}<footer class="oe-action-bar">{% include 'admin/package/_offer_actions.html' %}</footer>{% endif %}
+    </form>
+    <dialog class="oe-category-dialog" id="categoryPicker" aria-labelledby="categoryPickerTitle">
+        <div class="oe-dialog-heading"><div><h2 id="categoryPickerTitle">Add a canvas item</h2><p>Choose a category available for this {{ offer_label|lower }}.</p></div>
+            <button type="button" class="{% if catalog_modal %}ac-close{% else %}oe-icon-button oe-dialog-close{% endif %}" id="closeCategoryPicker" aria-label="Close category picker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="oe-search"><label for="categorySearch">Search categories</label>
+            <div class="oe-search-control"><input type="search" class="oe-input" id="categorySearch" placeholder="Find a category…">
+                <button type="button" class="oe-search-clear" id="clearCategorySearch" aria-label="Clear category search" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" stroke-linecap="round"/></svg></button>
+            </div>
+        </div>
+        <div class="oe-category-options" id="categoryPickerOptions"></div>
+    </dialog>
+    <template id="inclusionRowTemplate"><article class="oe-inclusion-row">
+        <div class="oe-row-main"><label class="oe-row-quantity"><span>Quantity{% if catalog_modal %}<span class="catalog-optional"> (optional)</span>{% endif %}</span><input type="number" min="1" max="2147483647" placeholder="Included" data-row-field="quantity" class="oe-input"></label><label class="oe-row-name"><span>Item name</span><input type="text" maxlength="500" data-row-field="name" class="oe-input" placeholder="Item or service name"></label><label class="oe-required-label"><input type="checkbox" class="oe-checkbox" data-row-required><span>Required<small data-row-required-note></small></span></label><span class="oe-service-tag" hidden>Service</span><button type="button" class="oe-icon-button oe-remove-row" data-remove-row aria-label="Remove inclusion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        <div class="oe-row-errors" aria-live="polite"></div>
+        <div class="oe-row-footer"><details class="oe-design-settings"><summary>Design settings</summary>
+            <div class="oe-category-field"><span data-category-label>Canvas category</span>
+                <div class="oe-select">
+                    <select class="oe-input" data-row-field="category_id" hidden tabindex="-1" aria-hidden="true"></select>
+                    <button type="button" class="oe-input oe-select-trigger" data-category-trigger role="combobox" aria-haspopup="listbox" aria-expanded="false"><span data-category-value></span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <div class="oe-select-options" data-category-options role="listbox" hidden></div>
+                </div>
+            </div>
+            <label><span>Required minimum</span><input type="number" min="1" max="2147483647" class="oe-input" data-row-field="required_minimum"></label><p>Default is the full quantity. Set a smaller minimum when appropriate.</p></details><button type="button" class="oe-convert-row" data-convert-row>Change to Service</button></div>
+    </article></template>
+</div>
+{{ editor_data|json_script:'offer-editor-data' }}

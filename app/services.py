@@ -1860,7 +1860,7 @@ INTENT_KEYWORDS = {
         "process",
         "module",
         "admin",
-        "staff",
+        "administrator",
         "report",
         "analytics",
     },
@@ -2458,7 +2458,7 @@ def _build_core_chunks():
         "(2) Customer picks a package/solo add-on plus optional add-ons/additionals. "
         "(3) Customer fills event details: event type, date, start/end time, location, optional notes, optional reference images (up to 4). "
         "(4) Validation rules: date cannot be in the past; if date is today, start time must be in the future; event start time must be at or after 7:00 AM and before 6:00 PM, while the end time may run late or overnight (up to the configured max duration, crossing midnight into the next day); the configured minimum duration applies, and hours beyond the included hours are charged as overtime per hour at the configured rate; overlapping slots are blocked only against existing pending_payment/confirmed/completed bookings (pending bookings are not blocking yet). "
-        "These event-start limits are different from office/contact hours or a daily online booking-submission cutoff. No daily online submission cutoff is specified here; do not invent one or claim 24-hour staff service. "
+        "These event-start limits are different from office/contact hours or a daily online booking-submission cutoff. No daily online submission cutoff is specified here; do not invent one or claim 24-hour support. "
         "(5) Submit creates a pending booking. Admin approval moves it to pending_payment. After admin verifies payment, booking becomes confirmed; admin can later mark it completed. "
         "Customer change rules: pending bookings allow direct edits; approved/confirmed bookings use a separate, eligibility-controlled Request changes flow with team review. "
         f"Booking statuses: {_status_line(Booking.STATUS_CHOICES)}. "

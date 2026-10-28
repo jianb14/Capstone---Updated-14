@@ -1,0 +1,6 @@
+<article class="ar-chart-card" style="--ar-order:6">
+  <header><div><h2>{{ title }}</h2><p>{{ subtitle }}</p></div></header>
+  {% if has_data %}<div class="ar-chart-frame ar-bars"><canvas data-chart="{{ chart }}" role="img" aria-label="{{ title }}"></canvas></div>
+    <details class="ar-data"><summary>View data</summary><ul>{% for row in rows %}<li><span>{{ row.label }}</span><strong>{% if currency %}₱{{ row.value|floatformat:"2g" }}{% else %}{{ row.count }}{% endif %}</strong></li>{% endfor %}</ul></details>
+  {% else %}{% include 'admin/analytics/_empty.html' with title='No matching data yet' %}{% endif %}
+</article>

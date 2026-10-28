@@ -1,0 +1,17 @@
+<div data-security-code hidden>
+    <input id="{{ code_id }}" name="code" type="hidden" disabled>
+    <fieldset class="ase-otp-fieldset" aria-describedby="{{ code_id }}Help">
+        <legend>6-digit verification code <span class="ase-required" aria-hidden="true">*</span></legend>
+        <div class="ase-otp-digits">
+            {% for digit in '123456' %}<input class="ase-otp-digit" data-otp-digit type="text" id="{{ code_id }}Digit{{ digit }}" name="otp_digit_{{ digit }}" aria-label="Digit {{ digit }} of 6" inputmode="numeric" autocomplete="{% if digit == '1' %}one-time-code{% else %}off{% endif %}" pattern="[0-9]" maxlength="1" spellcheck="false" autocapitalize="off" disabled>{% endfor %}
+        </div>
+    </fieldset>
+    <div class="ase-otp-timing">
+        <p class="ase-note ase-countdown" data-code-expiry role="timer" aria-live="off">Code expires in 5:00.</p>
+    </div>
+    <p class="ase-note ase-otp-help" id="{{ code_id }}Help">You can paste the full code into any box.</p>
+</div>
+<div class="ase-expired" data-security-expired role="status" hidden>
+    <h3>Verification code expired</h3>
+    <p class="ase-note">Your details are saved. Send a new code to continue.</p>
+</div>

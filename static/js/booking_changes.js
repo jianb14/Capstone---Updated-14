@@ -1,5 +1,6 @@
-(() => {
+AccountPages.enhance('customer_profile', 'booking_changes.js', function(scope) {
     'use strict';
+    scope.capture(['configureBookingChangeForm', 'promptBookingChangeReason']);
     let askingReason = false;
     window.promptBookingChangeReason = async bookingId => {
         if (askingReason) return null;
@@ -56,42 +57,5 @@
         document.getElementById('changeRequestError').textContent = '';
         form.querySelector('button[type="submit"]').textContent = enabled ? 'Submit Change Request' : 'Update Booking';
     };
-    document.addEventListener('DOMContentLoaded', () => {
-        const form = document.getElementById('editBookingForm');
-        if (!form) return;
-        let submitting = false;
-        form.addEventListener('submit', async event => {
-            if (form.dataset.changeMode !== '1' || event.defaultPrevented) return;
-            event.preventDefault();
-            if (submitting) return;
-            const error = document.getElementById('changeRequestError');
-            const reason = document.getElementById('change_reason');
-            if (reason.value.trim().length < 10) {
-                window.showEditStep?.(5);
-                error.textContent = 'Please reopen Request Changes and provide a reason before submitting.';
-                error.focus();
-                return;
-            }
-            const button = form.querySelector('button[type="submit"]');
-            submitting = true;
-            button.disabled = true;
-            button.textContent = 'Submitting request…';
-            error.textContent = '';
-            try {
-                const response = await fetch(form.action, { method:'POST', body:new FormData(form),
-                    headers:{'X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin' });
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.message || 'Unable to submit your change request. Try again.');
-                window.location.assign(result.redirect);
-            } catch (problem) {
-                window.showEditStep?.(5);
-                error.textContent = problem.message || 'Connection interrupted. Your entered changes are still here. Please try again.';
-                error.focus();
-            } finally {
-                submitting = false;
-                button.disabled = false;
-                button.textContent = 'Submit Change Request';
-            }
-        });
-    });
-})();
+
+}, -30);
