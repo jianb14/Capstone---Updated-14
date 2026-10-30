@@ -266,7 +266,7 @@
             if (target.matches('[data-list-page]')) url.searchParams.set('page', new URL(target.href).searchParams.get('page'));
             load(url);
         } else if (target.matches('[data-list-reset]')) {
-            const form = workspace.querySelector('[data-catalog-filters]'); ['q','status','category'].forEach(key => {if (form.elements[key]) form.elements[key].value = '';}); load(filtersURL());
+            const form = workspace.querySelector('[data-catalog-filters]'); ['q','status','category','package'].forEach(key => {if (form.elements[key]) form.elements[key].value = '';}); load(filtersURL());
         } else if (target.matches('[data-clear-selection]')) {selection().forEach(input => input.checked = false); syncSelection();}
         else if (target.matches('[data-bulk-delete]')) confirmDelete(workspace.querySelector('[data-bulk-url]').dataset.bulkUrl, selection().map(input => input.value));
         else if (target.matches('[data-delete-url]')) confirmDelete(target.dataset.deleteUrl, [], target.dataset.itemName);

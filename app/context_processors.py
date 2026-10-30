@@ -135,7 +135,10 @@ def _admin_notif_target_url(notif_type, message, booking):
     if booking is not None and 'change request' in msg:
         match = re.search(r'\b(?:booking )?change request #(\d+)\b', msg)
         if match:
-            return reverse('admin_booking_change_detail', args=[int(match.group(1))])
+            return f"{reverse('admin_booking_list')}?tab=requests&open_change={int(match.group(1))}"
+        change_id = booking.change_requests.order_by('-created_at', '-pk').values_list('pk', flat=True).first()
+        if change_id is not None:
+            return f"{reverse('admin_booking_list')}?tab=requests&open_change={change_id}"
         return f"{reverse('admin_booking_list')}?tab=requests&booking_id={booking.pk}"
 
     # Payment-related: "New GCash/PayMongo payment submitted ..." etc.
@@ -147,7 +150,7 @@ def _admin_notif_target_url(notif_type, message, booking):
     ):
         payment_id = _latest_booking_payment_id(booking)
         if payment_id is not None:
-            return reverse("admin_payment_detail", args=[payment_id])
+            return f"{reverse('admin_payment_list')}?open_payment={payment_id}"
         # Fallback: walang payment record (hal. lumang notif) -> filtered list.
         url = reverse("admin_payment_list")
         if booking is not None:
@@ -159,7 +162,7 @@ def _admin_notif_target_url(notif_type, message, booking):
     if "review" in msg:
         review_id = _latest_booking_review_id(booking)
         if review_id is not None:
-            return reverse("admin_review_detail", args=[review_id])
+            return f"{reverse('admin_reviews')}?review_id={review_id}"
         # Fallback: walang review record -> reviews list.
         url = reverse("admin_reviews")
         user = getattr(booking, "user", None)
@@ -175,9 +178,9 @@ def _admin_notif_target_url(notif_type, message, booking):
     if "concern" in msg or "ticket" in msg:
         return reverse("admin_concerns")
 
-    # Default: booking detail (existing behavior preserved).
+    # Open the booking workspace with its details dialog selected.
     if booking is not None:
-        return reverse("admin_booking_detail", args=[booking.id])
+        return f"{reverse('admin_booking_list')}?open_booking={booking.id}"
     return "#"
 
 

@@ -1,11 +1,11 @@
 {% extends 'admin/admin_base.html' %}
-{% load static %}
+{% load static admin_ui %}
 {% block title %}Bookings | Balloorina{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261028h">
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261030d">
 <link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
 <link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
-<link rel="stylesheet" href="{% static 'css/admin_booking_workspace.css' %}?v=20261028c">
+<link rel="stylesheet" href="{% static 'css/admin_booking_workspace.css' %}?v=20261030d">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 {% endblock %}
 {% block content %}
@@ -14,14 +14,14 @@
 <div data-workspace-content>{% include 'admin/booking/workspace/_workspace.html' %}</div>
 <p class="ab-load-error" data-load-error role="alert" hidden></p>
 <dialog class="ac-dialog ab-dialog" id="abDetails" aria-labelledby="abModalTitle"><div class="ab-modal-shell" data-modal-content></div></dialog>
-<dialog class="ac-dialog ab-confirm" id="abConfirm" aria-labelledby="abConfirmTitle"><form novalidate data-confirm-form>{% csrf_token %}<header class="ab-modal-header"><div><h2 id="abConfirmTitle">Confirm booking action</h2><p data-confirm-description></p></div><button type="button" class="ac-close" data-dialog-close aria-label="Close confirmation">{% include 'admin/booking/workspace/_close.html' %}</button></header><div class="ab-modal-body"><div data-deny-field hidden><label for="abDenyReason">Reason for declining <span class="ab-required">*</span></label><textarea id="abDenyReason" name="deny_reason" maxlength="2000" rows="3" placeholder="Tell the customer why this booking cannot be approved."></textarea><p class="ab-error" data-error-for="deny_reason" hidden></p></div><p class="ab-error" data-form-error role="alert" hidden></p></div><footer class="ab-modal-footer"><button type="button" class="ac-button" data-dialog-close>Cancel</button><button type="submit" class="ac-button ac-primary" data-confirm-submit>Confirm</button></footer></form></dialog>
-<dialog class="ac-dialog ab-image-dialog" id="abImage" aria-labelledby="abImageTitle"><header class="ab-modal-header"><h2 id="abImageTitle">Booking image</h2><button type="button" class="ac-close" data-dialog-close aria-label="Close image">{% include 'admin/booking/workspace/_close.html' %}</button></header><div class="ab-modal-body"><img alt="Booking reference or delivered design"></div></dialog>
+<dialog class="ac-dialog ab-confirm" id="abConfirm" aria-labelledby="abConfirmTitle"><form novalidate data-confirm-form>{% csrf_token %}<header class="ab-modal-header"><div><h2 id="abConfirmTitle">Confirm booking action</h2><p data-confirm-description></p></div><button type="button" class="ac-close" data-dialog-close aria-label="Close confirmation">{% include 'admin/booking/workspace/_close.html' %}</button></header><div class="ab-modal-body"><div data-deny-field hidden>{% rejection_choices 'booking' as booking_reasons %}<label for="abDenyReasonChoice">Reason for declining <span class="ab-required">*</span></label><select id="abDenyReasonChoice" name="deny_reason_choice" aria-label="Booking decline reason" data-admin-select aria-describedby="abDenyChoiceError"><option value="">Choose a reason</option>{% for value,label in booking_reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select><p class="ab-error" id="abDenyChoiceError" data-error-for="deny_reason_choice" hidden></p><label for="abDenyReason" class="ab-reason-details-label">Additional details <span class="ab-muted">(optional)</span></label><textarea id="abDenyReason" name="deny_reason" maxlength="1900" rows="3" placeholder="Add any details that would help the customer."></textarea><p class="ab-error" data-error-for="deny_reason" hidden></p></div><p class="ab-error" data-form-error role="alert" hidden></p></div><footer class="ab-modal-footer"><button type="button" class="ac-button" data-dialog-close>Cancel</button><button type="submit" class="ac-button ac-primary" data-confirm-submit>Confirm</button></footer></form></dialog>
+<dialog class="ac-image-dialog" id="abImage" aria-label="Booking image"><button type="button" class="ac-close" data-dialog-close aria-label="Close image">{% include 'admin/booking/workspace/_close.html' %}</button><img alt="Booking reference or delivered design"></dialog>
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="{% static 'js/admin_selects.js' %}?v=20261026c"></script>
+<script src="{% static 'js/admin_selects.js' %}?v=20261030d"></script>
 <script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{% static 'js/booking_location_map.js' %}?v=20261025account1"></script>
-<script src="{% static 'js/admin_booking_workspace.js' %}?v=20261028c" defer></script>
+<script src="{% static 'js/admin_booking_workspace.js' %}?v=20261030e" defer></script>
 {% endblock %}

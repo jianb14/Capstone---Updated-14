@@ -161,7 +161,9 @@
             (input.closest('label.change-consent') || input).after(node);
         }
         if (!node.id) node.id = `abError-${name}-${++errorSequence}`;
-        input.setAttribute('aria-describedby', node.id); showError(node, message); return true;
+        input.setAttribute('aria-describedby', node.id); showError(node, message);
+        if (input.tagName === 'SELECT') selects.sync(input);
+        return true;
     }
     function formError(form, message) {
         let node = form.querySelector('[data-form-error]');
@@ -171,7 +173,8 @@
     function focusError(form) {
         const input = form.querySelector('[aria-invalid=true]');
         // The hidden file input must not scroll the dialog's fixed header/form.
-        const target = input?.type === 'file' ? form.querySelector('[data-browse]') : input;
+        const target = input?.type === 'file' ? form.querySelector('[data-browse]')
+            : input?.tagName === 'SELECT' ? input.closest('.ac-select')?.querySelector('.ac-select-trigger') || input : input;
         if (target) { target.focus({preventScroll: true}); target.scrollIntoView({block: 'nearest'}); }
     }
     function validate(form) {
@@ -179,7 +182,7 @@
         for (const input of form.querySelectorAll('input,textarea,select')) {
             if (input.type === 'hidden' || input.disabled) continue;
             const empty = input.type === 'checkbox' ? !input.checked : input.type === 'file' ? !input.files.length : !input.value.trim();
-            if (input.required && empty) { fieldError(form, input.name, input.type === 'checkbox' ? 'Please acknowledge this before continuing.' : 'This field is required.'); valid = false; }
+            if (input.required && empty) { fieldError(form, input.name, input.name === 'deny_reason_choice' ? 'Choose a reason before continuing.' : input.type === 'checkbox' ? 'Please acknowledge this before continuing.' : 'This field is required.'); valid = false; }
             else if (!input.validity.valid) { fieldError(form, input.name, input.type === 'number' ? 'Enter a valid amount between 0 and 99,999,999.99, with up to 2 decimal places.' : 'Check this field and try again.'); valid = false; }
         }
         if (!valid) focusError(form); return valid;
@@ -188,6 +191,12 @@
         form.dataset.busy = state ? 'true' : '';
         form.querySelectorAll('button[type=submit]').forEach(button => { button.disabled = state; });
         form.setAttribute('aria-busy', String(state));
+        if (form === confirmForm) {
+            const disabled = state || actionTarget?.dataset.action !== 'deny';
+            form.elements.deny_reason_choice.disabled = disabled;
+            form.elements.deny_reason.disabled = disabled;
+            selects.close(); selects.sync(form.elements.deny_reason_choice);
+        }
     }
     async function post(form, url, data, options = {}) {
         if (posting || form.dataset.busy === 'true') return;
@@ -215,7 +224,10 @@
         clearErrors(confirmForm); confirm.querySelector('#abConfirmTitle').textContent = `${titles[action]} · #${button.dataset.booking}`;
         confirm.querySelector('[data-confirm-description]').textContent = copy[action];
         confirm.querySelector('[data-deny-field]').hidden = action !== 'deny';
-        confirmForm.elements.deny_reason.required = action === 'deny'; confirmForm.elements.deny_reason.disabled = action !== 'deny'; confirmForm.elements.deny_reason.value = '';
+        const choice = confirmForm.elements.deny_reason_choice;
+        choice.required = action === 'deny'; choice.disabled = action !== 'deny'; choice.value = '';
+        confirmForm.elements.deny_reason.required = false; confirmForm.elements.deny_reason.disabled = action !== 'deny'; confirmForm.elements.deny_reason.value = '';
+        selects.close(); selects.sync(choice);
         confirm.querySelector('[data-confirm-submit]').textContent = titles[action]; confirm.showModal();
     }
     function selectedFile(input) {
@@ -263,6 +275,7 @@
         if (button.matches('[data-list-reset]')) {
             const url = new URL(base, location.origin), tab = content.querySelector('[name=tab]').value;
             url.searchParams.set('tab', tab); if (tab === 'requests') url.searchParams.set('scope', content.querySelector('[name=scope]').value);
+            if (tab === 'bookings') url.searchParams.set('status', '');
             loadList(url);
         }
         if (button.matches('[data-browse]')) button.closest('form').querySelector('[data-design-file]').click();
@@ -276,7 +289,7 @@
             event.target.parentNode.querySelector('[data-search-clear]').hidden = !event.target.value;
             clearTimeout(searchTimer); searchTimer = setTimeout(applyFilters, 300);
         }
-        if (event.target.form?.hasAttribute('data-async-form')) {
+        if (event.target.form?.matches('[data-async-form],[data-confirm-form]')) {
             const node = event.target.form.querySelector(`[data-error-for="${event.target.name}"]`);
             if (node) showError(node, ''); event.target.removeAttribute('aria-invalid');
             if (event.target.name === 'caption') {
@@ -285,6 +298,7 @@
         }
     });
     root.addEventListener('change', event => {
+        if (event.target.name === 'deny_reason_choice') { clearErrors(confirmForm); selects.sync(event.target); }
         if (event.target.matches('[data-list-size]')) { content.querySelector('[name=per_page]').value = event.target.value; applyFilters(); }
         else if (event.target.closest('[data-booking-filters]') && event.target.matches('select')) applyFilters();
         if (event.target.matches('[data-design-file]')) selectedFile(event.target);

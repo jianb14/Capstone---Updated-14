@@ -103,7 +103,8 @@ class DesignCanvasUiTests(TestCase):
         # Empty-canvas left-drag pan is wired in mouse:down.
         self.assertIn("isEmptyCanvas", self.js)
         self.assertIn("opt.target === artboard", self.js)
-        self.assertIn("isEmptyCanvas && opt.e.button === 0", self.js)
+        self.assertIn("isEmptyCanvas && primaryPointer", self.js)
+        self.assertIn("opt.e.touches?.length === 1 || opt.e.button === 0", self.js)
 
     def test_layer_forward_backward_buttons_renamed(self):
         # Capa buttons na ginamit sa template at JS ay na-rename sa layerUpBtn/layerDownBtn.

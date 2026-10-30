@@ -7,16 +7,16 @@
     <p class="report-scope">{{ comparison_label }}<br>Includes Overview, Bookings &amp; Demand, Payments and Customers.</p>
     <p class="section-index">01 / OVERVIEW</p>
     <h2>Key Performance Indicators</h2>
-    <table class="data" repeat="1"><thead><tr><th style="width: 70%;">Metric</th><th class="r" style="width: 30%;">Value</th></tr></thead><tbody>
-      <tr><td>Total Bookings</td><td class="text-right">{{ total_bookings }}</td></tr>
-      <tr><td>Completed Booking Value</td><td class="text-right">PHP {{ total_revenue }}</td></tr>
-      <tr><td>Verified Collections</td><td class="text-right">PHP {{ verified_collections }}</td></tr>
-      <tr><td>Completion Rate</td><td class="text-right">{{ completion_rate }}%</td></tr>
-      <tr><td>Cancellation Rate</td><td class="text-right">{{ cancellation_rate }}%</td></tr>
-      <tr><td>Average Completed Value</td><td class="text-right">PHP {{ avg_booking_value }}</td></tr>
-      <tr><td>Customers with Bookings</td><td class="text-right">{{ active_users }}</td></tr>
-      <tr><td>Completed</td><td class="text-right">{{ completed_count }}</td></tr>
-      <tr><td>Cancelled</td><td class="text-right">{{ cancelled_count }}</td></tr>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Metric</th><th class="c" style="width: 20%;">Value</th><th style="width: 40%;"></th></tr></thead><tbody>
+      <tr><td>Total Bookings</td><td class="text-center">{{ total_bookings }}</td><td></td></tr>
+      <tr><td>Completed Booking Value</td><td class="text-center">PHP {{ total_revenue }}</td><td></td></tr>
+      <tr><td>Verified Collections</td><td class="text-center">PHP {{ verified_collections }}</td><td></td></tr>
+      <tr><td>Completion Rate</td><td class="text-center">{{ completion_rate }}%</td><td></td></tr>
+      <tr><td>Cancellation Rate</td><td class="text-center">{{ cancellation_rate }}%</td><td></td></tr>
+      <tr><td>Average Completed Value</td><td class="text-center">PHP {{ avg_booking_value }}</td><td></td></tr>
+      <tr><td>Customers with Bookings</td><td class="text-center">{{ active_users }}</td><td></td></tr>
+      <tr><td>Completed</td><td class="text-center">{{ completed_count }}</td><td></td></tr>
+      <tr><td>Cancelled</td><td class="text-center">{{ cancelled_count }}</td><td></td></tr>
     </tbody></table>
     {% if comparison_rows %}<h2>Period Comparisons</h2>
     <table class="data" repeat="1"><thead><tr><th style="width:25%;">Metric</th><th class="r" style="width:20%;">Selected</th><th class="r" style="width:20%;">Previous</th><th style="width:35%;">Change</th></tr></thead><tbody>{% for item in comparison_rows %}<tr><td>{{ item.label }}</td><td class="text-right">{% if item.money %}PHP {{ item.current|floatformat:"2g" }}{% else %}{{ item.current }}{% endif %}</td><td class="text-right">{% if item.previous == None %}Unavailable{% elif item.money %}PHP {{ item.previous|floatformat:"2g" }}{% else %}{{ item.previous }}{% endif %}</td><td>{{ item.change }}</td></tr>{% endfor %}</tbody></table>{% endif %}
@@ -30,50 +30,50 @@
       {% for item in event_rows %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td><td class="text-right">PHP {{ item.value }}</td><td class="text-right">PHP {{ item.collections }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">No events for this period.</td></tr>{% endfor %}
     </tbody></table>
     <h2>Setup Demand</h2>
-    <table class="data" repeat="1"><thead><tr><th>Main Setup</th><th class="r">Bookings</th></tr></thead><tbody>
-      {% for item in setup_rows %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td></tr>{% empty %}<tr><td colspan="2" class="empty">No setups for this period.</td></tr>{% endfor %}
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Main Setup</th><th class="c" style="width: 20%;">Bookings</th><th style="width: 40%;"></th></tr></thead><tbody>
+      {% for item in setup_rows %}<tr><td>{{ item.label }}</td><td class="text-center">{{ item.count }}</td><td></td></tr>{% empty %}<tr><td colspan="3" class="empty">No setups for this period.</td></tr>{% endfor %}
     </tbody></table>
     {% if report_insights %}
     <p class="section-index">02 / BOOKINGS &amp; DEMAND</p>
     <h2>Booking Outcomes and Demand</h2>
     <p>{{ report_insights.expired }} expired bookings ({{ report_insights.expired_rate }}%). {{ report_insights.committed_count }} committed events. {{ report_insights.unknown_time }} committed events have no recorded start time.</p>
-    <table class="data" repeat="1"><thead><tr><th>Weekday</th><th class="r">Committed Events</th></tr></thead><tbody>{% for item in report_insights.weekdays %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td></tr>{% endfor %}</tbody></table>
-    <table class="data" repeat="1"><thead><tr><th>Calendar Month</th><th class="r">Committed Events</th></tr></thead><tbody>{% for item in report_insights.months %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td></tr>{% endfor %}</tbody></table>
-    <table class="data" repeat="1"><thead><tr><th>Start Hour (Philippine time)</th><th class="r">Committed Events</th></tr></thead><tbody>{% for item in report_insights.hours %}{% if item.count %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td></tr>{% endif %}{% endfor %}</tbody></table>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Weekday</th><th class="c" style="width: 20%;">Committed Events</th><th style="width: 40%;"></th></tr></thead><tbody>{% for item in report_insights.weekdays %}<tr><td>{{ item.label }}</td><td class="text-center">{{ item.count }}</td><td></td></tr>{% endfor %}</tbody></table>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Calendar Month</th><th class="c" style="width: 20%;">Committed Events</th><th style="width: 40%;"></th></tr></thead><tbody>{% for item in report_insights.months %}<tr><td>{{ item.label }}</td><td class="text-center">{{ item.count }}</td><td></td></tr>{% endfor %}</tbody></table>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Start Hour (Philippine time)</th><th class="c" style="width: 20%;">Committed Events</th><th style="width: 40%;"></th></tr></thead><tbody>{% for item in report_insights.hours %}{% if item.count %}<tr><td>{{ item.label }}</td><td class="text-center">{{ item.count }}</td><td></td></tr>{% endif %}{% endfor %}</tbody></table>
     <h2>Package, Entrance Arch and Welcome Stand Selections</h2>
     <table class="data" repeat="1"><thead><tr><th>Category</th><th>Offer</th><th class="r">Selections</th><th class="r">Completed Whole-Booking Value (PHP)</th></tr></thead><tbody>{% for category, rows in report_insights.offers.items %}{% if category != 'unclassified' %}{% for item in rows %}<tr><td>{{ category|title }}</td><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td><td class="text-right">{{ item.completed_value|floatformat:"2g" }}</td></tr>{% endfor %}{% endif %}{% endfor %}</tbody></table>
     <p class="muted">Offer values overlap: they are whole completed booking totals containing each offer, including other items and fees. They are not item revenue. {{ report_insights.offers.unclassified }} selections could not be categorized.</p>
     <p class="section-index">03 / PAYMENTS</p>
     <h2>Payments and Balances</h2>
-    <table class="data" repeat="1"><thead><tr><th>Metric</th><th class="r">Value</th></tr></thead><tbody>
-      <tr><td>Collections Received (Receipt-Date Period)</td><td class="text-right">PHP {{ report_insights.collections.value|floatformat:"2g" }}</td></tr>
-      <tr><td>Remaining Balances (Selected Approved / Completed Bookings)</td><td class="text-right">PHP {{ report_insights.remaining_balance|floatformat:"2g" }}</td></tr>
-      {% for item in report_insights.payment_progress %}<tr><td>{{ item.label }} Bookings</td><td class="text-right">{{ item.count }}</td></tr>{% endfor %}
-      <tr><td>Unpaid Completed Events</td><td class="text-right">{{ report_insights.completed_unpaid }}</td></tr>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Metric</th><th class="c" style="width: 20%;">Value</th><th style="width: 40%;"></th></tr></thead><tbody>
+      <tr><td>Collections Received (Receipt-Date Period)</td><td class="text-center">PHP {{ report_insights.collections.value|floatformat:"2g" }}</td><td></td></tr>
+      <tr><td>Remaining Balances (Selected Approved / Completed Bookings)</td><td class="text-center">PHP {{ report_insights.remaining_balance|floatformat:"2g" }}</td><td></td></tr>
+      {% for item in report_insights.payment_progress %}<tr><td>{{ item.label }} Bookings</td><td class="text-center">{{ item.count }}</td><td></td></tr>{% endfor %}
+      <tr><td>Unpaid Completed Events</td><td class="text-center">{{ report_insights.completed_unpaid }}</td><td></td></tr>
     </tbody></table>
-    <table class="data" repeat="1"><thead><tr><th>Reconciliation</th><th class="r">PHP</th></tr></thead><tbody>
-      <tr><td>Payable Booking Value</td><td class="text-right">{{ report_insights.payable_value|floatformat:"2g" }}</td></tr>
-      <tr><td>Verified Credit Toward Value (Capped per Booking)</td><td class="text-right">{{ report_insights.credited_capped|floatformat:"2g" }}</td></tr>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Reconciliation</th><th class="c" style="width: 20%;">PHP</th><th style="width: 40%;"></th></tr></thead><tbody>
+      <tr><td>Payable Booking Value</td><td class="text-center">{{ report_insights.payable_value|floatformat:"2g" }}</td><td></td></tr>
+      <tr><td>Verified Credit Toward Value (Capped per Booking)</td><td class="text-center">{{ report_insights.credited_capped|floatformat:"2g" }}</td><td></td></tr>
     </tbody></table>
     <h2>Collections by Payment Method</h2>
-    <table class="data" repeat="1"><thead><tr><th>Payment Method</th><th class="r">Received Collections (PHP)</th></tr></thead><tbody>
-      {% for item in report_insights.collections.methods %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.value|floatformat:"2g" }}</td></tr>{% empty %}<tr><td colspan="2" class="empty">No dated verified collections in this period.</td></tr>{% endfor %}
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Payment Method</th><th class="c" style="width: 20%;">Received Collections (PHP)</th><th style="width: 40%;"></th></tr></thead><tbody>
+      {% for item in report_insights.collections.methods %}<tr><td>{{ item.label }}</td><td class="text-center">{{ item.value|floatformat:"2g" }}</td><td></td></tr>{% empty %}<tr><td colspan="3" class="empty">No dated verified collections in this period.</td></tr>{% endfor %}
     </tbody></table>
     <p>Collections received uses the date range independently of booking dates, with the same event filter. {{ report_insights.collections.fallback_count }} payments use verification-date fallback. {{ report_insights.collections.undated_count }} undated verified payments across all dates are excluded.</p>
     <p class="section-index">04 / CUSTOMERS</p>
     <h2>Customers and Reviews</h2>
-    <table class="data" repeat="1"><thead><tr><th>Metric</th><th class="r">Value</th></tr></thead><tbody>
-      <tr><td>Customers Served</td><td class="text-right">{{ report_insights.customers.completed_customers }}</td></tr>
-      <tr><td>First-Time Customers</td><td class="text-right">{{ report_insights.customers.new }}</td></tr>
-      <tr><td>Returning Customers</td><td class="text-right">{{ report_insights.customers.returning }}</td></tr>
-      <tr><td>Returning Customer Share</td><td class="text-right">{% if report_insights.customers.returning_rate != None %}{{ report_insights.customers.returning_rate }}%{% else %}Unavailable{% endif %}</td></tr>
-      <tr><td>Review Coverage</td><td class="text-right">{% if report_insights.customers.review_coverage != None %}{{ report_insights.customers.review_coverage }}%{% else %}Unavailable{% endif %}</td></tr>
-      <tr><td>Valid Reviews</td><td class="text-right">{{ report_insights.customers.reviews }}</td></tr>
-      <tr><td>Average Rating (1-5)</td><td class="text-right">{{ report_insights.customers.average_rating|default_if_none:'Unavailable' }}</td></tr>
-      <tr><td>Completed Events Reviewed</td><td class="text-right">{{ report_insights.customers.reviewed_bookings }} / {{ report_insights.customers.eligible_completed }}</td></tr>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Metric</th><th class="c" style="width: 20%;">Value</th><th style="width: 40%;"></th></tr></thead><tbody>
+      <tr><td>Customers Served</td><td class="text-center">{{ report_insights.customers.completed_customers }}</td><td></td></tr>
+      <tr><td>First-Time Customers</td><td class="text-center">{{ report_insights.customers.new }}</td><td></td></tr>
+      <tr><td>Returning Customers</td><td class="text-center">{{ report_insights.customers.returning }}</td><td></td></tr>
+      <tr><td>Returning Customer Share</td><td class="text-center">{% if report_insights.customers.returning_rate != None %}{{ report_insights.customers.returning_rate }}%{% else %}Unavailable{% endif %}</td><td></td></tr>
+      <tr><td>Review Coverage</td><td class="text-center">{% if report_insights.customers.review_coverage != None %}{{ report_insights.customers.review_coverage }}%{% else %}Unavailable{% endif %}</td><td></td></tr>
+      <tr><td>Valid Reviews</td><td class="text-center">{{ report_insights.customers.reviews }}</td><td></td></tr>
+      <tr><td>Average Rating (1-5)</td><td class="text-center">{{ report_insights.customers.average_rating|default_if_none:'Unavailable' }}</td><td></td></tr>
+      <tr><td>Completed Events Reviewed</td><td class="text-center">{{ report_insights.customers.reviewed_bookings }} / {{ report_insights.customers.eligible_completed }}</td><td></td></tr>
     </tbody></table>
     <h2>Review Rating Distribution</h2>
-    <table class="data" repeat="1"><thead><tr><th>Rating</th><th class="r">Reviews</th></tr></thead><tbody>{% for item in report_insights.customers.ratings %}<tr><td>{{ item.label }}</td><td class="text-right">{{ item.count }}</td></tr>{% endfor %}</tbody></table>
+    <table class="data single-value" repeat="1"><thead><tr><th style="width: 40%;">Rating</th><th class="c" style="width: 20%;">Reviews</th><th style="width: 40%;"></th></tr></thead><tbody>{% for item in report_insights.customers.ratings %}<tr><td>{{ item.label }}</td><td class="text-center">{{ item.count }}</td><td></td></tr>{% endfor %}</tbody></table>
     <p>Returning customers had a completed event on an earlier date before their first completed event in the selected cohort. Future events do not establish repeat history. Rating averages exclude missing reviews and invalid ratings.</p>
     {% endif %}
     <div class="definitions">

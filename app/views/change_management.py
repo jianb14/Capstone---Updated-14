@@ -1,11 +1,11 @@
 """Admin request queue and a focused review of one specific amendment."""
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, When
 from django.http import HttpResponseForbidden
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
@@ -151,6 +151,8 @@ def admin_booking_change_detail(request, change_id):
     if is_async(request):
         response = JsonResponse({'success': True, 'html': render_to_string('admin/booking/workspace/_change.html', context, request=request)})
     else:
-        response = render(request, 'admin/booking/change_request_detail.html', context)
+        params = dict(parse_qsl(urlsplit(request_return_url(request, change)).query))
+        params.update(tab='requests', open_change=change.pk)
+        response = redirect(f"{reverse('admin_booking_list')}?{urlencode(params)}")
     response['Cache-Control'] = 'private, no-store'
     return response

@@ -100,7 +100,7 @@ class AdminPaymentWorkspaceTests(TestCase):
         payment = Payment.objects.create(booking=self.booking, amount=7000, payment_method='gcash',
             payment_type='full', payment_status='verified')
         url = reverse('admin_payment_detail', args=[payment.pk])
-        self.assertEqual(self.client.get(url).context['paid_percentage'], 100)
+        self.assertEqual(self.client.get(url, **self.headers).context['paid_percentage'], 100)
         self.booking.total_price = 0
         self.booking.save(update_fields=['total_price'])
-        self.assertEqual(self.client.get(url).context['paid_percentage'], 0)
+        self.assertEqual(self.client.get(url, **self.headers).context['paid_percentage'], 0)

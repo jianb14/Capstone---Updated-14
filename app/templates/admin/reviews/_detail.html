@@ -11,7 +11,7 @@
             <div class="rv-reply-meta"><small id="replyTextHelp">{% if reply %}Last updated {{ reply.updated_at|date:'M d, Y · g:i A' }}{% else %}Keep your reply helpful and respectful.{% endif %}</small><span data-reply-length>{{ reply.reply_text|length|default:0 }}/2000</span></div>
             <div class="reply-actions">{% if reply %}<button type="submit" class="ac-button rv-remove-reply" data-remove-reply formaction="{% url 'admin_review_delete_reply' review.id %}" formnovalidate>Remove Reply</button>{% endif %}<button type="submit" class="ac-button ac-primary">{% if reply %}Update Reply{% else %}Post Reply{% endif %}</button></div>
         </form>
-        <div class="rv-remove-confirm" data-remove-confirm hidden><p>Remove this public reply? The customer's review will stay published.</p><button type="button" class="ac-button" data-keep-reply>Keep reply</button><button type="button" class="ac-button rv-remove-reply" data-confirm-remove>Remove reply</button></div>
+        <div class="rv-remove-confirm" data-remove-confirm hidden><p>Remove this public reply? The customer's review will stay published.</p><div class="rv-remove-actions"><button type="button" class="ac-button" data-keep-reply>Keep reply</button><button type="button" class="ac-button rv-remove-reply" data-confirm-remove>Remove reply</button></div></div>
     </section>
     <p class="ac-feedback rv-action-feedback" tabindex="-1" role="status" aria-live="polite"></p>
 </div>

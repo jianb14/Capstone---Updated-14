@@ -106,6 +106,32 @@ def _extract_paymongo_payment_reference(checkout_data=None, payment_data=None):
 # BOOKING PAGE (Calendar + Form)
 # -------------------------
 
+def _notify_received_paymongo(payment, request=None):
+    """One received-payment notice across webhook retries and browser returns."""
+    if not payment.payment_method.startswith('paymongo_') or not payment_was_received(payment):
+        return False
+    with transaction.atomic():
+        claimed = Payment.objects.filter(pk=payment.pk, admin_notified=False).update(admin_notified=True)
+        if not claimed:
+            return False
+        payment.admin_notified = True
+        booking = payment.booking
+        customer = booking.user.get_full_name() or booking.user.username
+        AdminNotification.objects.create(booking=booking, user=booking.user,
+            message=f'New PayMongo payment submitted for Booking #{booking.pk} by {customer}. Amount: PHP {payment.amount:,.2f}')
+        Notification.objects.create(user=booking.user, booking=booking,
+            message=f'Your payment of PHP {payment.amount:,.2f} for Booking #{booking.pk} was received and is now pending admin verification.')
+        url = f"{reverse('admin_payment_list')}?open_payment={payment.pk}"
+        if request is not None:
+            url = request.build_absolute_uri(url)
+        subject = f'New PayMongo Payment - Booking #{booking.pk}'
+        body = (f'A customer completed an online payment.\n\nBooking ID: #{booking.pk}\n'
+                f'Payment ID: #{payment.pk}\nCustomer: {customer}\nAmount: PHP {payment.amount:,.2f}\n\n'
+                f'This payment is awaiting admin verification.\nReview it here: {url}')
+        transaction.on_commit(lambda: send_admin_alert_email(subject, body))
+    return True
+
+
 def _refresh_paymongo_payment_record(payment):
     if not payment.payment_method.startswith("paymongo_"):
         return payment
@@ -860,7 +886,7 @@ def submit_payment(request, booking_id):
             f"Customer: {request.user.get_full_name() or request.user.username}\n"
             f"Amount: PHP {amount:,.2f} ({payment.get_payment_type_display()})\n"
             f"GCash Reference: {gcash_ref_number}\n\n"
-            f"Verify it here: {request.build_absolute_uri('/staff/payments/')}"
+            f"Verify it here: {request.build_absolute_uri(reverse('admin_payment_list'))}?open_payment={payment.pk}"
         ),
     )
 
@@ -1159,6 +1185,8 @@ def admin_payment_detail(request, id):
         Payment.objects.select_related("booking__user", "verified_by"),
         id=id,
     )
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return redirect(f"{reverse('admin_payment_list')}?open_payment={payment.pk}")
     payment = _refresh_paymongo_payment_record(payment)
     booking = payment.booking
 
@@ -1256,13 +1284,18 @@ def admin_payment_action(request, id, action):
             return redirect("admin_payment_list")
         return redirect("admin_payment_detail", id=id)
 
-    if action == 'reject' and len(request.POST.get('admin_notes', '').strip()) > 2000:
-        messages.error(request, 'Keep the rejection reason within 2,000 characters.')
-        return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
+    admin_notes = None
+    if action == 'reject':
+        from ..admin_rejection import rejection_reason
+        try:
+            admin_notes = rejection_reason(request.POST, 'payment')
+        except ValueError as error:
+            messages.error(request, str(error))
+            return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
 
     if payment.change_request_id:
         from .changes import verify_change_payment
-        verify_change_payment(request, payment, action)
+        verify_change_payment(request, payment, action, rejection_reason=admin_notes)
         return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
 
     if action == "verify":
@@ -1321,8 +1354,6 @@ def admin_payment_action(request, id, action):
         )
 
     elif action == "reject":
-        admin_notes = request.POST.get("admin_notes", "").strip()
-
         # Server-side validation: never reject a payment without a reason.
         if not admin_notes:
             messages.error(
@@ -1814,24 +1845,7 @@ def paymongo_success(request, booking_id):
 
         _flag_late_received_payment(pending_paymongo)
 
-        AdminNotification.objects.create(
-            booking=booking,
-            user=request.user,
-            message=(
-                f"New PayMongo payment submitted for Booking #{booking.id} "
-                f"by {request.user.get_full_name() or request.user.username}. "
-                f"Amount: PHP {pending_paymongo.amount:,.2f}"
-            ),
-        )
-
-        Notification.objects.create(
-            user=booking.user,
-            booking=booking,
-            message=(
-                f"Your payment of PHP {pending_paymongo.amount:,.2f} for Booking "
-                f"#{booking.id} was received and is now pending admin verification."
-            ),
-        )
+        _notify_received_paymongo(pending_paymongo, request)
         messages.success(
             request,
             "Payment received! It is now pending admin verification.",
@@ -1943,6 +1957,7 @@ def paymongo_webhook(request):
                 ]
             )
             _flag_late_received_payment(payment)
+            _notify_received_paymongo(payment, request)
         elif event_type in {"checkout_session.payment.failed", "checkout_session.expired"}:
             # Keep the record as an audit trail instead of deleting it. The
             # marker notes exclude it from all action queues (treated as an

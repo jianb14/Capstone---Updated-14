@@ -1132,6 +1132,7 @@ class GalleryCategory(models.Model):
 
 class GalleryImage(models.Model):
     category = models.ForeignKey(GalleryCategory, on_delete=models.CASCADE, related_name='images')
+    package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='gallery_images')
     image = models.ImageField(upload_to='gallery/')
     caption = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)

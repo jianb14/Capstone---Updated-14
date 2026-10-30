@@ -296,14 +296,14 @@ def booking_change_payment(request, booking_id, change_id):
     }, status=400 if error and request.method == 'POST' else 200)
 
 
-def verify_change_payment(request, payment, action):
+def verify_change_payment(request, payment, action, *, rejection_reason=None):
     """Called inside the admin verification transaction, under the schedule lock."""
     change = BookingChangeRequest.objects.select_for_update().select_related('booking').get(pk=payment.change_request_id)
     if action not in ('verify', 'reject'):
         messages.error(request, 'Unknown payment action.')
         return
     if action == 'reject':
-        notes = request.POST.get('admin_notes', '').strip()
+        notes = rejection_reason if rejection_reason is not None else request.POST.get('admin_notes', '').strip()
         if not notes:
             messages.error(request, 'A rejection reason is required.')
             return

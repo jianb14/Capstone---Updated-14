@@ -217,7 +217,7 @@ class BookingChangeTests(TestCase):
         for text in ('Booking change request','Original booking','Requested change','Accept Final Quote','2 hr(s) beyond the 3-hour package','Price difference'):
             self.assertContains(response,text)
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse('admin_booking_change_detail',args=[change.pk])),'Approve &amp; Send Final Quote',count=0)
+        self.assertContains(self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest'),'Approve &amp; Send Final Quote',count=0)
 
     def test_off_page_approved_edit_link_opens_request_form(self):
         response=self.client.get(reverse('customer_profile'),{'open_edit':self.booking.pk,'search':'missing'})
@@ -375,7 +375,7 @@ class BookingChangeTests(TestCase):
     def test_upgrade_does_not_show_admin_or_customer_nonrefund_checkbox(self):
         change=self.submit(package_type='Package B')
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]))
+        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertNotContains(response,'name="downgrade_ack"')
         self.assertContains(response,'Message to customer (Optional)')
         self.assertContains(response,'Verified payments already credited')
@@ -409,7 +409,7 @@ class BookingChangeTests(TestCase):
         self.original_payment.amount=1200;self.original_payment.save()
         change=self.submit(package_type='Package C')
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]))
+        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertNotContains(response,'name="downgrade_ack"')
         self.assertEqual(response.context['change_excess_payment'],0)
         self.quote(change)
@@ -424,8 +424,8 @@ class BookingChangeTests(TestCase):
     def test_admin_nonrefund_ack_is_shown_only_for_actual_excess(self):
         change=self.submit(package_type='Package C')
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]))
-        self.assertContains(response,'name="downgrade_ack" required')
+        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertIn('name="downgrade_ack" required', response.json()['html'])
         self.assertContains(response,'Excess payment: ₱1,000.00')
         self.assertContains(response,'Message to customer (Required)')
         self.assertContains(response,'I have explained the non-refundable excess')

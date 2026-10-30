@@ -622,6 +622,7 @@ def chat_request_admin(request):
                     f"requested admin chat support: {session.title[:80]}"
                 ),
             )
+            _email_admin_chat_request(session, request.user)
             return JsonResponse({
                 "success": True,
                 "new_status": "active_admin",
@@ -1248,6 +1249,13 @@ def admin_chat_unread_poll(request):
 # AI CHAT: persistence + escalation + streaming + image tools
 # ────────────────────────────────────────────────────────────────
 
+def _email_admin_chat_request(session, requester):
+    subject = f'New Admin Chat Request #{session.pk}'
+    body = (f'{requester.get_full_name() or requester.username} requested admin chat support.\n\n'
+            f'Session #{session.pk}: {session.title}')
+    transaction.on_commit(lambda: send_admin_alert_email(subject, body))
+
+
 def _notify_admins_new_chat_request(session, requester):
     try:
         admin_accounts = User.objects.filter(
@@ -1278,6 +1286,7 @@ def _notify_admins_new_chat_request(session, requester):
                 f"requested admin chat support: {session.title[:80]}"
             ),
         )
+        _email_admin_chat_request(session, requester)
     except Exception:
         pass
 

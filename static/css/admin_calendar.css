@@ -129,8 +129,10 @@
 .cal-empty-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:50%; background:var(--ac-soft); color:var(--ac-muted); margin-bottom:16px; }.cal-empty-icon svg { width:24px; height:24px; }
 .blocked-empty h3 { font-size:13px; font-weight:500; }.admin-calendar-page .blocked-empty p { color:var(--ac-muted); font-size:11px; line-height:1.8; margin-top:7px; }
 /* Anchored day details and keyboard-accessible confirmation dialog. */
-.cal-popover { position:fixed; z-index:1100; width:min(350px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); display:flex; flex-direction:column; border:1px solid var(--ac-line); border-radius:14px; background:var(--ac-bg); color:var(--ac-ink); box-shadow:0 12px 36px #00000024; }
-.cal-popover-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid var(--ac-line); }
+.cal-popover { position:fixed; z-index:1100; width:min(350px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--ac-line); border-radius:14px; background:var(--ac-bg); color:var(--ac-ink); box-shadow:0 12px 36px #00000024; }
+.cal-popover:focus { outline:none; }
+[data-theme="light"] .admin-calendar-page .cal-popover { border-color:var(--ac-line) !important; }
+.cal-popover-header { display:flex; flex:none; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid var(--ac-line); }
 .cal-popover-header h2 { font-size:12px; font-weight:600; }.cal-popover-body { overflow:auto; padding:14px; scrollbar-width:thin; scrollbar-color:var(--ac-line) transparent; }
 .cal-pop-event { border-left:3px solid var(--cal-event-color,var(--ac-muted)); padding:0 0 0 11px; margin:0 0 18px; }.cal-pop-event:last-child { margin-bottom:0; }
 .cal-pop-name { font-size:12px; font-weight:600; overflow-wrap:anywhere; line-height:1.8; }.cal-pop-detail { font-size:11px; color:var(--ac-muted); line-height:1.8; overflow-wrap:anywhere; }

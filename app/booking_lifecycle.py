@@ -47,6 +47,10 @@ def deadline_notice(booking, key, message):
     notice, created = BookingDeadlineNotice.objects.get_or_create(booking=booking, key=key)
     if created:
         AdminNotification.objects.create(booking=booking, user=booking.user, message=message)
+        def email_admin():
+            from .views.common import send_admin_alert_email
+            send_admin_alert_email(f'Booking #{booking.pk} - deadline alert', message)
+        transaction.on_commit(email_admin)
     return created
 
 

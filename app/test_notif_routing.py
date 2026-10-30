@@ -92,7 +92,7 @@ class NotifRoutingTests(TestCase):
 
     # ---- Admin routing ----
 
-    def test_admin_new_payment_goes_to_payment_detail(self):
+    def test_admin_new_payment_opens_payment_modal(self):
         payment = Payment.objects.create(
             booking=self.booking,
             amount=1000,
@@ -113,7 +113,7 @@ class NotifRoutingTests(TestCase):
         )
         url = _admin_notif_target_url("event", notif.message, notif.booking)
         self.assertEqual(
-            url, reverse("admin_payment_detail", args=[payment.id])
+            url, f"{reverse('admin_payment_list')}?open_payment={payment.id}"
         )
 
     def test_admin_payment_without_record_falls_back_to_filtered_list(self):
@@ -146,7 +146,7 @@ class NotifRoutingTests(TestCase):
         )
         url = _admin_notif_target_url("event", notif.message, notif.booking)
         self.assertEqual(
-            url, reverse("admin_review_detail", args=[review.id])
+            url, f"{reverse('admin_reviews')}?review_id={review.id}"
         )
 
     def test_admin_review_without_record_falls_back_to_reviews_list(self):
@@ -168,7 +168,7 @@ class NotifRoutingTests(TestCase):
         url = _admin_notif_target_url("event", notif.message, notif.booking)
         self.assertEqual(url, reverse("admin_chat_inbox"))
 
-    def test_admin_booking_approved_stays_on_booking_detail(self):
+    def test_admin_booking_approved_opens_booking_modal(self):
         notif = AdminNotification.objects.create(
             booking=self.booking,
             user=self.customer,
@@ -176,7 +176,7 @@ class NotifRoutingTests(TestCase):
         )
         url = _admin_notif_target_url("event", notif.message, notif.booking)
         self.assertEqual(
-            url, reverse("admin_booking_detail", args=[self.booking.id])
+            url, f"{reverse('admin_booking_list')}?open_booking={self.booking.id}"
         )
 
     # ---- End-to-end: payment deep-link filter works ----

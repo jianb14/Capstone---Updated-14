@@ -25,6 +25,10 @@
             });
             function sync(){
                 text.textContent=select.selectedOptions[0]?.text || '';
+                trigger.disabled=select.disabled;
+                for(const attr of ['aria-invalid','aria-describedby']){
+                    if(select.hasAttribute(attr))trigger.setAttribute(attr,select.getAttribute(attr));else trigger.removeAttribute(attr);
+                }
                 trigger.setAttribute('aria-label',`${name}: ${text.textContent}`);
                 choices.forEach(button=>button.setAttribute('aria-selected',String(button.dataset.value===select.value)));
             }

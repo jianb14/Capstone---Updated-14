@@ -1,11 +1,14 @@
 """Tests for the admin → customer backdrop design delivery (post-payment)."""
+import base64
 import io
 import tempfile
 from datetime import date, time
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase, override_settings
+from django.db import connection, transaction
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
@@ -274,6 +277,158 @@ class DesignDeliveryTests(TempMediaMixin, TestCase):
         pending = self._create_booking(status="pending")
         self.client.force_login(self.admin)
         body = self.client.get(
-            reverse("admin_booking_detail", args=[pending.id])
-        ).content.decode("utf-8")
-        self.assertIn("Locked", body)
+            reverse("admin_booking_detail", args=[pending.id]), HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        ).json()["html"]
+        self.assertNotIn("Send design</a>", body)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class DesignDeliveryEmailTests(TempMediaMixin, TransactionTestCase):
+    """Exercise real commit hooks and email failures without sending live email."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user(username='designer', role='admin')
+        self.customer = User.objects.create_user(
+            username='design-customer', first_name='Juan', email='juan@example.com', role='customer',
+        )
+        self.booking = Booking.objects.create(
+            user=self.customer, status='confirmed', event_date=date(2099, 6, 15),
+            event_time=time(10), event_type='Birthday', event_location='Venue',
+            package_type='Package A', total_price=5000,
+        )
+        self.payment = Payment.objects.create(
+            booking=self.booking, amount=1000, payment_status='verified', transaction_ref='email-paid',
+        )
+        self.client.force_login(self.admin)
+        self.url = reverse('admin_booking_design_upload', args=[self.booking.pk])
+
+    def post_design(self, **data):
+        data.setdefault('design_image', _design_upload())
+        return self.client.post(self.url, data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    def test_design_email_has_customer_order_message_and_original_attachment(self):
+        response = self.post_design(caption='Here is your pink birthday backdrop.')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('accepted for delivery', response.json()['message'])
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['juan@example.com'])
+        self.assertIn(f'Order #{self.booking.pk}', message.subject)
+        self.assertIn(f'Order #{self.booking.pk}', message.body)
+        self.assertIn('Hi Juan,', message.body)
+        self.assertIn('Here is your pink birthday backdrop.', message.body)
+        self.assertNotIn('http', message.body)
+        self.assertEqual(len(message.attachments), 1)
+        filename, content, mimetype = message.attachments[0]
+        delivery = self.booking.design_deliveries.get()
+        self.assertEqual(filename, f'order-{self.booking.pk}-design-{delivery.pk}.png')
+        self.assertEqual(content, _design_upload().read())
+        self.assertEqual(mimetype, 'image/png')
+        self.assertEqual(delivery.caption, 'Here is your pink birthday backdrop.')
+
+    def test_blank_message_uses_default_and_username_fallback(self):
+        self.customer.first_name = ''
+        self.customer.save(update_fields=['first_name'])
+        self.post_design(caption='   ')
+        self.assertIn('Hi design-customer,', mail.outbox[0].body)
+        self.assertIn('Please see the attached file', mail.outbox[0].body)
+
+    def test_attachment_uses_actual_format_and_never_reopens_remote_storage(self):
+        for image_format, extension, mimetype in [
+            ('JPEG', 'jpg', 'image/jpeg'), ('PNG', 'png', 'image/png'), ('WEBP', 'webp', 'image/webp'),
+        ]:
+            with self.subTest(image_format=image_format):
+                buffer = io.BytesIO()
+                Image.new('RGB', (8, 8)).save(buffer, format=image_format)
+                content = buffer.getvalue()
+                # Real format wins even when a storage provider changes the name.
+                upload = SimpleUploadedFile('customer-design.png', content, content_type='image/png')
+                with patch('django.db.models.fields.files.ImageFieldFile.open', side_effect=OSError('remote unavailable')):
+                    self.assertEqual(self.post_design(design_image=upload).status_code, 200)
+                filename, attachment, content_type = mail.outbox[-1].attachments[0]
+                self.assertTrue(filename.endswith(f'.{extension}'))
+                self.assertEqual(attachment, content)
+                self.assertEqual(content_type, mimetype)
+
+    def test_email_runs_after_commit_and_replay_does_not_send_twice(self):
+        from .design_delivery_email import send_design_delivery_email
+
+        def check_commit(delivery, content):
+            self.assertFalse(connection.in_atomic_block)
+            self.assertTrue(BookingDesignDelivery.objects.filter(pk=delivery.pk).exists())
+            return send_design_delivery_email(delivery, content)
+
+        with patch('app.design_delivery_email.send_design_delivery_email', side_effect=check_commit) as send:
+            self.assertEqual(self.post_design(submission_id='unique-design-email').status_code, 200)
+            self.assertEqual(self.post_design(submission_id='unique-design-email').status_code, 200)
+        self.assertEqual(send.call_count, 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(self.booking.design_deliveries.count(), 1)
+        self.assertEqual(Notification.objects.filter(booking=self.booking).count(), 1)
+
+    def test_rollback_never_sends_email(self):
+        with patch('app.design_delivery_email.send_design_delivery_email') as send:
+            with self.assertRaisesMessage(RuntimeError, 'rollback'):
+                with transaction.atomic():
+                    self.assertEqual(self.post_design().status_code, 200)
+                    send.assert_not_called()
+                    raise RuntimeError('rollback')
+            send.assert_not_called()
+        self.assertFalse(self.booking.design_deliveries.exists())
+        self.assertFalse(Notification.objects.filter(booking=self.booking).exists())
+
+    def test_email_failure_keeps_design_and_notification_and_reports_problem(self):
+        for result in [RuntimeError('secret-provider-data'), 0]:
+            with self.subTest(result=result):
+                kwargs = {'side_effect': result} if isinstance(result, Exception) else {'return_value': result}
+                with patch('app.design_delivery_email.EmailMessage.send', **kwargs) as send:
+                    with self.assertLogs('app.design_delivery_email', level='WARNING') as logs:
+                        response = self.post_design()
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.json()['success'])
+                self.assertIn('email could not be confirmed', response.json()['message'])
+                self.assertNotIn('secret-provider-data', ' '.join(logs.output))
+                self.assertEqual(send.call_count, 1)
+        self.assertEqual(self.booking.design_deliveries.count(), 2)
+        self.assertEqual(Notification.objects.filter(booking=self.booking).count(), 2)
+
+    def test_missing_customer_email_does_not_lose_design(self):
+        self.customer.email = ''
+        self.customer.save(update_fields=['email'])
+        with self.assertLogs('app.design_delivery_email', level='WARNING'):
+            response = self.post_design()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('email could not be confirmed', response.json()['message'])
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(self.booking.design_deliveries.count(), 1)
+
+    def test_invalid_unpaid_or_unauthorized_uploads_never_send_email(self):
+        with patch('app.design_delivery_email.send_design_delivery_email') as send:
+            self.assertEqual(self.post_design(design_image=SimpleUploadedFile('bad.png', b'bad', content_type='image/png')).status_code, 400)
+            self.assertEqual(self.post_design(caption='x' * 256).status_code, 400)
+            self.payment.payment_status = 'pending'
+            self.payment.save(update_fields=['payment_status'])
+            self.assertEqual(self.post_design().status_code, 400)
+            self.client.force_login(self.customer)
+            self.assertEqual(self.post_design().status_code, 403)
+            send.assert_not_called()
+        self.assertFalse(self.booking.design_deliveries.exists())
+
+    @override_settings(
+        EMAIL_BACKEND='app.email_backend.BrevoEmailBackend',
+        BREVO_API_KEY='test-only-key', DEFAULT_FROM_EMAIL='Balloorina <sender@example.com>',
+    )
+    def test_design_upload_reaches_brevo_as_base64_attachment(self):
+        with patch('app.email_backend.requests.Session.post') as post:
+            post.return_value = Mock(status_code=201)
+            post.return_value.json.return_value = {'messageId': '<design-test@example.com>'}
+            response = self.post_design(caption='Here is your design.')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(post.call_count, 1)
+        payload = post.call_args.kwargs['json']
+        self.assertEqual(payload['to'], [{'email': 'juan@example.com'}])
+        self.assertIn(f'Order #{self.booking.pk}', payload['textContent'])
+        self.assertIn('Here is your design.', payload['textContent'])
+        self.assertEqual(base64.b64decode(payload['attachment'][0]['content']), _design_upload().read())
+        self.assertTrue(payload['attachment'][0]['name'].endswith('.png'))

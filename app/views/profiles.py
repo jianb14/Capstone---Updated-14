@@ -561,6 +561,11 @@ def submit_review(request, id):
             ReviewImage.objects.create(review=review, image=image)
         log_action(request.user, f"Submitted a review for booking #{booking.id}.")
         AdminNotification.objects.create(booking=booking, user=request.user, message="submitted a new review.")
+        subject = f'New Review - Booking #{booking.pk}'
+        body = (f'{request.user.get_full_name() or request.user.username} submitted a {rating}-star review.\n\n'
+                f'{comment}\n\nReview it here: '
+                f"{request.build_absolute_uri(reverse('admin_reviews'))}?review_id={review.pk}")
+        transaction.on_commit(lambda: send_admin_alert_email(subject, body))
     if wants_json:
         return JsonResponse({'status': 'success', 'message': 'Thank you for your review!', 'review_id': review.pk}, status=201)
     messages.success(request, 'Thank you for your review!')

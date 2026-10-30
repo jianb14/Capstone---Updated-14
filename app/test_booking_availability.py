@@ -270,7 +270,7 @@ class BookingAvailabilityTemplateTests(TestCase):
 
     def test_css_cache_bust_updated(self):
         # Cache-bust versions (i-bump kapag nagbabago ang picker/CSS/JS).
-        self.assertIn("client_booking.css' %}?v=20261021c", self.template)
+        self.assertIn("client_booking.css' %}?v=20261031a", self.template)
         self.assertIn("booking_availability.js' %}?v=20261021d", self.template)
         self.assertIn("booking_picker_a.js' %}?v=20261014f", self.template)
         self.assertIn("booking_picker_c.js' %}?v=20261021b", self.template)

@@ -1,7 +1,7 @@
 """Validated forms for gallery and canvas catalog dialogs."""
 from django import forms
 
-from .models import CanvasAsset, CanvasCategory, GalleryCategory, GalleryImage
+from .models import CanvasAsset, CanvasCategory, GalleryCategory, GalleryImage, Package
 
 KINDS = (('package', 'Packages'), ('entrance', 'Entrance arches'), ('stand', 'Welcome stands'))
 MAX_INTEGER = 2147483647
@@ -77,12 +77,27 @@ class GalleryCategoryForm(CatalogForm):
         return name
 
 
+class GalleryPackageChoiceField(forms.ModelChoiceField):
+    def to_python(self, value):
+        if isinstance(value, Package):
+            value = value.pk
+        if value not in self.empty_values:
+            text = str(value)
+            if not text.isdecimal() or len(text) > 19 or int(text) > 2**63 - 1:
+                raise forms.ValidationError(self.error_messages['invalid_choice'], code='invalid_choice', params={'value':value})
+        return super().to_python(value)
+
+    def label_from_instance(self, obj):
+        return obj.name + (' (inactive)' if not obj.is_active else '')
+
+
 class GalleryImageForm(CatalogForm):
     image = ImageUpload(required=False, widget=forms.FileInput(attrs={'accept': 'image/*'}))
+    package = GalleryPackageChoiceField(label='Package', queryset=Package.objects.none(), required=False)
 
     class Meta:
         model = GalleryImage
-        fields = ('category', 'caption', 'image', 'is_active')
+        fields = ('category', 'package', 'caption', 'image', 'is_active')
         widgets = {'caption': forms.Textarea(attrs={'maxlength': 255})}
         labels = {'category': 'Category', 'caption': 'Caption', 'is_active': 'Visible in gallery'}
 
@@ -93,6 +108,11 @@ class GalleryImageForm(CatalogForm):
             self.fields['images'] = MultipleImages(label='Photos', widget=MultipleImagesInput(attrs={
                 'accept': 'image/*', 'id': 'catalog_images', 'aria-describedby': 'catalog_error_images'}))
         self.fields['category'].queryset = GalleryCategory.objects.order_by('order', 'name')
+        from django.db.models import Q
+        self.fields['package'].queryset = Package.objects.filter(
+            Q(is_active=True) | Q(pk=self.instance.package_id)).order_by('name', 'pk')
+        self.fields['package'].empty_label = 'No specific package'
+        self.fields['package'].help_text = 'Optional. Applies to every photo in this upload.' if not self.instance.pk else 'Optional. Photos without a package appear under All Projects.'
 
 
 class AvailabilityForm(CatalogForm):

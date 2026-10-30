@@ -45,9 +45,9 @@ class LogisticsOverrideTests(TestCase):
         self.client.post(self.url, {"logistics_fee_override": "0"})
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.total_price, Decimal("5500"))
-        response = self.client.get(reverse("admin_booking_detail", args=[self.booking.id]))
-        self.assertContains(response, "Remove Override / Use Computed Fee")
-        self.assertContains(response, "(Manual fee)")
+        response = self.client.get(reverse("admin_booking_detail", args=[self.booking.id]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertIn('value="0.00"', response.json()["html"])
+        self.assertContains(response, "(manual fee)")
         self.client.post(self.url, {"action": "reset"})
         self.booking.refresh_from_db()
         self.assertIsNone(self.booking.logistics_fee_override)
@@ -77,10 +77,10 @@ class LogisticsOverrideTests(TestCase):
 
     def test_reset_is_not_shown_when_computed_fee_is_active(self):
         self.client.post(self.url, {"action": "reset"})
-        response = self.client.get(reverse("admin_booking_detail", args=[self.booking.id]))
-        self.assertContains(response, "Original computed fee:")
-        self.assertContains(response, "Currently applied fee:")
-        self.assertNotContains(response, "Remove Override / Use Computed Fee")
+        response = self.client.get(reverse("admin_booking_detail", args=[self.booking.id]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertContains(response, "restore the original computed fee")
+        self.assertContains(response, "Service &amp; logistics")
+        self.assertIn('value=""', response.json()["html"])
 
     def test_invalid_fee_is_rejected_without_changing_booking(self):
         for value in ("-1", "NaN", "Infinity", "wrong", "100000000", "1.123"):

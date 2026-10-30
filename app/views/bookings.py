@@ -959,7 +959,7 @@ def create_booking(request):
                 f"Location: {booking.event_location or '—'}\n"
                 f"{alert_design_lines}"
                 f"Total Price: PHP {booking.total_price:,.2f}\n\n"
-                f"Review it here: {request.build_absolute_uri(f'/staff/bookings/{booking.id}/view/')}"
+                f"Review it here: {request.build_absolute_uri(reverse('admin_booking_list'))}?open_booking={booking.pk}"
             ),
         )
 
@@ -1449,7 +1449,11 @@ def admin_booking_detail(request, id):
         response = JsonResponse({'success': True, 'html': render_to_string(template, context, request=request)})
         response['Cache-Control'] = 'private, no-store'
         return response
-    return render(request, 'admin/booking/admin_booking_detail.html', context)
+    from urllib.parse import urlencode
+    params = {'open_booking': booking.pk}
+    if request.GET.get('section') == 'design':
+        params['section'] = 'design'
+    return redirect(f"{reverse('admin_booking_list')}?{urlencode(params)}")
 
 
 
@@ -1562,50 +1566,69 @@ def _validate_design_delivery_image(uploaded_file):
 
 @login_required
 @require_POST
-@transaction.atomic
 def admin_booking_design_upload(request, id):
     """Deliver only to confirmed/fulfilled bookings with a verified applied payment."""
     from .booking_workspace import has_verified_payment, mutation_response
+    from ..design_delivery_email import send_design_delivery_email
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-    booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
-    def fail(message, field=''):
-        return mutation_response(request, False, message, id, field=field)
-    if booking.status not in ('confirmed', 'completed') or not has_verified_payment(booking):
-        return fail('A confirmed booking and a verified payment are required before sending a design.')
-    # The booking lock serializes uploads and amendments; a repeated request must
-    # not send another image or notification after a response was lost.
-    submission = request.POST.get('submission_id', '').strip()
-    if submission and (len(submission) > 64 or not re.fullmatch(r'[a-zA-Z0-9_-]+', submission)):
-        return fail('Refresh the form before sending this design.')
-    from ..models import SubmissionReceipt
-    key = hashlib.sha256(f'admin-design:{request.user.pk}:{id}:{submission}'.encode()).hexdigest() if submission else ''
-    if key and SubmissionReceipt.objects.filter(pk=key, status_code=200, expires_at__gt=timezone.now()).exists():
-        return mutation_response(request, True, 'This design was already sent.', id)
-    if booking.design_deliveries.count() >= DESIGN_DELIVERY_MAX_IMAGES:
-        return fail('Maximum of 3 design images per booking. Delete one first to replace it.')
-    uploaded = request.FILES.get('design_image')
-    error = _validate_design_delivery_image(uploaded)
-    if error:
-        return fail(error, 'design_image')
-    caption = request.POST.get('caption', '').strip()
-    if len(caption) > 255:
-        return fail('Keep the caption to 255 characters or fewer.', 'caption')
-    # A design must not silently be sent for a different version of the booking.
-    version = request.POST.get('design_revision', '')
-    current = lifecycle_display(booking)['design_revision_at']
-    if 'design_revision' in request.POST and version != (current.isoformat() if current else ''):
-        return fail('The booking design requirements changed. Reopen this form and review the latest details.')
-    delivery = BookingDesignDelivery.objects.create(booking=booking, image=uploaded,
-        caption=caption, uploaded_by=request.user)
-    log_action(request.user, f'Uploaded backdrop design for booking #{id} (design #{delivery.id}).')
-    log_booking_status(booking, booking.status, booking.status, changed_by=request.user,
-        notes='Backdrop design uploaded and delivered to customer.')
-    Notification.objects.create(user=booking.user, booking=booking,
-        message=f'Your backdrop design for booking #{id} is ready! Open your booking details to view and download it.')
-    if key:
-        SubmissionReceipt.objects.update_or_create(pk=key, defaults={'status_code':200, 'expires_at':timezone.now()+timedelta(days=1)})
-    return mutation_response(request, True, 'Design sent. The customer has been notified.', id)
+    email_result = {'sent': None}
+    with transaction.atomic():
+        booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
+        def fail(message, field=''):
+            return mutation_response(request, False, message, id, field=field)
+        if booking.status not in ('confirmed', 'completed') or not has_verified_payment(booking):
+            return fail('A confirmed booking and a verified payment are required before sending a design.')
+        # The booking lock serializes uploads and amendments; a repeated request must
+        # not send another image, notification or email after a response was lost.
+        submission = request.POST.get('submission_id', '').strip()
+        if submission and (len(submission) > 64 or not re.fullmatch(r'[a-zA-Z0-9_-]+', submission)):
+            return fail('Refresh the form before sending this design.')
+        from ..models import SubmissionReceipt
+        key = hashlib.sha256(f'admin-design:{request.user.pk}:{id}:{submission}'.encode()).hexdigest() if submission else ''
+        if key and SubmissionReceipt.objects.filter(pk=key, status_code=200, expires_at__gt=timezone.now()).exists():
+            return mutation_response(request, True, 'This design was already submitted. No duplicate email was sent.', id)
+        if booking.design_deliveries.count() >= DESIGN_DELIVERY_MAX_IMAGES:
+            return fail('Maximum of 3 design images per booking. Delete one first to replace it.')
+        uploaded = request.FILES.get('design_image')
+        error = _validate_design_delivery_image(uploaded)
+        if error:
+            return fail(error, 'design_image')
+        caption = request.POST.get('caption', '').strip()
+        if len(caption) > 255:
+            return fail('Keep the message to 255 characters or fewer.', 'caption')
+        # A design must not silently be sent for a different version of the booking.
+        version = request.POST.get('design_revision', '')
+        current = lifecycle_display(booking)['design_revision_at']
+        if 'design_revision' in request.POST and version != (current.isoformat() if current else ''):
+            return fail('The booking design requirements changed. Reopen this form and review the latest details.')
+        # Snapshot the validated upload before storage can rename it or consume it.
+        uploaded.seek(0)
+        image_content = uploaded.read()
+        uploaded.seek(0)
+        delivery = BookingDesignDelivery.objects.create(booking=booking, image=uploaded,
+            caption=caption, uploaded_by=request.user)
+        log_action(request.user, f'Uploaded backdrop design for booking #{id} (design #{delivery.id}).')
+        log_booking_status(booking, booking.status, booking.status, changed_by=request.user,
+            notes='Backdrop design uploaded and delivered to customer.')
+        Notification.objects.create(user=booking.user, booking=booking,
+            message=f'Your backdrop design for booking #{id} is ready! Open your booking details to view and download it.')
+        if key:
+            SubmissionReceipt.objects.update_or_create(pk=key, defaults={'status_code':200, 'expires_at':timezone.now()+timedelta(days=1)})
+
+        def email_customer():
+            email_result['sent'] = send_design_delivery_email(delivery, image_content)
+
+        # Never email a design from a transaction that is subsequently rolled back.
+        # Email failure cannot undo the saved design or the in-app notification.
+        transaction.on_commit(email_customer)
+    if email_result['sent'] is True:
+        message = 'Design sent. The customer was notified in-app and the design email was accepted for delivery.'
+    elif email_result['sent'] is False:
+        message = 'Design saved and customer notified in-app, but the design email could not be confirmed. Check email settings and delivery logs.'
+    else:
+        message = 'Design saved and customer notified in-app. The design email will be sent after saving completes.'
+    return mutation_response(request, True, message, id)
 
 
 @login_required
@@ -1812,9 +1835,12 @@ def admin_booking_action(request, id, action):
             booking_feedback(request, 'error', "Please provide a denial reason.")
             return booking_action_response(request, booking.id)
 
-        deny_reason = request.POST.get("deny_reason", "").strip()
-        if not deny_reason or len(deny_reason) > 2000:
-            booking_feedback(request, 'error', "Enter a denial reason of up to 2,000 characters.")
+        from ..admin_rejection import rejection_reason
+        try:
+            deny_reason = rejection_reason(request.POST, 'booking')
+        except ValueError as error:
+            field = 'deny_reason_choice' if 'deny_reason_choice' in request.POST else 'deny_reason'
+            booking_feedback(request, 'error', str(error), field=field)
             return booking_action_response(request, booking.id)
 
         old_status = booking.status

@@ -55,14 +55,16 @@ No new package or database migration is required.
 | New booking | Admin addresses in Site Settings, when email notifications are enabled |
 | Payment proof submitted | Admin addresses in Site Settings, when enabled |
 | Concern ticket submitted | Admin addresses in Site Settings, when enabled |
+| PayMongo payment received | Configured admin addresses; webhook and browser return share one notification flag, so retries do not duplicate alerts |
+| Customer change request, new review, admin support request | Configured admin addresses, when enabled |
+| Booking deadline alert | Configured admin addresses; the existing unique deadline notice prevents duplicates |
 | Payment reminder | Booking customer's email; existing reminder cooldown |
+| Admin sends a paid booking's design | Booking customer's email; design file attached with order number and admin message (or default); after commit, with submission replay protection |
 | Support reply to an offline customer | Customer's email; chat/in-app notification survives email failure |
 | Policy update with Notify Clients selected | Individual active customer emails; recipient privacy preserved |
 
-**Site Settings → Email Notifications** controls booking/payment/concern admin
-alerts only. Keep it enabled and supply valid comma-separated admin addresses to
-receive those alerts. This change preserves existing email triggers; it does not
-add new booking-status or receipt emails where none previously existed.
+**Site Settings → Email Notifications** controls admin activity alerts, including booking/payment/concern, change requests, reviews, support requests and deadline notices. Keep it enabled and supply valid comma-separated admin addresses to
+receive those alerts. Customer policy-update notices use the separate **Email active customers about this update** checkbox in the policy editor. They send only for actual content changes, one email per active customer address, and report delivery failures without losing the saved policy.
 
 ## Failures, quota, and verification
 
@@ -78,6 +80,13 @@ and no automatic retries, to avoid duplicate messages when acceptance is unclear
 Logs exclude API keys, raw API response bodies, and email bodies. Non-critical
 email failures do not roll back bookings, payments, concerns, policy saves, or chat.
 Payment reminder audit logs record email failure separately from in-app success.
+Design delivery emails use the validated original image bytes as an attachment,
+without fetching a public storage URL. The order number is the booking ID. A blank
+admin message uses standard text. The admin's send result reports provider acceptance
+or an unconfirmed email attempt; email failure never removes the saved design or
+customer's in-app notification. No email is sent for a rolled-back upload, and
+replaying the same submission ID does not send a duplicate. There are no automatic
+retries; check Brevo delivery logs before attempting another send.
 Sign-up retains its existing behavior of removing an account when verification
 email submission fails, so retrying registration is possible. Forgot-password and
 resend responses stay generic to avoid exposing whether an account exists.

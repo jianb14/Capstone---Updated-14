@@ -387,9 +387,13 @@ class GalleryPageView(TemplateView):
         context["categories"] = GalleryCategory.objects.all()
         context["gallery_images"] = GalleryImage.objects.filter(
             is_active=True
-        ).select_related("category")
+        ).select_related("category", "package")
+        package_ids = set()
         for image in context['gallery_images']:
             image.preview_version = preview_version(image.image.name)
+            if image.package_id and image.package.is_active:
+                package_ids.add(image.package_id)
+        context['gallery_packages'] = [package for package in ordered_packages() if package.pk in package_ids and package.is_active]
         return context
 
 

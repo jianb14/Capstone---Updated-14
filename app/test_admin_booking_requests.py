@@ -126,7 +126,7 @@ class AdminBookingRequestTests(TestCase):
         self.assertNotContains(response,'Apply filters')
         self.assertContains(response,'id="requestResults"')
         change=response.context['change_requests'][0]
-        review=self.client.get(change.review_url)
+        review=self.client.get(change.review_url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertEqual(review.status_code,200)
         self.assertIn('request_page=2',review.context['return_to'])
         self.assertIn('Keep+%26+check',review.context['return_to'])
@@ -144,7 +144,7 @@ class AdminBookingRequestTests(TestCase):
         old=self.make_change('withdrawn',booking=self.booking,reason='Old request to keep in history')
         current=self.make_change(booking=self.booking,reason='Different newer request')
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_change_detail',args=[old.pk]))
+        response=self.client.get(reverse('admin_booking_change_detail',args=[old.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertEqual(response.context['change_request'].pk,old.pk)
         self.assertContains(response,'Old request to keep in history')
         self.assertNotContains(response,'Different newer request')
@@ -158,7 +158,7 @@ class AdminBookingRequestTests(TestCase):
     def test_booking_detail_only_links_to_request_review(self):
         change=self.make_change(booking=self.booking)
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_detail',args=[self.booking.pk]))
+        response=self.client.get(reverse('admin_booking_detail',args=[self.booking.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertContains(response,reverse('admin_booking_change_detail',args=[change.pk]))
         self.assertNotContains(response,'id="change_admin_notes"')
         self.assertNotContains(response,'Send Final Quote')
@@ -168,7 +168,7 @@ class AdminBookingRequestTests(TestCase):
         active=self.make_change(booking=self.booking)
         self.make_change('withdrawn',booking=self.booking)
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_detail',args=[self.booking.pk]))
+        response=self.client.get(reverse('admin_booking_detail',args=[self.booking.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertEqual(response.context['change_request'].pk,active.pk)
         customer=self.client.get(reverse('booking_modal_content',args=[self.booking.pk]))
         self.assertEqual(customer.status_code,403)
@@ -190,21 +190,21 @@ class AdminBookingRequestTests(TestCase):
         change=self.make_change(booking=self.booking)
         self.client.force_login(self.admin)
         for value in ('https://example.com/staff/bookings/','//example.com/staff/bookings/','//[bad','/other-page/'):
-            response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]),{'return_to':value})
+            response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]),{'return_to':value}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
             self.assertEqual(response.status_code,200)
             self.assertEqual(response.context['return_to'],f"{reverse('admin_booking_list')}?tab=requests&scope=active")
 
     def test_notification_opens_exact_request_even_when_another_request_is_newer(self):
         old=self.make_change('withdrawn',booking=self.booking)
         self.make_change(booking=self.booking)
-        self.assertEqual(_admin_notif_target_url('event',f'Booking change request #{old.pk} for Booking #{self.booking.pk}: quote expired',self.booking),reverse('admin_booking_change_detail',args=[old.pk]))
-        self.assertEqual(_admin_notif_target_url('event',f'Change request #{old.pk} has submitted payment',self.booking),reverse('admin_booking_change_detail',args=[old.pk]))
+        self.assertEqual(_admin_notif_target_url('event',f'Booking change request #{old.pk} for Booking #{self.booking.pk}: quote expired',self.booking),f"{reverse('admin_booking_list')}?tab=requests&open_change={old.pk}")
+        self.assertEqual(_admin_notif_target_url('event',f'Change request #{old.pk} has submitted payment',self.booking),f"{reverse('admin_booking_list')}?tab=requests&open_change={old.pk}")
 
     def test_historical_paid_amount_does_not_change_with_later_payments(self):
         change=self.make_change('applied',booking=self.booking,quoted_total=5000,quote={'verified_paid_at_review':'6000','non_refundable_excess':'1000'})
         Payment.objects.create(booking=self.booking,amount=3000,payment_status='verified',payment_method='gcash',transaction_ref='later-unrelated-payment')
         self.client.force_login(self.admin)
-        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]))
+        response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertEqual(response.context['change_verified_paid'],Decimal('6000'))
         self.assertEqual(response.context['change_excess_payment'],Decimal('1000'))
         self.assertContains(response,'Verified payments when quoted')
@@ -214,9 +214,9 @@ class AdminBookingRequestTests(TestCase):
         for user in (self.user,self.other):
             self.client.force_login(user)
             self.assertEqual(self.client.get(reverse('admin_booking_list'),{'tab':'requests'}).status_code,403)
-            self.assertEqual(self.client.get(reverse('admin_booking_change_detail',args=[change.pk])).status_code,403)
+            self.assertEqual(self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest').status_code,403)
         self.client.logout()
-        self.assertEqual(self.client.get(reverse('admin_booking_change_detail',args=[change.pk])).status_code,302)
+        self.assertEqual(self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest').status_code,302)
 
     def test_unknown_request_is_404_and_review_is_read_only_get(self):
         self.client.force_login(self.admin)

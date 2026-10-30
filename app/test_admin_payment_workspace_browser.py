@@ -121,8 +121,10 @@ class AdminPaymentWorkspaceBrowserTests(StaticLiveServerTestCase):
             page.locator('#pmRejectReason').fill('   ')
             page.locator('#pmConfirmSubmit').click()
             expect(page.locator('#pmConfirmDialog')).to_be_visible()
-            self.assertFalse(page.locator('#pmRejectReason').evaluate('(e)=>e.checkValidity()'))
-            expect(page.locator('#pmReasonError')).to_have_text('Enter a reason for rejecting this payment.')
+            self.assertFalse(page.locator('#pmRejectReasonChoice').evaluate('(e)=>e.checkValidity()'))
+            expect(page.locator('#pmReasonError')).to_have_text('Choose a reason before continuing.')
+            page.get_by_role('button', name='Payment rejection reason: Choose a reason', exact=True).click()
+            page.get_by_role('option', name='Payment amount does not match', exact=True).click()
             page.locator('#pmRejectReason').fill('Receipt amount does not match')
             page.locator('#pmConfirmSubmit').click()
             expect(page.locator('#pmConfirmDialog')).to_be_hidden()
@@ -143,13 +145,40 @@ class AdminPaymentWorkspaceBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.pending[-1].payment_status, 'verified')
         self.assertEqual(self.pending[-1].verified_by, self.admin)
         self.assertEqual(self.pending[-2].payment_status, 'rejected')
-        self.assertEqual(self.pending[-2].notes, 'Receipt amount does not match')
+        self.assertEqual(self.pending[-2].notes, 'Payment amount does not match. Receipt amount does not match')
         self.assertEqual(self.bookings[0].payment_status, 'partial')
         self.assertEqual(Notification.objects.filter(message__icontains='payment reminder').count(), 1)
         self.config.refresh_from_db()
         self.assertEqual(self.config.downpayment_percent, 30)
 
-    def test_light_dark_responsive_details_and_standalone_action(self):
+    def test_detail_link_history_reload_and_close_restore_the_workspace(self):
+        from playwright.sync_api import sync_playwright, expect
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless=True)
+            context = self.context(browser)
+            page = context.new_page()
+            page.goto(self.live_server_url + reverse('admin_payment_list'), wait_until='domcontentloaded')
+            opener = page.locator('#pmSection-pending [data-payment-detail]').first
+            opener.click()
+            modal = page.locator('#pmDetailDialog')
+            expect(modal).to_be_visible()
+            expect(page.locator('#pmPaymentDetail')).to_be_visible()
+            self.assertIn('open_payment=', page.url)
+            page.go_back()
+            expect(modal).to_be_hidden()
+            page.go_forward()
+            expect(modal).to_be_visible()
+            expect(page.locator('#pmPaymentDetail')).to_be_visible()
+            page.reload()
+            expect(modal).to_be_visible()
+            expect(page.locator('#pmPaymentDetail')).to_be_visible()
+            page.keyboard.press('Escape')
+            expect(modal).to_be_hidden()
+            self.assertNotIn('open_payment=', page.url)
+            context.close()
+            browser.close()
+
+    def test_light_dark_responsive_details_and_redirected_detail_action(self):
         from playwright.sync_api import sync_playwright, expect
         with sync_playwright() as pw:
             browser = pw.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless=True)
@@ -194,6 +223,8 @@ class AdminPaymentWorkspaceBrowserTests(StaticLiveServerTestCase):
             page.goto(self.live_server_url+reverse('admin_payment_detail',args=[self.pending[-1].pk]),wait_until='domcontentloaded')
             page.evaluate('window.paymentSentinel=42')
             page.get_by_role('button',name='Reject',exact=True).click()
+            page.get_by_role('button', name='Payment rejection reason: Choose a reason', exact=True).click()
+            page.get_by_role('option', name='Receipt is invalid or unreadable', exact=True).click()
             page.locator('#pmRejectReason').fill('Incorrect receipt')
             page.locator('#pmConfirmSubmit').click()
             expect(page.locator('.pd-amount-row')).to_contain_text('Rejected')

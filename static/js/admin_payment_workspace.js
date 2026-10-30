@@ -9,6 +9,7 @@
     const detailDialog = root.querySelector('#pmDetailDialog'), detailBody = root.querySelector('#pmDetailBody');
     const confirmDialog = root.querySelector('#pmConfirmDialog'), confirmForm = root.querySelector('#pmConfirmForm');
     const actionNotice = root.querySelector('#pmActionFeedback'), reason = root.querySelector('#pmRejectReason');
+    const reasonChoice = root.querySelector('#pmRejectReasonChoice'), detailsError = root.querySelector('#pmDetailsError');
     const confirmButton = root.querySelector('#pmConfirmSubmit'), receiptDialog = root.querySelector('#pmReceiptDialog');
     const settingsDialog = root.querySelector('#pmSettingsDialog'), settingsBody = root.querySelector('#pmSettingsBody');
     const settingsSave = root.querySelector('#pmSettingsSave'), reasonError = root.querySelector('#pmReasonError');
@@ -32,7 +33,7 @@
         if (options.signal?.aborted) controller.abort();
         const timeout = setTimeout(abort, options.method === 'POST' ? 45000 : 20000);
         try {
-            const response = await fetch(url, {...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'text/html'}});
+            const response = await fetch(url, {...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'text/html', 'X-Requested-With': 'XMLHttpRequest'}});
             if (!response.ok) throw new Error(`The request could not be completed (${response.status}). Please refresh and try again.`);
             const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
             if (!doc.querySelector('[data-payment-workspace]')) throw new Error('Your session may have ended. Please refresh the page and sign in again.');
@@ -175,7 +176,12 @@
         root.querySelector('#pmPercentError').hidden = true;
         root.querySelector('#pmSettingsError').hidden = true;
     });
-    async function openDetail(url, origin) {
+    function queueURL() {
+        const url = new URL(location.href);
+        url.searchParams.delete('open_payment');
+        return url;
+    }
+    async function openDetail(url, origin, push = true) {
         detailController?.abort();
         const controller = detailController = new AbortController();
         detailURL = url;
@@ -184,18 +190,27 @@
         feedback(detailBody, 'Loading payment details…', 'info');
         detailBody.setAttribute('aria-busy', 'true');
         openDialog(detailDialog);
+        if (push) {
+            const next = queueURL(), id = new URL(url, location.href).pathname.match(/\/(\d+)\/detail\/?$/)?.[1];
+            if (id) {
+                next.searchParams.set('open_payment', id);
+                if (next.href !== location.href) history.pushState({}, '', next);
+            }
+        }
         try {
             const doc = await request(url, {signal: controller.signal});
             if (controller.signal.aborted) return;
             const content = doc.querySelector('#pmPaymentDetail');
             if (!content) throw new Error('Payment details could not be loaded.');
             detailBody.replaceChildren(content);
+            detailBody.scrollTop = 0;
             root.querySelector('#pmDetailTitle').textContent = content.querySelector('h1')?.textContent || 'Payment details';
         } catch (error) {
             if (!controller.signal.aborted) {
                 feedback(detailBody, error.message);
-                const link = document.createElement('a'); link.href = url; link.className = 'ac-button'; link.textContent = 'Open payment page';
-                detailBody.append(' ', link);
+                const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
+                retry.addEventListener('click', () => openDetail(url, origin, false), {once: true});
+                detailBody.append(' ', retry);
             }
         } finally {
             if (controller === detailController) detailBody.removeAttribute('aria-busy');
@@ -206,8 +221,11 @@
         clearTimeout(timer);
         action = {kind, url, origin};
         feedback(actionNotice);
-        reason.value = ''; reason.setCustomValidity(''); reason.required = kind === 'reject';
-        reason.removeAttribute('aria-invalid'); reasonError.hidden = true;
+        reason.value = ''; reason.setCustomValidity(''); reason.required = false;
+        reasonChoice.value = ''; reasonChoice.required = kind === 'reject'; reasonChoice.disabled = kind !== 'reject';
+        reasonChoice.setCustomValidity(''); reasonChoice.removeAttribute('aria-invalid');
+        selects?.close(); selects?.sync(reasonChoice);
+        reason.removeAttribute('aria-invalid'); reasonError.hidden = true; detailsError.hidden = true;
         root.querySelector('#pmReasonField').hidden = kind !== 'reject';
         const titles = {verify: 'Approve this payment?', reject: 'Reject this payment?', reminder: 'Send payment reminder?'};
         root.querySelector('#pmConfirmTitle').textContent = titles[kind];
@@ -271,25 +289,37 @@
         event.preventDefault();
         prepareAction('reminder', reminder.action, `Send a payment reminder to ${reminder.dataset.customer} for booking #${reminder.dataset.booking}?`, reminder.querySelector('button'));
     });
-    reason.addEventListener('input', () => { reason.setCustomValidity(''); reason.removeAttribute('aria-invalid'); reasonError.hidden = true; });
+    reason.addEventListener('input', () => { reason.setCustomValidity(''); reason.removeAttribute('aria-invalid'); detailsError.hidden = true; });
+    reasonChoice.addEventListener('change', () => { reasonChoice.setCustomValidity(''); reasonChoice.removeAttribute('aria-invalid'); reasonError.hidden = true; selects?.sync(reasonChoice); });
     confirmForm.addEventListener('submit', async event => {
         event.preventDefault();
         if (saving || !action) return;
-        if (action.kind === 'reject' && (!reason.value.trim() || reason.value.trim().length > 2000)) {
-            const message = reason.value.trim() ? 'Keep the rejection reason within 2,000 characters.' : 'Enter a reason for rejecting this payment.';
+        if (action.kind === 'reject' && !reasonChoice.value) {
+            const message = 'Choose a reason before continuing.';
+            reasonChoice.setCustomValidity(message); reasonChoice.setAttribute('aria-invalid', 'true');
+            selects?.sync(reasonChoice);
+            reasonError.textContent = message; reasonError.hidden = false;
+            (reasonChoice.closest('.ac-select')?.querySelector('.ac-select-trigger') || reasonChoice).focus(); return;
+        }
+        if (action.kind === 'reject' && reason.value.trim().length > 1900) {
+            const message = 'Keep additional details within 1,900 characters.';
             reason.setCustomValidity(message); reason.setAttribute('aria-invalid', 'true');
-            reasonError.textContent = message; reasonError.hidden = false; reason.focus(); return;
+            detailsError.textContent = message; detailsError.hidden = false; reason.focus(); return;
         }
         const selected = action, url = new URL(selected.url, location.origin);
         url.searchParams.set('next', 'payments');
         const body = new FormData();
         body.set('csrfmiddlewaretoken', root.querySelector('#pmCsrf input').value);
-        if (selected.kind === 'reject') body.set('admin_notes', reason.value.trim());
+        if (selected.kind === 'reject') {
+            body.set('reject_reason_choice', reasonChoice.value);
+            body.set('admin_notes', reason.value.trim());
+        }
         saving = true;
         listController?.abort(); ++listVersion;
         queues?.removeAttribute('aria-busy');
         confirmForm.querySelectorAll('button').forEach(button => button.disabled = true);
         reason.disabled = true;
+        reasonChoice.disabled = true; selects?.close(); selects?.sync(reasonChoice);
         feedback(actionNotice, 'Saving…', 'info');
         let response;
         try {
@@ -301,6 +331,7 @@
             saving = false;
             confirmForm.querySelectorAll('button').forEach(button => button.disabled = false);
             reason.disabled = false;
+            reasonChoice.disabled = selected.kind !== 'reject'; selects?.sync(reasonChoice);
             confirmButton.disabled = !action;
         }
         if (!response) return;
@@ -328,7 +359,9 @@
         dialog.addEventListener('close', () => {
             modalState();
             if (dialog === detailDialog) {
+                if (dialog.open) return;
                 detailController?.abort();
+                history.replaceState({}, '', queueURL());
                 if (detailOrigin?.isConnected) detailOrigin.focus({preventScroll: true});
             }
             if (dialog === settingsDialog) settingsController?.abort();
@@ -361,9 +394,16 @@
             filters.elements.search.value = ''; filters.querySelector('.ac-search-clear').hidden = true;
             filters.elements.search.focus(); applyFilters();
         });
-        window.addEventListener('popstate', () => { clearTimeout(timer); syncFilters(location.href); loadQueue(location.href, false); });
+        window.addEventListener('popstate', () => { clearTimeout(timer); syncFilters(location.href); loadQueue(location.href, false); detailFromLocation(); });
         mountFilters(); selects?.enhance();
     }
+    function detailFromLocation() {
+        if (!root.dataset.detailPattern) return;
+        const id = new URL(location.href).searchParams.get('open_payment');
+        if (/^\d+$/.test(id || '')) openDetail(root.dataset.detailPattern.replace('/0/', `/${id}/`), null, false);
+        else if (detailDialog.open) closeDialog(detailDialog);
+    }
+    detailFromLocation();
     const initialMessages = [...root.querySelectorAll('#pmMessages [data-kind]')];
     if (initialMessages.length) announce(initialMessages.map(item => item.textContent).join(' '),
         initialMessages.some(item => item.dataset.kind.includes('error')) ? 'error' : 'success');

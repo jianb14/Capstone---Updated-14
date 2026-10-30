@@ -42,7 +42,7 @@ class AdminBookingWorkspaceBrowserTests(StaticLiveServerTestCase):
             browser = pw.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless=True)
             context = self.context(browser); page = context.new_page(); errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(self.live_server_url+reverse('admin_booking_list'),wait_until='domcontentloaded')
+            page.goto(self.live_server_url+reverse('admin_booking_list')+'?status=',wait_until='domcontentloaded')
             page.evaluate('window.bookingWorkspaceSentinel=123')
             expect(page.locator('.ab-table tbody tr')).to_have_count(8)
             page.get_by_role('link',name='Page 2',exact=True).click()
@@ -102,7 +102,7 @@ class AdminBookingWorkspaceBrowserTests(StaticLiveServerTestCase):
                     with self.subTest(width=width,theme=theme):
                         context = self.context(browser,width,height,theme); page = context.new_page(); errors=[]
                         page.on('pageerror',lambda error:errors.append(str(error)))
-                        page.goto(self.live_server_url+reverse('admin_booking_list'),wait_until='domcontentloaded')
+                        page.goto(self.live_server_url+reverse('admin_booking_list')+'?status=',wait_until='domcontentloaded')
                         self.assertEqual(page.locator('html').get_attribute('data-theme'),'light' if theme == 'light' else None)
                         search = page.get_by_role('searchbox',name='Search bookings'); search.focus()
                         self.assertEqual(search.evaluate('(e)=>getComputedStyle(e).outlineWidth'),'2px')
@@ -173,7 +173,7 @@ class AdminBookingWorkspaceBrowserTests(StaticLiveServerTestCase):
                         context.route('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', lambda route: route.fulfill(content_type='text/css',body=sources['css']))
                         page = context.new_page(); errors = []
                         page.on('pageerror',lambda error:errors.append(str(error)))
-                        page.goto(self.live_server_url+reverse('admin_booking_list'),wait_until='domcontentloaded')
+                        page.goto(self.live_server_url+reverse('admin_booking_list')+'?status=',wait_until='domcontentloaded')
                         page.evaluate('window.bookingWorkspaceSentinel=321')
                         row = page.locator(f'[data-booking-id="{booking.pk}"]')
                         buttons = row.locator('.ab-actions > *')
@@ -245,7 +245,7 @@ class AdminBookingWorkspaceBrowserTests(StaticLiveServerTestCase):
         with sync_playwright() as pw:
             browser = pw.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless=True)
             context = self.context(browser); page = context.new_page()
-            page.goto(self.live_server_url+reverse('admin_booking_list'),wait_until='domcontentloaded')
+            page.goto(self.live_server_url+reverse('admin_booking_list')+'?status=',wait_until='domcontentloaded')
             page.evaluate('window.bookingWorkspaceSentinel=456')
             page.locator('[data-booking-modal]').first.click()
             expect(page.locator('#abDetails')).to_be_visible()
@@ -285,7 +285,7 @@ class AdminBookingWorkspaceBrowserTests(StaticLiveServerTestCase):
                 context = self.context(browser, width=390, height=844, theme=theme)
                 page = context.new_page(); errors = []
                 page.on('pageerror', lambda error: errors.append(str(error)))
-                page.goto(self.live_server_url+reverse('admin_booking_list'),wait_until='domcontentloaded')
+                page.goto(self.live_server_url+reverse('admin_booking_list')+'?status=',wait_until='domcontentloaded')
                 page.evaluate('window.bookingWorkspaceSentinel=789')
                 for status, message in cases:
                     page.route(detail_url, lambda route: route.fulfill(status=status,content_type='text/html',body='<h1>Server response</h1>'))

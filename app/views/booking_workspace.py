@@ -74,9 +74,9 @@ def design_state_filter(state):
     return Q()
 
 
-def _filters(request, queryset):
+def _filters(request, queryset, *, default_status=''):
     search = request.GET.get('search', '').strip()[:150]
-    status = request.GET.get('status', '')
+    status = request.GET.get('status', default_status)
     if status not in dict(Booking.STATUS_CHOICES):
         status = ''
     start, end = request.GET.get('date_from', '').strip(), request.GET.get('date_to', '').strip()
@@ -144,7 +144,7 @@ def workspace_context(request):
         order = request.GET.get('sort', '')
         queryset = queryset.order_by('event_date', 'event_time', 'pk') if order == 'event' else queryset.order_by('-created_at', '-pk')
         context['sort'] = order if order == 'event' else ''
-    queryset, filters = _filters(request, queryset)
+    queryset, filters = _filters(request, queryset, default_status='pending' if tab == 'bookings' else '')
     context.update(filters)
     page = Paginator(queryset, per_page).get_page(request.GET.get('page'))
     rows = list(page)

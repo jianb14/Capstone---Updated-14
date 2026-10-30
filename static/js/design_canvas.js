@@ -122,6 +122,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const fontFamilyDropdown = byId('fontFamilyDropdown');
     const fontFamilyDropdownText = byId('fontFamilyDropdownText');
     const fontFamilyOptionsList = byId('fontFamilyOptions');
+    const fontLoadPromises = new Map();
+    const fontAvailability = new Map();
+    let fontChangeRequest = 0;
 
     const contextDuplicateBtn = byId('contextDuplicateBtn');
     const contextLockBtn = byId('contextLockBtn');
@@ -134,6 +137,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const customCanvasColor = byId('customCanvasColor');
     const customObjectColor = byId('customObjectColor');
+    const recentColorGroups = Array.from(document.querySelectorAll('[data-recent-colors]'));
+    const RECENT_COLORS_KEY = `designCanvasObjectRecentColors:v1:user-${window.canvasUserId}`;
+    const MAX_RECENT_COLORS = 8;
+    let recentColors = [];
+    let pickerColorHistory = null;
+    try {
+        const stored = JSON.parse(localStorage.getItem(RECENT_COLORS_KEY) || '[]');
+        if (Array.isArray(stored)) {
+            recentColors = [...new Set(stored.filter(color => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)).map(color => color.toLowerCase()))].slice(0, MAX_RECENT_COLORS);
+        }
+    } catch (error) { /* The palette still works when browser storage is unavailable. */ }
     const bgImageUpload = byId('bgImageUpload');
     const removeBgImage = byId('removeBgImage');
     const bgFitHint = byId('bgFitHint');
@@ -1565,12 +1579,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const abRight = abLeft + ARTBOARD_W * zoom;
         const abBottom = abTop + ARTBOARD_H * zoom;
 
-        const margin = 220;
+        // Keep part of the paper visible without pinning it on narrow screens.
+        const marginX = Math.min(220, canvasW / 3, ARTBOARD_W * zoom / 3);
+        const marginY = Math.min(220, canvasH / 3, ARTBOARD_H * zoom / 3);
 
-        if (abRight < margin) vpt[4] += margin - abRight;
-        if (abLeft > canvasW - margin) vpt[4] -= abLeft - (canvasW - margin);
-        if (abBottom < margin) vpt[5] += margin - abBottom;
-        if (abTop > canvasH - margin) vpt[5] -= abTop - (canvasH - margin);
+        if (abRight < marginX) vpt[4] += marginX - abRight;
+        if (abLeft > canvasW - marginX) vpt[4] -= abLeft - (canvasW - marginX);
+        if (abBottom < marginY) vpt[5] += marginY - abBottom;
+        if (abTop > canvasH - marginY) vpt[5] -= abTop - (canvasH - marginY);
 
         canvas.setViewportTransform(vpt);
     }
@@ -2126,16 +2142,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const first = textObjects[0];
         if (fontFamilySelect) {
             fontFamilySelect.value = first.fontFamily || '';
-            // Saved designs can carry a font that is no longer in the list —
-            // add it back on the fly so the dropdown label stays accurate.
-            if (first.fontFamily && !fontFamilySelect.value) {
-                const missingOption = document.createElement('option');
-                missingOption.value = first.fontFamily;
-                missingOption.textContent = first.fontFamily;
-                fontFamilySelect.appendChild(missingOption);
-                fontFamilySelect.value = first.fontFamily;
-                addFontOptionItem(first.fontFamily, first.fontFamily);
-            }
+            // Keep saved lettering intact without adding removed fonts back to the menu.
         }
         if (fontSizeInput) fontSizeInput.value = Math.round(first.fontSize || 40);
         syncFontFamilyDropdown(first.fontFamily || '');
@@ -2362,7 +2369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const all = [...current, ...objects.filter(obj => !current.includes(obj))];
         return all.map(obj => objects.includes(obj) ? {...obj, type: obj.type, _currentColor: color, fill: color} : obj);
     }
-    function applyObjectColors(objects, color) {
+    function applyObjectColors(objects, color, { remember = true } = {}) {
         const targets = objects.filter(obj => !obj._isLocked && canvas.getObjects().includes(obj));
         if (!targets.length) return false;
         const preview = () => colorPreview(targets, color);
@@ -2374,6 +2381,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         saveState();
         targets.forEach(obj => applyColorToObject(obj, color, {skipLimit: true}));
+        if (remember) rememberColor(color);
         canvas.renderAll(); updateControlsState(); updateVisualCart(); scheduleDraftPersist();
         return true;
     }
@@ -3259,10 +3267,14 @@ document.addEventListener('DOMContentLoaded', function() {
         itemColorPicker.addEventListener('input', (event) => {
             const selected = getSelectableActiveObjects();
             if (!selected.length) return;
-            applyObjectColors(selected, event.target.value);
+            const color = event.target.value;
+            if (applyObjectColors(selected, color, {remember: false})) {
+                rememberColor(color, {picker: event.target});
+            }
             canvas.renderAll();
             updateControlsState();
         });
+        itemColorPicker.addEventListener('change', rememberObjectPickerColor);
     }
 
     function showCanvasToast(icon, title) {
@@ -3289,34 +3301,95 @@ document.addEventListener('DOMContentLoaded', function() {
         if (icon === 'error') alert(title);
     }
 
-    document.querySelectorAll('.color-swatch').forEach((swatch) => {
-        swatch.addEventListener('click', () => {
-            const color = swatch.dataset.color;
-            const target = swatch.dataset.target || 'auto';
-            if (target === 'canvas') {
-                saveState();
-                artboard.set('fill', color);
-            } else if (target === 'object') {
-                const selected = getSelectableActiveObjects();
-                if (!selected.length) {
-                    showCanvasToast('info', 'Select an object first to change its color.');
-                    return;
-                }
+    function renderRecentColors() {
+        recentColorGroups.forEach((group) => {
+            group.hidden = !recentColors.length;
+            const grid = group.querySelector('.recent-color-grid');
+            grid.replaceChildren(...recentColors.map((color) => {
+                const swatch = document.createElement('button');
+                swatch.type = 'button';
+                swatch.className = 'color-swatch';
+                swatch.dataset.color = color;
+                swatch.dataset.target = group.dataset.recentColors;
+                swatch.style.backgroundColor = color;
+                swatch.title = color.toUpperCase();
+                swatch.setAttribute('aria-label', `Use ${color.toUpperCase()}`);
+                return swatch;
+            }));
+        });
+    }
+
+    function rememberColor(color, {picker = null} = {}) {
+        if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+        const normalized = color.toLowerCase();
+        // One color-picker interaction occupies one history slot, even when
+        // the browser sends many input events before a change event.
+        if (!picker) pickerColorHistory = null;
+        else if (pickerColorHistory?.picker !== picker) {
+            pickerColorHistory = {picker, colors: recentColors.slice()};
+        }
+        const history = pickerColorHistory?.colors || recentColors;
+        const next = [normalized, ...history.filter(value => value !== normalized)].slice(0, MAX_RECENT_COLORS);
+        if (next.join() === recentColors.join()) return;
+        const focused = document.activeElement;
+        const focusedGroup = focused?.closest('[data-recent-colors]');
+        recentColors = next;
+        try { localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recentColors)); }
+        catch (error) { /* Keep the in-memory history when storage is unavailable. */ }
+        renderRecentColors();
+        if (focusedGroup) {
+            focusedGroup.querySelector(`[data-color="${focused.dataset.color}"]`)?.focus({preventScroll: true});
+        }
+    }
+
+    function rememberObjectPickerColor(event) {
+        const color = event.target.value.toLowerCase();
+        const selected = getSelectableActiveObjects();
+        const applied = selected.some(obj => !obj._isLocked && resolveObjectColorHex(obj).toLowerCase() === color);
+        if (applied || (!selected.length && event.target === customObjectColor)) {
+            rememberColor(color, {picker: event.target});
+        }
+        pickerColorHistory = null;
+        updateControlsState();
+    }
+
+    [customObjectColor, itemColorPicker].filter(Boolean).forEach((picker) => {
+        ['click', 'blur'].forEach((type) => picker.addEventListener(type, () => { pickerColorHistory = null; }));
+        picker.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') pickerColorHistory = null;
+        });
+    });
+
+    renderRecentColors();
+    // Delegate so freshly created history swatches work in desktop and mobile sheets.
+    document.addEventListener('click', (event) => {
+        const swatch = event.target.closest('.color-swatch');
+        if (!swatch) return;
+        const color = swatch.dataset.color;
+        const target = swatch.dataset.target || 'auto';
+        if (target === 'canvas') {
+            saveState();
+            artboard.set('fill', color);
+        } else if (target === 'object') {
+            const selected = getSelectableActiveObjects();
+            if (!selected.length) {
+                showCanvasToast('info', 'Select an object first to change its color.');
+                return;
+            }
+            applyObjectColors(selected, color);
+        } else {
+            const selected = getSelectableActiveObjects();
+            if (selected.length) {
                 applyObjectColors(selected, color);
             } else {
-                const selected = getSelectableActiveObjects();
-                if (selected.length) {
-                    applyObjectColors(selected, color);
-                } else {
-                    saveState();
-                    artboard.set('fill', color);
-                }
+                saveState();
+                artboard.set('fill', color);
             }
-            canvas.renderAll();
-            if (canvas.isDrawingMode) applyDrawSettings();
-            updateControlsState();
-            scheduleDraftPersist();
-        });
+        }
+        canvas.renderAll();
+        if (canvas.isDrawingMode) applyDrawSettings();
+        updateControlsState();
+        scheduleDraftPersist();
     });
 
     if (customCanvasColor) {
@@ -3326,24 +3399,29 @@ document.addEventListener('DOMContentLoaded', function() {
             if (canvas.isDrawingMode) applyDrawSettings();
             updateControlsState();
         });
-        customCanvasColor.addEventListener('change', () => saveState());
+        customCanvasColor.addEventListener('change', () => {
+            saveState();
+            updateControlsState();
+        });
     }
 
     if (customObjectColor) {
         customObjectColor.addEventListener('input', (event) => {
             const selected = getSelectableActiveObjects();
-            if (!selected.length) return;
-            applyObjectColors(selected, event.target.value);
+            const color = event.target.value;
+            if (!selected.length) {
+                rememberColor(color, {picker: event.target});
+                return;
+            }
+            if (applyObjectColors(selected, color, {remember: false})) {
+                rememberColor(color, {picker: event.target});
+            }
             canvas.renderAll();
             if (canvas.isDrawingMode) applyDrawSettings();
             updateControlsState();
         });
-        customObjectColor.addEventListener('change', () => {
-            const selected = getSelectableActiveObjects();
-            if (!selected.length) {
-                showCanvasToast('info', 'Select an object first to change its color.');
-                return;
-            }
+        customObjectColor.addEventListener('change', (event) => {
+            rememberObjectPickerColor(event);
             scheduleDraftPersist();
         });
     }
@@ -3458,28 +3536,41 @@ document.addEventListener('DOMContentLoaded', function() {
     // too large). These helpers re-measure every text object right after a
     // style change and again once the web font has actually loaded.
     function isFontFamilyLoaded(fontFamily) {
-        if (!fontFamily || !document.fonts || !document.fonts.check) return true;
-        try {
-            return (
-                document.fonts.check(`bold 42px "${fontFamily}"`) ||
-                document.fonts.check(`42px "${fontFamily}"`)
-            );
-        } catch (error) {
-            return true;
-        }
+        return fontAvailability.get(fontFamily) === true;
     }
 
     function ensureFontLoaded(fontFamily) {
-        if (!fontFamily || !document.fonts || !document.fonts.load) return Promise.resolve();
+        if (!fontFamily || !document.fonts?.load) return Promise.resolve(false);
+        if (fontLoadPromises.has(fontFamily)) return fontLoadPromises.get(fontFamily);
         const specs = [`bold 42px "${fontFamily}"`, `italic bold 42px "${fontFamily}"`, `42px "${fontFamily}"`];
-        return Promise.all(
-            specs.map((spec) =>
-                Promise.race([
-                    document.fonts.load(spec),
-                    new Promise((resolve) => setTimeout(resolve, 2500))
-                ]).catch(() => null)
-            )
-        );
+        const loading = Promise.all(specs.map((spec) =>
+            Promise.resolve().then(() => document.fonts.load(spec)).catch(() => [])
+        )).then((faces) => {
+            // check() alone also returns true for missing families that use a fallback.
+            const available = faces.every(list => list.length && list.every(face => face.status === 'loaded'));
+            fontAvailability.set(fontFamily, available);
+            const option = Array.from(fontFamilySelect?.options || []).find(item => item.value === fontFamily);
+            if (option) {
+                option.disabled = !available;
+                option.dataset.fontAvailable = String(available);
+            }
+            fontFamilyOptionsList?.querySelectorAll('li[data-value]').forEach((item) => {
+                if (item.dataset.value !== fontFamily) return;
+                item.setAttribute('aria-disabled', String(!available));
+                item.title = available ? fontFamily : `${fontFamily} is not available on this device.`;
+            });
+            if (available) {
+                fabric.util.clearFabricFontCache?.(fontFamily);
+                const text = canvas.getObjects().filter(obj => isTextObject(obj) && obj.fontFamily === fontFamily);
+                remeasureTextObjects(text);
+                canvas.requestRenderAll();
+                updateElementSizeInputs();
+                updateContextToolbar();
+            }
+            return available;
+        });
+        fontLoadPromises.set(fontFamily, loading);
+        return loading;
     }
 
     function preloadCanvasFonts() {
@@ -3530,18 +3621,23 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!font) return;
             const textObjects = getActiveTextObjects().filter((obj) => !obj._isLocked);
             if (!textObjects.length) return;
-            saveState();
-            textObjects.forEach((obj) => obj.set('fontFamily', font));
-            // Re-measure right away (covers fonts that are already loaded),
-            // then again once the web font finishes loading so the selection
-            // box always matches the rendered text.
-            refreshActiveTextDimensions(textObjects);
-            if (!isFontFamilyLoaded(font)) {
-                ensureFontLoaded(font).then(() => {
-                    const stillActive = textObjects.filter((obj) => obj.fontFamily === font);
-                    if (stillActive.length) refreshActiveTextDimensions(stillActive);
-                });
-            }
+            const request = ++fontChangeRequest;
+            const apply = (available) => {
+                if (request !== fontChangeRequest || fontFamilySelect.value !== font) return;
+                const selected = getActiveTextObjects();
+                const targets = textObjects.filter(obj => selected.includes(obj) && !obj._isLocked);
+                if (!targets.length) return;
+                if (!available) {
+                    updateControlsState();
+                    showCanvasToast('info', `${font} is not available on this device. Choose another font.`);
+                    return;
+                }
+                saveState();
+                targets.forEach(obj => obj.set('fontFamily', font));
+                refreshActiveTextDimensions(targets);
+            };
+            if (isFontFamilyLoaded(font)) apply(true);
+            else ensureFontLoaded(font).then(apply);
         });
     }
 
@@ -3670,6 +3766,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (value) item.style.fontFamily = `"${value}", sans-serif`;
         item.addEventListener('click', () => {
             if (!fontFamilySelect || fontFamilySelect.disabled) return;
+            if (Array.from(fontFamilySelect.options).find(option => option.value === value)?.disabled) return;
             fontFamilySelect.value = value;
             fontFamilySelect.dispatchEvent(new Event('change', { bubbles: true }));
             closeFontFamilyDropdown();
@@ -4438,19 +4535,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    function panPosition(event) {
+        const pointer = event.touches ? (event.touches.length === 1 ? event.touches[0] : null) : event;
+        if (!pointer || !Number.isFinite(pointer.clientX) || !Number.isFinite(pointer.clientY)) return null;
+        return { x: pointer.clientX, y: pointer.clientY };
+    }
+
+    function finishPan() {
+        if (!isPanning) return;
+        isPanning = false;
+        canvas.selection = !isSpaceDown;
+        canvas.defaultCursor = isSpaceDown ? 'grab' : 'default';
+        canvas.setCursor(canvas.defaultCursor);
+    }
+
     canvas.on('mouse:down', (opt) => {
         if (opt.e.button === 1) {
             opt.e.preventDefault();
             opt.e.stopPropagation();
             return;
         }
-        if (!ENABLE_VIEWPORT_PAN) return;
-        // Left-drag on empty canvas (or on the artboard itself) pans the viewport
-        // when zoomed in, so the user can navigate without the Space key.
+        if (!ENABLE_VIEWPORT_PAN || canvas.isDrawingMode) return;
+        const position = panPosition(opt.e);
+        if (!position) { finishPan(); return; }
+        // Drag empty paper with a mouse or one finger; objects keep their own drag.
         const isEmptyCanvas = !opt.target || opt.target === artboard;
-        if (opt.e.altKey || opt.e.button === 1 || isSpaceDown || (isEmptyCanvas && opt.e.button === 0)) {
+        const primaryPointer = opt.e.touches?.length === 1 || opt.e.button === 0;
+        if (opt.e.altKey || isSpaceDown || (isEmptyCanvas && primaryPointer)) {
             isPanning = true;
-            lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
+            lastPanPos = position;
             canvas.selection = false;
             canvas.defaultCursor = 'grabbing';
             canvas.setCursor('grabbing');
@@ -4460,11 +4573,13 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas.on('mouse:move', (opt) => {
         if (!ENABLE_VIEWPORT_PAN) return;
         if (!isPanning) return;
-        const dx = opt.e.clientX - lastPanPos.x;
-        const dy = opt.e.clientY - lastPanPos.y;
+        const position = panPosition(opt.e);
+        if (!position) { finishPan(); return; }
+        const dx = position.x - lastPanPos.x;
+        const dy = position.y - lastPanPos.y;
         canvas.relativePan(new fabric.Point(dx, dy));
         clampPan();
-        lastPanPos = { x: opt.e.clientX, y: opt.e.clientY };
+        lastPanPos = position;
         updateContextToolbar();
     });
 
@@ -4473,17 +4588,10 @@ document.addEventListener('DOMContentLoaded', function() {
             setTransformingVisualState(false);
             updateControlsState();
         }
-        if (!ENABLE_VIEWPORT_PAN) return;
-        if (!isPanning) return;
-        isPanning = false;
-        if (!isSpaceDown) {
-            canvas.selection = true;
-            canvas.defaultCursor = 'default';
-        } else {
-            canvas.defaultCursor = 'grab';
-            canvas.setCursor('grab');
-        }
+        finishPan();
     });
+    document.addEventListener('touchcancel', finishPan);
+    window.addEventListener('blur', () => { isSpaceDown = false; finishPan(); });
 
     canvas.on('selection:created', updateControlsState);
     canvas.on('selection:updated', updateControlsState);

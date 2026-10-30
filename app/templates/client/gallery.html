@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/gallery_viewer.css' %}?v=20261025d">
+<link rel="stylesheet" href="{% static 'css/gallery_viewer.css' %}?v=20261031filters4">
 {% endblock %}
 
 {% block content %}
@@ -15,17 +15,21 @@
         </section>
 
         <section class="gallery-section">
-            <div class="gallery-filter">
+            <div class="gallery-filters">
+            <div class="gallery-filter" role="group" aria-label="Gallery filters" tabindex="0">
                 <button type="button" class="filter-btn active" data-category="all" aria-pressed="true">All Projects</button>
                 {% for cat in categories %}
                 <button type="button" class="filter-btn" data-category="{{ cat.id }}" aria-pressed="false">{{ cat.name }}</button>
                 {% endfor %}
+                {% for package in gallery_packages %}<button type="button" class="filter-btn" data-package="{{ package.pk }}" aria-pressed="false">{{ package.name }}</button>{% endfor %}
+            </div>
             </div>
 
             <div class="gallery-grid">
                 {% for img in gallery_images %}
-                <div class="gallery-item" data-category="{{ img.category_id }}" data-category-name="{{ img.category.name }}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="View {{ img.category.name }} photo">
+                <div class="gallery-item" data-category="{{ img.category_id }}" data-category-name="{{ img.category.name }}" data-package="{% if img.package.is_active %}{{ img.package_id }}{% endif %}" data-package-name="{% if img.package.is_active %}{{ img.package.name }}{% endif %}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="View {{ img.category.name }}{% if img.package.is_active %} {{ img.package.name }}{% endif %} photo">
                     <img src="{% url 'gallery_image_preview' img.id %}?v={{ img.preview_version }}" data-full-image="{{ img.image.url }}" alt="{{ img.caption|default:'Gallery image' }}" loading="{% if forloop.counter <= 4 %}eager{% else %}lazy{% endif %}" decoding="async">
+                    {% if img.package.is_active %}<span class="gallery-package-tag">{{ img.package.name }}</span>{% endif %}
                     {% if img.caption %}
                     <div class="gallery-caption">{{ img.caption }}</div>
                     {% endif %}
@@ -53,7 +57,7 @@
     <!-- Lightbox Modal -->
     <dialog class="gallery-viewer" id="galleryLightbox" aria-label="Gallery image" aria-describedby="lightboxCaption">
         <header class="gallery-viewer__toolbar">
-            <span id="lightboxCategory">Gallery</span>
+            <div class="gallery-viewer__context"><span id="lightboxCategory">Gallery</span><span class="gallery-viewer__package" id="lightboxPackage" hidden></span></div>
             <button type="button" class="gallery-viewer__close" id="lightboxClose" aria-label="Close image preview" autofocus>
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
             </button>
@@ -71,8 +75,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const filterBtns = document.querySelectorAll('#gallery .filter-btn');
+            const filterBtns = document.querySelectorAll('#gallery .gallery-filter [data-category]');
             const items = document.querySelectorAll('#gallery .gallery-item');
+            const packageBtns = document.querySelectorAll('#gallery .gallery-filter [data-package]');
+            let selectedCategory = 'all', selectedPackage = 'all';
             const emptyState = document.getElementById('galleryEmpty');
             const grid = document.querySelector('#gallery .gallery-grid');
             const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -126,26 +132,34 @@
             }
 
             // --- FILTER ---
-            filterBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    filterBtns.forEach(b => {
-                        b.classList.toggle('active', b === btn);
-                        b.setAttribute('aria-pressed', String(b === btn));
-                    });
-                    const cat = btn.dataset.category;
-
-                    let visibleCount = 0;
-                    grid.classList.add('gallery-resetting');
-                    if (revealObserver) revealObserver.disconnect();
-                    items.forEach(item => {
-                        item.classList.remove('show');
-                        item.hidden = cat !== 'all' && item.dataset.category !== cat;
-                        if (!item.hidden) visibleCount++;
-                    });
-                    emptyState.hidden = visibleCount > 0;
-                    scheduleLayout();
+            function applyGalleryFilters() {
+                filterBtns.forEach(button => {
+                    const active = selectedPackage === 'all' && button.dataset.category === selectedCategory;
+                    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
                 });
-            });
+                packageBtns.forEach(button => {
+                    const active = button.dataset.package === selectedPackage;
+                    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+                });
+                let visibleCount = 0;
+                grid.classList.add('gallery-resetting');
+                if (revealObserver) revealObserver.disconnect();
+                items.forEach(item => {
+                    item.classList.remove('show');
+                    item.hidden = (selectedCategory !== 'all' && item.dataset.category !== selectedCategory)
+                        || (selectedPackage !== 'all' && item.dataset.package !== selectedPackage);
+                    if (!item.hidden) visibleCount++;
+                });
+                emptyState.hidden = visibleCount > 0;
+                scheduleLayout();
+            }
+            filterBtns.forEach(btn => btn.addEventListener('click', () => {
+                selectedCategory = btn.dataset.category; selectedPackage = 'all';
+                applyGalleryFilters();
+            }));
+            packageBtns.forEach(button => button.addEventListener('click', () => {
+                selectedCategory = 'all'; selectedPackage = button.dataset.package; applyGalleryFilters();
+            }));
 
             // --- LIGHTBOX ---
             const lightbox = document.getElementById('galleryLightbox');
@@ -155,6 +169,7 @@
             const lightboxBody = document.getElementById('lightboxBody');
             const lightboxDetails = document.getElementById('lightboxDetails');
             const lightboxCategory = document.getElementById('lightboxCategory');
+            const lightboxPackage = document.getElementById('lightboxPackage');
             let previousOverflow = '';
 
             function openLightbox(item) {
@@ -163,6 +178,8 @@
                 lightboxImg.src = img.dataset.fullImage;
                 lightboxImg.alt = img.alt;
                 lightboxCategory.textContent = item.dataset.categoryName || 'Gallery';
+                lightboxPackage.textContent = item.dataset.packageName || '';
+                lightboxPackage.hidden = !item.dataset.packageName;
                 lightboxCaption.textContent = caption;
                 lightboxDetails.hidden = !caption;
                 lightboxBody.classList.toggle('has-caption', Boolean(caption));
@@ -193,7 +210,7 @@
                     openLightbox(item);
                 });
             });
-            scheduleLayout();
+            applyGalleryFilters();
 
             lightboxClose.addEventListener('click', closeLightbox);
             lightbox.addEventListener('click', event => {

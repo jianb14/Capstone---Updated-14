@@ -3,11 +3,12 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/design_workflow.css' %}">
-<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20261022builtin">
+<link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20261031colors">
 <link rel="stylesheet" href="{% static 'css/canvas_inventory.css' %}?v=20261022toolbars">
 <link rel="stylesheet" href="{% static 'css/canvas_toolbars.css' %}?v=20261023guidance">
 <link rel="stylesheet" href="{% static 'css/canvas_mobile.css' %}?v=20261023guidance">
 <link rel="stylesheet" href="{% static 'css/canvas_feedback.css' %}?v=20261023upgrade2">
+<link rel="stylesheet" href="{% static 'css/canvas_fonts.css' %}?v=20261031fonts2">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 
 <section class="design-canvas-section">
@@ -136,6 +137,10 @@
                         <div class="custom-color-row">
                             <span class="custom-label">Custom</span>
                             <input type="color" id="customObjectColor" class="custom-color-circle" value="#ffffff" title="Pick custom object color">
+                        </div>
+                        <div class="recent-colors" data-recent-colors="object" hidden>
+                            <div class="recent-colors-label">Recently used</div>
+                            <div class="color-swatch-grid recent-color-grid" role="group" aria-label="Recently used object colors"></div>
                         </div>
                     </div>
 
@@ -325,7 +330,7 @@
                              draggable="true"
                              data-type="i-text"
                              data-text="Happy Birthday!"
-                             data-font-family="Great Vibes"
+                             data-font-family="Cursive Serif"
                              data-color="#111111"
                              title="Happy Birthday text">
                             <div class="icon-label">
@@ -337,7 +342,7 @@
                              draggable="true"
                              data-type="i-text"
                              data-text="Welcome Baby!"
-                             data-font-family="Satisfy"
+                             data-font-family="Cursive Sans"
                              data-color="#111111"
                              title="Welcome Baby text">
                             <div class="icon-label">
@@ -381,21 +386,24 @@
                                 <ul class="dropdown-options" id="fontFamilyOptions" popover="manual"></ul>
                                 <select id="fontFamilySelect" class="filter-select" data-tooltip="Font Family" aria-label="Font Family">
                                     <option value="">Font</option>
-                                    <option value="Montserrat">Montserrat</option>
                                     <option value="Poppins">Poppins</option>
+                                    <option value="Montserrat">Montserrat</option>
+                                    <option value="Cursive Sans">Cursive Sans</option>
+                                    <option value="Cursive Serif">Cursive Serif</option>
                                     <option value="Bebas Neue">Bebas Neue</option>
-                                    <option value="Anton">Anton</option>
-                                    <option value="Oswald">Oswald</option>
-                                    <option value="Playfair Display">Playfair Display</option>
-                                    <option value="Cinzel">Cinzel</option>
-                                    <option value="Satisfy">Satisfy</option>
-                                    <option value="Great Vibes">Great Vibes</option>
-                                    <option value="Dancing Script">Dancing Script</option>
-                                    <option value="Pacifico">Pacifico</option>
-                                    <option value="Lobster">Lobster</option>
-                                    <option value="Sacramento">Sacramento</option>
-                                    <option value="Luckiest Guy">Luckiest Guy</option>
-                                    <option value="Caveat">Caveat</option>
+                                    <option value="Liberation Sans">Liberation Sans</option>
+                                    <option value="Histore Magica">Histore Magica</option>
+                                    <option value="Angelic Pearl">Angelic Pearl</option>
+                                    <option value="Megalona">Megalona</option>
+                                    <option value="Day Roman">Day Roman</option>
+                                    <option value="Sanchez">Sanchez</option>
+                                    <option value="Ananda">Ananda</option>
+                                    <option value="Jane Austen">Jane Austen</option>
+                                    <option value="Michland">Michland</option>
+                                    <option value="Golden Hills">Golden Hills</option>
+                                    <option value="Impact">Impact</option>
+                                    <option value="Steelfish">Steelfish</option>
+                                    <option value="Bebas Kai">Bebas Kai</option>
                                 </select>
                             </div>
                             <input type="number" id="fontSizeInput" value="42" min="8" max="300" step="1" data-tooltip="Font Size" aria-label="Font Size">
@@ -646,6 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.savedCanvasJson = null;
     {% endif %}
 
+    window.canvasUserId = "{{ request.user.pk }}";
     window.basePackageId = "{{ base_package_id|default:'' }}";
     window.designOffer = JSON.parse(document.getElementById("design-offer-payload").textContent);
     window.allDesignOffers = JSON.parse(document.getElementById("all-design-offers").textContent);
@@ -667,5 +676,5 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="{% static 'js/design_rules.js' %}?v=20261022"></script>
 <script src="{% static 'js/design_upgrades.js' %}?v=20261023upgrade"></script>
 <script src="{% static 'js/canvas_mobile.js' %}?v=20261023guidance"></script>
-<script src="{% static 'js/design_canvas.js' %}?v=20261023upgrade2"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20261031fonts2"></script>
 {% endblock content %}

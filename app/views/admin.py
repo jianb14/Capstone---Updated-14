@@ -945,12 +945,27 @@ def admin_gallery_category_delete(request, id):
 GALLERY_CAPTION_MAX_LENGTH = GalleryImage._meta.get_field('caption').max_length
 
 
+def _gallery_package_value(request, gallery_image=None):
+    from django.core.exceptions import ValidationError
+    from ..catalog_forms import GalleryImageForm
+    value = request.POST.get('package', gallery_image.package_id if gallery_image else None)
+    try:
+        return GalleryImageForm(instance=gallery_image).fields['package'].clean(value), ''
+    except ValidationError:
+        return None, 'Choose a valid package.'
+
+
 def _render_gallery_image_form(request, categories, gallery_image=None, errors=None,
                                next_url='', scroll_target=''):
+    from ..catalog_forms import GalleryImageForm
     bound = request.method == 'POST'
+    package_form = GalleryImageForm(instance=gallery_image)
+    if bound:
+        package_form.initial['package'] = request.POST.get('package', gallery_image.package_id if gallery_image else None)
     return render(request, 'admin/gallery/gallery_image_form.html', {
         'categories': categories,
         'gallery_image': gallery_image,
+        'package_field': package_form['package'],
         'caption_max_length': GALLERY_CAPTION_MAX_LENGTH,
         'caption_value': request.POST.get('caption', '') if bound else (gallery_image.caption if gallery_image else ''),
         'selected_category_id': str(request.POST.get('category', '')) if bound else str(gallery_image.category_id if gallery_image else ''),
@@ -972,6 +987,9 @@ def admin_gallery_image_create(request):
         caption = request.POST.get("caption", "").strip()
         image = request.FILES.get("image")
         errors = {}
+        package, package_error = _gallery_package_value(request)
+        if package_error:
+            errors['package'] = package_error
         if not category_id:
             errors['category'] = 'Category is required.'
         if not image:
@@ -981,7 +999,7 @@ def admin_gallery_image_create(request):
         if errors:
             return _render_gallery_image_form(request, categories, errors=errors)
         category = get_object_or_404(GalleryCategory, id=category_id)
-        GalleryImage.objects.create(category=category, image=image, caption=caption)
+        GalleryImage.objects.create(category=category, package=package, image=image, caption=caption)
         log_action(request.user, f"Added gallery image to '{category.name}'.")
         messages.success(request, "Image added successfully.")
         return redirect("admin_gallery")
@@ -1004,6 +1022,9 @@ def admin_gallery_image_edit(request, id):
         new_image = request.FILES.get("image")
         is_active = request.POST.get("is_active") == "on"
         errors = {}
+        package, package_error = _gallery_package_value(request, gallery_image)
+        if package_error:
+            errors['package'] = package_error
         if not category_id:
             errors['category'] = 'Category is required.'
         if len(caption) > GALLERY_CAPTION_MAX_LENGTH:
@@ -1012,6 +1033,7 @@ def admin_gallery_image_edit(request, id):
             return _render_gallery_image_form(request, categories, gallery_image,
                 errors=errors, next_url=next_url, scroll_target=scroll_target)
         gallery_image.category = get_object_or_404(GalleryCategory, id=category_id)
+        gallery_image.package = package
         gallery_image.caption = caption
         gallery_image.is_active = is_active
         if new_image:
@@ -1035,7 +1057,7 @@ def admin_gallery_image_detail(request, id):
         return HttpResponseForbidden("Not allowed")
 
     gallery_image = get_object_or_404(
-        GalleryImage.objects.select_related("category"), id=id
+        GalleryImage.objects.select_related("category", "package"), id=id
     )
     next_url = (
         request.GET.get("next") or "/staff/gallery/?scroll=gallery-images-section"

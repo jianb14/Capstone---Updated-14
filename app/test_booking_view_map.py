@@ -123,7 +123,7 @@ class BookingViewMapPageTests(TestCase):
     def test_admin_booking_detail_shows_map_with_pin(self):
         booking = self._create_booking(event_lat="14.599500", event_lng="120.984200")
         self.client.force_login(self.admin)
-        response = self.client.get(reverse("admin_booking_detail", args=[booking.id]))
+        response = self.client.get(reverse("admin_booking_detail", args=[booking.id]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('id="admin_booking_detail_map"', response.content.decode("utf-8"))
+        self.assertIn('id="abVenueMap"', response.json()["html"])
 

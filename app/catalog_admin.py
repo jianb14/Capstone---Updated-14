@@ -60,6 +60,9 @@ def item_row(resource, item):
             values.append(('Solo price', f'₱{item.solo_price:,.2f}' if item.solo_price is not None else 'Not set'))
     elif category:
         values = [('Category', category.name)]
+        if resource == 'gallery-image':
+            package = item.package
+            values.append(('Package', (package.name + (' (inactive)' if not package.is_active else '')) if package else 'No specific package'))
         if resource == 'canvas-asset':
             values.append(('Size', f'{item.width} × {item.height} px'))
     else:
@@ -97,6 +100,8 @@ def workspace_context(request, workspace):
         queryset = queryset.prefetch_related('preview_images')
     if resource in ('gallery-image', 'canvas-asset'):
         queryset = queryset.select_related('category')
+    if resource == 'gallery-image':
+        queryset = queryset.select_related('package')
     search = request.GET.get('q', '').strip()[:150]
     status = request.GET.get('status', '')
     category = request.GET.get('category') or request.GET.get('asset_category') or request.GET.get('image_category') or ''
@@ -106,6 +111,8 @@ def workspace_context(request, workspace):
         matches = Q(**{field + '__icontains': search})
         if resource in ('gallery-image', 'canvas-asset'):
             matches |= Q(category__name__icontains=search)
+        if resource == 'gallery-image':
+            matches |= Q(package__name__icontains=search)
         if search.lstrip('#').isdecimal() and len(search.lstrip('#')) < 12:
             matches |= Q(pk=int(search.lstrip('#')))
         queryset = queryset.filter(matches)
@@ -117,6 +124,14 @@ def workspace_context(request, workspace):
     has_category = resource in ('gallery-image', 'canvas-asset')
     if has_category and category:
         queryset = queryset.filter(category_id=category)
+    has_package = resource == 'gallery-image'
+    package = request.GET.get('package', '') if has_package else ''
+    if package == 'unassigned':
+        queryset = queryset.filter(package__isnull=True)
+    elif package.isdecimal() and len(package) < 12:
+        queryset = queryset.filter(package_id=package)
+    else:
+        package = ''
     sort = request.GET.get('sort', 'newest')
     sort = sort if sort in ('newest', 'oldest', 'name') else 'newest'
     order = ('caption' if resource == 'gallery-image' else 'label' if resource == 'canvas-asset' else 'name', 'pk') if sort == 'name' else ('pk',) if sort == 'oldest' else ('-pk',)
@@ -126,7 +141,9 @@ def workspace_context(request, workspace):
         'resource': resource, 'singular': singular, 'plural': plural, 'tabs': tabs, 'page': page,
         'rows': [item_row(resource, item) for item in page], 'per_page': page.paginator.per_page,
         'q': search, 'status_filter': status, 'category_filter': category, 'sort_filter': sort,
-        'has_status': has_status, 'has_category': has_category, 'has_filters': bool(search or status or (has_category and category)),
+        'has_status': has_status, 'has_category': has_category, 'has_package': has_package,
+        'package_filter': package, 'packages': Package.objects.order_by('name', 'pk') if has_package else [],
+        'has_filters': bool(search or status or (has_category and category) or package),
         'categories': categories, 'selected_kind': kind, 'design_kinds': KINDS,
         'create_url': api_url(resource, 'create'), 'bulk_url': api_url(resource, 'bulk-delete')}
     # Preserve public integrations that inspect this page's selected canvas scope.
@@ -250,7 +267,7 @@ def catalog_action(request, resource, action, pk):
                 if resource == 'gallery-image' and not item:
                     data = form.cleaned_data
                     for upload in data['images']:
-                        GalleryImage.objects.create(category=data['category'], caption=data['caption'], image=upload, is_active=data['is_active'])
+                        GalleryImage.objects.create(category=data['category'], package=data['package'], caption=data['caption'], image=upload, is_active=data['is_active'])
                 else:
                     form.save()
                 from .views.common import log_action

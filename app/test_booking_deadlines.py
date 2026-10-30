@@ -252,8 +252,8 @@ class BookingDeadlineTests(TestCase):
         response = self.client.get(reverse('booking_modal_content', args=[self.booking.pk]))
         self.assertContains(response, 'Design in preparation')
         self.client.force_login(self.admin)
-        response = self.client.get(reverse('admin_booking_detail', args=[self.booking.pk]))
-        self.assertContains(response, 'Urgent — event design is overdue')
+        response = self.client.get(reverse('admin_booking_detail', args=[self.booking.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertContains(response, 'Design overdue')
 
     def test_management_command_processes_deadlines_without_a_page_visit(self):
         self.booking.event_date = self.now.date() - timedelta(days=1)

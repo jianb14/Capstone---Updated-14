@@ -2,12 +2,12 @@
 {% load static %}
 {% block title %}Payment Management{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261028h">
-<link rel="stylesheet" href="{% static 'css/admin_payment_workspace.css' %}?v=20261030b">
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261030d">
+<link rel="stylesheet" href="{% static 'css/admin_payment_workspace.css' %}?v=20261030d">
 <link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
 {% endblock %}
 {% block content %}
-<div class="ac-workspace pm-workspace" data-payment-workspace data-list-url="{% url 'admin_payment_list' %}">
+<div class="ac-workspace pm-workspace" data-payment-workspace data-list-url="{% url 'admin_payment_list' %}" data-detail-pattern="{% url 'admin_payment_detail' 0 %}">
     <header class="page-header ac-header pm-header">
         <div><h1>Payment Management</h1><p class="page-subtitle">Review customer payments, track balances and manage payment settings.</p></div>
         <a href="{% url 'admin_gcash_config' %}" class="ac-button" data-payment-settings aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h4m6 0h8M3 18h10m6 0h2"/><circle cx="10" cy="6" r="3"/><circle cx="16" cy="18" r="3"/></svg>Payment Settings</a>
@@ -35,4 +35,4 @@
     {% include 'admin/payment/_dialogs.html' %}
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/admin_selects.js' %}?v=20261026c"></script><script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script><script src="{% static 'js/admin_payment_workspace.js' %}?v=20261030b"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/admin_selects.js' %}?v=20261030d"></script><script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script><script src="{% static 'js/admin_payment_workspace.js' %}?v=20261030d"></script>{% endblock %}

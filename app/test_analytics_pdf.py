@@ -93,14 +93,36 @@ class AnalyticsPdfKpiTests(TestCase):
         html = self._render()
         for _label, value in KPI_ROWS:
             self.assertIn(
-                f'<td class="text-right">{value}</td>',
+                f'<td class="text-center">{value}</td>',
                 html,
                 f"KPI value '{value}' missing from the table",
             )
 
-    def test_kpi_table_keeps_values_right_aligned(self):
-        html = self._render()
-        self.assertIn('<th class="r" style="width: 30%;">Value</th>', html)
+    def test_kpi_single_value_column_is_centered_in_the_actual_pdf(self):
+        if PdfReader is None:
+            self.skipTest('pypdf is not installed')
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        from xhtml2pdf import pisa
+        from .views.admin import _pdf_link_callback
+
+        output = io.BytesIO()
+        result = pisa.CreatePDF(self._render(), dest=output, link_callback=_pdf_link_callback)
+        self.assertFalse(result.err)
+        page = PdfReader(io.BytesIO(output.getvalue())).pages[0]
+        positions = {}
+
+        def capture(text, cm, tm, font, size):
+            value = text.strip()
+            if value not in ('Value', '15', 'PHP 11,598.00'):
+                return
+            x = cm[0] * tm[4] + cm[2] * tm[5] + cm[4]
+            face = str(font['/BaseFont']).removeprefix('/')
+            positions[value] = x + stringWidth(value, face, size) * cm[0] * tm[0] / 2
+
+        page.extract_text(visitor_text=capture)
+        for value in ('Value', '15', 'PHP 11,598.00'):
+            self.assertIn(value, positions)
+            self.assertAlmostEqual(positions[value], float(page.mediabox.width) / 2, delta=2)
 
     def test_table_header_has_no_blue_background(self):
         """Ang dati-ganang light-blue (`#f1f5f9`, `#f8fafc`) ay tinanggal."""

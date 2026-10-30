@@ -236,6 +236,14 @@ def prepare_proposal(booking, data):
 def notify(change, message, admin=False):
     model = AdminNotification if admin else Notification
     model.objects.create(booking=change.booking, user=change.booking.user, message=f'Booking change request #{change.pk} for Booking #{change.booking_id}: {message}')
+    if admin:
+        subject = f'Booking Change Request #{change.pk} - Booking #{change.booking_id}'
+        body = (f'Booking change request #{change.pk} for Booking #{change.booking_id}: {message}\n\n'
+                f'Customer: {change.booking.user.get_full_name() or change.booking.user.username}')
+        def email_admin():
+            from .views.common import send_admin_alert_email
+            send_admin_alert_email(subject, body)
+        transaction.on_commit(email_admin)
 
 
 def audit(change, message, actor=None):

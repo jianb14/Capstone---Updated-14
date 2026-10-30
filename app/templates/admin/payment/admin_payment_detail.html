@@ -1,15 +1,5 @@
-{% extends 'admin/admin_base.html' %}
 {% load static humanize %}
-{% block title %}Payment Detail{% endblock %}
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261028h">
-<link rel="stylesheet" href="{% static 'css/admin_payment_workspace.css' %}?v=20261030b">
-<link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
-{% endblock %}
-{% block content %}
-<div class="ac-workspace pm-workspace" data-payment-workspace data-list-url="{% url 'admin_payment_list' %}">
-<div id="pmCsrf" hidden>{% csrf_token %}</div>
-<p class="ac-feedback" id="pmFeedback" role="status" aria-live="polite"></p>
+<div data-payment-workspace>
 <div id="pmPaymentDetail">
 {% if payment.change_request_id %}<div role="status" class="pd-change-note"><strong>Booking change payment · Request #{{ payment.change_request_id }}</strong><p>This payment is separate from the original booking. Verification applies the customer-accepted changes only while the quote and reservation remain valid. {% if not payment.applied_to_booking %}These funds have not been applied to the original booking balance.{% endif %}</p><a href="{% url 'admin_booking_change_detail' payment.change_request_id %}">Review requested changes and quote →</a></div>{% endif %}
 <div class="page-header ac-header detail-page-header">
@@ -329,7 +319,4 @@
 </div>
 
 </div>
-{% include 'admin/payment/_dialogs.html' %}
 </div>
-{% endblock %}
-{% block extra_js %}<script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script><script src="{% static 'js/admin_payment_workspace.js' %}?v=20261030b"></script>{% endblock %}
