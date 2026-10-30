@@ -1617,7 +1617,9 @@ document.addEventListener('DOMContentLoaded', function() {
         canvas.setDimensions({ width, height });
         canvas.setViewportTransform(viewport);
         canvas.calcOffset();
-        canvas.requestRenderAll();
+        // Resizing clears the bitmap. Repaint in this frame so selection-bar
+        // layout changes never expose an empty canvas before the next frame.
+        canvas.renderAll();
         updateZoomLabel();
         updateSelectionToolbarPosition();
         updateContextToolbar();

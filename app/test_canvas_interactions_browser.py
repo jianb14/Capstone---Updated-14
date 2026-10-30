@@ -103,9 +103,29 @@ class CanvasInteractionsBrowserTests(StaticLiveServerTestCase):
                 const rect = testCanvas.upperCanvasEl.getBoundingClientRect();
                 return {x: rect.left + point.x, y: rect.top + point.y};
             }''')
+            page.evaluate('''() => {
+                window.selectionFrameSamples = [];
+                const sample = () => {
+                    const paper = testCanvas.getObjects().find(object => object._isArtboard);
+                    const point = fabric.util.transformPoint(paper.getCenterPoint(), testCanvas.viewportTransform);
+                    const scale = testCanvas.getRetinaScaling();
+                    const alpha = testCanvas.contextContainer.getImageData(
+                        Math.floor(point.x * scale), Math.floor(point.y * scale), 1, 1).data[3];
+                    selectionFrameSamples.push({alpha, width: testCanvas.getWidth(), height: testCanvas.getHeight()});
+                    window.selectionFrameRequest = requestAnimationFrame(sample);
+                };
+                window.selectionFrameRequest = requestAnimationFrame(sample);
+            }''')
             page.touchscreen.tap(point['x'], point['y'])
             expect(page.locator('#mobileSelectionBar')).to_be_visible()
             settle(page)
+            frames = page.evaluate('''() => {
+                cancelAnimationFrame(window.selectionFrameRequest);
+                return selectionFrameSamples;
+            }''')
+            self.assertTrue(frames, 'The image selection must include rendered frames')
+            self.assertTrue(all(frame['alpha'] == 255 for frame in frames),
+                            f'The paper blinked during image selection: {frames}')
 
         with sync_playwright() as playwright:
             browser = self.launch(playwright)
