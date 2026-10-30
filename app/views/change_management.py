@@ -79,7 +79,7 @@ def request_list_context(request, summary):
         status = ''
     search = request.GET.get('request_search', '').strip()
     booking_id = request.GET.get('booking_id', '')
-    if not booking_id.isdigit():
+    if not (booking_id.isdecimal() and len(booking_id) <= 19 and int(booking_id) <= 2**63-1):
         booking_id = ''
     changes = request_queue().select_related('booking__user', 'reviewed_by')
     changes = changes.filter(status__in=ACTIVE) if scope == 'active' else changes.exclude(status__in=ACTIVE)
@@ -90,15 +90,15 @@ def request_list_context(request, summary):
     if search:
         numeric = search.lstrip('#')
         match = Q(booking__user__username__icontains=search) | Q(booking__user__email__icontains=search) | Q(booking__user__first_name__icontains=search) | Q(booking__user__last_name__icontains=search) | Q(reason__icontains=search)
-        if numeric.isdigit():
+        if numeric.isdecimal() and len(numeric) <= 19 and int(numeric) <= 2**63-1:
             match |= Q(pk=numeric) | Q(booking_id=numeric)
         changes = changes.filter(match)
     if scope == 'active':
         changes = changes.annotate(queue_priority=Case(When(needs_action_filter(), then=0), default=1, output_field=IntegerField())).order_by('queue_priority', '-created_at', '-pk')
     else:
         changes = changes.order_by('-updated_at', '-pk')
-    page = Paginator(changes, 10).get_page(request.GET.get('request_page'))
-    values = {'tab':'requests', 'scope':scope, 'request_search':search, 'request_status':status, 'booking_id':booking_id}
+    page = Paginator(changes, 4 if request.GET.get('per_page') == '4' else 8).get_page(request.GET.get('request_page'))
+    values = {'tab':'requests', 'scope':scope, 'request_search':search, 'request_status':status, 'booking_id':booking_id, 'per_page':4 if request.GET.get('per_page') == '4' else 8}
     back = _queue_url(values, request_page=page.number)
     for change in page:
         decorate_change(change)
@@ -145,6 +145,12 @@ def admin_booking_change_detail(request, change_id):
     context.update({'booking':booking, 'change_status_label':change.admin_status_label,
         'change_status_note':change.admin_status_note, 'return_to':request_return_url(request, change),
         'active_tab':'requests', 'change_summary':change_queue_summary()})
-    response = render(request, 'admin/booking/change_request_detail.html', context)
+    from .booking_workspace import is_async
+    from django.http import JsonResponse
+    from django.template.loader import render_to_string
+    if is_async(request):
+        response = JsonResponse({'success': True, 'html': render_to_string('admin/booking/workspace/_change.html', context, request=request)})
+    else:
+        response = render(request, 'admin/booking/change_request_detail.html', context)
     response['Cache-Control'] = 'private, no-store'
     return response

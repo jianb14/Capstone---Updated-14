@@ -22,7 +22,8 @@ class LogisticsSettingsTests(TestCase):
         self.assertContains(response, 'Save Settings')
         response = self.client.get(reverse('admin_package_list'))
         self.assertNotContains(response, 'name="service_charge_amount"')
-        self.assertContains(response, '#logistics-settings')
+        # Packages no longer display the removed logistics-settings shortcut.
+        self.assertNotContains(response, '#logistics-settings')
 
     def test_rate_save_preserves_business_settings_shop_pin_and_booked_quote(self):
         settings = SiteSettings.load()

@@ -7,6 +7,8 @@ register = template.Library()
 def account_page_url(context, key, number, tab=''):
     query = context['request'].GET.copy()
     for transient in ('open_edit', 'booking_id', 'payment_id', 'concern_id', 'modal', 'from_notif'):
+        if transient == 'booking_id' and key == 'request_page' and tab == 'requests':
+            continue
         query.pop(transient, None)
     query[key] = str(number)
     if tab:

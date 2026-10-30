@@ -1,0 +1,265 @@
+{% load humanize %}
+<section class="ac-queue pm-section" id="pmSection-pending" aria-labelledby="pmTitle-pending">
+    <div class="ac-queue-heading"><div><h2 id="pmTitle-pending">Payments Awaiting Verification <span class="pm-count">{{ pending_count }}</span></h2><p>Newly submitted payments. Review the details before approving or rejecting.</p></div></div>
+{% if pending_payments %}<div class="ac-table-scroll" tabindex="0" role="region" aria-label="Payments Awaiting Verification"><table class="ac-table pm-table pm-table--pending">
+        <thead>
+            <tr>
+                <th scope="col">Payment ID</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Method</th>
+                <th scope="col">Type</th>
+                <th scope="col">Date</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in pending_payments %}
+            <tr>
+                <td data-label="Payment ID">#{{ pay.id }}</td>
+                <td data-label="Customer">
+                    <div class="pm-cust-name">{{ pay.booking.user.get_full_name|default:pay.booking.user.username }}</div>
+                    <small>@{{ pay.booking.user.username }}</small>
+                </td>
+                <td data-label="Amount">
+                    <div>PHP {{ pay.amount|floatformat:2 }}</div>
+                </td>
+                <td data-label="Method">{{ pay.get_payment_method_display }}</td>
+                <td data-label="Type">{{ pay.get_payment_type_display }}</td>
+                <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_payment_detail' pay.id %}" class="ac-icon-btn action-view" data-payment-detail title="View payment" aria-label="View payment">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <span class="pm-sr-only">View</span>
+                        </a>
+                        <a href="{% url 'admin_payment_action' pay.id 'verify' %}?next=payments" class="ac-icon-btn action-approve" title="Approve payment" aria-label="Approve payment" data-payment-action="verify">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20 6 9 17l-5-5"></path>
+                            </svg>
+                            <span class="pm-sr-only">Approve</span>
+                        </a>
+                        <button type="button" data-payment-action="reject" data-action-url="{% url 'admin_payment_action' pay.id 'reject' %}?next=payments" class="ac-icon-btn action-deny" title="Reject payment" aria-label="Reject payment">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 6 6 18"></path>
+                                <path d="m6 6 12 12"></path>
+                            </svg>
+                            <span class="pm-sr-only">Reject</span>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">No payments awaiting verification.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table></div>
+{% include 'admin/payment/_pagination.html' with page=pending_payments page_key='pending_page' label='Payments Awaiting Verification' %}
+{% else %}<div class="ac-empty">{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No payments awaiting verification' empty_description='Newly submitted payments will appear here when they are ready for review.' %}</div>{% endif %}</section>
+<section class="ac-queue pm-section" id="pmSection-unpaid" aria-labelledby="pmTitle-unpaid">
+    <div class="ac-queue-heading"><div><h2 id="pmTitle-unpaid">Confirmed Bookings With No Payment <span class="pm-count">{{ unpaid_bookings_count }}</span></h2><p>Approved or confirmed bookings with no verified payment yet.</p></div></div>
+{% if unpaid_bookings %}<div class="ac-table-scroll" tabindex="0" role="region" aria-label="Confirmed Bookings With No Payment"><table class="ac-table pm-table pm-table--unpaid">
+            <thead>
+                <tr>
+                    <th scope="col">Payment ID</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Total Price</th>
+                    <th scope="col">Required Downpayment</th>
+                    <th scope="col">Total Paid</th>
+                    <th scope="col">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in unpaid_bookings %}
+                <tr>
+                    <td data-label="Payment ID">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Required Downpayment" class="pm-amt-danger">PHP {{ b.required_downpayment|floatformat:2 }}</td>
+                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Action">
+                        {% if b.can_send_reminder %}
+                        <div class="action-buttons">
+                            <form method="POST" action="{% url 'admin_send_payment_reminder' b.id %}" class="action-form" data-payment-reminder data-customer="{{ b.customer_name }}" data-booking="{{ b.id }}">
+                                {% csrf_token %}
+                                <button type="submit" class="ac-icon-btn action-reminder" title="Send payment reminder" aria-label="Send payment reminder">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                                    </svg>
+                                    <span class="pm-sr-only">Send Reminder</span>
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span>Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">All approved or confirmed bookings already have a verified payment.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+{% include 'admin/payment/_pagination.html' with page=unpaid_bookings page_key='unpaid_page' label='Confirmed Bookings With No Payment' %}
+{% else %}<div class="ac-empty">{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No unpaid bookings' empty_description='Approved bookings without a verified payment will appear here for follow-up.' %}</div>{% endif %}</section>
+<section class="ac-queue pm-section" id="pmSection-balance" aria-labelledby="pmTitle-balance">
+    <div class="ac-queue-heading"><div><h2 id="pmTitle-balance">Bookings With Remaining Balance <span class="pm-count">{{ balance_bookings_count }}</span></h2><p>Customers with a verified payment and an outstanding booking balance.</p></div></div>
+{% if balance_bookings %}<div class="ac-table-scroll" tabindex="0" role="region" aria-label="Bookings With Remaining Balance"><table class="ac-table pm-table pm-table--balance">
+            <thead>
+                <tr>
+                    <th scope="col">Payment ID</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Total Price</th>
+                    <th scope="col">Total Paid</th>
+                    <th scope="col">Remaining Balance</th>
+                    <th scope="col">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in balance_bookings %}
+                <tr>
+                    <td data-label="Payment ID">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Total Paid">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Remaining Balance" class="pm-amt-danger">PHP {{ b.remaining_balance|floatformat:2 }}</td>
+                    <td data-label="Action">
+                        {% if b.can_send_reminder %}
+                        <div class="action-buttons">
+                            <form method="POST" action="{% url 'admin_send_payment_reminder' b.id %}" class="action-form" data-payment-reminder data-customer="{{ b.customer_name }}" data-booking="{{ b.id }}">
+                                {% csrf_token %}
+                                <button type="submit" class="ac-icon-btn action-reminder" title="Send payment reminder" aria-label="Send payment reminder">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                                    </svg>
+                                    <span class="pm-sr-only">Send Reminder</span>
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span>Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">No bookings currently have a remaining balance.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+{% include 'admin/payment/_pagination.html' with page=balance_bookings page_key='balance_page' label='Bookings With Remaining Balance' %}
+{% else %}<div class="ac-empty">{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No remaining balances' empty_description='Bookings with a verified payment and an outstanding balance will appear here.' %}</div>{% endif %}</section>
+<section class="ac-queue pm-section" id="pmSection-paid" aria-labelledby="pmTitle-paid">
+    <div class="ac-queue-heading"><div><h2 id="pmTitle-paid">Bookings Fully Paid <span class="pm-count">{{ fully_paid_count }}</span></h2><p>Verified payments cover the total price. No further action is needed.</p></div></div>
+{% if fully_paid_bookings %}<div class="ac-table-scroll" tabindex="0" role="region" aria-label="Bookings Fully Paid"><table class="ac-table pm-table pm-table--paid">
+            <thead>
+                <tr>
+                    <th scope="col">Booking ID</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Total Price</th>
+                    <th scope="col">Total Paid</th>
+                    <th scope="col">Latest Payment</th>
+                    <th scope="col">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in fully_paid_bookings %}
+                <tr>
+                    <td data-label="Booking ID">#{{ b.id }}</td>
+                    <td data-label="Customer">{{ b.customer_name }}</td>
+                    <td data-label="Total Price">PHP {{ b.total_price|floatformat:2 }}</td>
+                    <td data-label="Total Paid" class="pm-amt-success">PHP {{ b.total_paid|floatformat:2 }}</td>
+                    <td data-label="Latest Payment">{% if b.latest_payment_id %}#{{ b.latest_payment_id }}{% else %}-{% endif %}</td>
+                    <td data-label="Action">
+                        {% if b.latest_payment_id %}
+                        <div class="action-buttons">
+                            <a href="{% url 'admin_payment_detail' b.latest_payment_id %}" class="ac-icon-btn action-view" data-payment-detail title="View payment" aria-label="View payment">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span class="pm-sr-only">View</span>
+                            </a>
+                        </div>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">No fully paid bookings yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+{% include 'admin/payment/_pagination.html' with page=fully_paid_bookings page_key='paid_page' label='Bookings Fully Paid' %}
+{% else %}<div class="ac-empty">{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No fully paid bookings yet' empty_description='Bookings will appear here once verified payments cover their total price.' %}</div>{% endif %}</section>
+<section class="ac-queue pm-section" id="pmSection-history" aria-labelledby="pmTitle-history">
+    <div class="ac-queue-heading"><div><h2 id="pmTitle-history">Payment History <span class="pm-count">{{ history_count }}</span></h2><p>All verified and rejected payment transactions.</p></div></div>
+<div id="pmHistoryFilterSlot"></div>
+{% if history_payments %}<div class="ac-table-scroll" tabindex="0" role="region" aria-label="Payment History"><table class="ac-table pm-table pm-table--history">
+        <thead>
+            <tr>
+                <th scope="col">Payment ID</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Method</th>
+                <th scope="col">Type</th>
+                <th scope="col">Date</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in history_payments %}
+            <tr>
+                <td data-label="Payment ID">#{{ pay.id }}</td>
+                <td data-label="Customer">
+                    <div class="pm-cust-name">{{ pay.booking.user.get_full_name|default:pay.booking.user.username }}</div>
+                    <small>@{{ pay.booking.user.username }}</small>
+                </td>
+                <td data-label="Amount">
+                    <div>PHP {{ pay.amount|floatformat:2 }}</div>
+                </td>
+                <td data-label="Method">{{ pay.get_payment_method_display }}</td>
+                <td data-label="Type">{{ pay.get_payment_type_display }}</td>
+                <td data-label="Date">{{ pay.created_at|date:"M d, Y h:i A" }}</td>
+                <td data-label="Status">
+                    {% if pay.payment_status == 'verified' %}
+                    <span class="ac-status ac-status--resolved">Verified</span>
+                    {% else %}
+                    <span class="ac-status ac-status--cancelled">Rejected</span>
+                    {% endif %}
+                </td>
+                <td data-label="Actions">
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_payment_detail' pay.id %}" class="ac-icon-btn action-view" data-payment-detail title="View payment" aria-label="View payment">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <span class="pm-sr-only">View</span>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">No payment records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table></div>
+{% include 'admin/payment/_pagination.html' with page=history_payments page_key='page' label='Payment History' %}
+{% else %}<div class="ac-empty">{% if search_query or status_filter or type_filter %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No matching payments' empty_description='Try another reference or clear your filters to see your payments.' reset_filters=True %}{% else %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No payment history yet' empty_description='Verified and rejected payment transactions will appear here.' %}{% endif %}</div>{% endif %}</section>

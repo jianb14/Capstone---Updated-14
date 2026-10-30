@@ -17,6 +17,7 @@ POST_POLICIES = {
     'submit_payment': ('payment_submit',), 'create_paymongo_checkout': ('payment_submit',),
     'booking_change_payment': ('payment_submit',),
     'chat_api': ('chat_send',), 'admin_chat_thread': ('chat_send',),
+    'support_send': ('chat_send',),
     'chat_request_admin': ('support_request',), 'report_concern': ('concern',),
     'submit_review': ('review_submit',), 'edit_review': ('review_edit',),
     'like_review': ('reaction',), 'chat_reaction': ('reaction',), 'chat_toggle_reaction': ('reaction',),

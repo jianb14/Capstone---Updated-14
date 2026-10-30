@@ -1,0 +1,33 @@
+<header class="ab-modal-header"><div><p class="ab-eyebrow">Booking #{{ booking.pk }}</p><h2 id="abModalTitle">{% if lifecycle.design_revision_pending %}Send revised design{% else %}Design delivery{% endif %}</h2><p>Review the requirements, then send the design to your customer.</p></div><button type="button" class="ac-close" data-dialog-close aria-label="Close design delivery">{% include 'admin/booking/workspace/_close.html' %}</button></header>
+<form class="ab-modal-form" action="{% url 'admin_booking_design_upload' booking.pk %}" method="post" enctype="multipart/form-data" data-design-form data-async-form novalidate>{% csrf_token %}
+<input type="hidden" name="design_revision" value="{% if lifecycle.design_revision_at %}{{ lifecycle.design_revision_at.isoformat }}{% endif %}"><input type="hidden" name="submission_id" value="" data-submission-id>
+<div class="ab-modal-body">
+{% include 'admin/booking/workspace/_booking_summary.html' %}
+{% if lifecycle.design_overdue %}<p class="ab-notice ab-alert">Design overdue. Due {{ lifecycle.design_due_at|date:'M d, Y · g:i A' }}.</p>{% elif lifecycle.design_due_at %}<p class="ab-notice">Design deadline: {{ lifecycle.design_due_at|date:'M d, Y · g:i A' }}</p>{% endif %}
+{% if lifecycle.design_revision_pending %}<p class="ab-notice">The requirements changed after the previous delivery. Review the latest preferences before sending a revision.</p>{% endif %}
+<section class="ab-section"><h3>Design preferences</h3><dl class="ab-fields"><div><dt>Theme</dt><dd>{{ booking.design_theme|default:'Not provided' }}</dd></div><div><dt>Colors</dt><dd>{{ booking.color_palette|default:'Not provided' }}</dd></div><div><dt>Motto / text</dt><dd>{{ booking.motto_text|default:'Not provided' }}</dd></div></dl>{% if cleaned_requests %}<p class="ab-preserve">{{ cleaned_requests|linebreaksbr }}</p>{% endif %}</section>
+{% include 'admin/booking/workspace/_references.html' %}
+<section class="ab-section"><h3>Sent designs <span class="ab-muted">{{ booking.design_deliveries.count }}/3</span></h3><div class="ab-deliveries">{% for delivery in booking.design_deliveries.all %}<article><button type="button" data-image-src="{{ delivery.image.url }}" class="ab-photo" aria-label="Open delivered design"><img src="{{ delivery.image.url }}" alt="Delivered design" loading="lazy"></button><div><strong>{{ delivery.caption|default:'Backdrop design' }}</strong><small>{{ delivery.uploaded_at|date:'M d, Y · g:i A' }}{% if lifecycle.design_revision_at and delivery.uploaded_at <= lifecycle.design_revision_at %} · Previous version{% endif %}</small></div><button type="button" class="ac-icon-btn ab-red" data-action="delete-design" data-action-url="{% url 'admin_booking_design_delete' booking.pk delivery.pk %}" data-booking="{{ booking.pk }}" aria-label="Delete delivered design"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3m-10 0 1 15h12l1-15M10 10v7m4-7v7"/></svg></button></article>{% empty %}<p class="ab-muted">No designs sent yet.</p>{% endfor %}</div></section>
+{% if can_send_design %}
+{% if booking.design_deliveries.count < 3 %}
+<div class="ab-field">
+    <label for="abDesignImage">Design image <span class="ab-required">*</span></label>
+    <div class="ab-dropzone" data-dropzone>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18H6a4 4 0 0 1-.6-8A6.5 6.5 0 0 1 18 8a5 5 0 0 1 0 10h-1M12 21V10m-4 4 4-4 4 4"/></svg>
+        <strong>Choose an image or drag &amp; drop it here</strong>
+        <p>JPG, PNG or WEBP &middot; Up to 5 MB</p>
+        <button type="button" class="ac-button" data-browse aria-describedby="abImageError">Browse Files</button>
+        <input id="abDesignImage" type="file" name="design_image" accept="image/jpeg,image/png,image/webp" required aria-describedby="abImageError" data-design-file>
+    </div>
+    <p class="ab-error" id="abImageError" data-error-for="design_image" hidden></p>
+    <div class="ab-upload-preview" hidden><img alt="Selected design preview"><span></span><button type="button" class="ac-icon-btn" data-remove-file aria-label="Remove selected image">{% include 'admin/booking/workspace/_close.html' %}</button></div>
+</div>
+<div class="ab-field">
+    <div class="ab-field-heading"><label for="abDesignCaption">Caption <span class="ab-muted">(optional)</span></label><span class="ab-muted" data-caption-count id="abCaptionCount">0/255</span></div>
+    <input id="abDesignCaption" name="caption" maxlength="255" placeholder="A short note about this design" aria-describedby="abCaptionCount">
+    <p class="ab-error" data-error-for="caption" hidden></p>
+</div>
+{% else %}<p class="ab-notice">All 3 image slots are used. Delete a previous image to send a replacement.</p>{% endif %}
+{% else %}<p class="ab-notice">Design delivery requires a confirmed booking with a verified payment.</p>{% endif %}
+<p class="ab-error" data-form-error role="alert" hidden></p>
+</div><footer class="ab-modal-footer"><button type="button" class="ac-button" data-dialog-close>Close</button>{% if can_send_design and booking.design_deliveries.count < 3 %}<button type="submit" class="ac-button ac-primary">Send design</button>{% endif %}</footer></form>

@@ -77,6 +77,10 @@ class AiPhotoBrowserTests(StaticLiveServerTestCase):
                             page.evaluate('(theme) => document.documentElement.dataset.theme = theme', theme)
                             page.locator('#ai-fab').click()
                             expect(page.locator('.ai-bot-msg').filter(has_text="Hello! I'm your virtual event planning assistant.")).to_have_count(1)
+                            page.locator('#ai-widget-photo-input').set_input_files({'name': 'notes.txt', 'mimeType': 'text/plain', 'buffer': b'Not an image'})
+                            expect(page.locator('.ai-input-error').last).to_contain_text('Choose a valid PNG, JPEG, WebP or GIF image.')
+                            expect(page.locator('#ai-composer-media')).to_be_hidden()
+                            self.assertEqual(sent, [])
                             upload = {'name': 'My reference photo with a long file name.jpg', 'mimeType': 'image/jpeg', 'buffer': picture}
                             page.locator('#ai-widget-photo-input').set_input_files(upload)
                             expect(page.locator('.ai-input-area #ai-pending-photo-chip')).to_be_visible()

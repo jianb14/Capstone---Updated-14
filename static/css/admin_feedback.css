@@ -1,13 +1,17 @@
 /* Shared top-right feedback, including above native modal dialogs. */
-.cfg-toast { position:fixed; inset:84px 24px auto auto; z-index:2000; display:flex; align-items:center; gap:11px; width:min(400px,calc(100vw - 32px)); margin:0; padding:14px 15px; border:1px solid var(--ac-line); border-radius:12px; background:var(--ac-bg); color:var(--ac-ink); box-shadow:0 6px 26px rgba(0,0,0,.12); font:400 12px/1.7 'Montserrat',sans-serif; transform-origin:top right; }
+/* Self-contained: the body popover must work without a page's workspace styles. */
+.cfg-toast { --cfg-bg:#202020; --cfg-ink:#f5f5f5; --cfg-muted:#a3a3a3; --cfg-line:#383838; --cfg-green:#7bd4a1; --cfg-red:#f19191; --cfg-hover:rgba(255,255,255,.05); position:fixed; inset:84px 24px auto auto; z-index:2000; display:flex; align-items:center; gap:11px; box-sizing:border-box; width:min(400px,calc(100vw - 32px)); margin:0; padding:14px 15px; border:1px solid var(--cfg-line); border-radius:12px; background:var(--cfg-bg); color:var(--cfg-ink); box-shadow:0 6px 26px rgba(0,0,0,.16); font:400 12px/1.7 'Montserrat',sans-serif; text-align:left; transform-origin:top right; }
+[data-theme="light"] .cfg-toast { --cfg-bg:#fff; --cfg-ink:#181818; --cfg-muted:#737373; --cfg-line:#e5e5e5; --cfg-green:#187447; --cfg-red:#b8353c; --cfg-hover:rgba(0,0,0,.035); box-shadow:0 6px 26px rgba(0,0,0,.1); }
 .cfg-toast.is-visible { animation:cfg-toast-enter .24s cubic-bezier(.22,1,.36,1) both; }
 .cfg-toast.is-leaving { animation:cfg-toast-exit .16s cubic-bezier(.4,0,1,1) both; pointer-events:none; }
 .cfg-toast[hidden] { display:none !important; }
-.cfg-toast>svg { width:21px; height:21px; flex:none; color:var(--ac-green); }
-.cfg-toast[data-kind=error]>svg { color:var(--ac-red); }
-.ac-workspace.cfg-toast .cfg-toast-text { flex:1; min-width:0; overflow-wrap:anywhere; color:var(--ac-ink) !important; }
-.cfg-toast button { display:grid; place-items:center; flex:none; width:28px; height:28px; padding:5px; border:0; border-radius:7px; background:transparent; color:var(--ac-muted); }
-.cfg-toast button:hover { background:var(--ac-hover); color:var(--ac-ink); }.cfg-toast button svg { width:16px; height:16px; }
+.cfg-toast svg { fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.cfg-toast>svg { width:21px; height:21px; flex:none; color:var(--cfg-green); }
+.cfg-toast[data-kind=error]>svg { color:var(--cfg-red); }
+.ac-workspace.cfg-toast .cfg-toast-text { flex:1; min-width:0; overflow-wrap:anywhere; color:var(--cfg-ink) !important; }
+.cfg-toast button { display:grid; place-items:center; flex:none; width:28px; height:28px; padding:5px; border:0; border-radius:7px; background:transparent; color:var(--cfg-muted); cursor:pointer; }
+.cfg-toast button:hover { background:var(--cfg-hover); color:var(--cfg-ink); }.cfg-toast button svg { width:16px; height:16px; }
+.cfg-toast button:focus-visible { outline:2px solid var(--cfg-muted); outline-offset:2px; }
 @keyframes cfg-toast-enter { from { opacity:0; transform:translate3d(24px,0,0); } to { opacity:1; transform:none; } }
 @keyframes cfg-toast-exit { from { opacity:var(--cfg-toast-exit-opacity,1); transform:var(--cfg-toast-exit-transform,none); } to { opacity:0; transform:translate3d(12px,0,0); } }
 @media(max-width:540px) {

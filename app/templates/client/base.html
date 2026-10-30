@@ -23,7 +23,8 @@
     <script src="{% static 'js/account_pages.js' %}?v=20261025a"></script>
     <script src="{% static 'js/account_navigation.js' %}?v=20261026b" defer></script>
     <link rel="stylesheet" href="{% static 'css/ai_design_guide.css' %}?v=20261023-ai6">
-<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261023-chat1">
+<link rel="stylesheet" href="{% static 'css/support_chat.css' %}?v=20261028c">
+<link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261028d">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="{% static 'js/theme-toggle.js' %}?v=20261026a"></script>
     {% block extra_css %}{% endblock %}
@@ -244,43 +245,6 @@
             z-index: 9999;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid var(--black);
-        }
-
-        /* Tooltip â€” pareho ng admin chat toggle (same size, same font) */
-        .ai-fab::after {
-            content: 'Chat with Balloorina AI';
-            position: absolute;
-            right: calc(100% + 12px);
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.85);
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-            color: var(--white);
-            padding: 8px 14px;
-            /* line-height: normal — pantay ang top/bottom sa admin tooltip.
-               Ang .ai-fab ay <div> kaya minamana ang body line-height (1.6);
-               ang admin toggle ay <button> na "normal" — kaya kung walang
-               explicit na normal dito, +~5px ang taas ng AI tooltip. */
-            line-height: normal;
-            /* Walang min-width — hug-content (pareho ng admin tooltip:
-               8px 14px lang ang padding, hindi lumalaki ang left/right) */
-            text-align: center;
-            border-radius: 8px;
-            font-family: 'Montserrat', sans-serif;
-            font-size: 0.8rem;
-            font-weight: 600;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.25s ease;
-            pointer-events: none;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .ai-fab:hover::after {
-            opacity: 1;
-            visibility: visible;
         }
 
         .ai-fab i {
@@ -1383,15 +1347,6 @@
             
         }
 
-        [data-theme="light"] .ai-fab::after {
-            background: #ffffff;
-            color: #111111;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1);
-            -webkit-backdrop-filter: none;
-            backdrop-filter: none;
-        }
-
         [data-theme="light"] .ai-sidebar {
             background-color: #f9f9fa;
             border-right-color: #e5e7eb;
@@ -1824,13 +1779,14 @@
      </style>
 
     {% if user.is_authenticated %}
-    <div class="ai-fab" id="ai-fab">
+    <link rel="stylesheet" href="{% static 'css/ai_chat.css' %}?v=20261028d">
+    <button type="button" class="ai-fab" id="ai-fab" aria-label="Chat with Balloorina AI" aria-controls="ai-widget" aria-expanded="false">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
-    </div>
+    </button>
 
-    <div class="ai-widget-container" id="ai-widget">
+    <div class="ai-widget-container" id="ai-widget" role="region" aria-labelledby="ai-widget-title">
         <div class="ai-sidebar-backdrop" id="ai-sidebar-backdrop"></div>
 
         <div class="ai-sidebar">
@@ -1855,8 +1811,9 @@
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
+                <span class="ai-assistant-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg></span>
                 <div class="ai-chat-header-info">
-                    <h3>Balloorina AI</h3>
+                    <h3 id="ai-widget-title">Balloorina AI</h3>
                     <p>Backdrop ideas &amp; event help</p>
                 </div>
                 <button type="button" class="ai-close-btn" id="ai-close" aria-label="Close assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
@@ -1918,13 +1875,14 @@
                 <div class="ai-composer-media" id="ai-composer-media" hidden></div>
                 <div class="ai-composer-controls">
                 <button id="ai-widget-photo" aria-label="Upload inspiration photo" title="Upload an inspiration photo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                        <circle cx="12" cy="13" r="4"></circle>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <path d="m21 15-5-5L5 21"></path>
                     </svg>
                 </button>
                 <input type="file" id="ai-widget-photo-input" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" style="display:none;">
-                <textarea id="ai-widget-input" placeholder="Type an idea or question..." rows="1"></textarea>
+                <textarea id="ai-widget-input" aria-label="Message Balloorina AI" placeholder="Type an idea or question..." rows="1"></textarea>
                 <button id="ai-widget-mic" aria-label="Voice input" title="Speak your message">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -1944,10 +1902,23 @@
         </div>
     </div>
 
+    <dialog id="ai-image-preview" aria-labelledby="ai-image-preview-title">
+        <header>
+            <h2 id="ai-image-preview-title">Design preview</h2>
+            <button type="button" aria-label="Close image preview" data-ai-preview-close autofocus><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+        </header>
+        <div class="ai-image-preview-body">
+            <img data-ai-preview-image alt="Balloorina Design Concept">
+            <p class="ai-image-preview-error" data-ai-preview-error role="alert" hidden>This image could not be loaded. Close this preview and try again.</p>
+        </div>
+        <footer><a data-ai-preview-download download="balloorina_design" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M12 3v12m-5-5 5 5 5-5"></path></svg>Download image</a></footer>
+    </dialog>
+
     <script src="{% static 'js/ai_design_guide.js' %}?v=20261023-ai3"></script>
     <script src="{% static 'js/ai_markdown.js' %}?v=20261023-ai3"></script>
     <script src="{% static 'js/ai_requests.js' %}?v=20261023-ai5"></script>
     <script src="{% static 'js/ai_request_ui.js' %}?v=20261023-ai5"></script>
+    <script src="{% static 'js/ai_chat.js' %}?v=20261028a" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const fab = document.getElementById('ai-fab');
@@ -2314,7 +2285,8 @@
                         // Tanggalin ang inline style (may lumang inline box-shadow) — CSS na ang bahala
                         const cleanRest = rest.replace(/\s*style\s*=\s*"[^"]*"/, '');
                         return '<div class="ai-image-wrap">' +
-                            '<img src="' + safeSrc + '" alt="Balloorina Design Concept" data-ai-generated-image="1"' + cleanRest + '>' +
+                            '<button type="button" class="ai-image-preview-trigger" aria-label="View generated design" aria-haspopup="dialog" aria-controls="ai-image-preview">' +
+                            '<img src="' + safeSrc + '" alt="Balloorina Design Concept" data-ai-generated-image="1"' + cleanRest + '></button>' +
                             '<a href="' + safeSrc + '" download="balloorina_design" class="ai-image-download" target="_blank" aria-label="Download image" title="Download image">' +
                             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
                             '</a>' +
@@ -2354,7 +2326,13 @@
                         const fallback = document.createElement('div');
                         fallback.className = 'ai-image-fallback';
                         fallback.textContent = 'Image could not be loaded. The saved image file is missing or unavailable. Please generate again.';
-                        img.insertAdjacentElement('afterend', fallback);
+                        const trigger = img.closest('.ai-image-preview-trigger');
+                        if (trigger) {
+                            trigger.hidden = true;
+                            trigger.insertAdjacentElement('afterend', fallback);
+                        } else {
+                            img.insertAdjacentElement('afterend', fallback);
+                        }
                     });
                 });
             }
@@ -2424,7 +2402,8 @@
                             if (currentSessionId && Number(currentSessionId) === Number(session.id)) {
                                 li.classList.add('active');
                             }
-                            const titleSpan = document.createElement('span');
+                            const titleSpan = document.createElement('button');
+                            titleSpan.type = 'button';
                             titleSpan.className = 'title';
                             titleSpan.textContent = session.title;
                             li.appendChild(titleSpan);
@@ -2591,6 +2570,7 @@
             // Toggle Widget
             function toggleWidget() {
                 widget.classList.toggle('active');
+                fab.setAttribute('aria-expanded', widget.classList.contains('active') ? 'true' : 'false');
                 if (widget.classList.contains('active')) {
                     if (widget.querySelector('.ai-guide-is-open')) {
                         document.getElementById('ai-guide-title').focus();
@@ -2604,6 +2584,8 @@
                     setTimeout(() => {
                         chatBox.scrollTop = chatBox.scrollHeight;
                     }, 100);
+                } else {
+                    fab.focus({ preventScroll: true });
                 }
             }
             fab.addEventListener('click', toggleWidget);
@@ -2714,8 +2696,8 @@
 
                     function showVoiceError(message) {
                         const errDiv = document.createElement('div');
-                        errDiv.className = 'ai-message-bubble ai-bot-msg';
-                        errDiv.style.color = '#ef4444';
+                        errDiv.className = 'ai-message-bubble ai-bot-msg ai-input-error';
+                        errDiv.setAttribute('role', 'alert');
                         errDiv.textContent = message;
                         chatBox.insertBefore(errDiv, typingIndicator);
                         chatBox.scrollTop = chatBox.scrollHeight;
@@ -2867,12 +2849,15 @@
                 photoInput.addEventListener('change', function () {
                     const file = photoInput.files && photoInput.files[0];
                     if (!file) return;
-                    if (file.size > 5 * 1024 * 1024) {
+                    const imageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                    if (!imageTypes.includes(file.type) || !file.size || file.size > 5 * 1024 * 1024) {
                         photoInput.value = '';
                         const warn = document.createElement('div');
-                        warn.className = 'ai-message-bubble ai-bot-msg';
-                        warn.style.color = '#ef4444';
-                        warn.textContent = 'That photo is too large (max 5MB). Please choose a smaller one.';
+                        warn.className = 'ai-message-bubble ai-bot-msg ai-input-error';
+                        warn.setAttribute('role', 'alert');
+                        warn.textContent = !imageTypes.includes(file.type) || !file.size
+                            ? 'Choose a valid PNG, JPEG, WebP or GIF image.'
+                            : 'That photo is too large (max 5MB). Please choose a smaller one.';
                         chatBox.insertBefore(warn, typingIndicator);
                         chatBox.scrollTop = chatBox.scrollHeight;
                         return;
@@ -2935,22 +2920,30 @@
                 }
             });
 
+            // Re-measure when the responsive layout changes as well as while typing.
+            function resizeComposer() {
+                chatInput.style.height = 'auto';
+                const contentHeight = chatInput.scrollHeight;
+                chatInput.style.height = Math.max(36, Math.min(contentHeight, 120)) + 'px';
+                chatInput.classList.toggle('has-scroll', contentHeight > 120);
+            }
+            let composerWidth = 0;
+            const composerObserver = new ResizeObserver(entries => {
+                const width = entries[0].contentRect.width;
+                if (Math.abs(width - composerWidth) > .5) {
+                    composerWidth = width;
+                    resizeComposer();
+                }
+            });
+            composerObserver.observe(inputArea.querySelector('.ai-composer-controls'));
+
             // Auto-resize textarea as user types
             chatInput.addEventListener('input', function () {
                 try {
                     if (this.value) localStorage.setItem(composerDraftKey, this.value);
                     else localStorage.removeItem(composerDraftKey);
                 } catch (_) {}
-                // Pre-set height to min-height to accurately measure scrollHeight
-                this.style.height = '24px';
-                const newHeight = Math.max(24, Math.min(this.scrollHeight, 120));
-                this.style.height = newHeight + 'px';
-
-                if (this.scrollHeight > 120) {
-                    this.classList.add('has-scroll');
-                } else {
-                    this.classList.remove('has-scroll');
-                }
+                resizeComposer();
             });
 
             // ---- Start New Chat Function ----

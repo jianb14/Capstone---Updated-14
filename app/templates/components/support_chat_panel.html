@@ -1,0 +1,49 @@
+<section class="sc-room {% if not is_admin %}admin-chat-panel{% endif %}" {% if not is_admin %}id="adminChatPanel" hidden{% endif %} data-room aria-label="Support chat">
+    <div class="sc-welcome" data-welcome {% if not is_admin %}hidden{% endif %}>
+        <span class="sc-empty-icon"><svg aria-hidden="true"><use href="#sc-chat"/></svg></span>
+        <h2>A little help goes a long way</h2>
+        <p>Choose a conversation to view messages and help a customer.</p>
+        <span class="sc-welcome-note">Customer support · Balloorina</span>
+    </div>
+    <div class="sc-conversation" data-conversation {% if is_admin %}hidden{% endif %}>
+        <header class="sc-room-head">
+            {% if is_admin %}<button type="button" class="sc-icon sc-mobile-back" data-back aria-label="Back to conversations"><svg aria-hidden="true"><use href="#sc-back"/></svg></button>{% endif %}
+            <span class="sc-avatar sc-room-avatar" data-avatar>{% if is_admin %}C{% else %}<svg aria-hidden="true"><use href="#sc-headset"/></svg>{% endif %}</span>
+            <div class="sc-identity"><h2 data-name>{% if is_admin %}Customer{% else %}Admin Support{% endif %}</h2><span class="sc-presence" data-presence>Send a message to our team</span></div>
+            <div class="sc-room-tools">
+                <button type="button" class="sc-icon" data-toggle-search aria-label="Search this conversation" aria-expanded="false"><svg aria-hidden="true"><use href="#sc-search"/></svg></button>
+                <button type="button" class="sc-icon" data-info aria-label="Conversation details"><svg aria-hidden="true"><use href="#sc-info"/></svg></button>
+                {% if not is_admin %}<button type="button" class="sc-icon" data-close id="adminChatClose" aria-label="Close admin chat"><svg aria-hidden="true"><use href="#sc-x"/></svg></button>{% endif %}
+            </div>
+        </header>
+        <form class="sc-thread-search" data-thread-search hidden role="search">
+            <label class="sc-search"><svg aria-hidden="true"><use href="#sc-search"/></svg><input type="search" data-message-search maxlength="150" aria-label="Search messages" placeholder="Search messages…"><button type="button" class="sc-icon" data-clear-search aria-label="Clear message search"><svg aria-hidden="true"><use href="#sc-x"/></svg></button></label>
+            <small>Search this conversation’s messages.</small>
+        </form>
+        <button type="button" class="sc-pinned" data-pins hidden><svg aria-hidden="true"><use href="#sc-pin"/></svg><span></span><svg aria-hidden="true"><use href="#sc-down"/></svg></button>
+        <div class="sc-closed-note" data-closed hidden>This conversation is closed. Sending a message will reopen it.</div>
+        <div class="sc-history" data-history tabindex="0" aria-label="Conversation messages">
+            <button type="button" class="sc-button sc-older" data-older hidden>Load earlier messages</button>
+            <div data-messages></div>
+        </div>
+        <button type="button" class="sc-new-messages" data-jump-bottom hidden>New messages <svg aria-hidden="true"><use href="#sc-down"/></svg></button>
+        <div class="sc-typing" data-typing hidden><span></span><span></span><span></span><small data-typing-text>Typing…</small></div>
+        <form class="sc-composer" data-composer novalidate>
+            <div class="sc-reply-context" data-context hidden><svg aria-hidden="true"><use href="#sc-reply"/></svg><div><strong data-context-label>Replying to</strong><span data-context-text></span></div><button type="button" class="sc-icon" data-cancel-context aria-label="Cancel reply or edit"><svg aria-hidden="true"><use href="#sc-x"/></svg></button></div>
+            <div class="sc-attachments" data-attachments hidden></div>
+            <div class="sc-compose-field">
+                <button type="button" class="sc-icon" data-attach aria-label="Attach images" title="Attach images"><svg aria-hidden="true"><use href="#sc-image"/></svg></button>
+                <input type="file" data-file accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden aria-label="Choose chat images">
+                <textarea data-input rows="1" aria-label="Message" aria-describedby="scMessageError scMessageHint" placeholder="Write a message…" maxlength="4000"></textarea>
+                <button type="submit" class="sc-send" data-send aria-label="Send message"><svg aria-hidden="true"><use href="#sc-send"/></svg></button>
+            </div>
+            <p class="sc-error" id="scMessageError" data-error role="alert" hidden></p>
+            <div class="sc-compose-meta" id="scMessageHint"><span data-send-status role="status">Images up to 5 MB · Up to 4 photos</span><span data-length>0 / 4,000</span></div>
+        </form>
+    </div>
+    <dialog class="sc-dialog" data-dialog aria-labelledby="scDialogTitle">
+        <header><h2 id="scDialogTitle" data-dialog-title>Conversation details</h2><button type="button" class="sc-icon" data-dialog-close aria-label="Close dialog"><svg aria-hidden="true"><use href="#sc-x"/></svg></button></header>
+        <div class="sc-dialog-body" data-dialog-body></div>
+        <footer data-dialog-footer></footer>
+    </dialog>
+</section>

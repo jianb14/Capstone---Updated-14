@@ -113,7 +113,7 @@ class AdminBookingRequestTests(TestCase):
         for index in range(12):self.make_change(reason=f'Keep & check {index}')
         response=self.queue(request_search='Keep & check',request_status='pending_review',request_page='2')
         self.assertEqual(response.context['change_requests'].number,2)
-        self.assertEqual(len(response.context['change_requests']),2)
+        self.assertEqual(len(response.context['change_requests']),4)
         previous=parse_qs(urlsplit(response.context['request_previous_url']).query)
         self.assertEqual(previous['request_search'],['Keep & check'])
         self.assertEqual(previous['request_status'],['pending_review'])
@@ -122,7 +122,7 @@ class AdminBookingRequestTests(TestCase):
         self.assertEqual([link['label'] for link in links],[1,2])
         self.assertTrue(links[1]['current'])
         self.assertEqual(parse_qs(urlsplit(links[0]['url']).query)['request_search'],['Keep & check'])
-        self.assertContains(response,'aria-current="page">2</span>')
+        self.assertContains(response,'aria-label="Page 2">2</span>')
         self.assertNotContains(response,'Apply filters')
         self.assertContains(response,'id="requestResults"')
         change=response.context['change_requests'][0]

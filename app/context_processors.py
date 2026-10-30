@@ -1,4 +1,5 @@
 import re
+from django.db.models import F
 from django.urls import reverse
 
 from .models import Booking, ChatMessage, ChatSession, Notification, AdminNotification, Payment, ConcernTicket
@@ -224,10 +225,9 @@ def chat_notifications(request):
         sessions = ChatSession.objects.filter(is_admin_support=True).exclude(status='ai')
         return {
             'admin_chat_pending_count': 0,
-            'admin_chat_unread_count': sum(
-                1 for session in sessions
-                if session.status != 'closed' and session.has_unread_for_admin
-            ),
+            'admin_chat_unread_count': sessions.filter(
+                messages__sender_id=F('user_id'), messages__is_read=False,
+            ).distinct().count(),
         }
 
     return {}

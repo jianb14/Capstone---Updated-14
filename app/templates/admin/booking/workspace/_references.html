@@ -1,0 +1,5 @@
+<section class="ab-section"><h3>Customer references</h3><p class="ab-muted">Images and custom designs provided with this booking.</p><div class="ab-photos">
+{% for design in booking.designs.all %}{% if design.image %}<button type="button" data-image-src="{{ design.image.url }}" aria-label="Open custom design"><img src="{{ design.image.url }}" alt="Custom design" loading="lazy"></button>{% endif %}{% endfor %}
+{% for item in booking.images.all %}<button type="button" data-image-src="{{ item.image.url }}" aria-label="Open customer reference"><img src="{{ item.image.url }}" alt="Customer reference" loading="lazy"></button>{% endfor %}
+{% if booking.reference_image %}<button type="button" data-image-src="{{ booking.reference_image.url }}" aria-label="Open reference image"><img src="{{ booking.reference_image.url }}" alt="Reference image" loading="lazy"></button>{% endif %}
+</div>{% if not booking.images.all and not booking.designs.all and not booking.reference_image %}<p class="ab-muted">No reference images were attached.</p>{% endif %}</section>

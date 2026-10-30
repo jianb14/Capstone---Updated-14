@@ -1,23 +1,39 @@
 {% extends 'admin/admin_base.html' %}
-{% load static humanize %}
-{% block title %}AI Health — Balloorina{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ai_health.css' %}">{% endblock %}
-{% block content %}
-<main class="ai-health">
-    <header class="ah-header"><div><p class="ah-eyebrow">Assistant operations</p><h1>AI health</h1><p>Reliability, response quality and recorded usage.</p></div>
-        <form method="get"><label for="ah-days">Period</label><select id="ah-days" name="days"><option value="1" {% if days == 1 %}selected{% endif %}>Last 24 hours</option><option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option><option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option></select><button type="submit">Update</button></form>
-    </header>
-    <section class="ah-model" aria-label="Configured provider"><span class="ah-dot" aria-hidden="true"></span><div><strong>{{ model }}</strong><p>Routing: {{ provider }} · Last refreshed {{ checked_at|date:"M j, H:i" }}</p></div><span class="ah-note">Based on recorded requests; no paid health probes.</span></section>
-    {% for alert in alerts %}<p class="ah-alert" role="status">{{ alert }}</p>{% endfor %}
-    <section class="ah-metrics" aria-label="Request metrics">
-        <article><span>Requests</span><strong>{{ total|intcomma }}</strong><small>{{ active }} active · {{ failed }} failed</small></article>
-        <article><span>Success rate</span><strong>{% if success_rate != None %}{{ success_rate }}%{% else %}—{% endif %}</strong><small>Completed requests in this period</small></article>
-        <article><span>Average response</span><strong>{% if average_seconds != None %}{{ average_seconds }}s{% else %}—{% endif %}</strong><small>Recent completed sample · p95 {% if p95 != None %}{{ p95 }}s{% else %}—{% endif %}</small></article>
-        <article><span>Reply quality</span><strong>{{ repairs }}</strong><small>Repaired replies · {{ quality_failed }} clarification fallbacks</small></article>
-    </section>
-    <div class="ah-grid"><section class="ah-panel"><h2>Request activity</h2><p>All requests in the selected period.</p><div class="ah-chart" aria-label="Requests per day">{% for day in daily %}<div title="{{ day.day }}: {{ day.n }} requests"><span>{{ day.n }}</span><i style="height:{{ day.height }}%"></i><small>{{ day.day|date:"M j" }}</small></div>{% empty %}<p class="ah-empty">No AI requests recorded yet.</p>{% endfor %}</div></section>
-        <section class="ah-panel"><h2>Recorded text usage</h2><dl><div><dt>Input tokens</dt><dd>{{ input_tokens|intcomma }}</dd></div><div><dt>Output tokens</dt><dd>{{ output_tokens|intcomma }}</dd></div><div><dt>Estimated USD</dt><dd>{% if estimate != None %}${{ estimate }}{% else %}—{% endif %}</dd></div></dl><p class="ah-note">Usage returned for {{ known_calls }} of {{ calls_count }} calls in the latest {{ sample_count }} requests. {{ priced_calls }} calls have configured price estimates. Image charges and unreported usage are excluded. This is not the provider invoice.</p></section></div>
-    <section class="ah-panel"><h2>Error categories</h2><div class="ah-errors">{% for error in errors %}<span><code>{{ error.error_code }}</code><strong>{{ error.n }}</strong></span>{% empty %}<p class="ah-empty">No failures recorded in this period.</p>{% endfor %}</div></section>
-    <section class="ah-panel"><h2>Recent requests</h2><p>Operational metadata only. Customer messages are not shown here.</p><div class="ah-table-wrap"><table><thead><tr><th>Request</th><th>Created</th><th>Action</th><th>Status</th><th>Error</th><th>Quality</th></tr></thead><tbody>{% for row in recent %}<tr><td><code>{{ row.pk|stringformat:"s"|slice:":8" }}</code></td><td>{{ row.created_at|date:"M j, H:i" }}</td><td>{{ row.kind }}</td><td><span class="ah-state">{{ row.get_state_display }}</span></td><td>{{ row.error_code|default:"—" }}</td><td>{% if row.metrics.quality.checked %}{% if row.metrics.quality.passed %}Checked{% else %}Clarified{% endif %}{% else %}Direct / unavailable{% endif %}</td></tr>{% empty %}<tr><td colspan="6" class="ah-empty">Requests will appear here when customers use the assistant.</td></tr>{% endfor %}</tbody></table></div></section>
-</main>
+{% load static %}
+{% block title %}AI Health | Balloorina{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261028h">
+<link rel="stylesheet" href="{% static 'css/ai_health.css' %}?v=20261028a">
 {% endblock %}
+{% block content %}
+<div class="ai-health ac-workspace" data-health-url="{% url 'ai_health' %}">
+    <header class="page-header ac-header"><h1>AI health</h1><p class="page-subtitle">Monitor assistant requests, processing time and recorded usage.</p></header>
+    <section class="ac-queue ah-controls" aria-label="Report period">
+        <div><h2>Assistant operations</h2><p>Recorded activity from your AI chat and design requests.</p></div>
+        <form method="get" id="ahPeriodForm" action="{% url 'ai_health' %}">
+            <label for="ah-days">Period</label>
+            <select id="ah-days" name="days" data-admin-select aria-label="Report period"><option value="1"{% if days == 1 %} selected{% endif %}>Last 24 hours</option><option value="7"{% if days == 7 %} selected{% endif %}>Last 7 days</option><option value="30"{% if days == 30 %} selected{% endif %}>Last 30 days</option></select>
+            <button class="ac-button" type="submit" id="ahRefresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.6-2L20 8M4 16l2.3 3A7 7 0 0 0 17.9 17"/></svg>Refresh</button>
+        </form>
+    </section>
+    <div class="ah-load-error" role="alert" hidden><span></span><button type="button" class="ac-button" data-health-retry>Try again</button></div>
+    <p class="ah-update-status" role="status" aria-live="polite" id="ahUpdateStatus"></p>
+    <div id="ahSummary">{% include 'admin/ai_health/_summary.html' %}</div>
+    <section class="ac-queue ah-requests" aria-labelledby="ahRequestsTitle">
+        <div class="ac-queue-heading"><div><h2 id="ahRequestsTitle">Request history</h2><p>Operational metadata only. Customer messages are kept private.</p></div></div>
+        <form method="get" id="ahRequestFilters" action="{% url 'ai_health' %}" class="ac-toolbar">
+            <input type="hidden" name="days" value="{{ days }}">
+            <div class="ac-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><input type="search" name="q" value="{{ search_query }}" maxlength="80" placeholder="Search request ID, action or error..." aria-label="Search requests" autocomplete="off"><button type="button" class="ac-search-clear" aria-label="Clear search"{% if not search_query %} hidden{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div>
+            <select name="state" data-admin-select aria-label="Filter request status"><option value="">All statuses</option><option value="queued"{% if state_filter == 'queued' %} selected{% endif %}>Queued</option><option value="running"{% if state_filter == 'running' %} selected{% endif %}>Running</option><option value="succeeded"{% if state_filter == 'succeeded' %} selected{% endif %}>Succeeded</option><option value="failed"{% if state_filter == 'failed' %} selected{% endif %}>Failed</option></select>
+            <noscript><button type="submit" class="ac-button">Apply filters</button></noscript>
+        </form>
+        <div id="ahRequests">{% include 'admin/ai_health/_requests.html' %}</div>
+    </section>
+    <aside class="ah-explainer" aria-labelledby="ahAboutTitle"><h2 id="ahAboutTitle">About these figures</h2>
+        <p><strong>Success rate</strong> counts succeeded requests out of finished requests. Queued and running requests are excluded. <strong>Processing time</strong> runs from worker start to finish, including failed attempts; queue time is excluded. P95 is the time within which 95% of the sampled finished requests completed.</p>
+        <p><strong>Reply repairs</strong> counts requests where automatic reply correction was attempted. A clarification fallback means the reply check still did not pass. These are technical checks, not customer satisfaction ratings. Processing, reply checks and text usage use the latest {{ sample_limit }} requests at most; counts and activity cover the whole selected period.</p>
+        <p>AI Health helps you investigate errors and delays. It reads saved request records without sending paid test requests. It does not measure image quality or guarantee that the provider is currently available.</p>
+    </aside>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/admin_selects.js' %}?v=20261026c" defer></script><script src="{% static 'js/ai_health.js' %}?v=20261028a" defer></script>{% endblock %}

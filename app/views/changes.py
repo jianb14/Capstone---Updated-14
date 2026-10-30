@@ -89,14 +89,17 @@ def request_booking_change(request, booking_id):
 @require_POST
 @schedule_atomic
 def admin_booking_change_action(request, booking_id, change_id, action):
+    from .booking_workspace import booking_feedback, is_async
     try:
         change = _locked_change(request, booking_id, change_id, as_admin=True)
     except PermissionError:
         return HttpResponseForbidden('Not allowed')
     try:
+        if len(request.POST.get('admin_notes', '').strip()) > 4000:
+            raise ValidationError('Keep your message to 4,000 characters or fewer.')
         if action == 'quote':
             issue_quote(change, request.user, request.POST.get('admin_notes', ''), request.POST.get('downgrade_ack') == 'on')
-            messages.success(request, 'Quote sent. The customer must accept before any changes become final.')
+            booking_feedback(request, 'success', 'Quote sent. The customer must accept before any changes become final.')
         elif action == 'reject':
             notes = request.POST.get('admin_notes', '').strip()
             if not notes:
@@ -110,7 +113,7 @@ def admin_booking_change_action(request, booking_id, change_id, action):
             change.save()
             audit(change, f'Declined: {notes}', request.user)
             notify(change, f'The requested change was declined: {notes}. Your original booking is unchanged.')
-            messages.success(request, 'Request declined. Original booking retained.')
+            booking_feedback(request, 'success', 'Request declined. Original booking retained.')
         elif action == 'resolve':
             notes = request.POST.get('admin_notes', '').strip()
             if change.status != 'manual_review' or not notes or request.POST.get('resolution_ack') != 'on':
@@ -122,11 +125,14 @@ def admin_booking_change_action(request, booking_id, change_id, action):
             change.save()
             audit(change, f'Manually resolved by team; original booking retained. {notes}', request.user)
             notify(change, f'Our team resolved this request directly: {notes}. Your original booking is retained.')
-            messages.success(request, 'Manual resolution recorded. No system refund or credit was issued.')
+            booking_feedback(request, 'success', 'Manual resolution recorded. No system refund or credit was issued.')
         else:
             raise ValidationError('Unknown change request action.')
     except ValidationError as exc:
-        messages.error(request, ' '.join(exc.messages))
+        booking_feedback(request, 'error', ' '.join(exc.messages))
+    if is_async(request):
+        success, message = request._booking_notice
+        return JsonResponse({'success': success, 'message': message}, status=200 if success else 400)
     from .change_management import request_review_url
     return redirect(request_review_url(request, change))
 

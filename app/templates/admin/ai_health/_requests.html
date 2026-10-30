@@ -1,0 +1,7 @@
+{% load tz %}
+{% if recent %}
+<div class="ac-table-scroll"><table class="ac-table ah-request-table"><caption class="ah-sr-only">AI requests in the selected period. Dates are in Philippine time.</caption><thead><tr><th scope="col">Request</th><th scope="col">Action</th><th scope="col">Status</th><th scope="col">Reply check</th><th scope="col">Error code</th></tr></thead><tbody>
+{% for row in recent %}<tr><td><code title="{{ row.id }}">{{ row.id|stringformat:'s'|slice:':8' }}</code><small><time datetime="{{ row.created_at|date:'c' }}">{{ row.created_at|localtime|date:'M j, Y · g:i A' }}</time></small></td><td>{{ row.kind_label }}</td><td><span class="ac-status ah-state ah-state--{{ row.state }}">{{ row.state_label }}</span></td><td>{{ row.quality_label }}</td><td><code>{{ row.error_code|default:'—' }}</code></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="ac-empty">{% if search_query or state_filter %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No matching requests' empty_description='Try another request ID, action or status to see recorded requests.' reset_filters=True %}{% else %}{% include 'components/account_empty_state.html' with empty_kind='payments' empty_title='No requests in this period' empty_description='Choose a longer period or check back after customers use the AI assistant.' %}{% endif %}</div>{% endif %}
+{% include 'components/account_table_footer.html' with page=page page_key='page' pagination_label='AI request history' %}

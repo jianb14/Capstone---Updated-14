@@ -1,0 +1,11 @@
+{% load account_ui %}
+<div class="account-table-footer">
+    <div class="account-table-summary"><label class="account-page-size">Show <select data-payment-size data-admin-select aria-label="{{ label }} rows per page"><option value="4"{% if per_page == 4 %} selected{% endif %}>4</option><option value="8"{% if per_page == 8 %} selected{% endif %}>8</option></select></label><p role="status" aria-live="polite">Showing <strong>{{ page.start_index }}–{{ page.end_index }}</strong> of <strong>{{ page.paginator.count }}</strong></p></div>
+    {% if page.has_other_pages %}
+    <nav class="account-pagination" aria-label="{{ label }} pages">
+        {% if page.has_previous %}<a href="{% account_page_url page_key page.previous_page_number %}" data-payment-page aria-label="Previous page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></a>{% else %}<span aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></span>{% endif %}
+        {% account_page_range page as page_numbers %}{% for number in page_numbers %}{% if number == page.paginator.ELLIPSIS %}<span>{{ number }}</span>{% elif number == page.number %}<span class="is-current" aria-current="page">{{ number }}</span>{% else %}<a href="{% account_page_url page_key number %}" data-payment-page aria-label="Page {{ number }}">{{ number }}</a>{% endif %}{% endfor %}
+        {% if page.has_next %}<a href="{% account_page_url page_key page.next_page_number %}" data-payment-page aria-label="Next page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></a>{% else %}<span aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></span>{% endif %}
+    </nav>
+    {% endif %}
+</div>

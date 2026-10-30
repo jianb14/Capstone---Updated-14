@@ -1,5 +1,23 @@
 # AI assistant
 
+The floating chat's presentation is scoped in `static/css/ai_chat.css`. The
+history rail, four-step guide, composer, photo previews and generated-image
+actions share light/dark colors and keyboard focus states. On narrow screens,
+the draft uses the full composer width and history opens in the existing drawer.
+Reduced-motion preferences are respected. This layer keeps the existing copy,
+controls, API payloads and generation rules. Photo selection also rejects empty
+files and unsupported image types before submission; server validation remains
+authoritative.
+
+Composer and guide fields use the same focus ring as Admin Concerns. The draft
+reflows when the composer width changes, with its controls anchored at the bottom
+and the same compact text size on mobile. Both customer chat launchers share a
+subtle hover lift and pointed light/dark tooltips, also shown on keyboard focus.
+`static/js/ai_chat.js` opens generated
+images, including saved chat images, in a native dialog without submitting an
+AI request. Escape, backdrop and close-button dismissal restore focus to the
+image; the viewer includes download and image-loading feedback.
+
 The guide shows three suggestions at a time from nine theme/color combinations
 per occasion. **Help me choose** becomes **Show more ideas**; each click shuffles
 the choices and excludes the previous batch. Browsing suggestions preserves
@@ -103,6 +121,23 @@ costs require manually configured `AI_TEXT_PRICING_JSON` rates; unreported usage
 and image charges are excluded. No paid background health probes run. Customer
 messages are not shown on the dashboard. Failures create in-app dashboard alerts;
 no external notification or email is sent.
+
+The AI Health workspace uses the same controls and theme palette as Admin
+Concerns. Period changes (24 hours, 7 days or 30 days), request searches, status
+filters, page size and pagination update without a full reload. Refresh reads
+the saved records again; failed refreshes keep the last loaded figures and offer
+a retry. The daily chart includes zero-activity dates and an accessible data
+table. Windows are rolling intervals with exact Philippine start/end times;
+the two boundary calendar dates can be partial days.
+
+Success rate excludes queued/running requests from its denominator. Average
+processing and nearest-rank P95 include valid finished attempts (successes and
+failures), measured from worker start to finish, excluding queue time. Reply
+repairs count attempted automatic corrections, not customer satisfaction or
+image quality. History filters affect the request table only; summary metrics
+continue to cover the selected period. Unknown text costs stay unreported
+rather than being represented as a zero bill. The page and its JSON responses
+are admin-only, read-only and uncached, and never contain prompts or replies.
 
 Apply migration `0106_ai_conversation_quality` with the updated code. Defaults
 work without new environment overrides; flags can temporarily disable the new

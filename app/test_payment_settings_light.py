@@ -28,14 +28,15 @@ class PaymentSettingsLightModeTests(TestCase):
         css = (BASE_DIR / "static" / "css" / "admin_payment.css").read_text(encoding="utf-8")
         self.assertIn(".text-heading { color: #fff; }", css)
 
-    def test_gcash_config_template_uses_text_heading_with_cache_buster(self):
+    def test_gcash_config_uses_shared_themed_payment_form(self):
         template = (
             BASE_DIR / "app" / "templates" / "admin" / "payment" / "admin_gcash_config.html"
         ).read_text(encoding="utf-8")
-        self.assertIn('class="text-heading"', template)
-        self.assertIn("Required Initial Payment", template)
-        # Cache buster para hindi mapaglaruan ng browser ang lumang CSS
-        self.assertIn("css/admin_payment.css' %}?v=", template)
+        self.assertIn('ac-workspace pm-workspace', template)
+        self.assertIn("admin/payment/_settings_form.html", template)
+        self.assertIn("css/admin_payment_workspace.css' %}?v=", template)
+        form = (BASE_DIR / 'app/templates/admin/payment/_settings_form.html').read_text(encoding='utf-8')
+        self.assertIn('Required Initial Payment', form)
 
     def test_sibling_light_rules_still_present(self):
         # Ang description/label (.text-secondary) at hint (.text-muted) ay

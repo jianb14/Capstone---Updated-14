@@ -1,183 +1,48 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
-
-{% block title %}Admin Chat - Balloorina{% endblock %}
-
+{% block title %}Support inbox | Balloorina{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20260919h">
+<link rel="stylesheet" href="{% static 'css/support_chat.css' %}?v=20261028c">
+<link rel="stylesheet" href="{% static 'css/admin_chat.css' %}?v=20261028b">
+<link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
 {% endblock %}
-
 {% block content %}
-<div class="admin-chat-shell">
-    <div class="page-header ph-flush">
-        <h1>Client Support Center</h1>
-        <p class="page-subtitle">One inbox for all client support requests &mdash; review conversations, respond to inquiries, and resolve issues in real time.</p>
-    </div>
-
-    <div class="admin-chat-wrap">
-        <aside class="admin-chat-sidebar">
-            <div class="chat-sidebar-head">
-                <h2>Support Inbox</h2>
-                <div class="admin-chat-tools">
-                    <label class="admin-chat-search" for="adminChatSearch">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.3-4.3"></path>
-                        </svg>
-                        <input id="adminChatSearch" type="search" placeholder="Search client or message">
-                    </label>
+<div class="sc-workspace sc-admin" data-support-chat data-mode="admin" data-user="{{ user.pk }}"
+     data-session="{{ session.pk|default:'' }}" data-inbox-url="{% url 'support_inbox' %}"
+     data-state-url="{% url 'support_state' %}" data-send-url="{% url 'support_send' %}"
+     data-action-url="{% url 'support_action' %}" data-home-url="{% url 'admin_chat_inbox' %}"
+     data-csrf="{{ csrf_token }}">
+    {% include 'components/support_chat_icons.html' %}
+    <div class="sc-page-head"><div><h1>Support inbox</h1><p>Keep conversations moving. Help customers plan their next celebration.</p></div>
+        <div class="sc-page-tools"><span class="sc-sync" data-sync role="status">Connecting…</span>
+            <button type="button" class="sc-button sc-expand" data-expand-chat aria-label="Enter full screen" aria-pressed="false" aria-controls="scChatLayout" title="Enter full screen">
+                <svg aria-hidden="true"><use href="#sc-expand"/></svg><span data-expand-label>Full screen</span>
+            </button>
+        </div></div>
+    <div class="sc-layout" id="scChatLayout">
+        <aside class="sc-inbox" aria-label="Support conversations">
+            <div class="sc-inbox-head"><h2>Conversations <span data-inbox-total>0</span></h2>
+                <label class="sc-search"><svg aria-hidden="true"><use href="#sc-search"/></svg>
+                    <input type="search" data-inbox-search aria-label="Search conversations" placeholder="Search customer or message…" maxlength="150">
+                    <button type="button" class="sc-icon" data-clear-inbox aria-label="Clear conversation search" hidden><svg><use href="#sc-x"/></svg></button>
+                </label>
+                <div class="sc-tabs" role="group" aria-label="Filter conversations">
+                    <button type="button" data-filter="all" aria-pressed="true">All <span>0</span></button>
+                    <button type="button" data-filter="unread" aria-pressed="false">Unread <span>0</span></button>
+                    <button type="button" data-filter="pending_admin" aria-pressed="false">Waiting <span>0</span></button>
+                    <button type="button" data-filter="active_admin" aria-pressed="false">Active <span>0</span></button>
+                    <button type="button" data-filter="closed" aria-pressed="false">Closed <span>0</span></button>
                 </div>
             </div>
-            <div class="chat-filter-tabs" id="chatFilterTabs" role="tablist" aria-label="Filter chats">
-                <button type="button" class="chat-filter-tab active" data-filter="all">All<span class="tab-count">{{ stats.total|default:0 }}</span></button>
-                <button type="button" class="chat-filter-tab" data-filter="pending_admin">Pending<span class="tab-count">{{ stats.pending|default:0 }}</span></button>
-                <button type="button" class="chat-filter-tab" data-filter="active_admin">Active<span class="tab-count">{{ stats.active_admin|default:0 }}</span></button>
-                <button type="button" class="chat-filter-tab" data-filter="closed">Closed<span class="tab-count">{{ stats.closed|default:0 }}</span></button>
-                <button type="button" class="chat-filter-tab" data-filter="unread">Unread<span class="tab-count">{{ stats.unread_total|default:0 }}</span></button>
-            </div>
-        <div class="chat-session-scroll">
-            {% for item in sessions %}
-            <a href="{% url 'admin_chat_thread' item.id %}"
-               class="session-card {% if item.has_unread_for_admin %}has-unread{% endif %}"
-               data-status="{{ item.status }}"
-               data-unread="{% if item.has_unread_for_admin %}1{% else %}0{% endif %}"
-               data-search="{{ item.user.get_full_name|default:item.user.username }} {{ item.user.email }} {{ item.title }} {{ item.last_msg_text|default:'' }}">
-                <div class="sc-avatar">{{ item.user.first_name|default:item.user.username|slice:":1"|upper }}</div>
-                <div class="sc-info">
-                    <div class="sc-name">{{ item.user.get_full_name|default:item.user.username }}</div>
-                    <div class="sc-preview">
-                        {% if item.last_msg_has_image %}
-                        📷 Image sent
-                        {% elif item.last_msg_text %}
-                        {{ item.last_msg_text|striptags|truncatechars:88 }}
-                        {% else %}
-                        No messages yet
-                        {% endif %}
-                    </div>
-                    <div class="sc-meta-line">
-                        {% if item.last_msg_time %}
-                        <span class="sc-time">{{ item.last_msg_time|date:"M d, g:i A" }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% if item.unread_admin_count %}
-                <span class="sc-unread-pill">{{ item.unread_admin_count }} new message{{ item.unread_admin_count|pluralize }}</span>
-                {% endif %}
-            </a>
-            {% empty %}
-            <div class="empty-state">
-                <div class="empty-icon"><i class="fa-regular fa-comments"></i></div>
-                <h2>No admin support chats yet</h2>
-                <p>Client messages from the floating support button will show here.</p>
-            </div>
-            {% endfor %}
-            <div class="admin-chat-no-results" hidden>
-                <div class="empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.3-4.3"></path>
-                    </svg>
-                </div>
-                <h2>No matching chats</h2>
-                <p>Try another search term or filter.</p>
-            </div>
-        </div>
-    </aside>
-
-    <main class="admin-chat-main empty-select">
-        <div class="empty-placeholder">
-            <div class="empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
-            <h2>Select a client chat</h2>
-            <p>Select a conversation and reply like a regular messenger thread.</p>
-            <div class="quick-tips">
-                <p>Client conversations stay in this inbox.</p>
-                <p>New client messages show an unread badge.</p>
-                <p>Use search to find a client or message.</p>
-            </div>
-        </div>
-    </main>
+            <div class="sc-inbox-list" data-inbox-list aria-live="polite"></div>
+            <button type="button" class="sc-button sc-load-inbox" data-more-inbox hidden>Load more conversations</button>
+            <p class="sc-inbox-error" data-inbox-error role="status" hidden></p>
+        </aside>
+        {% include 'components/support_chat_panel.html' with is_admin=True %}
     </div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const searchInput = document.getElementById("adminChatSearch");
-    const cards = Array.from(document.querySelectorAll(".session-card"));
-    const noResults = document.querySelector(".admin-chat-no-results");
-    const tabs = Array.from(document.querySelectorAll(".chat-filter-tab"));
-    const SEARCH_KEY = "adminChatInboxSearch";
-    let activeFilter = "all";
-
-    // Restore the last search term so a poll-triggered reload never wipes it.
-    if (searchInput && sessionStorage.getItem(SEARCH_KEY)) {
-        searchInput.value = sessionStorage.getItem(SEARCH_KEY);
-    }
-
-    function applyChatFilters() {
-        const query = (searchInput?.value || "").trim().toLowerCase();
-        let visibleCount = 0;
-
-        cards.forEach(function (card) {
-            const status = card.dataset.status || "";
-            const unread = card.dataset.unread === "1";
-            let matchesFilter = true;
-            if (activeFilter === "unread") {
-                matchesFilter = unread;
-            } else if (activeFilter !== "all") {
-                matchesFilter = status === activeFilter;
-            }
-            const matchesQuery = !query || (card.dataset.search || "").toLowerCase().includes(query);
-            const show = matchesFilter && matchesQuery;
-            card.hidden = !show;
-            if (show) visibleCount += 1;
-        });
-
-        if (noResults) noResults.hidden = visibleCount !== 0 || cards.length === 0;
-    }
-
-    tabs.forEach(function (tab) {
-        tab.addEventListener("click", function () {
-            tabs.forEach(function (t) { t.classList.remove("active"); });
-            tab.classList.add("active");
-            activeFilter = tab.dataset.filter || "all";
-            applyChatFilters();
-        });
-    });
-
-    if (searchInput) {
-        searchInput.addEventListener("input", function () {
-            sessionStorage.setItem(SEARCH_KEY, searchInput.value);
-            applyChatFilters();
-        });
-    }
-
-    applyChatFilters();
-
-    // ── Poll for new activity. Never reload while the admin is focused on
-    //    the search box or while the tab is hidden — reloading used to wipe
-    //    whatever they were typing. ──
-    const pollUrl = "{% url 'admin_chat_unread_poll' %}";
-    const csrfToken = "{{ csrf_token }}";
-    const pendingBaseline = Number("{{ stats.pending|default:0 }}");
-    const unreadBaseline = Number("{{ stats.unread_total|default:0 }}");
-
-    setInterval(async function () {
-        if (document.hidden) return;
-        if (searchInput && document.activeElement === searchInput) return;
-        try {
-            const response = await fetch(pollUrl, { headers: { "X-CSRFToken": csrfToken } });
-            if (!response.ok) return;
-            const data = await response.json();
-            if (
-                Number(data.pending_count) !== pendingBaseline ||
-                Number(data.unread_total) !== unreadBaseline
-            ) {
-                window.location.reload();
-            }
-        } catch (error) {}
-    }, 10000);
-});
-</script>
+<script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g" defer></script>
+<script src="{% static 'js/support_chat.js' %}?v=20261028b" defer></script>
 {% endblock %}

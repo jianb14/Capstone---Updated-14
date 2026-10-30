@@ -1,0 +1,9 @@
+{% for blocked in blocked_dates %}
+<div class="blocked-item" data-blocked-date="{{ blocked.date|date:'Y-m-d' }}">
+    <span class="cal-block-date-icon">{% include 'components/account_icon.html' with icon='calendar' %}</span>
+    <div class="blocked-item-copy"><div class="blocked-item-date">{{ blocked.date|date:'M d, Y (D)' }}</div>{% if blocked.reason %}<div class="blocked-item-reason">{{ blocked.reason }}</div>{% endif %}</div>
+    {% if not archived %}<form method="post" action="{% url 'admin_blocked_date_delete' blocked.pk %}" class="js-unblock-form" data-unblock-date="{{ blocked.date|date:'Y-m-d' }}">{% csrf_token %}<button type="submit" class="ac-button blocked-unblock-btn">Unblock</button></form>{% endif %}
+</div>
+{% empty %}
+{% if not archived %}<div class="blocked-empty"><span class="cal-empty-icon">{% include 'components/account_icon.html' with icon='calendar' %}</span><h3>No blocked dates</h3><p>Today and future dates you block will appear here.</p></div>{% endif %}
+{% endfor %}

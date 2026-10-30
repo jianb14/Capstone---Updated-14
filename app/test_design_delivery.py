@@ -9,7 +9,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import AuditLog, Booking, BookingDesignDelivery, Notification, User
+from .models import AuditLog, Booking, BookingDesignDelivery, Notification, Payment, User
 
 # Offline storage: para hindi humawak ng Cloudinary/network sa tests.
 _OFFLINE_STORAGES = {
@@ -55,6 +55,7 @@ class DesignDeliveryTests(TempMediaMixin, TestCase):
         self.confirmed_booking = self._create_booking(
             user=self.customer, status="confirmed"
         )
+        Payment.objects.create(booking=self.confirmed_booking, payment_status="verified", amount=1000, transaction_ref="design-delivery-fixture")
 
     def _create_booking(self, **kwargs):
         defaults = dict(

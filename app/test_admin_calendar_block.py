@@ -8,12 +8,14 @@ Sakop:
   -> may BlockedDate, at BUHAY PA RIN ang Booking (data hindi nawawala).
 - Unblock -> nawawala ang BlockedDate pero BUHAY PA RIN ang Booking.
 """
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone as datetime_timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.messages import get_messages
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import BlockedDate, Booking, User
 
@@ -140,25 +142,26 @@ class BlockedDateConflictTemplateTests(TestCase):
         self.template = (
             base / "app" / "templates" / "admin" / "admin_calendar.html"
         ).read_text(encoding="utf-8")
+        self.script = (base / 'static' / 'js' / 'admin_calendar.js').read_text(encoding='utf-8')
         css = (
             base / "static" / "css" / "admin_calendar.css"
         ).read_text(encoding="utf-8")
         self.stripped_css = "".join(css.split())
 
     def test_conflict_modal_markup_present(self):
-        # Conflict confirm ngayon ay SweetAlert2 (openBlockModal) — wala nang
-        # #blockConflictModal custom modal (inagalaw ng admin-calendar polish).
-        self.assertIn("function openBlockModal(", self.template)
-        self.assertIn("confirmButtonText: 'Block Anyway'", self.template)
+        # Confirmation remains explicit before blocking dates with bookings.
+        self.assertIn("function openBlockModal(", self.script)
+        self.assertIn("'Block Anyway'", self.script)
+        self.assertIn('id="calConfirm"', self.template)
         self.assertIn('id="blockDateConfirmConflicts"', self.template)
         self.assertIn('name="confirm_conflicts"', self.template)
         self.assertIn('id="blockedConflictHint"', self.template)
         self.assertIn("admin-booking-conflict-counts", self.template)
 
     def test_blocked_flag_event_class_hook_present(self):
-        self.assertIn("blocked-flag-event", self.template)
-        self.assertIn("eventClassNames", self.template)
-        self.assertIn("isBlockedFlagEvent", self.template)
+        self.assertIn("blocked-flag-event", self.script)
+        self.assertIn("eventClassNames", self.script)
+        self.assertIn("isBlockedFlagEvent", self.script)
 
     def test_booking_pills_not_hidden_on_blocked_cells(self):
         # Tanging ang "Unavailable" blocked-flag pill ang nakatago...
@@ -173,8 +176,151 @@ class BlockedDateConflictTemplateTests(TestCase):
         self.assertIn(".fc-event:not(.blocked-flag-event)", self.stripped_css)
 
     def test_conflict_modal_css_present(self):
-        # Ang dating .cal-block-confirm custom-modal styles ay SweetAlert2 na;
-        # narito pa rin ang live conflict styles (hint + day-popover warning).
+        # Keep the live conflict hint and day-popover warning.
         self.assertIn(".blocked-conflict-hint", self.stripped_css)
         self.assertIn(".blocked-conflict-hint[hidden]", self.stripped_css)
         self.assertIn(".cal-pop-blocked-warning", self.stripped_css)
+
+
+class AdminCalendarAsyncTests(TestCase):
+    setUp = BlockedDateConflictViewTests.setUp
+    _make_booking = BlockedDateConflictViewTests._make_booking
+    _future_date = BlockedDateConflictViewTests._future_date
+    headers = {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}
+
+    def test_active_dates_and_read_only_history_keep_calendar_records(self):
+        today = timezone.localdate()
+        past = BlockedDate.objects.create(date=today-timedelta(days=1), reason='Previous holiday', created_by=self.admin)
+        current = BlockedDate.objects.create(date=today, reason='Today', created_by=self.admin)
+        future = BlockedDate.objects.create(date=today+timedelta(days=3), reason='Upcoming holiday', created_by=self.admin)
+        html = self.client.get(reverse('admin_calendar'))
+        data = self.client.get(reverse('admin_calendar'), **self.headers).json()
+        self.assertEqual([item.pk for item in html.context['blocked_dates']], [current.pk, future.pk])
+        self.assertEqual([item.pk for item in html.context['past_blocked_dates']], [past.pk])
+        self.assertEqual([item['id'] for item in data['blocked_dates']], [current.pk, future.pk])
+        self.assertEqual([item['id'] for item in data['past_blocked_dates']], [past.pk])
+        self.assertNotIn('delete_url', data['past_blocked_dates'][0])
+        self.assertEqual({item['start'] for item in data['events']}, {item.date.isoformat() for item in (past,current,future)})
+        self.assertEqual(BlockedDate.objects.count(), 3)
+
+    def test_blocks_archive_only_after_philippine_midnight_even_with_other_active_timezone(self):
+        target = date(2026, 10, 30)
+        blocked = BlockedDate.objects.create(date=target, reason='Holiday', created_by=self.admin)
+        before_midnight = datetime(2026, 10, 30, 15, 59, 59, tzinfo=datetime_timezone.utc)
+        with timezone.override('UTC'), patch('app.views.bookings.timezone.now', return_value=before_midnight):
+            before = self.client.get(reverse('admin_calendar'), **self.headers).json()
+        self.assertEqual(before['today_iso'], '2026-10-30')
+        self.assertEqual(before['blocked_dates'][0]['id'], blocked.pk)
+        self.assertEqual(before['past_blocked_dates'], [])
+        self.assertEqual(before['next_day_at'], '2026-10-31T00:00:00+08:00')
+        with timezone.override('UTC'), patch('app.views.bookings.timezone.now', return_value=before_midnight+timedelta(seconds=1)):
+            after = self.client.get(reverse('admin_calendar'), **self.headers).json()
+            html = self.client.get(reverse('admin_calendar'))
+        self.assertEqual(after['today_iso'], '2026-10-31')
+        self.assertEqual(after['blocked_dates'], [])
+        self.assertEqual(after['past_blocked_dates'][0]['id'], blocked.pk)
+        self.assertEqual(html.context['blocked_dates'], [])
+        self.assertEqual(html.context['past_blocked_dates'][0].pk, blocked.pk)
+        self.assertIn('2026-10-30', [item['start'] for item in after['events']])
+        self.assertTrue(BlockedDate.objects.filter(pk=blocked.pk).exists())
+
+    def test_history_is_newest_first_and_reason_is_escaped(self):
+        today = timezone.localdate()
+        older = BlockedDate.objects.create(date=today-timedelta(days=4), reason='Older')
+        recent = BlockedDate.objects.create(date=today-timedelta(days=1), reason='<img src=x onerror=alert(1)>')
+        html = self.client.get(reverse('admin_calendar'))
+        self.assertEqual([item.pk for item in html.context['past_blocked_dates']], [recent.pk,older.pk])
+        self.assertContains(html, '&lt;img src=x onerror=alert(1)&gt;')
+        self.assertNotContains(html, '<img src=x onerror=alert(1)>')
+
+    def test_html_and_json_expose_identical_calendar_dates_and_statuses(self):
+        target = self._future_date()
+        for status in ('pending', 'pending_payment', 'confirmed', 'completed', 'expired', 'cancelled'):
+            self._make_booking(target, status)
+        BlockedDate.objects.create(date=target, reason='Holiday', created_by=self.admin)
+        html = self.client.get(reverse('admin_calendar'))
+        data = self.client.get(reverse('admin_calendar'), **self.headers)
+        self.assertEqual(data.status_code, 200)
+        self.assertEqual(data.json()['events'], html.context['calendar_events'])
+        self.assertEqual(data.json()['conflict_counts'], html.context['booking_conflict_counts'])
+        self.assertEqual(data.json()['blocked_dates'][0]['date'], target.isoformat())
+        self.assertEqual(data['Cache-Control'], 'no-store')
+
+    def test_async_block_conflict_confirmation_and_unblock_preserve_booking(self):
+        target = self._future_date()
+        booking = self._make_booking(target, 'confirmed')
+        values = {'date': target.isoformat(), 'reason':'Maintenance'}
+        first = self.client.post(self.create_url, values, **self.headers)
+        self.assertEqual(first.status_code, 409)
+        self.assertTrue(first.json()['requires_confirmation'])
+        self.assertFalse(BlockedDate.objects.exists())
+        result = self.client.post(self.create_url, {**values, 'confirm_conflicts':'1'}, **self.headers)
+        self.assertTrue(result.json()['ok'])
+        blocked = BlockedDate.objects.get(date=target)
+        duplicate = self.client.post(self.create_url, {**values, 'confirm_conflicts':'1'}, **self.headers)
+        self.assertEqual(duplicate.json()['kind'], 'info')
+        self.assertEqual(BlockedDate.objects.count(), 1)
+        result = self.client.post(reverse('admin_blocked_date_delete', args=[blocked.pk]), **self.headers)
+        self.assertEqual(result.status_code, 200)
+        self.assertFalse(BlockedDate.objects.exists())
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'confirmed')
+        self.assertEqual(list(get_messages(result.wsgi_request)), [])
+
+    def test_async_invalid_dates_have_inline_field_errors(self):
+        for value in ('', 'not-a-date', (timezone.localdate()-timedelta(days=1)).isoformat()):
+            with self.subTest(value=value):
+                response = self.client.post(self.create_url, {'date':value}, **self.headers)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn('date', response.json()['errors'])
+        self.assertFalse(BlockedDate.objects.exists())
+
+    def test_calendar_keeps_overnight_legacy_and_explicit_event_end_times(self):
+        target = self._future_date()
+        explicit = self._make_booking(target, 'confirmed')
+        explicit.event_time = time(22)
+        explicit.event_end_time = time(1)
+        explicit.event_end_date = target + timedelta(days=1)
+        explicit.save()
+        legacy = self._make_booking(target, 'confirmed')
+        default = self._make_booking(target, 'confirmed')
+        default.special_requests = ''
+        default.save(update_fields=['special_requests'])
+        events = {item['booking_id']: item for item in self.client.get(reverse('admin_calendar'), **self.headers).json()['events']}
+        self.assertEqual(events[explicit.pk]['end'], f'{target + timedelta(days=1)}T01:00:00')
+        self.assertEqual(events[legacy.pk]['end'], f'{target}T12:00:00')
+        self.assertEqual(events[default.pk]['end'], f'{target}T14:00:00')
+
+    def test_async_empty_date_and_reason_limit_keep_original_rules(self):
+        result = self.client.post(self.create_url, {'date':self._future_date().isoformat(), 'reason':'x'*300}, **self.headers)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(len(BlockedDate.objects.get().reason), 255)
+
+    def test_temporary_quote_hold_cannot_be_overridden_by_block_anyway(self):
+        from types import SimpleNamespace
+        target = self._future_date()
+        start = timezone.make_aware(timezone.datetime.combine(target, time(10)))
+        hold = SimpleNamespace(hold_start=start, hold_end=start+timedelta(hours=2))
+        with patch('app.booking_changes.live_holds', return_value=[hold]):
+            response = self.client.post(self.create_url, {'date':target.isoformat(),'confirm_conflicts':'1'}, **self.headers)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('temporary hold', response.json()['errors']['date'])
+        self.assertFalse(BlockedDate.objects.exists())
+
+    def test_json_calendar_and_mutations_require_admin_and_post_csrf(self):
+        self.client.force_login(self.customer)
+        self.assertEqual(self.client.get(reverse('admin_calendar'), **self.headers).status_code, 403)
+        self.assertEqual(self.client.post(self.create_url, {'date':self._future_date().isoformat()}, **self.headers).status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(self.create_url, **self.headers).status_code, 405)
+        client = Client(enforce_csrf_checks=True); client.force_login(self.admin)
+        self.assertEqual(client.post(self.create_url, {'date':self._future_date().isoformat()}, **self.headers).status_code, 403)
+        self.assertFalse(BlockedDate.objects.exists())
+
+    def test_calendar_data_with_quotes_and_markup_is_inert_json(self):
+        self.customer.first_name = '</script><img src=x onerror=alert(1)>'
+        self.customer.save(update_fields=['first_name'])
+        self._make_booking(self._future_date(), 'confirmed')
+        response = self.client.get(reverse('admin_calendar'))
+        self.assertContains(response, '\\u003C/script\\u003E')
+        self.assertNotContains(response, '<img src=x onerror=alert(1)>')

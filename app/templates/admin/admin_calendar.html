@@ -1,746 +1,80 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
-
-{% block title %}Events Calendar - Admin{% endblock %}
-
+{% block title %}Events Calendar | Balloorina{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261020a">
+<link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261028h">
+<link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261030i">
 {% endblock %}
-
 {% block content %}
-<div class="admin-calendar-page">
-
-    <div class="page-header">
-        <h1>Events Calendar</h1>
-        <p class="page-subtitle">An overview of all scheduled events. Click any date to see its bookings.</p>
-    </div>
-
+<div class="ac-workspace admin-calendar-page" data-calendar-url="{% url 'admin_calendar' %}" data-today="{{ today_iso }}" data-server-now="{{ server_now }}" data-next-day-at="{{ next_day_at }}">
+    <header class="page-header ac-header cal-page-header">
+        <div><h1>Events Calendar</h1><p class="page-subtitle">An overview of all scheduled events. Click any date to see its bookings.</p></div>
+        <button type="button" class="ac-button" id="cal-refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg>Refresh</button>
+    </header>
+    <p class="cal-feedback" id="cal-feedback" role="status" aria-live="polite" hidden></p>
     <div class="admin-calendar-layout">
-        <div class="calendar-wrapper">
-            <!-- Custom Calendar Toolbar (same design as client booking page) -->
+        <section class="calendar-wrapper" aria-label="Events calendar">
             <div class="cal-toolbar">
-                <div class="cal-nav-group">
-                    <button type="button" id="cal-prev" class="cal-nav-btn" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
-                    <button type="button" id="cal-next" class="cal-nav-btn" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>
-                <button type="button" id="cal-title" class="cal-title-btn" aria-haspopup="true" aria-expanded="false">
-                    <span id="cal-title-text">Loading...</span>
-                    <i class="fa-solid fa-chevron-down cal-title-caret"></i>
-                </button>
-                <div class="cal-view-group" role="group" aria-label="Calendar view">
-                    <button type="button" class="cal-view-btn active" data-view="dayGridMonth">Month</button>
-                    <button type="button" class="cal-view-btn" data-view="timeGridWeek">Week</button>
-                    <button type="button" id="cal-today" class="cal-view-btn cal-today-btn">Today</button>
-                </div>
+                <div class="cal-heading-group"><div class="cal-nav-group">
+                    <button type="button" id="cal-prev" class="cal-nav-btn" aria-label="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></button>
+                    <button type="button" id="cal-next" class="cal-nav-btn" aria-label="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></button>
+                </div><button type="button" id="cal-title" class="cal-title-btn" aria-haspopup="dialog" aria-controls="custom-month-year-picker" aria-expanded="false"><span id="cal-title-text" aria-live="polite">Loading...</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div>
+                <div class="cal-view-group" role="group" aria-label="Calendar view"><div class="cal-view-tabs"><button type="button" class="cal-view-btn active" data-view="dayGridMonth" aria-pressed="true">Month</button><button type="button" class="cal-view-btn" data-view="timeGridWeek" aria-pressed="false">Week</button></div><button type="button" id="cal-today" class="ac-button">Today</button></div>
             </div>
-
-            <!-- Custom Month/Year Picker Modal -->
-            <div id="custom-month-year-picker" class="month-year-picker" style="display: none;">
-                <div class="myp-header">
-                    <button type="button" id="myp-prev-year"><i class="fa-solid fa-chevron-left"></i></button>
-                    <span id="myp-year-display">2026</span>
-                    <button type="button" id="myp-next-year"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>
+            <div id="custom-month-year-picker" class="month-year-picker" role="dialog" aria-label="Choose month and year" hidden>
+                <div class="myp-header"><button type="button" id="myp-prev-year" aria-label="Previous year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></button><span id="myp-year-display" aria-live="polite"></span><button type="button" id="myp-next-year" aria-label="Next year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></button></div>
                 <div class="myp-months-grid">
-                    <button type="button" data-month="0">Jan</button>
-                    <button type="button" data-month="1">Feb</button>
-                    <button type="button" data-month="2">Mar</button>
-                    <button type="button" data-month="3">Apr</button>
-                    <button type="button" data-month="4">May</button>
-                    <button type="button" data-month="5">Jun</button>
-                    <button type="button" data-month="6">Jul</button>
-                    <button type="button" data-month="7">Aug</button>
-                    <button type="button" data-month="8">Sep</button>
-                    <button type="button" data-month="9">Oct</button>
-                    <button type="button" data-month="10">Nov</button>
-                    <button type="button" data-month="11">Dec</button>
+                    <button type="button" data-month="0">Jan</button><button type="button" data-month="1">Feb</button><button type="button" data-month="2">Mar</button><button type="button" data-month="3">Apr</button><button type="button" data-month="4">May</button><button type="button" data-month="5">Jun</button><button type="button" data-month="6">Jul</button><button type="button" data-month="7">Aug</button><button type="button" data-month="8">Sep</button><button type="button" data-month="9">Oct</button><button type="button" data-month="10">Nov</button><button type="button" data-month="11">Dec</button>
                 </div>
             </div>
-
             <div id="admin-calendar"><div id="admin-calendar-mount"></div></div>
-        </div>
+            <div class="cal-calendar-note"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></svg><span>Click a date or an event to view its details.</span><span id="cal-filter-note" hidden></span></div>
+        </section>
         <aside class="calendar-legend" aria-label="Booking status legend">
-            <div class="legend-title">Legends</div>
-            <div class="legend-item legend-filter" data-status="confirmed"><span class="legend-color confirmed"></span>Confirmed</div>
-            <div class="legend-item legend-filter" data-status="pending"><span class="legend-color pending"></span>Pending</div>
-            <div class="legend-item legend-filter" data-status="completed"><span class="legend-color completed"></span>Completed</div>
-            <div class="legend-item legend-filter" data-status="expired"><span class="legend-color expired"></span>Expired</div>
-            <div class="legend-item legend-filter" data-status="cancelled"><span class="legend-color cancelled"></span>Cancelled</div>
+            <div class="cal-section-heading"><span class="cal-section-icon">{% include 'components/account_icon.html' with icon='calendar' %}</span><div><h2>Booking statuses</h2><p>Find the events you need.</p></div></div>
+            <div class="cal-status-filters" role="group" aria-label="Filter by booking status">
+                <button type="button" class="legend-item legend-filter" data-status="confirmed" aria-pressed="false"><span class="legend-color confirmed"></span><span>Confirmed</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+                <button type="button" class="legend-item legend-filter" data-status="pending" aria-pressed="false"><span class="legend-color pending"></span><span>Pending</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+                <button type="button" class="legend-item legend-filter" data-status="completed" aria-pressed="false"><span class="legend-color completed"></span><span>Completed</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+                <button type="button" class="legend-item legend-filter" data-status="expired" aria-pressed="false"><span class="legend-color expired"></span><span>Expired</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+                <button type="button" class="legend-item legend-filter" data-status="cancelled" aria-pressed="false"><span class="legend-color cancelled"></span><span>Cancelled</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+            </div>
             <p class="legend-note">Click a status to filter the calendar. Click the active one again to show all bookings.</p>
+            <div class="cal-blocked-key"><span class="cal-blocked-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg></span><div><strong>Blocked dates</strong><p>Unavailable for new bookings. Existing bookings stay visible.</p></div></div>
         </aside>
     </div>
-
-    <!-- Blocked Dates Management -->
-    <div class="admin-calendar-panel" style="margin-top: 1.25rem;">
-        <div class="panel-header">
-            <h2>Blocked Dates</h2>
-            <p>Dates marked here are unavailable for customer bookings.</p>
+    <section class="admin-calendar-panel" aria-labelledby="blockedTitle">
+        <div class="panel-header"><div class="cal-section-heading"><span class="cal-section-icon">{% include 'components/account_icon.html' with icon='rejected' %}</span><div><h2 id="blockedTitle">Blocked Dates</h2><p>Dates marked here are unavailable for customer bookings.</p></div></div></div>
+        <div class="cal-blocked-layout">
+            <form method="post" action="{% url 'admin_blocked_date_create' %}" class="blocked-form" novalidate>
+                {% csrf_token %}
+                <div class="cal-field"><label for="blockedDate">Date <span class="cal-required" aria-hidden="true">*</span></label><input type="date" id="blockedDate" name="date" class="blocked-input blocked-date-input" required min="{{ today_iso }}" aria-describedby="blocked-date-error"><p id="blocked-date-error" class="cal-field-error" data-error-for="date" hidden></p></div>
+                <div class="cal-field"><div class="cal-label-row"><label for="blockedReason">Reason <span class="cal-optional">(optional)</span></label><span id="blocked-reason-count">0/255</span></div><input type="text" id="blockedReason" name="reason" maxlength="255" class="blocked-input blocked-reason-input" placeholder="e.g. Holiday / Maintenance" aria-describedby="blocked-reason-count blocked-reason-error"><p id="blocked-reason-error" class="cal-field-error" data-error-for="reason" hidden></p></div>
+                <div class="blocked-conflict-hint" id="blockedConflictHint" role="status" hidden></div><p class="cal-field-error" id="blocked-form-error" role="alert" hidden></p>
+                <button type="submit" class="ac-button ac-primary blocked-submit-btn">Block Date</button><input type="hidden" name="confirm_conflicts" id="blockDateConfirmConflicts" value="">
+            </form>
+            <div class="cal-blocked-dates">
+                <div class="cal-list-heading"><h3>Active blocked dates</h3><span id="blocked-date-count" aria-live="polite">{{ blocked_dates|length }}</span></div>
+                <p class="cal-list-note">Today and future dates. Past dates move to history after midnight, Philippine time.</p>
+                <div id="blockedDatesList" class="blocked-list">{% include 'admin/calendar/_blocked_dates.html' %}</div>
+                <details class="cal-blocked-history" id="pastBlockedDates" {% if not past_blocked_dates %}hidden{% endif %}>
+                    <summary><span>View past blocked dates <span id="past-blocked-date-count">({{ past_blocked_dates|length }})</span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></summary>
+                    <p class="cal-list-note">Past blocks are kept for reference and stay visible on the calendar.</p>
+                    <div id="pastBlockedDatesList" class="blocked-list">{% include 'admin/calendar/_blocked_dates.html' with blocked_dates=past_blocked_dates archived=True %}</div>
+                </details>
+            </div>
         </div>
-        <form method="POST" action="{% url 'admin_blocked_date_create' %}" class="blocked-form">
-            {% csrf_token %}
-            <input type="date" name="date" class="blocked-input blocked-date-input" required min="{{ today_iso }}" value="">
-            <input type="text" name="reason" maxlength="255" class="blocked-input blocked-reason-input"
-                placeholder="Reason (optional, e.g. Holiday / Maintenance)">
-            <button type="submit" class="blocked-submit-btn">Block Date</button>
-            <input type="hidden" name="confirm_conflicts" id="blockDateConfirmConflicts" value="">
-        </form>
-        {{ booking_conflict_counts|json_script:"admin-booking-conflict-counts" }}
-        <div class="blocked-conflict-hint" id="blockedConflictHint" hidden></div>
-        <div class="blocked-list">
-            {% if blocked_dates %}
-                {% for blocked in blocked_dates %}
-                <div class="blocked-item">
-                    <div>
-                        <div class="blocked-item-date">{{ blocked.date|date:"F d, Y (D)" }}</div>
-                        {% if blocked.reason %}
-                        <div class="blocked-item-reason">{{ blocked.reason }}</div>
-                        {% endif %}
-                    </div>
-                    <form method="POST" action="{% url 'admin_blocked_date_delete' blocked.id %}" class="js-unblock-form" data-unblock-date="{{ blocked.date|date:'F d, Y (D)' }}">
-                        {% csrf_token %}
-                        <button type="submit" class="blocked-unblock-btn">Unblock</button>
-                    </form>
-                </div>
-                {% endfor %}
-            {% else %}
-            <p class="blocked-empty">No blocked dates. All future dates are open for booking.</p>
-            {% endif %}
-        </div>
-    </div>
-
+    </section>
+    <div class="cal-popover" id="calPopover" role="dialog" aria-labelledby="calPopDate" tabindex="-1" hidden><div class="cal-popover-header"><h2 id="calPopDate"></h2><button type="button" class="cal-popover-close" id="calPopClose" aria-label="Close date details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="cal-popover-body" id="calPopBody"></div></div>
+    <dialog class="cal-confirm-dialog" id="calConfirm" aria-labelledby="calConfirmTitle"><form method="dialog"><div class="cal-confirm-header"><span class="cal-section-icon">{% include 'components/account_icon.html' with icon='rejected' %}</span><button type="button" class="cal-popover-close" data-cancel-confirm aria-label="Close confirmation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><h2 id="calConfirmTitle"></h2><p id="calConfirmMessage"></p><div class="cal-confirm-actions"><button type="button" class="ac-button" data-cancel-confirm>Cancel</button><button type="submit" class="ac-button ac-primary" id="calConfirmSubmit" value="confirm">Confirm</button></div></form></dialog>
+    {{ calendar_events|json_script:'admin-calendar-events' }}
+    {{ booking_conflict_counts|json_script:'admin-booking-conflict-counts' }}
 </div>
-
-<!-- Simple Popover for Event Details -->
-<div class="cal-popover" id="calPopover">
-    <div class="cal-popover-header">
-        <span class="cal-popover-title" id="calPopDate"></span>
-        <button class="cal-popover-close" id="calPopClose">&times;</button>
-    </div>
-    <div class="cal-popover-body" id="calPopBody"></div>
-</div>
-
 {% endblock %}
-
 {% block extra_js %}
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var calendarEl = document.getElementById('admin-calendar-mount');
-        var popover = document.getElementById('calPopover');
-        var popClose = document.getElementById('calPopClose');
-        var popBody = document.getElementById('calPopBody');
-        var popDate = document.getElementById('calPopDate');
-        var todayIso = '{{ today_iso }}';
-
-        /* OPTION A: conflict-aware block — per-date booking counts mula sa
-           backend para ma-warning ang admin bago mag-block. */
-        var conflictCounts = {};
-        try {
-            var conflictEl = document.getElementById('admin-booking-conflict-counts');
-            conflictCounts = conflictEl ? (JSON.parse(conflictEl.textContent || '{}') || {}) : {};
-        } catch (e) { conflictCounts = {}; }
-
-        var blockForm = document.querySelector('.blocked-form');
-        var blockDateInput = blockForm ? blockForm.querySelector('input[name="date"]') : null;
-        var blockConfirmInput = document.getElementById('blockDateConfirmConflicts');
-        var blockHint = document.getElementById('blockedConflictHint');
-        var blockSubmitAllowed = false;
-
-        function conflictCountFor(dateIso) {
-            var n = parseInt(conflictCounts[dateIso], 10);
-            return isNaN(n) ? 0 : n;
-        }
-
-        function prettyDate(dateIso) {
-            try {
-                var parts = dateIso.split('-');
-                var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                return months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
-            } catch (e) { return dateIso; }
-        }
-
-        function refreshBlockHint() {
-            if (!blockHint || !blockDateInput) return;
-            var n = blockDateInput.value ? conflictCountFor(blockDateInput.value) : 0;
-            if (n > 0) {
-                blockHint.hidden = false;
-                blockHint.textContent = '⚠️ ' + prettyDate(blockDateInput.value) + ' already has ' + n + ' booking' + (n === 1 ? '' : 's') + '. Blocking prevents new bookings — existing ones stay visible.';
-            } else {
-                blockHint.hidden = true;
-                blockHint.textContent = '';
-            }
-        }
-
-        /* Conflict-aware block confirm — SweetAlert2 (kapareho ng Toast/Swal
-           pattern na naka-load sa admin base). */
-        function openBlockModal(n, dateIso) {
-            if (typeof Swal === 'undefined') {
-                blockSubmitAllowed = true;
-                if (blockConfirmInput) blockConfirmInput.value = '1';
-                if (blockForm) blockForm.submit();
-                return;
-            }
-            Swal.fire({
-                icon: 'warning',
-                title: 'Date already has bookings',
-                html: '<strong>' + prettyDate(dateIso) + '</strong> already has ' + n + ' booking' + (n === 1 ? '' : 's') + '.<br>Blocking prevents <strong>new</strong> customer bookings — the existing bookings stay visible on the calendar.',
-                showCancelButton: true,
-                confirmButtonText: 'Block Anyway',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#dc2626',
-                reverseButtons: true
-            }).then(function (res) {
-                if (res.isConfirmed) {
-                    blockSubmitAllowed = true;
-                    if (blockConfirmInput) blockConfirmInput.value = '1';
-                    if (blockForm) blockForm.submit();
-                }
-            });
-        }
-
-        if (blockDateInput) blockDateInput.addEventListener('change', function () {
-            if (blockConfirmInput) blockConfirmInput.value = '';
-            blockSubmitAllowed = false;
-            refreshBlockHint();
-        });
-
-        if (blockForm) blockForm.addEventListener('submit', function (ev) {
-            if (blockSubmitAllowed) return;
-            var dateIso = blockDateInput ? blockDateInput.value : '';
-            if (dateIso && conflictCountFor(dateIso) > 0) {
-                ev.preventDefault();
-                openBlockModal(conflictCountFor(dateIso), dateIso);
-            }
-        });
-        refreshBlockHint();
-
-        /* Unblock confirm — SweetAlert2 dialog (kapareho ng block confirm;
-           si Swal na ang bahala sa ESC / backdrop close). */
-        document.querySelectorAll('.js-unblock-form').forEach(function (form) {
-            form.addEventListener('submit', function (ev) {
-                if (form.getAttribute('data-unblock-confirmed') === '1') return;
-                ev.preventDefault();
-                var dateText = form.getAttribute('data-unblock-date') || 'This date';
-                if (typeof Swal === 'undefined') {
-                    form.setAttribute('data-unblock-confirmed', '1');
-                    form.submit();
-                    return;
-                }
-                Swal.fire({
-                    icon: 'question',
-                    title: 'Unblock this date?',
-                    html: '<strong>' + dateText + '</strong> will be open for new bookings again. Existing bookings are not affected.',
-                    showCancelButton: true,
-                    confirmButtonText: 'Unblock',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonColor: '#dc2626',
-                    reverseButtons: true
-                }).then(function (res) {
-                    if (res.isConfirmed) {
-                        form.setAttribute('data-unblock-confirmed', '1');
-                        form.submit();
-                    }
-                });
-            });
-        });
-
-        // Build event data once so filtering and day-click can reuse it
-        var allEvents = [
-            {% for event in calendar_events %}
-            {
-                title: '{{ event.title|escapejs }}',
-                start: '{{ event.start }}',
-                {% if event.end %}end: '{{ event.end }}',{% endif %}
-                backgroundColor: '{{ event.color }}',
-                borderColor: '{{ event.color }}',
-                textColor: '#ffffff',
-                extendedProps: {
-                    client_name: '{{ event.client_name|escapejs }}',
-                    event_type: '{{ event.event_type|escapejs }}',
-                    time_range: '{{ event.time_range|escapejs }}',
-                    status_raw: '{{ event.status_raw }}',
-                    event_date: '{{ event.event_date|escapejs }}'
-                }
-            },
-            {% endfor %}
-        ];
-
-        var activeFilter = 'all';
-
-        function eventsForFilter() {
-            if (activeFilter === 'all') return allEvents;
-            return allEvents.filter(function (ev) {
-                return ev.extendedProps.status_raw === activeFilter;
-            });
-        }
-
-        /* OPTION A: itago lang sa month view ang "Unavailable" blocked-event
-           pill mismo (may text label na sa cell) — ang mga booking pills ay
-           nananatiling nakikita kahit blocked ang date. */
-        function isBlockedFlagEvent(ev) {
-            return ev && ev.extendedProps && ev.extendedProps.status_raw === 'blocked';
-        }
-
-        /* ADMIN-BLOCKED DATES: gray na buong day cell + "Blocked" badge */
-        function formatIsoLocal(dateObj) {
-            var y = dateObj.getFullYear();
-            var m = ('0' + (dateObj.getMonth() + 1)).slice(-2);
-            var d = ('0' + dateObj.getDate()).slice(-2);
-            return y + '-' + m + '-' + d;
-        }
-
-        var blockedIsoSet = {};
-        allEvents.forEach(function (ev) {
-            if (ev.extendedProps && ev.extendedProps.status_raw === 'blocked') {
-                blockedIsoSet[(ev.start || '').slice(0, 10)] = true;
-            }
-        });
-
-        function isAdminBlockedDate(dateIso) {
-            return !!blockedIsoSet[dateIso];
-        }
-
-        /* I-position ang day-details popover sa loob ng viewport: sa ilalim
-           ng na-click na cell, lumilipat PATAAS kapag hindi kasya sa ibaba,
-           at may max-height na natitirang espasyo + scrollable body para
-           hindi na napuputol ang mahabang listahan ng bookings. */
-        function positionCalPopover(anchorRect) {
-            /* I-clear muna ang dating max-height bago sukatin ang taas */
-            popover.style.maxHeight = '';
-            popover.classList.add('show');
-
-            var margin = 12;
-            var w = popover.offsetWidth;
-            var h = popover.offsetHeight;
-            var left = anchorRect ? anchorRect.left : (window.innerWidth / 2 - w / 2);
-            var top = anchorRect ? anchorRect.bottom + 6 : 120;
-
-            /* Hindi lumalampas sa kanan/kaliwang gilid ng viewport */
-            if (left + w > window.innerWidth - margin) left = window.innerWidth - w - margin;
-            if (left < margin) left = margin;
-
-            /* Kapag hindi kasya sa ibaba ng click point, ilagay sa TAAS nito */
-            if (anchorRect && top + h > window.innerHeight - margin) {
-                var above = anchorRect.top - 6 - h;
-                if (above >= margin) top = above;
-            }
-            /* Last resort: i-clamp sa loob ng viewport (ang body ang mag-scroll) */
-            if (top + h > window.innerHeight - margin) {
-                top = Math.max(margin, window.innerHeight - h - margin);
-            }
-            if (top < margin) top = margin;
-
-            popover.style.top = top + 'px';
-            popover.style.left = left + 'px';
-            /* Max height = natitirang espasyo pababa — ang .cal-popover-body
-               ang nag-i-scroll (flex column + overflow-y: auto sa CSS). */
-            popover.style.maxHeight = (window.innerHeight - top - margin) + 'px';
-        }
-
-        function showDayDetails(dateIso, clickRect) {
-            var dayEvents = allEvents.filter(function (ev) {
-                return (ev.start || '').slice(0, 10) === dateIso;
-            });
-
-            popDate.textContent = dateIso;
-
-            if (!dayEvents.length) {
-                popBody.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No bookings on this date.</div>';
-            } else {
-                var html = '';
-                /* OPTION A: warning banner kapag blocked ang date pero may bookings. */
-                var hasBookings = dayEvents.some(function (ev) { return !isBlockedFlagEvent(ev); });
-                if (isAdminBlockedDate(dateIso) && hasBookings) {
-                    html += '<div class="cal-pop-blocked-warning">🚫 Blocked date — ' + dayEvents.filter(function (ev) { return !isBlockedFlagEvent(ev); }).length + ' existing booking(s) remain on this date.</div>';
-                }
-                dayEvents.forEach(function (ev) {
-                    var p = ev.extendedProps;
-                    var statusLabel = (p.status_raw || '').charAt(0).toUpperCase() + (p.status_raw || '').slice(1).replace('_', ' ');
-                    html += '<div class="cal-pop-event" style="border-left:4px solid ' + ev.backgroundColor + ';">'
-                        + '<div class="cal-pop-name">' + p.client_name + '</div>'
-                        + '<div class="cal-pop-detail">' + p.event_type + '</div>'
-                        + '<div class="cal-pop-detail">' + p.time_range + '</div>'
-                        + '<div class="cal-pop-detail">' + statusLabel + '</div>'
-                        + '</div>';
-                });
-                popBody.innerHTML = html;
-            }
-
-            positionCalPopover(clickRect);
-        }
-
-        /* =============================================
-           RESPONSIVE CALENDAR HELPER (same approach as client booking page)
-           - isMobileCalendar: totoo bang mobile (<=768px) ang viewport?
-           - calendarUsesDots: mobile O sikip lang ang calendar (<620px)
-           - makeEventDot / restoreEventPill / applyCalendarEventMode:
-             pill <-> dot conversion gamit ang inline styles (deterministic
-             kahit mag-re-render ang FullCalendar). */
-        function isMobileCalendar() {
-            return window.matchMedia('(max-width: 768px)').matches;
-        }
-
-        function calendarUsesDots() {
-            if (isMobileCalendar()) return true;
-            var w = calendarEl ? calendarEl.offsetWidth : 0;
-            return w > 0 && w < 620;
-        }
-
-        var lastMobileCalendarState = isMobileCalendar();
-
-        var DOT_PROPS = ['width', 'height', 'minHeight', 'padding', 'borderRadius', 'overflow', 'fontSize', 'lineHeight', 'borderColor'];
-
-        function makeEventDot(el) {
-            var main = el.querySelector('.fc-event-main');
-            if (main) main.style.display = 'none';
-            el.style.borderColor = 'transparent';
-            el.style.width = '12px';
-            el.style.height = '6px';
-            el.style.minHeight = '6px';
-            el.style.padding = '0';
-            el.style.borderRadius = '3px';
-            el.style.overflow = 'hidden';
-            el.style.fontSize = '0';
-            el.style.lineHeight = '0';
-        }
-
-        function restoreEventPill(el) {
-            DOT_PROPS.forEach(function (p) { el.style[p] = ''; });
-            var main = el.querySelector('.fc-event-main');
-            if (main) main.style.display = '';
-        }
-
-        function applyCalendarEventMode() {
-            var useDots = calendarUsesDots();
-            document.querySelectorAll('#admin-calendar .fc .fc-event').forEach(function (el) {
-                /* Ang events sa loob ng "+N more" popover: text pills palagi */
-                if (el.closest('.fc-popover')) return;
-                /* WEEK VIEW (timeGrid): block na may oras, hindi dots */
-                if (el.closest('.fc-timegrid')) { restoreEventPill(el); return; }
-                /* Blocked-date events sa MONTH view: display:none na sa CSS
-                   (may "Unavailable" text label na sa cell), huwag galawin */
-                if (el.closest('.booking-day-blocked')) { restoreEventPill(el); return; }
-                if (useDots) makeEventDot(el); else restoreEventPill(el);
-            });
-        }
-
-        /* FullCalendar CDN/init guard — kapag hindi nag-load ang library o
-           bumigong mag-construct/render, hindi mamamatay ang buong handler at
-           papalitan ng friendly fallback ang "Loading..." sa halip na nakatagan. */
-        var calendar = null;
-        try {
-            if (typeof FullCalendar === 'undefined') {
-                throw new Error('FullCalendar library not loaded (CDN failed or was blocked).');
-            }
-            calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            showNonCurrentDates: false,
-            fixedWeekCount: false,
-            /* Sariling custom toolbar (.cal-toolbar sa taas) - katulad ng
-               client booking page. Wala nang default FullCalendar header. */
-            headerToolbar: false,
-            eventDisplay: 'block',
-            displayEventTime: false,
-            /* Mobile / sikip na calendar: mas maraming event dots ang kasya kada cell */
-            dayMaxEvents: calendarUsesDots() ? 3 : false,
-            height: 'auto',
-            eventClassNames: function (info) {
-                /* Ang blocked-flag event ay may sariling klase para ito lang
-                   ang itago ng CSS sa month view — hindi ang booking pills. */
-                if (info.event.extendedProps && info.event.extendedProps.status_raw === 'blocked') {
-                    return ['blocked-flag-event'];
-                }
-                return [];
-            },
-            dayCellClassNames: function (info) {
-                if (isAdminBlockedDate(formatIsoLocal(info.date))) {
-                    return ['booking-day-blocked'];
-                }
-                return [];
-            },
-            dayCellDidMount: function (info) {
-                var cellDate = formatIsoLocal(info.date);
-                if (cellDate < todayIso) {
-                    info.el.classList.add('admin-past-day');
-                }
-                /* ADMIN-BLOCKED DATE: maliit na "Blocked" badge sa itaas ng cell
-                   (OPTION A: hindi na full-cell mask para kita pa rin ang bookings) */
-                var localIso = formatIsoLocal(info.date);
-                if (isAdminBlockedDate(localIso)) {
-                    info.el.classList.add('booking-day-blocked');
-                    var nConflicts = 0;
-                    try {
-                        nConflicts = allEvents.filter(function (ev) {
-                            return (ev.start || '').slice(0, 10) === localIso
-                                && ev.extendedProps && ev.extendedProps.status_raw !== 'blocked';
-                        }).length;
-                    } catch (e) { nConflicts = 0; }
-                    info.el.setAttribute('title', 'Unavailable — blocked date' + (nConflicts ? ' (' + nConflicts + ' existing booking(s) remain)' : ''));
-                    if (!info.el.querySelector('.booking-day-blocked-label')) {
-                        var blockedLabel = document.createElement('div');
-                        blockedLabel.className = 'booking-day-blocked-label';
-                        /* Blocked icon + text (naka-flex + gap ang label;
-                           ang <span class="bbl-text"> ang may ellipsis sa CSS) */
-                        blockedLabel.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i><span class="bbl-text">Blocked' + (nConflicts ? ' (' + nConflicts + ')' : '') + '</span>';
-                        if (nConflicts === 0) {
-                            /* WALANG records: centered label sa gitna ng cell (kapareho ng client) */
-                            info.el.classList.add('booking-day-empty');
-                            info.el.appendChild(blockedLabel);
-                        } else {
-                            /* May records: badge sa top row, katabi ng day number —
-                               naka-flex flow kaya hindi mag-o-overlap sa numero */
-                            var topRow = info.el.querySelector('.fc-daygrid-day-top');
-                            if (topRow) topRow.appendChild(blockedLabel);
-                            else info.el.appendChild(blockedLabel);
-                        }
-                    }
-                }
-            },
-
-            /* DOTS MODE (mobile O sikip na calendar): i-convert ang default pill
-               into compact event dot gamit ang inline styles — deterministic ito.
-               WIDE: normal na full-text pill. WEEK VIEW (timeGrid): huwag dot —
-               block na may totoong sakop na oras. Ang events sa loob ng "+N more"
-               popover: text pills palagi para readable ang listahan. */
-            eventDidMount: function (info) {
-                if (calendarUsesDots() && !info.el.closest('.fc-popover') && !info.el.closest('.fc-timegrid') && !info.el.closest('.booking-day-blocked')) {
-                    makeEventDot(info.el);
-                }
-            },
-
-            /* Kapag nag-resize ang window (o nag-rotate ang phone): i-refresh ang
-               dayMaxEvents kapag nag-cross ng dots breakpoint, AT laging i-sweep
-               ang lahat ng events para tama ang pill <-> dot mode. */
-            windowResize: function () {
-                var dotsNow = calendarUsesDots();
-                if (dotsNow !== lastMobileCalendarState) {
-                    lastMobileCalendarState = dotsNow;
-                    calendar.setOption('dayMaxEvents', dotsNow ? 3 : false);
-                }
-                applyCalendarEventMode();
-            },
-
-            events: eventsForFilter(),
-
-            eventTimeFormat: {
-                hour: '2-digit',
-                minute: '2-digit',
-                meridiem: false
-            },
-
-            dateClick: function (info) {
-                showDayDetails(info.dateStr, info.jsEvent && info.jsEvent.target
-                    ? info.jsEvent.target.getBoundingClientRect()
-                    : null);
-            },
-
-        eventClick: function (info) {
-            info.jsEvent.preventDefault();
-            info.jsEvent.stopPropagation();
-            var props = info.event.extendedProps;
-            var color = info.event.backgroundColor;
-
-            popDate.textContent = props.event_date;
-
-            var statusLabel = props.status_raw.charAt(0).toUpperCase() + props.status_raw.slice(1).replace('_', ' ');
-
-            popBody.innerHTML = '<div class="cal-pop-event" style="border-left:4px solid ' + color + ';">'
-                + '<div class="cal-pop-name">' + props.client_name + '</div>'
-                + '<div class="cal-pop-detail">' + props.event_type + '</div>'
-                + '<div class="cal-pop-detail">' + props.time_range + '</div>'
-                + '<div class="cal-pop-detail">' + statusLabel + '</div>'
-                + '</div>';
-
-            positionCalPopover(info.el.getBoundingClientRect());
-        }
-        });
-        } catch (calInitErr) {
-            calendar = null;
-            if (window.console && console.error) console.error('Admin calendar init failed:', calInitErr);
-        }
-
-        if (calendar) {
-            try {
-                calendar.render();
-            } catch (calRenderErr) {
-                calendar = null;
-                if (window.console && console.error) console.error('Admin calendar render failed:', calRenderErr);
-            }
-        }
-
-        /* Initial sweep: siguradong tama ang pill <-> dot mode sa unang render
-           (hal. nag-load nang mobile ang page o sikip ang calendar container). */
-        if (calendar) {
-            applyCalendarEventMode();
-        } else if (window.showBookingCalendarLoadError) {
-            window.showBookingCalendarLoadError('admin calendar did not initialize');
-        } else {
-            /* Inline fallback kapag hindi naka-load ang guard script. */
-            var calTitleFallback = document.getElementById('cal-title-text');
-            if (calTitleFallback) calTitleFallback.textContent = 'Calendar unavailable';
-        }
-
-        // =============================================
-        // CUSTOM TOOLBAR WIRING (same design as client booking page)
-        // =============================================
-        function updateCalendarNavState() {
-            if (!calendar) return;
-            var titleTextEl = document.getElementById('cal-title-text');
-            if (titleTextEl) titleTextEl.textContent = calendar.view.title || '';
-
-            document.querySelectorAll('.cal-view-btn[data-view]').forEach(function (btn) {
-                btn.classList.toggle('active', btn.getAttribute('data-view') === calendar.view.type);
-            });
-
-            /* TODAY BUTTON: i-disable kapag nasa loob na ng kasalukuyang
-               biniview na range (current month o current week). */
-            var todayBtn = document.getElementById('cal-today');
-            if (todayBtn) {
-                var now = new Date();
-                var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                var todayInView = todayStart >= calendar.view.activeStart && todayStart < calendar.view.activeEnd;
-                todayBtn.disabled = todayInView;
-                todayBtn.setAttribute('aria-disabled', todayInView ? 'true' : 'false');
-                todayBtn.title = todayInView ? "You're already viewing today." : 'Go back to today';
-            }
-        }
-
-        var calPrevBtn = document.getElementById('cal-prev');
-        var calNextBtn = document.getElementById('cal-next');
-        var calTodayBtn = document.getElementById('cal-today');
-
-        /* Admin calendar: pwedeng bumalik sa past months (booking history),
-           kaya laging enabled ang prev button. */
-        if (calPrevBtn) calPrevBtn.addEventListener('click', function () { calendar.prev(); });
-        if (calNextBtn) calNextBtn.addEventListener('click', function () { calendar.next(); });
-        if (calTodayBtn) calTodayBtn.addEventListener('click', function () {
-            if (!calTodayBtn.disabled) calendar.today();
-        });
-
-        document.querySelectorAll('.cal-view-btn[data-view]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                if (btn.classList.contains('active')) return;
-                calendar.changeView(btn.getAttribute('data-view'));
-            });
-        });
-
-        if (calendar) {
-            calendar.on('datesSet', updateCalendarNavState);
-            updateCalendarNavState();
-        }
-
-        // =============================================
-        // CUSTOM MONTH/YEAR PICKER LOGIC
-        // (Admin: walang date restrictions - libreng mag-navigate
-        //  kahit past months para makita ang booking history)
-        // =============================================
-        var mypModal = document.getElementById('custom-month-year-picker');
-        var mypYearDisplay = document.getElementById('myp-year-display');
-        var mypPrevYearBtn = document.getElementById('myp-prev-year');
-        var mypNextYearBtn = document.getElementById('myp-next-year');
-        var mypMonthBtns = document.querySelectorAll('.myp-months-grid button');
-
-        var currentPickerYear = new Date().getFullYear();
-
-        function updateMonthYearPickerState() {
-            mypYearDisplay.textContent = currentPickerYear;
-        }
-
-        // Intercept clicks on the custom calendar title (opens month/year picker)
-        document.getElementById('cal-title').addEventListener('click', function () {
-            var currentDate = calendar.getDate();
-            currentPickerYear = currentDate.getFullYear();
-            var currentMonth = currentDate.getMonth();
-
-            // Highlight current month
-            mypMonthBtns.forEach(function (btn) {
-                if (parseInt(btn.getAttribute('data-month'), 10) === currentMonth) {
-                    btn.classList.add('active-month');
-                } else {
-                    btn.classList.remove('active-month');
-                }
-            });
-
-            updateMonthYearPickerState();
-            this.setAttribute('aria-expanded', 'true');
-
-            /* I-anchor ang picker sa ILALIM ng title (dropdown style, gaya ng
-               client booking page) imbes na naka-center sa gitna ng calendar.
-               Naka-compute mula sa wrapper (position: relative sa CSS) kaya
-               tama kahit mag-resize o mag-mobile. */
-            var wrapEl = this.closest('.calendar-wrapper');
-            if (wrapEl) {
-                var wrapRect = wrapEl.getBoundingClientRect();
-                var titleRect = this.getBoundingClientRect();
-                mypModal.style.top = (titleRect.bottom - wrapRect.top + 8) + 'px';
-                mypModal.style.left = (titleRect.left + titleRect.width / 2 - wrapRect.left) + 'px';
-                mypModal.style.transform = 'translateX(-50%)';
-            }
-
-            mypModal.style.display = 'block';
-        });
-
-        // Close modal if clicked outside
-        document.addEventListener('click', function (e) {
-            if (mypModal.style.display === 'block') {
-                if (!mypModal.contains(e.target) && !e.target.closest('#cal-title') && !e.target.closest('.myp-header')) {
-                    mypModal.style.display = 'none';
-                    var titleBtn = document.getElementById('cal-title');
-                    if (titleBtn) titleBtn.setAttribute('aria-expanded', 'false');
-                }
-            }
-        });
-
-        // Year navigation
-        mypPrevYearBtn.addEventListener('click', function () {
-            currentPickerYear--;
-            updateMonthYearPickerState();
-        });
-
-        mypNextYearBtn.addEventListener('click', function () {
-            currentPickerYear++;
-            updateMonthYearPickerState();
-        });
-
-        // Month selection
-        mypMonthBtns.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var selectedMonth = parseInt(this.getAttribute('data-month'), 10);
-                // Navigate FullCalendar to the 1st day of chosen month/year
-                calendar.gotoDate(new Date(currentPickerYear, selectedMonth, 1));
-
-                mypModal.style.display = 'none';
-                var titleBtn = document.getElementById('cal-title');
-                if (titleBtn) titleBtn.setAttribute('aria-expanded', 'false');
-            });
-        });
-
-        // Status filter chips
-        document.querySelectorAll('.legend-filter').forEach(function (chip) {
-            chip.style.cursor = 'pointer';
-            chip.addEventListener('click', function () {
-                /* Klik sa ACTIVE chip = balik sa "all" (wala nang All item sa legend). */
-                var isReset = chip.classList.contains('active');
-                activeFilter = isReset ? 'all' : (chip.getAttribute('data-status') || 'all');
-                document.querySelectorAll('.legend-filter').forEach(function (c) {
-                    c.classList.toggle('active', !isReset && c === chip);
-                });
-                calendar.removeAllEvents();
-                eventsForFilter().forEach(function (ev) { calendar.addEvent(ev); });
-                /* Panatilihing tama ang dot mode pagkatapos ng filter re-render */
-                applyCalendarEventMode();
-            });
-        });
-
-        popClose.addEventListener('click', function () {
-            popover.classList.remove('show');
-        });
-        document.addEventListener('click', function (e) {
-            if (!popover.contains(e.target) && !e.target.closest('.fc-event') && !e.target.closest('.fc-daygrid-day')) {
-                popover.classList.remove('show');
-            }
-        });
-    });
-</script>
+<script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script>
+<script src="{% static 'js/admin_calendar.js' %}?v=20261030e" defer></script>
 {% endblock %}

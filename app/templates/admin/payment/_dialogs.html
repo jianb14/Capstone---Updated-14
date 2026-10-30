@@ -1,0 +1,18 @@
+<dialog id="pmDetailDialog" class="ac-dialog pm-detail-dialog" aria-labelledby="pmDetailTitle">
+    <div class="ac-dialog-shell"><header class="ac-dialog-header"><div><small>Payment management</small><h2 id="pmDetailTitle">Payment details</h2></div><button type="button" class="ac-close" data-close-dialog aria-label="Close payment details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="ac-dialog-body" id="pmDetailBody"></div><footer class="ac-dialog-footer"><button type="button" class="ac-button" data-close-dialog>Done</button></footer></div>
+</dialog>
+{% if not settings_standalone %}<dialog id="pmSettingsDialog" class="ac-dialog pm-settings-dialog" aria-labelledby="pmSettingsTitle" data-settings-url="{% url 'admin_gcash_config' %}">
+    <div class="ac-dialog-shell">
+        <header class="ac-dialog-header"><div><h2 id="pmSettingsTitle">Payment Settings</h2><p>Manage the required initial payment.</p></div><button type="button" class="ac-close" data-close-dialog aria-label="Close payment settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+        <div class="ac-dialog-body" id="pmSettingsBody"></div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-close-dialog>Cancel</button><button type="submit" form="pmSettingsForm" id="pmSettingsSave" class="ac-button ac-primary" disabled>Save settings</button></footer>
+    </div>
+</dialog>
+{% endif %}<dialog id="pmConfirmDialog" class="ac-dialog pm-confirm-dialog" aria-labelledby="pmConfirmTitle">
+    <form id="pmConfirmForm" class="ac-dialog-shell" novalidate>
+        <header class="ac-dialog-header"><h2 id="pmConfirmTitle">Confirm payment action</h2><button type="button" class="ac-close" data-close-dialog aria-label="Close confirmation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+        <div class="ac-dialog-body"><p id="pmConfirmText"></p><div id="pmReasonField" hidden><label for="pmRejectReason">Reason for rejection <span class="pm-required" aria-hidden="true">*</span></label><textarea id="pmRejectReason" name="admin_notes" rows="4" maxlength="2000" aria-describedby="pmReasonError" placeholder="Explain the reason to the customer"></textarea><p id="pmReasonError" class="pm-field-error" role="alert" hidden></p></div><p id="pmActionFeedback" class="ac-feedback" role="status" aria-live="polite"></p></div>
+        <footer class="ac-dialog-footer"><button type="button" class="ac-button" data-close-dialog>Cancel</button><button type="submit" class="ac-button ac-primary" id="pmConfirmSubmit">Confirm</button></footer>
+    </form>
+</dialog>
+<dialog id="pmReceiptDialog" class="ac-image-dialog pm-receipt-dialog" aria-label="Payment receipt preview"><button type="button" class="ac-close" data-close-dialog aria-label="Close receipt preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><img id="pmReceiptImage" alt="Payment receipt"></dialog>

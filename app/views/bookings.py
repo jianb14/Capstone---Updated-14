@@ -2,6 +2,7 @@ from ..design_validation import evaluate_saved_design, evaluation_message, desig
 """Booking creation, editing, tracking and admin booking management. (split from app/views.py)"""
 
 from .common import *  # noqa: F401,F403
+from zoneinfo import ZoneInfo
 from ..request_protection import deduplicate_submission
 from django.http import FileResponse
 from PIL import Image, UnidentifiedImageError
@@ -331,24 +332,61 @@ def admin_calendar(request):
             }
         )
 
-    return render(
-        request,
-        "admin/admin_calendar.html",
-        {
-            "calendar_events": calendar_events,
-            "booking_conflict_counts": {
-                row["event_date"].isoformat(): row["total"]
-                for row in (
-                    Booking.objects.filter(event_date__gte=timezone.localdate())
-                    .exclude(status__in=["cancelled", "expired"])
-                    .values("event_date")
-                    .annotate(total=Count("id"))
-                )
-            },
-            "today_iso": timezone.localdate().isoformat(),
-            "blocked_dates": blocked_dates,
+    # A block stays active through the whole Philippine calendar day. Past
+    # blocks remain stored and plotted; only the management list is archived.
+    server_now = timezone.localtime(timezone.now(), ZoneInfo('Asia/Manila'))
+    today = server_now.date()
+    next_day = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=server_now.tzinfo)
+    active_blocks = [item for item in blocked_dates if item.date >= today]
+    past_blocks = [item for item in reversed(blocked_dates) if item.date < today]
+    context = {
+        "calendar_events": calendar_events,
+        "booking_conflict_counts": {
+            row["event_date"].isoformat(): row["total"]
+            for row in (
+                Booking.objects.filter(event_date__gte=today)
+                .exclude(status__in=["cancelled", "expired"])
+                .values("event_date")
+                .annotate(total=Count("id"))
+            )
         },
-    )
+        "today_iso": today.isoformat(),
+        "server_now": server_now.isoformat(),
+        "next_day_at": next_day.isoformat(),
+        "blocked_dates": active_blocks,
+        "past_blocked_dates": past_blocks,
+    }
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        response = JsonResponse({
+            'events': calendar_events,
+            'conflict_counts': context['booking_conflict_counts'],
+            'today_iso': context['today_iso'],
+            'server_now': context['server_now'],
+            'next_day_at': context['next_day_at'],
+            'blocked_dates': [{
+                'id': item.pk, 'date': item.date.isoformat(), 'reason': item.reason,
+                'delete_url': reverse('admin_blocked_date_delete', args=[item.pk]),
+            } for item in active_blocks],
+            'past_blocked_dates': [{
+                'id': item.pk, 'date': item.date.isoformat(), 'reason': item.reason,
+            } for item in past_blocks],
+        })
+        response['Cache-Control'] = 'no-store'
+        return response
+    return render(request, 'admin/admin_calendar.html', context)
+
+
+def _calendar_action_result(request, message, *, kind='success', status=200, field=None, **extra):
+    """Async responses and ordinary form posts share the same scheduling rules."""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        response = JsonResponse({
+            'ok': status < 400, 'message': message, 'kind': kind,
+            'errors': {field: message} if field else {}, **extra,
+        }, status=status)
+        response['Cache-Control'] = 'no-store'
+        return response
+    getattr(messages, kind)(request, message)
+    return redirect('admin_calendar')
 
 
 @login_required
@@ -363,23 +401,19 @@ def admin_blocked_date_create(request):
     reason = (request.POST.get("reason") or "").strip()[:255]
 
     if not raw_date:
-        messages.error(request, "Please choose a date to block.")
-        return redirect("admin_calendar")
+        return _calendar_action_result(request, 'Please choose a date to block.', kind='error', status=400, field='date')
 
     try:
         blocked_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
     except ValueError:
-        messages.error(request, "Invalid date format.")
-        return redirect("admin_calendar")
+        return _calendar_action_result(request, 'Invalid date format.', kind='error', status=400, field='date')
 
     if blocked_date < timezone.localdate():
-        messages.error(request, "Cannot block a date in the past.")
-        return redirect("admin_calendar")
+        return _calendar_action_result(request, 'Cannot block a date in the past.', kind='error', status=400, field='date')
 
     from ..booking_changes import live_holds
     if any(timezone.localtime(hold.hold_start).date() <= blocked_date <= timezone.localtime(hold.hold_end - timedelta(microseconds=1)).date() for hold in live_holds()):
-        messages.error(request, 'This date has a temporary hold for an approved change quote. Resolve the quote before blocking this date.')
-        return redirect('admin_calendar')
+        return _calendar_action_result(request, 'This date has a temporary hold for an approved change quote. Resolve the quote before blocking this date.', kind='error', status=409, field='date')
 
     # 🔴 OPTION A — Conflict-aware block: pinapayagan nang i-block ang date na
     # may laman BASTA may explicit confirmation ("Block Anyway") ng admin.
@@ -399,20 +433,20 @@ def admin_blocked_date_create(request):
             f"#{b.id} {b.user.username} ({b.get_status_display()})"
             for b in existing_bookings[:5]
         )
-        messages.warning(
-            request,
+        conflict_message = (
             f"Cannot block {blocked_date.strftime('%B %d, %Y')} yet — this date "
             f"already has {conflict_count} booking(s) ({conflict_summary}). "
             "Blocking will prevent NEW bookings, but the existing bookings will "
             "remain visible on the calendar. Click Block Date again and press "
-            '"Block Anyway" to proceed.',
+            '"Block Anyway" to proceed.'
         )
         log_action(
             request.user,
             f"Attempted to block {blocked_date.isoformat()} with "
             f"{conflict_count} existing bookings (no confirmation)",
         )
-        return redirect("admin_calendar")
+        return _calendar_action_result(request, conflict_message, kind='warning', status=409,
+            conflict_count=conflict_count, requires_confirmation=True)
 
     blocked, created = BlockedDate.objects.get_or_create(
         date=blocked_date,
@@ -431,20 +465,17 @@ def admin_blocked_date_create(request):
             ),
         )
         if conflict_count:
-            messages.success(
-                request,
+            message = (
                 f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for NEW "
                 f"bookings. The {conflict_count} existing booking(s) remain on "
-                "this date and are still visible on the calendar.",
+                "this date and are still visible on the calendar."
             )
         else:
-            messages.success(
-                request, f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for booking."
-            )
+            message = f"{blocked_date.strftime('%B %d, %Y')} is now unavailable for booking."
     else:
-        messages.info(request, "That date is already blocked.")
+        message = 'That date is already blocked.'
 
-    return redirect("admin_calendar")
+    return _calendar_action_result(request, message, kind='success' if created else 'info')
 
 
 @login_required
@@ -458,8 +489,7 @@ def admin_blocked_date_delete(request, id):
     blocked_str = blocked.date.isoformat()
     blocked.delete()
     log_action(request.user, f"Unblocked date {blocked_str} for bookings.")
-    messages.success(request, f"{blocked_str} is now available for booking again.")
-    return redirect("admin_calendar")
+    return _calendar_action_result(request, f"{blocked_str} is now available for booking again.")
 
 
 # -------------------------
@@ -1377,120 +1407,8 @@ def admin_booking_list(request):
     check_booking_expirations()
     _cleanup_legacy_booking_request_states()
 
-    from .change_management import change_queue_summary, request_list_context
-    change_summary = change_queue_summary()
-    if request.GET.get('tab') == 'requests':
-        response = render(request, 'admin/booking/admin_booking_list.html', request_list_context(request, change_summary))
-        response['Cache-Control'] = 'private, no-store'
-        return response
-
-    booking_summary = {
-        "total": Booking.objects.count(),
-        "pending": Booking.objects.filter(status="pending").count(),
-        "pending_payment": Booking.objects.filter(status="pending_payment").count(),
-        "confirmed": Booking.objects.filter(status="confirmed").count(),
-        "cancelled": Booking.objects.filter(status="cancelled").count(),
-        "completed": Booking.objects.filter(status="completed").count(),
-        "expired": Booking.objects.filter(status="expired").count(),
-    }
-
-    status_filter = request.GET.get("status")
-    bookings = Booking.objects.order_by("-created_at").prefetch_related('payments', 'design_deliveries', 'change_requests')
-
-    if status_filter:
-        bookings = bookings.filter(status=status_filter)
-
-    # Date Range Filter (event date)
-    date_from = request.GET.get("date_from", "").strip()
-    date_to = request.GET.get("date_to", "").strip()
-    date_from_valid = date_to_valid = False
-    if date_from:
-        try:
-            parsed_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-            bookings = bookings.filter(event_date__gte=parsed_from)
-            date_from_valid = True
-        except ValueError:
-            date_from = ""
-    if date_to:
-        try:
-            parsed_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-            bookings = bookings.filter(event_date__lte=parsed_to)
-            date_to_valid = True
-        except ValueError:
-            date_to = ""
-
-    # Search Logic
-    search_query = request.GET.get("search")
-    if search_query:
-        if search_query.startswith("#") and search_query[1:].isdigit():
-            # If search query looks like #123, search by ID
-            bookings = bookings.filter(id=search_query[1:])
-        else:
-            bookings = bookings.filter(
-                Q(user__username__icontains=search_query)
-                | Q(user__email__icontains=search_query)
-                | Q(event_type__icontains=search_query)
-                | Q(status__icontains=search_query)
-                | Q(id__icontains=search_query)
-            )
-
-    # Pagination Logic (10 items per page)
-    paginator = Paginator(bookings, 10)
-    page_number = request.GET.get("page")
-    bookings_page = paginator.get_page(page_number)
-
-    # Attach formatted time range for display
-    for b in bookings_page:
-        b.time_range_display = get_booking_time_range(b)
-        b.lifecycle = lifecycle_display(b)
-
-    # Conflict badges: check page rows against active bookings (pending_payment/
-    # confirmed/completed) on the same dates with overlapping time ranges.
-    page_booking_ids = [b.id for b in bookings_page]
-    conflicts_by_booking = {}
-    if page_booking_ids:
-        page_dates = {b.event_date for b in bookings_page if b.event_date}
-        active_candidates = (
-            Booking.objects.filter(
-                event_date__in=page_dates, status__in=ACTIVE_BOOKING_STATUSES
-            )
-            .exclude(id__in=page_booking_ids)
-            .select_related("user")
-        )
-        active_by_date = {}
-        for candidate in active_candidates:
-            active_by_date.setdefault(candidate.event_date, []).append(candidate)
-
-        for b in bookings_page:
-            conflicts = []
-            if not b.event_date:
-                b.has_conflict = False
-                continue
-            b_start, b_end = _booking_time_bounds(b)
-            for candidate in active_by_date.get(b.event_date, []):
-                if not b.event_time or not candidate.event_time:
-                    conflicts.append(candidate)
-                    continue
-                c_start, c_end = _booking_time_bounds(candidate)
-                if c_start and c_end and b_start and b_end and b_start < c_end and b_end > c_start:
-                    conflicts.append(candidate)
-            b.has_conflict = bool(conflicts)
-            conflicts_by_booking[b.id] = conflicts[:3]
-
-    return render(
-        request,
-        "admin/booking/admin_booking_list.html",
-        {
-            "bookings": bookings_page,
-            "search_query": search_query or "",
-            "status_filter": status_filter or "",
-            "date_from": date_from,
-            "date_to": date_to,
-            "booking_summary": booking_summary,
-            "active_tab": "bookings",
-            "change_summary": change_summary,
-        },
-    )
+    from .booking_workspace import workspace_response
+    return workspace_response(request)
 
 
 @login_required
@@ -1519,19 +1437,20 @@ def admin_booking_detail(request, id):
         active_request = decorate_change(request_context['change_request'])
         request_context['change_status_label'] = active_request.admin_status_label
 
-    return render(
-        request,
-        "admin/booking/admin_booking_detail.html",
-        {
-            "booking": booking,
-            "cleaned_requests": cleaned_requests,
-            "price_breakdown": price_breakdown,
-            "original_logistics_fee": original_logistics_fee,
-            "status_logs": status_logs,
-            "lifecycle": lifecycle_display(booking),
-            **request_context,
-        },
-    )
+    from .booking_workspace import has_verified_payment, is_async
+    context = {
+        "booking": booking, "cleaned_requests": cleaned_requests,
+        "price_breakdown": price_breakdown, "original_logistics_fee": original_logistics_fee,
+        "status_logs": status_logs, "lifecycle": lifecycle_display(booking), **request_context,
+        "can_send_design": booking.status in ('confirmed', 'completed') and has_verified_payment(booking),
+    }
+    if is_async(request):
+        template = 'admin/booking/workspace/_design.html' if request.GET.get('section') == 'design' else 'admin/booking/workspace/_detail.html'
+        response = JsonResponse({'success': True, 'html': render_to_string(template, context, request=request)})
+        response['Cache-Control'] = 'private, no-store'
+        return response
+    return render(request, 'admin/booking/admin_booking_detail.html', context)
+
 
 
 # =========================
@@ -1545,11 +1464,12 @@ def admin_booking_logistics_override(request, id):
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
+    from .booking_workspace import booking_feedback, booking_action_response
     booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
     previous_fee, _ = get_booking_logistics_fee(booking)
     if booking.change_requests.filter(status__in=('pending_review', 'quoted', 'awaiting_payment', 'manual_review')).exists():
-        messages.error(request, 'Resolve the active change request before changing the logistics fee, so its accepted quote stays accurate.')
-        return redirect('admin_booking_detail', id=booking.pk)
+        booking_feedback(request, 'error', 'Resolve the active change request before changing the logistics fee, so its accepted quote stays accurate.')
+        return booking_action_response(request, booking.id)
     raw = (request.POST.get("logistics_fee_override") or "").strip()
     clearing = request.POST.get("action") == "reset" or not raw
     if clearing:
@@ -1559,11 +1479,11 @@ def admin_booking_logistics_override(request, id):
         try:
             override = Decimal(raw)
         except (InvalidOperation, ValueError, TypeError):
-            messages.error(request, "Invalid logistics fee.")
-            return redirect("admin_booking_detail", id=booking.id)
+            booking_feedback(request, 'error', "Invalid logistics fee.", field='logistics_fee_override')
+            return booking_action_response(request, booking.id)
         if not override.is_finite() or override < 0 or override > Decimal("99999999.99") or override != override.quantize(Decimal("0.01")):
-            messages.error(request, "Logistics fee must be between 0 and 99,999,999.99.")
-            return redirect("admin_booking_detail", id=booking.id)
+            booking_feedback(request, 'error', "Logistics fee must be between 0 and 99,999,999.99.", field='logistics_fee_override')
+            return booking_action_response(request, booking.id)
         booking.logistics_fee_override = override
         action_note = f"set the logistics fee override to PHP {override:,.2f}"
 
@@ -1575,8 +1495,8 @@ def admin_booking_logistics_override(request, id):
         booking, booking.status, booking.status,
         changed_by=request.user, notes=f"Logistics fee override updated ({action_note}).",
     )
-    messages.success(request, f"Override removed. Logistics fee restored to ₱{current_fee:,.2f}." if clearing else "Logistics fee updated.")
-    return redirect("admin_booking_detail", id=booking.id)
+    booking_feedback(request, 'success', f"Override removed. Logistics fee restored to ₱{current_fee:,.2f}." if clearing else "Logistics fee updated.")
+    return booking_action_response(request, booking.id)
 
 
 # =========================
@@ -1624,103 +1544,90 @@ def _validate_design_delivery_image(uploaded_file):
             except Exception:
                 pass
 
-    if not width or not height:
+    if not width or not height or width * height > 40000000:
+        return "Choose a valid image with no more than 40 million pixels."
+    try:
+        uploaded_file.seek(0)
+        with Image.open(uploaded_file) as image:
+            if image.format not in ('JPEG', 'PNG', 'WEBP'):
+                return "Only JPG, PNG, or WEBP images are allowed."
+            image.verify()
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
         return "Upload a valid image file."
+    finally:
+        uploaded_file.seek(position or 0)
+
     return ""
 
 
 @login_required
 @require_POST
+@transaction.atomic
 def admin_booking_design_upload(request, id):
-    """Admin → mag-upload ng backdrop design MATAGAL na bayad
-    (status confirmed/completed lang, hindi pa-confirmed na pending)."""
+    """Deliver only to confirmed/fulfilled bookings with a verified applied payment."""
+    from .booking_workspace import has_verified_payment, mutation_response
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-
-    booking = get_object_or_404(Booking, id=id)
-
-    if booking.status not in ("confirmed", "completed"):
-        messages.error(
-            request,
-            "Design can only be uploaded once the booking is paid/confirmed.",
-        )
-        return redirect("admin_booking_detail", id=booking.id)
-
+    booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
+    def fail(message, field=''):
+        return mutation_response(request, False, message, id, field=field)
+    if booking.status not in ('confirmed', 'completed') or not has_verified_payment(booking):
+        return fail('A confirmed booking and a verified payment are required before sending a design.')
+    # The booking lock serializes uploads and amendments; a repeated request must
+    # not send another image or notification after a response was lost.
+    submission = request.POST.get('submission_id', '').strip()
+    if submission and (len(submission) > 64 or not re.fullmatch(r'[a-zA-Z0-9_-]+', submission)):
+        return fail('Refresh the form before sending this design.')
+    from ..models import SubmissionReceipt
+    key = hashlib.sha256(f'admin-design:{request.user.pk}:{id}:{submission}'.encode()).hexdigest() if submission else ''
+    if key and SubmissionReceipt.objects.filter(pk=key, status_code=200, expires_at__gt=timezone.now()).exists():
+        return mutation_response(request, True, 'This design was already sent.', id)
     if booking.design_deliveries.count() >= DESIGN_DELIVERY_MAX_IMAGES:
-        messages.error(
-            request,
-            f"Maximum of {DESIGN_DELIVERY_MAX_IMAGES} design images per booking. "
-            "Delete one first to replace it.",
-        )
-        return redirect("admin_booking_detail", id=booking.id)
-
-    uploaded = request.FILES.get("design_image")
+        return fail('Maximum of 3 design images per booking. Delete one first to replace it.')
+    uploaded = request.FILES.get('design_image')
     error = _validate_design_delivery_image(uploaded)
     if error:
-        messages.error(request, error)
-        return redirect("admin_booking_detail", id=booking.id)
-
-    caption = (request.POST.get("caption") or "").strip()[:255]
-    delivery = BookingDesignDelivery.objects.create(
-        booking=booking,
-        image=uploaded,
-        caption=caption,
-        uploaded_by=request.user,
-    )
-
-    # Audit + status log + notify customer na may design na siya
-    log_action(
-        request.user,
-        f"Uploaded backdrop design for booking #{booking.id} (design #{delivery.id}).",
-    )
-    log_booking_status(
-        booking,
-        booking.status,
-        booking.status,
-        changed_by=request.user,
-        notes="Backdrop design uploaded and delivered to customer.",
-    )
-    Notification.objects.create(
-        user=booking.user,
-        booking=booking,
-        message=(
-            f"Your backdrop design for booking #{booking.id} is ready! "
-            "Open your booking details to view and download it. 🎨"
-        ),
-    )
-
-    messages.success(request, "Backdrop design uploaded and sent to the customer.")
-    return redirect("admin_booking_detail", id=booking.id)
+        return fail(error, 'design_image')
+    caption = request.POST.get('caption', '').strip()
+    if len(caption) > 255:
+        return fail('Keep the caption to 255 characters or fewer.', 'caption')
+    # A design must not silently be sent for a different version of the booking.
+    version = request.POST.get('design_revision', '')
+    current = lifecycle_display(booking)['design_revision_at']
+    if 'design_revision' in request.POST and version != (current.isoformat() if current else ''):
+        return fail('The booking design requirements changed. Reopen this form and review the latest details.')
+    delivery = BookingDesignDelivery.objects.create(booking=booking, image=uploaded,
+        caption=caption, uploaded_by=request.user)
+    log_action(request.user, f'Uploaded backdrop design for booking #{id} (design #{delivery.id}).')
+    log_booking_status(booking, booking.status, booking.status, changed_by=request.user,
+        notes='Backdrop design uploaded and delivered to customer.')
+    Notification.objects.create(user=booking.user, booking=booking,
+        message=f'Your backdrop design for booking #{id} is ready! Open your booking details to view and download it.')
+    if key:
+        SubmissionReceipt.objects.update_or_create(pk=key, defaults={'status_code':200, 'expires_at':timezone.now()+timedelta(days=1)})
+    return mutation_response(request, True, 'Design sent. The customer has been notified.', id)
 
 
 @login_required
 @require_POST
+@transaction.atomic
 def admin_booking_design_delete(request, id, design_id):
+    from .booking_workspace import mutation_response
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
-
-    booking = get_object_or_404(Booking, id=id)
-    delivery = get_object_or_404(
-        BookingDesignDelivery, id=design_id, booking=booking
-    )
-
-    image_name = delivery.image.name if delivery.image else ""
+    booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
+    delivery = get_object_or_404(BookingDesignDelivery, id=design_id, booking=booking)
+    image_name, storage = delivery.image.name, delivery.image.storage
     delivery.delete()
-    # Burahin din ang file sa storage (Cloudinary/media) para hindi bakante.
-    if image_name:
+    def remove_file():
         try:
-            delivery_image_storage = default_storage
-            if delivery_image_storage.exists(image_name):
-                delivery_image_storage.delete(image_name)
+            storage.delete(image_name)
         except Exception:
-            pass
-
-    log_action(
-        request.user,
-        f"Deleted backdrop design #{design_id} from booking #{booking.id}.",
-    )
-    messages.success(request, "Design image deleted.")
-    return redirect("admin_booking_detail", id=booking.id)
+            logger.exception('Unable to remove design file for booking %s', id)
+    if image_name:
+        transaction.on_commit(remove_file)
+    log_action(request.user, f'Deleted backdrop design #{design_id} from booking #{id}.')
+    return mutation_response(request, True, 'Design image deleted.', id)
 
 
 # =========================
@@ -1734,17 +1641,21 @@ def admin_booking_action(request, id, action):
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
+    from .booking_workspace import booking_feedback, booking_action_response, is_async
+    if is_async(request) and request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Use POST for booking actions.'}, status=405)
+
     booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
     process_booking(booking.pk)
     booking.refresh_from_db()
 
     if action == "approve":
         if event_start_at(booking) <= timezone.now():
-            messages.error(request, "This event has already started. Review or reschedule it before approval.")
-            return redirect('admin_booking_detail', id=booking.id)
+            booking_feedback(request, 'error', "This event has already started. Review or reschedule it before approval.")
+            return booking_action_response(request, booking.id)
         if booking.status != "pending":
-            messages.error(request, "Only pending bookings can be approved.")
-            return redirect("admin_booking_list")
+            booking_feedback(request, 'error', "Only pending bookings can be approved.")
+            return booking_action_response(request, booking.id)
 
         # CONFLICT DETECTION: block approval if an ACTIVE booking
         # (pending_payment / confirmed / completed) already occupies this
@@ -1752,13 +1663,12 @@ def admin_booking_action(request, id, action):
         active_conflicts = list(find_active_booking_conflicts(booking))
         if active_conflicts:
             conflict_ids = ", ".join(f"#{c.id}" for c in active_conflicts[:3])
-            messages.error(
-                request,
+            booking_feedback(request, 'error',
                 f"Cannot approve booking #{booking.id}: it conflicts with "
                 f"active booking(s) {conflict_ids} on {booking.event_date}. "
                 "Resolve the schedule conflict first.",
             )
-            return redirect("admin_booking_list")
+            return booking_action_response(request, booking.id)
 
         old_status = booking.status
         booking.status = "pending_payment"
@@ -1858,8 +1768,7 @@ def admin_booking_action(request, id, action):
                 else ""
             ),
         )
-        messages.success(
-            request,
+        booking_feedback(request, 'success',
             f"Booking #{booking.id} approved! Customer has been notified to proceed with payment."
             + (
                 f" {cancelled_count} conflicting booking(s) were auto-cancelled."
@@ -1870,8 +1779,8 @@ def admin_booking_action(request, id, action):
 
     elif action == "confirm":
         if booking.status not in ('pending_payment', 'confirmed') or not booking.payments.filter(payment_status='verified', applied_to_booking=True, amount__gt=0).exists():
-            messages.error(request, "A verified payment is required. Expired or cancelled bookings cannot be confirmed automatically.")
-            return redirect('admin_booking_detail', id=booking.id)
+            booking_feedback(request, 'error', "A verified payment is required. Expired or cancelled bookings cannot be confirmed automatically.")
+            return booking_action_response(request, booking.id)
         old_status = booking.status
         booking.status = "confirmed"
         booking.admin_denial_reason = None
@@ -1894,16 +1803,19 @@ def admin_booking_action(request, id, action):
             booking=booking,
             message=f"Hooray! Your booking #{booking.id} is now CONFIRMED! See you soon! 🎉",
         )
-        messages.success(request, "Booking confirmed!")
+        booking_feedback(request, 'success', "Booking confirmed!")
     elif action == "deny":
+        if booking.status != 'pending':
+            booking_feedback(request, 'error', 'Only pending bookings can be denied.')
+            return booking_action_response(request, booking.id)
         if request.method != "POST":
-            messages.error(request, "Please provide a denial reason.")
-            return redirect("admin_booking_list")
+            booking_feedback(request, 'error', "Please provide a denial reason.")
+            return booking_action_response(request, booking.id)
 
         deny_reason = request.POST.get("deny_reason", "").strip()
-        if not deny_reason:
-            messages.error(request, "Denial reason is required.")
-            return redirect("admin_booking_list")
+        if not deny_reason or len(deny_reason) > 2000:
+            booking_feedback(request, 'error', "Enter a denial reason of up to 2,000 characters.")
+            return booking_action_response(request, booking.id)
 
         old_status = booking.status
         booking.status = "cancelled"
@@ -1926,8 +1838,11 @@ def admin_booking_action(request, id, action):
         log_action(
             request.user, f"Denied booking #{booking.id} for '{booking.user.username}'."
         )
-        messages.success(request, "Booking denied!")
+        booking_feedback(request, 'success', "Booking denied!")
     elif action == "complete":
+        if booking.status != 'confirmed':
+            booking_feedback(request, 'error', 'Only confirmed bookings can be marked as completed.')
+            return booking_action_response(request, booking.id)
         old_status = booking.status
         booking.status = "completed"
         booking.admin_denial_reason = None
@@ -1950,6 +1865,6 @@ def admin_booking_action(request, id, action):
             request.user,
             f"Marked booking #{booking.id} as completed for '{booking.user.username}'.",
         )
-        messages.success(request, "Booking marked as completed!")
+        booking_feedback(request, 'success', "Booking marked as completed!")
 
-    return redirect("admin_booking_list")
+    return booking_action_response(request, booking.id)

@@ -1,0 +1,11 @@
+<form id="pmSettingsForm" class="pm-settings-form" method="post" action="{% url 'admin_gcash_config' %}" novalidate>
+    {% csrf_token %}
+    <h3>Required Initial Payment</h3>
+    <p class="pm-settings-intro">Set the percentage customers must pay first before they can settle the remaining balance.</p>
+    <label for="pmDownpayment">Downpayment percent (%) <span class="pm-required" aria-hidden="true">*</span></label>
+    <input id="pmDownpayment" name="downpayment_percent" type="number" min="1" max="100" step="1" required value="{{ form.downpayment_percent.value|default_if_none:'' }}" aria-describedby="pmPercentError pmPercentHelp"{% if form.downpayment_percent.errors %} aria-invalid="true"{% endif %}>
+    <p id="pmPercentError" class="pm-field-error" role="alert"{% if not form.downpayment_percent.errors %} hidden{% endif %}>{{ form.downpayment_percent.errors.0 }}</p>
+    <p class="pm-field-help" id="pmPercentHelp">For example, 20 means the customer pays 20% of the total booking price first.</p>
+    <p class="pm-settings-note">This changes the required initial payment percentage. It does not edit recorded payments or their verification status.</p>
+    <p id="pmSettingsError" class="pm-field-error" role="alert" hidden></p>
+</form>

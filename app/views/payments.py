@@ -970,6 +970,7 @@ def payment_cancel(request, booking_id):
 
 @login_required
 def admin_payment_list(request):
+    from ..account_lists import account_page_size
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
@@ -979,6 +980,7 @@ def admin_payment_list(request):
     search_query = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "").strip()
     type_filter = request.GET.get("type", "").strip()
+    per_page = account_page_size(request)
 
     # Pending payments now live in the action queue below, so a legacy
     # "pending" status filter (e.g. from the dashboard link) is ignored.
@@ -1107,18 +1109,18 @@ def admin_payment_list(request):
     fully_paid_count = len(fully_paid_bookings)
     bookings_with_balance_count = unpaid_bookings_count + balance_bookings_count
 
-    # Pagination (6 items per page for every list)
-    pending_page = Paginator(pending_qs, 6).get_page(
+    # All queues use the same bounded page size, with independent page numbers.
+    pending_page = Paginator(pending_qs, per_page).get_page(
         request.GET.get("pending_page", 1)
     )
-    payments_page = Paginator(history_qs, 6).get_page(request.GET.get("page", 1))
-    unpaid_page = Paginator(unpaid_bookings, 6).get_page(
+    payments_page = Paginator(history_qs, per_page).get_page(request.GET.get("page", 1))
+    unpaid_page = Paginator(unpaid_bookings, per_page).get_page(
         request.GET.get("unpaid_page", 1)
     )
-    balance_page = Paginator(balance_bookings, 6).get_page(
+    balance_page = Paginator(balance_bookings, per_page).get_page(
         request.GET.get("balance_page", 1)
     )
-    paid_page = Paginator(fully_paid_bookings, 6).get_page(
+    paid_page = Paginator(fully_paid_bookings, per_page).get_page(
         request.GET.get("paid_page", 1)
     )
 
@@ -1140,6 +1142,7 @@ def admin_payment_list(request):
             "search_query": search_query,
             "status_filter": status_filter,
             "type_filter": type_filter,
+            "per_page": per_page,
         },
     )
 
@@ -1185,6 +1188,10 @@ def admin_payment_detail(request, id):
     if remaining_balance < Decimal("0.00"):
         remaining_balance = Decimal("0.00")
 
+    # Presentation only: an overpayment must not overflow the progress display.
+    total_price = booking.total_price or Decimal('0.00')
+    paid_percentage = max(0, min(100, round(total_paid / total_price * 100))) if total_price > 0 else 0
+
     booking.time_range_display = get_booking_time_range(booking)
     booking.cleaned_special_requests = remove_end_time_tag(
         booking.special_requests or ""
@@ -1206,6 +1213,7 @@ def admin_payment_detail(request, id):
             "total_paid": total_paid,
             "remaining_balance": remaining_balance,
             "payment_history": payment_history,
+            "paid_percentage": paid_percentage,
             "payment_is_actionable": payment_is_actionable,
         },
     )
@@ -1247,6 +1255,10 @@ def admin_payment_action(request, id, action):
         if back_to_list:
             return redirect("admin_payment_list")
         return redirect("admin_payment_detail", id=id)
+
+    if action == 'reject' and len(request.POST.get('admin_notes', '').strip()) > 2000:
+        messages.error(request, 'Keep the rejection reason within 2,000 characters.')
+        return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
 
     if payment.change_request_id:
         from .changes import verify_change_payment
@@ -1392,6 +1404,7 @@ def admin_payment_action(request, id, action):
 
 @login_required
 def admin_gcash_config(request):
+    from ..payment_forms import PaymentSettingsForm
     if request.user.role != 'admin':
         return HttpResponseForbidden("Not allowed")
 
@@ -1399,37 +1412,26 @@ def admin_gcash_config(request):
     if config is None:
         config = GCashConfig.objects.create()
 
-    if request.method == "POST":
-        config.gcash_number = request.POST.get(
-            "gcash_number", config.gcash_number
-        ).strip()
-        config.gcash_name = request.POST.get("gcash_name", config.gcash_name).strip()
-
-        try:
-            dp_percent = int(
-                request.POST.get("downpayment_percent", config.downpayment_percent)
-            )
-            if 1 <= dp_percent <= 100:
-                config.downpayment_percent = dp_percent
-            else:
-                messages.warning(
-                    request, "Downpayment percent must be between 1 and 100."
-                )
-        except (ValueError, TypeError):
-            messages.warning(
-                request,
-                "Invalid downpayment percent value. Keeping the previous value.",
-            )
-
-        if request.FILES.get("qr_code_image"):
-            config.qr_code_image = request.FILES["qr_code_image"]
-
-        config.save()
+    form = PaymentSettingsForm(request.POST if request.method == 'POST' else None,
+        initial={'downpayment_percent': config.downpayment_percent})
+    asynchronous = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    if request.method == "POST" and form.is_valid():
+        # Only update the setting present in this form; retain existing GCash details.
+        config.downpayment_percent = form.cleaned_data['downpayment_percent']
+        config.save(update_fields=['downpayment_percent', 'updated_at'])
         log_action(request.user, "Updated GCash configuration.")
-        messages.success(request, "GCash configuration updated successfully.")
+        if asynchronous:
+            return JsonResponse({'ok': True, 'message': 'Payment settings saved successfully.'})
+        messages.success(request, "Payment settings saved successfully.")
         return redirect("admin_gcash_config")
 
-    return render(request, "admin/payment/admin_gcash_config.html", {"config": config})
+    context = {'config': config, 'form': form}
+    if asynchronous:
+        return JsonResponse({'ok': request.method != 'POST',
+            'html': render_to_string('admin/payment/_settings_form.html', context, request=request)},
+            status=400 if request.method == 'POST' else 200)
+    return render(request, "admin/payment/admin_gcash_config.html", context,
+        status=400 if request.method == 'POST' else 200)
 
 
 PAYMENT_REMINDER_COOLDOWN_HOURS = 24

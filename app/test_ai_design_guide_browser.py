@@ -87,7 +87,7 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             expect(page.locator('#ai-widget-input')).to_be_visible()
                             expect(page.locator('#ai-widget')).to_have_css('opacity', '1')
                             expect(page.locator('#ai-widget-input')).to_have_attribute('placeholder', 'Type an idea or question...')
-                            expect(page.locator('#ai-widget-input')).to_have_css('padding-left', '2px')
+                            expect(page.locator('#ai-widget-input')).to_have_css('padding-left', '6px' if width <= 480 else '2px')
                             expect(page.locator('.ai-suggestion-chips .ai-chip')).to_have_count(3)
                             expect(page.locator('.ai-chat-header h3')).to_have_text('Balloorina AI')
                             expect(page.locator('.ai-chat-header p')).to_have_text('Backdrop ideas & event help')
@@ -96,42 +96,40 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             expect(page.locator('#ai-guide-open svg')).to_have_count(2)
                             expect(page.locator('#ai-close svg')).to_have_count(1)
                             expect(page.locator('#ai-close')).to_have_css('width', '40px')
-                            expect(page.locator('#ai-widget .ai-input-area')).to_have_css('border-radius', '10px')
+                            expect(page.locator('#ai-widget .ai-input-area')).to_have_css('border-radius', '16px')
                             expect(page.locator('.ai-recent-chat-delete svg')).to_have_count(1)
                             expect(page.locator('.ai-recent-chat-delete svg')).to_have_css('width', '14px')
                             expect(page.locator('#ai-new-chat svg')).to_have_css('width', '16px')
                             if width == 1440:
                                 page.locator('.ai-recent-chat-delete').hover()
-                                expect(page.locator('.ai-recent-chat-delete')).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
+                                self.assertNotEqual(page.locator('.ai-recent-chat-delete').evaluate('(el) => getComputedStyle(el).backgroundColor'), 'rgba(0, 0, 0, 0)')
                             for control in ('#ai-widget-photo', '#ai-widget-mic', '#ai-widget-send'):
-                                expect(page.locator(control)).to_have_css('border-radius', '6px')
+                                expect(page.locator(control)).to_have_css('border-radius', '10px')
                             for control in ('#ai-widget-photo', '#ai-widget-mic'):
                                 page.mouse.move(0, 0)
                                 expect(page.locator(control)).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
                                 page.locator(control).hover()
-                                expect(page.locator(control)).to_have_css('background-color', 'rgb(229, 231, 235)' if theme == 'light' else 'rgb(42, 42, 42)')
+                                expect(page.locator(control)).to_have_css('background-color', 'rgb(238, 238, 238)' if theme == 'light' else 'rgb(43, 43, 43)')
                             page.mouse.move(0, 0)
                             delete_color = page.locator('.ai-recent-chat-delete').evaluate('(el) => getComputedStyle(el).color.match(/\\d+/g).map(Number)')
                             self.assertEqual(len(set(delete_color)), 1)
-                            # Header changes are intentional; the existing chat controls retain their styles.
-                            chat_styles = page.evaluate('''() => {
-                                const selectors = ['#ai-widget', '#ai-fab', '.ai-message-bubble', '.ai-new-chat-btn',
-                                    '.ai-chip', '.ai-suggestion-chips'];
-                                const properties = ['fontSize', 'fontFamily', 'lineHeight', 'padding',
-                                    'borderRadius', 'minWidth', 'minHeight', 'color', 'backgroundColor',
-                                    'display', 'gap', 'flexWrap', 'overflowX', 'overflowY'];
-                                const read = () => Object.fromEntries(selectors.map(selector => {
-                                    const style = getComputedStyle(document.querySelector(selector));
-                                    return [selector, Object.fromEntries(properties.map(key => [key, style[key]]))];
-                                }));
-                                const stylesheet = document.querySelector('link[href*="ai_design_guide.css"]');
-                                const withGuide = read();
-                                stylesheet.disabled = true;
-                                const original = read();
-                                stylesheet.disabled = false;
-                                return {withGuide, original};
-                            }''')
-                            self.assertEqual(chat_styles['withGuide'], chat_styles['original'])
+                            # The UI redesign preserves every tool and keeps the composer in view.
+                            expect(page.locator('#ai-fab')).to_have_attribute('aria-expanded', 'true')
+                            widget_box = page.locator('#ai-widget').bounding_box()
+                            composer_box = page.locator('.ai-input-area').bounding_box()
+                            self.assertGreaterEqual(widget_box['y'], 0)
+                            self.assertLessEqual(widget_box['y'] + widget_box['height'], height)
+                            self.assertLessEqual(composer_box['y'] + composer_box['height'], widget_box['y'] + widget_box['height'])
+                            self.assertLessEqual(page.locator('#ai-widget').evaluate('(el) => el.scrollWidth - el.clientWidth'), 1)
+                            expect(page.locator('.ai-input-area')).to_have_css('outline-width', '2px')
+                            expect(page.locator('.ai-input-area')).to_have_css('outline-offset', '2px')
+                            expect(page.locator('.ai-input-area')).to_have_css('box-shadow', 'none')
+                            if width <= 768:
+                                page.locator('#ai-menu').click()
+                                expect(page.locator('#ai-new-chat')).to_be_visible()
+                                expect(page.locator('.ai-recent-chat-item .title')).to_be_visible()
+                                page.locator('#ai-sidebar-backdrop').click(position={'x': width - 40, 'y': 10})
+                                expect(page.locator('#ai-menu')).to_have_attribute('aria-expanded', 'false')
                             page.screenshot(path=str(screenshots / f'ai-header-english-{width}-{theme}.png'), animations='disabled')
                             page.locator('#ai-widget-input').fill('Unfinished message')
                             page.locator('#ai-guide-open').click()
@@ -139,7 +137,8 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             expect(page.locator('#ai-design-guide')).to_have_attribute('lang', 'en')
                             expect(page.locator('#ai-guide-title')).to_have_text("What's the occasion?")
                             expect(page.locator('[name="guide_occasion"]').first).to_have_css('appearance', 'none')
-                            expect(page.locator('[name="guide_occasion"]').first).to_have_css('background-color', 'rgb(255, 255, 255)' if theme == 'light' else 'rgb(0, 0, 0)')
+                            expect(page.locator('[name="guide_occasion"]').first).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
+                            expect(page.locator('.ai-guide-options label').first).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
                             expect(page.locator('.ai-guide-content')).to_have_css('scrollbar-width', 'thin')
                             self.assertEqual(page.locator('#ai-design-guide').evaluate('(el) => getComputedStyle(el).padding'), '0px')
                             page.screenshot(path=str(screenshots / f'ai-guide-occasion-{width}-{theme}.png'))
@@ -151,7 +150,9 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             page.locator('[name="guide_occasion"][value="other"]').check()
                             page.locator('#ai-guide-next').click()
                             expect(page.locator('#ai-guide-other')).to_be_focused()
-                            expect(page.locator('#ai-guide-other')).to_have_css('outline-color', 'rgb(107, 107, 107)' if theme == 'light' else 'rgb(176, 176, 176)')
+                            expect(page.locator('#ai-guide-other')).to_have_css('outline-width', '2px')
+                            expect(page.locator('#ai-guide-other')).to_have_css('outline-offset', '2px')
+                            expect(page.locator('#ai-guide-other')).to_have_css('box-shadow', 'none')
                             page.screenshot(path=str(screenshots / f'ai-guide-monochrome-focus-{width}-{theme}.png'), animations='disabled')
                             page.locator('#ai-guide-other').fill('Graduation')
                             # Keyboard activation of next works as well as touch/click.
@@ -229,6 +230,15 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             expect(page.locator('#ai-chat-box')).to_contain_text('Your design idea is ready.')
                             self.assertEqual(len(sent), 1)
                             self.assertEqual(sent[0]['message'], edited)
+                            # A live generated reply opens locally, without another AI request.
+                            image_trigger = page.get_by_role('button', name='View generated design')
+                            image_trigger.click()
+                            expect(page.get_by_role('dialog', name='Design preview')).to_be_visible()
+                            expect(page.locator('[data-ai-preview-close]')).to_be_focused()
+                            page.keyboard.press('Escape')
+                            expect(page.get_by_role('dialog', name='Design preview')).to_be_hidden()
+                            expect(image_trigger).to_be_focused()
+                            self.assertEqual(len(sent), 1)
                             edit = page.get_by_role('button', name='Edit this design')
                             expect(edit).to_be_visible()
                             edit_box, like_box = page.evaluate('''() => ['.ai-design-actions button', '.ai-fb-like'].map(selector => {
@@ -240,7 +250,7 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             self.assertEqual(page.locator('.ai-design-actions').evaluate('(el) => el.parentElement.className'), 'ai-feedback-row')
                             for feedback in ('.ai-fb-like', '.ai-fb-dislike'):
                                 page.locator(feedback).hover()
-                                expect(page.locator(feedback)).to_have_css('color', 'rgb(32, 32, 32)' if theme == 'light' else 'rgb(255, 255, 255)')
+                                expect(page.locator(feedback)).to_have_css('color', 'rgb(32, 32, 32)' if theme == 'light' else 'rgb(242, 242, 242)')
                             if width in (1440, 320):
                                 page.locator('.ai-fb-like').click()
                                 expect(page.locator('.ai-fb-like')).to_have_css('color', 'rgb(21, 128, 61)' if theme == 'light' else 'rgb(34, 197, 94)')
@@ -306,6 +316,8 @@ class AIDesignGuideBrowserTests(StaticLiveServerTestCase):
                             page.locator('#ai-close').click()
                             expect(page.locator('#ai-widget')).to_be_hidden()
                             expect(page.locator('#ai-fab')).to_be_visible()
+                            expect(page.locator('#ai-fab')).to_be_focused()
+                            expect(page.locator('#ai-fab')).to_have_attribute('aria-expanded', 'false')
                             self.assertEqual(errors, [])
                             context.close()
             finally:

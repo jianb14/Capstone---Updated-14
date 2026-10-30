@@ -363,16 +363,17 @@ class BookingAvailabilityTemplateTests(TestCase):
             BASE_DIR / "static" / "css" / "admin_calendar.css"
         ).read_text(encoding="utf-8")
         self.assertNotIn("#991b1b", admin_css)
-        self.assertIn("background-color: #2a2a2a !important", admin_css)
-        self.assertIn("background-color: #e5e7eb !important", admin_css)
+        self.assertIn(".booking-day-blocked { background:var(--ac-soft) !important; }", admin_css)
         # Blocked icon sa "Unavailable" label (client + admin calendar)
         self.assertIn("fa-ban", self.template)
         admin_tpl = (
             BASE_DIR / "app" / "templates" / "admin" / "admin_calendar.html"
         ).read_text(encoding="utf-8")
-        self.assertIn("fa-ban", admin_tpl)
+        admin_script = (BASE_DIR / "static" / "js" / "admin_calendar.js").read_text(encoding="utf-8")
+        self.assertIn('const pinIcon =', admin_script)
+        self.assertIn('booking-day-blocked-label', admin_script)
         # Admin CSS cache-bust (bagong design ng unavailable cells)
-        self.assertIn("admin_calendar.css' %}?v=20261020a", admin_tpl)
+        self.assertIn("admin_calendar.css' %}?v=20261030a", admin_tpl)
         # Client CSS: icon sa taas + text sa baba (vertical stack, hindi
         # magkatabi), may gap, at may tooltip arrow sa event tooltip.
         for css_path in (BOOKING_CSS, BOOKING_CSS_MIRROR):
@@ -406,13 +407,12 @@ class BookingAvailabilityTemplateTests(TestCase):
         # kapag nasa loob ng /* ... */).
         stripped_admin = re.sub(r"/\*.*?\*/", "", admin_css, flags=re.S)
         self.assertIn(
-            '[data-theme="light"] #admin-calendar .fc .fc-daygrid-day'
-            ".booking-day-blocked .fc-daygrid-day-number",
+            '[data-theme="light"] .admin-calendar-page #admin-calendar .fc .fc-daygrid-day-number',
             stripped_admin,
         )
         self.assertIn(
-            '[data-theme="light"] #admin-calendar .fc .fc-daygrid-day'
-            ".booking-day-blocked .booking-day-blocked-label",
+            '[data-theme="light"] .admin-calendar-page #admin-calendar .fc '
+            '.booking-day-blocked .booking-day-blocked-label',
             stripped_admin,
         )
 
@@ -903,6 +903,7 @@ class CalendarLoadResilienceTests(TestCase):
         self.admin_template = (
             BASE_DIR / "app" / "templates" / "admin" / "admin_calendar.html"
         ).read_text(encoding="utf-8")
+        self.admin_script = (BASE_DIR / "static" / "js" / "admin_calendar.js").read_text(encoding="utf-8")
         self.guard_js = (
             BASE_DIR / "static" / "js" / "booking_calendar_guard.js"
         ).read_text(encoding="utf-8")
@@ -917,9 +918,10 @@ class CalendarLoadResilienceTests(TestCase):
     def test_fullcalendar_init_is_guarded(self):
         # CDN failure o init/render error → friendly fallback, hindi buong
         # DOMContentLoaded handler ang namamatay (client man o admin).
-        for tpl in (self.template, self.admin_template):
-            self.assertIn("typeof FullCalendar === 'undefined'", tpl)
-            self.assertIn("showBookingCalendarLoadError", tpl)
+        self.assertIn("typeof FullCalendar === 'undefined'", self.template)
+        self.assertIn("showBookingCalendarLoadError", self.template)
+        self.assertIn("if (!window.FullCalendar)", self.admin_script)
+        self.assertIn("showBookingCalendarLoadError", self.admin_script)
 
     def test_calendar_guard_js_loaded_before_fullcalendar_usage(self):
         # Naka-load bago magamit ang FullCalendar para laging handa ang
@@ -930,6 +932,7 @@ class CalendarLoadResilienceTests(TestCase):
             self.template.index("new FullCalendar.Calendar"),
         )
         self.assertIn("js/booking_calendar_guard.js", self.admin_template)
+        self.assertLess(self.admin_template.index('js/booking_calendar_guard.js'), self.admin_template.index('js/admin_calendar.js'))
 
     def test_watchdog_replaces_stuck_loading_title(self):
         # Independent watchdog: kahit mag-parse-error ang main inline script,

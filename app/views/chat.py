@@ -549,7 +549,7 @@ def chat_clear(request):
 def client_chat_page(request):
     if request.user.role != 'customer':
         return HttpResponseForbidden("Customers only")
-    return redirect('home')
+    return redirect(reverse('home') + '?support=1')
 
 
 # ────────────────────────────────────────────────────────────────
@@ -957,13 +957,7 @@ def chat_toggle_reaction(request):
 def admin_chat_inbox(request):
     if not _is_admin_user(request.user):
         return HttpResponseForbidden("Admins only")
-    stats, sessions = _admin_support_chat_stats(
-        _admin_support_chat_sessions(), request.user
-    )
-    return render(request, 'admin/admin_chat_inbox.html', {
-        'sessions': sessions,
-        'stats': stats,
-    })
+    return render(request, 'admin/admin_chat_inbox.html')
 
 
 # ────────────────────────────────────────────────────────────────
@@ -982,6 +976,8 @@ def admin_chat_thread(request, session_id):
         id=session_id,
         is_admin_support=True,
     )
+    if request.method == 'GET':
+        return render(request, 'admin/admin_chat_inbox.html', {'session': session})
     ChatMessage.objects.filter(
         session=session, sender=session.user, is_read=False
     ).update(
@@ -1237,10 +1233,10 @@ def admin_chat_unread_poll(request):
     if not _is_admin_user(request.user):
         return JsonResponse({"error": "Forbidden"}, status=403)
     sessions = ChatSession.objects.filter(is_admin_support=True).exclude(status='ai')
-    unread_count = sum(
-        1 for s in sessions
-        if s.status != 'closed' and s.has_unread_for_admin
-    )
+    from django.db.models import F
+    unread_count = sessions.filter(
+        messages__sender_id=F('user_id'), messages__is_read=False,
+    ).distinct().count()
     pending_count = sessions.filter(status='pending_admin').count()
     return JsonResponse({
         'unread_total': unread_count,

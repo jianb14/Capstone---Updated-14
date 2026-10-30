@@ -1,4 +1,5 @@
 from django.urls import path
+from .views.support_chat import support_inbox, support_state, support_send, support_action
 from .catalog_admin import catalog_action
 from .content_admin import content_action
 from .views.admin_security import (admin_email_setup, admin_security_action, admin_invitation_list,
@@ -585,6 +586,10 @@ urlpatterns = [
     path("api/chat/pinned/", chat_pinned_messages, name="chat_pinned_messages"),
     path("api/chat/media/", chat_media_files, name="chat_media_files"),
     # Admin chat inbox, threads, actions
+    path("api/support/inbox/", support_inbox, name="support_inbox"),
+    path("api/support/state/", support_state, name="support_state"),
+    path("api/support/send/", support_send, name="support_send"),
+    path("api/support/action/", support_action, name="support_action"),
     path("staff/chat/", admin_chat_inbox, name="admin_chat_inbox"),
     path("staff/chat/poll/", admin_chat_poll, name="admin_chat_poll"),
     path("staff/chat/<int:session_id>/", admin_chat_thread, name="admin_chat_thread"),
