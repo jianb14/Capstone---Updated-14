@@ -23,7 +23,6 @@ window.setupCanvasMobileEditor = function (api) {
     let mobile = false;
     let textEditStarted = false;
     let resizeFrame = null;
-    let fitOnResize = false;
     let editingSelection = null;
     let restoreEditorFocus = false;
 
@@ -45,7 +44,7 @@ window.setupCanvasMobileEditor = function (api) {
             // Other sheets still use a modal dialog for browsing and confirmations.
             section.classList.add('mobile-editor-editing');
             if (!dialog.open) dialog.show();
-            resizeCanvas(true);
+            resizeCanvas();
         } else if (!dialog.open) dialog.showModal();
     }
     dialogs.forEach((dialog) => {
@@ -66,7 +65,7 @@ window.setupCanvasMobileEditor = function (api) {
     editor.addEventListener('close', () => {
         section.classList.toggle('mobile-editor-editing', mobile && editor.open);
         api.closeFontMenu();
-        resizeCanvas(true);
+        resizeCanvas();
         if (restoreEditorFocus && mobile && !editor.open && api.selected().length) {
             byId('mobileEditItemBtn').focus({ preventScroll: true });
         }
@@ -247,13 +246,11 @@ window.setupCanvasMobileEditor = function (api) {
     }
     new MutationObserver(refreshLayers).observe(byId('layersList'), { childList: true });
 
-    function resizeCanvas(fit = false) {
-        fitOnResize = fitOnResize || fit === true;
+    function resizeCanvas() {
         if (resizeFrame) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(() => {
             resizeFrame = null;
-            api.resize({ fit: fitOnResize || (mobile && editor.open) });
-            fitOnResize = false;
+            api.resize();
         });
     }
     function setMode() {

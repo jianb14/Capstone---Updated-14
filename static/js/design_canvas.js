@@ -807,6 +807,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const syncCanvasAfterSidebarToggle = () => {
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
+                    // Mobile inventory is a sheet; opening it does not reset the view.
+                    if (window.matchMedia('(max-width: 1024px)').matches) {
+                        resizeCanvasViewport();
+                        return;
+                    }
                     canvas.setWidth(dropZone.clientWidth);
                     canvas.setHeight(dropZone.clientHeight);
                     // Center the artboard WITHOUT resetting the user's zoom.
@@ -1602,11 +1607,36 @@ document.addEventListener('DOMContentLoaded', function() {
         updateContextToolbar();
     }
 
-    function zoomToPoint(point, newZoom) {
+    function resizeCanvasViewport() {
+        const width = dropZone.clientWidth;
+        const height = dropZone.clientHeight;
+        if (canvas.getWidth() === width && canvas.getHeight() === height) return;
+        // Selection bars, sheets and the keyboard resize the visible area.
+        // Keep the customer's pan/zoom and every object's design coordinates.
+        const viewport = canvas.viewportTransform.slice();
+        canvas.setDimensions({ width, height });
+        canvas.setViewportTransform(viewport);
+        canvas.calcOffset();
+        canvas.requestRenderAll();
+        updateZoomLabel();
+        updateSelectionToolbarPosition();
+        updateContextToolbar();
+    }
+
+    function zoomToPoint(point, newZoom, anchor = null) {
         const minZoom = getMinAllowedZoom();
         const safeZoom = Math.max(minZoom, Math.min(MAX_ZOOM, newZoom));
         if (ENABLE_VIEWPORT_PAN) {
-            canvas.zoomToPoint(point, safeZoom);
+            if (anchor) {
+                // Keep the design point under a moving two-finger midpoint.
+                const viewport = canvas.viewportTransform.slice();
+                viewport[0] = viewport[3] = safeZoom;
+                viewport[4] = point.x - anchor.x * safeZoom;
+                viewport[5] = point.y - anchor.y * safeZoom;
+                canvas.setViewportTransform(viewport);
+            } else {
+                canvas.zoomToPoint(point, safeZoom);
+            }
             clampPan();
         } else {
             canvas.setZoom(safeZoom);
@@ -4549,6 +4579,124 @@ document.addEventListener('DOMContentLoaded', function() {
         canvas.setCursor(canvas.defaultCursor);
     }
 
+    let touchNavigation = null;
+    const touchCaptureOptions = { capture: true, passive: false };
+
+    function canvasTouches(event) {
+        // Fingers on a toolbar or sheet must never become canvas gestures.
+        return Array.from(event.touches).filter((touch) => touch.target === canvas.upperCanvasEl);
+    }
+
+    function canvasTouchPoint(touch) {
+        const rect = canvas.upperCanvasEl.getBoundingClientRect();
+        return new fabric.Point(
+            (touch.clientX - rect.left) * canvas.getWidth() / rect.width,
+            (touch.clientY - rect.top) * canvas.getHeight() / rect.height
+        );
+    }
+
+    function consumeCanvasTouch(event) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+
+    function rebaseTouchNavigation(touches) {
+        touchNavigation.pinch = null;
+        touchNavigation.panPoint = touches.length === 1 ? canvasTouchPoint(touches[0]) : null;
+        if (touches.length < 2) return;
+        const first = canvasTouchPoint(touches[0]);
+        const second = canvasTouchPoint(touches[1]);
+        const midpoint = new fabric.Point((first.x + second.x) / 2, (first.y + second.y) / 2);
+        touchNavigation.pinch = {
+            ids: [touches[0].identifier, touches[1].identifier],
+            distance: Math.max(1, Math.hypot(first.x - second.x, first.y - second.y)),
+            zoom: canvas.getZoom(),
+            anchor: fabric.util.transformPoint(midpoint, fabric.util.invertTransform(canvas.viewportTransform))
+        };
+    }
+
+    function finishTouchNavigation(event) {
+        if (!touchNavigation) return;
+        const navigation = touchNavigation;
+        touchNavigation = null;
+        // Fabric 5 tracks the first finger until touchend, but has no touchcancel
+        // cleanup. End that lifecycle once, without treating a pinch as an item tap.
+        if (canvas.mainTouchId !== null) {
+            canvas._onTouchEnd({
+                type: 'touchend', touches: [],
+                changedTouches: event.changedTouches.length ? event.changedTouches : event.touches,
+                target: canvas.upperCanvasEl
+            });
+        }
+        canvas.skipTargetFind = navigation.skipTargetFind;
+        canvas.selection = !isSpaceDown;
+        canvas.defaultCursor = isSpaceDown ? 'grab' : 'default';
+        canvas.setCursor(canvas.defaultCursor);
+        setTransformingVisualState(false);
+        updateControlsState();
+    }
+
+    canvas.upperCanvasEl.addEventListener('touchstart', (event) => {
+        if (!ENABLE_VIEWPORT_PAN || canvas.isDrawingMode) return;
+        const touches = canvasTouches(event);
+        if (!touchNavigation && touches.length < 2) return;
+        consumeCanvasTouch(event);
+        if (!touchNavigation) {
+            finishPan();
+            // Finish any one-finger item drag before switching to viewport zoom.
+            // Fabric's native transform must not consume the subsequent pinch moves.
+            if (canvas._currentTransform) {
+                const target = canvas._currentTransform.target;
+                canvas._finalizeCurrentTransform(event);
+                target.isMoving = false;
+                target.__corner = 0;
+                canvas._currentTransform = null;
+            }
+            canvas._groupSelector = null;
+            canvas.renderTop();
+            touchNavigation = { skipTargetFind: canvas.skipTargetFind };
+            canvas.skipTargetFind = true;
+            canvas.selection = false;
+            setTransformingVisualState(false);
+        }
+        touchNavigation.lastEvent = event;
+        rebaseTouchNavigation(touches);
+    }, touchCaptureOptions);
+
+    document.addEventListener('touchmove', (event) => {
+        if (!touchNavigation) return;
+        consumeCanvasTouch(event);
+        touchNavigation.lastEvent = event;
+        const touches = canvasTouches(event);
+        const pinch = touchNavigation.pinch;
+        const pair = pinch?.ids.map((id) => touches.find((touch) => touch.identifier === id));
+        if (pair?.every(Boolean)) {
+            const first = canvasTouchPoint(pair[0]);
+            const second = canvasTouchPoint(pair[1]);
+            const midpoint = new fabric.Point((first.x + second.x) / 2, (first.y + second.y) / 2);
+            const distance = Math.hypot(first.x - second.x, first.y - second.y);
+            zoomToPoint(midpoint, pinch.zoom * distance / pinch.distance, pinch.anchor);
+        } else if (touches.length === 1 && touchNavigation.panPoint) {
+            const point = canvasTouchPoint(touches[0]);
+            canvas.relativePan(point.subtract(touchNavigation.panPoint));
+            clampPan();
+            touchNavigation.panPoint = point;
+            canvas.requestRenderAll();
+            updateContextToolbar();
+        } else {
+            rebaseTouchNavigation(touches);
+        }
+    }, touchCaptureOptions);
+
+    document.addEventListener('touchend', (event) => {
+        if (!touchNavigation) return;
+        consumeCanvasTouch(event);
+        touchNavigation.lastEvent = event;
+        const touches = canvasTouches(event);
+        if (touches.length) rebaseTouchNavigation(touches);
+        else finishTouchNavigation(event);
+    }, touchCaptureOptions);
+
     canvas.on('mouse:down', (opt) => {
         if (opt.e.button === 1) {
             opt.e.preventDefault();
@@ -4590,8 +4738,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         finishPan();
     });
-    document.addEventListener('touchcancel', finishPan);
-    window.addEventListener('blur', () => { isSpaceDown = false; finishPan(); });
+    document.addEventListener('touchcancel', (event) => {
+        if (touchNavigation) {
+            consumeCanvasTouch(event);
+            finishTouchNavigation(event);
+        }
+        finishPan();
+    }, touchCaptureOptions);
+    window.addEventListener('blur', () => {
+        isSpaceDown = false;
+        if (touchNavigation) finishTouchNavigation(touchNavigation.lastEvent);
+        finishPan();
+    });
 
     canvas.on('selection:created', updateControlsState);
     canvas.on('selection:updated', updateControlsState);
@@ -4728,11 +4886,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateContextToolbar();
     });
 
-    window.addEventListener('resize', () => {
-        canvas.setWidth(dropZone.clientWidth);
-        canvas.setHeight(dropZone.clientHeight);
-        fitArtboardToView();
-    });
+    window.addEventListener('resize', resizeCanvasViewport);
 
     window.addEventListener('beforeunload', () => {
         if (draftSaveTimer) {
@@ -4799,24 +4953,7 @@ document.addEventListener('DOMContentLoaded', function() {
             saveState,
             closeFontMenu: () => { closeFontFamilyDropdown(); hideSelectionToolbarTooltip(); },
             refresh: () => { updateControlsState(); updateVisualCart(); scheduleDraftPersist(); },
-            resize: ({ fit = false } = {}) => {
-                if (!fit && canvas.getWidth() === dropZone.clientWidth && canvas.getHeight() === dropZone.clientHeight) return;
-                canvas.setWidth(dropZone.clientWidth);
-                canvas.setHeight(dropZone.clientHeight);
-                // Layout changes move the view, not the design's objects. This
-                // also preserves relative positions inside an active selection.
-                const zoom = fit ? getMinAllowedZoom() : canvas.getZoom();
-                canvas.setZoom(zoom);
-                const viewport = canvas.viewportTransform.slice();
-                viewport[4] = (canvas.getWidth() - ARTBOARD_W * zoom) / 2 - artboard.left * zoom;
-                viewport[5] = (canvas.getHeight() - ARTBOARD_H * zoom) / 2 - artboard.top * zoom;
-                canvas.setViewportTransform(viewport);
-                canvas.calcOffset();
-                canvas.requestRenderAll();
-                updateZoomLabel();
-                updateSelectionToolbarPosition();
-                updateContextToolbar();
-            }
+            resize: resizeCanvasViewport
         });
     }
     updateUndoRedoBtnState();

@@ -1,4 +1,4 @@
-"""Real touch panning and the customer's bounded, reusable color history."""
+"""Real touch navigation and the customer's bounded, reusable color history."""
 import os
 from pathlib import Path
 from tempfile import gettempdir
@@ -57,6 +57,249 @@ class CanvasInteractionsBrowserTests(StaticLiveServerTestCase):
         for step in range(1, 6):
             session.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x + dx * step / 5, 'y': y + dy * step / 5, 'id': 0}]})
         session.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+
+    def pinch(self, session, x, y, start_distance, end_distance, dx=0, dy=0, sequential=False):
+        def points(distance, fraction=0):
+            return [{'x': x + dx * fraction + offset * distance / 2,
+                     'y': y + dy * fraction, 'id': identifier}
+                    for identifier, offset in ((0, -1), (1, 1))]
+
+        initial = points(start_distance)
+        if sequential:
+            session.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': initial[:1]})
+        session.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': initial})
+        for step in range(1, 7):
+            fraction = step / 6
+            session.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': points(
+                start_distance + (end_distance - start_distance) * fraction, fraction)})
+        session.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+
+    def test_mobile_view_stays_panned_when_adding_selecting_and_editing_images(self):
+        from io import BytesIO
+        from PIL import Image
+        from playwright.sync_api import sync_playwright, expect
+
+        photo = BytesIO()
+        Image.new('RGB', (120, 90), '#7ba8bd').save(photo, format='PNG')
+
+        def settle(page):
+            page.wait_for_function('''testCanvas.getWidth() === document.getElementById('canvasDropZone').clientWidth &&
+                testCanvas.getHeight() === document.getElementById('canvasDropZone').clientHeight''')
+            page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+
+        def view(page):
+            return page.evaluate('''() => {
+                const paper = testCanvas.getObjects().find(object => object._isArtboard);
+                return {viewport: testCanvas.viewportTransform.slice(),
+                        paper: {left: paper.left, top: paper.top, width: paper.width, height: paper.height}};
+            }''')
+
+        def tap_selected_image_again(page):
+            page.locator('#mobileDeselectBtn').tap()
+            settle(page)
+            point = page.evaluate('''() => {
+                const image = testCanvas.getObjects().filter(object => !object._isArtboard).at(-1);
+                const point = fabric.util.transformPoint(image.getCenterPoint(), testCanvas.viewportTransform);
+                const rect = testCanvas.upperCanvasEl.getBoundingClientRect();
+                return {x: rect.left + point.x, y: rect.top + point.y};
+            }''')
+            page.touchscreen.tap(point['x'], point['y'])
+            expect(page.locator('#mobileSelectionBar')).to_be_visible()
+            settle(page)
+
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                for width, height in ((320, 740), (390, 844), (820, 1000)):
+                    with self.subTest(width=width):
+                        context, page = self.open_page(browser, width, height)
+                        session = context.new_cdp_session(page)
+                        stage = page.locator('.upper-canvas').bounding_box()
+                        x, y = stage['x'] + stage['width'] / 2, stage['y'] + stage['height'] / 2
+                        self.touch_drag(session, x, y, 35, 25)
+                        self.pinch(session, x, y, 60, 90)
+                        expected_view = view(page)
+                        page.locator('[data-panel-target="elementsPanel"]').tap()
+                        page.locator('.draggable-item[title="Interaction panel"]').tap()
+                        expect(page.locator('#mobileInventoryDialog')).to_be_hidden()
+                        expect(page.locator('#mobileSelectionBar')).to_be_visible()
+                        settle(page)
+                        self.assertEqual(view(page), expected_view, 'Adding a catalog image reset the view')
+                        tap_selected_image_again(page)
+                        self.assertEqual(view(page), expected_view, 'Tapping a catalog image reset the view')
+                        page.locator('#mobileDeselectBtn').tap()
+                        settle(page)
+                        self.assertEqual(view(page), expected_view, 'Deselecting reset the view')
+                        page.locator('[data-panel-target="uploadsPanel"]').tap()
+                        page.locator('#userUploadInput').set_input_files({
+                            'name': 'mobile-reference.png', 'mimeType': 'image/png', 'buffer': photo.getvalue()})
+                        page.locator('#userUploadsGrid .draggable-item').first.tap()
+                        expect(page.locator('#mobileInventoryDialog')).to_be_hidden()
+                        settle(page)
+                        self.assertEqual(view(page), expected_view, 'Adding an uploaded photo reset the view')
+                        tap_selected_image_again(page)
+                        self.assertEqual(view(page), expected_view, 'Tapping an uploaded photo reset the view')
+                        objects = page.evaluate('testCanvas.getObjects().map(object => object.toObject())')
+                        page.locator('#mobileEditItemBtn').tap()
+                        expect(page.locator('#mobileEditItemDialog')).to_be_visible()
+                        settle(page)
+                        self.assertEqual(view(page), expected_view, 'Opening item controls reset the view')
+                        if width == 390:
+                            page.set_viewport_size({'width': width, 'height': 680})
+                            settle(page)
+                            self.assertEqual(view(page), expected_view, 'Resizing the viewport reset the view')
+                            page.set_viewport_size({'width': width, 'height': height})
+                            settle(page)
+                        page.locator('#mobileEditItemDialog [data-mobile-close]').tap()
+                        settle(page)
+                        self.assertEqual(view(page), expected_view, 'Closing item controls reset the view')
+                        self.assertEqual(page.evaluate('testCanvas.getObjects().map(object => object.toObject())'), objects)
+                        # Customers can still explicitly reset the view using Fit to screen.
+                        page.locator('#mobileCanvasToolsBtn').tap()
+                        page.locator('#zoomResetBtn').tap()
+                        settle(page)
+                        centered = page.evaluate('''() => {
+                            const paper = testCanvas.getObjects().find(object => object._isArtboard);
+                            const zoom = testCanvas.getZoom(), vpt = testCanvas.viewportTransform;
+                            return {x: (paper.left + paper.width / 2) * zoom + vpt[4],
+                                    y: (paper.top + paper.height / 2) * zoom + vpt[5],
+                                    width: testCanvas.getWidth(), height: testCanvas.getHeight()};
+                        }''')
+                        self.assertAlmostEqual(centered['x'], centered['width'] / 2, delta=1)
+                        self.assertAlmostEqual(centered['y'], centered['height'] / 2, delta=1)
+                        context.close()
+                self.assertFalse(self.errors, self.errors)
+            finally:
+                browser.close()
+
+    def test_pinch_zooms_at_fingers_with_limits_and_drag_recovery(self):
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                for width, height in ((320, 740), (390, 844), (820, 1000), (844, 390)):
+                    with self.subTest(width=width, height=height):
+                        context, page = self.open_page(browser, width, height)
+                        session = context.new_cdp_session(page)
+                        stage = page.locator('.upper-canvas').bounding_box()
+                        x, y = stage['x'] + stage['width'] * .56, stage['y'] + stage['height'] * .5
+                        initial = page.evaluate('''() => ({zoom: testCanvas.getZoom(),
+                            viewport: testCanvas.viewportTransform.slice(), scroll: window.scrollY,
+                            pageScale: visualViewport.scale,
+                            objects: testCanvas.getObjects().map(object => object.toObject())})''')
+                        self.pinch(session, x, y, 60, 108, dx=12, dy=10, sequential=width != 320)
+                        zoomed = page.evaluate('''() => ({zoom: testCanvas.getZoom(),
+                            viewport: testCanvas.viewportTransform.slice(), scroll: window.scrollY,
+                            pageScale: visualViewport.scale,
+                            objects: testCanvas.getObjects().map(object => object.toObject()),
+                            label: document.getElementById('zoomLabel').textContent})''')
+                        self.assertAlmostEqual(zoomed['zoom'], initial['zoom'] * 1.8, delta=.002)
+                        # The same design point stays under the moving midpoint of the fingers.
+                        for axis, coordinate, origin, delta in ((0, x, stage['x'], 12), (1, y, stage['y'], 10)):
+                            world = (coordinate - origin - initial['viewport'][4 + axis]) / initial['zoom']
+                            self.assertAlmostEqual(world * zoomed['zoom'] + zoomed['viewport'][4 + axis],
+                                                   coordinate - origin + delta, delta=1)
+                        self.assertEqual(zoomed['label'], f"{int(zoomed['zoom'] * 100 + .5)}%")
+                        self.assertEqual(zoomed['objects'], initial['objects'])
+                        self.assertEqual(zoomed['scroll'], initial['scroll'])
+                        self.assertEqual(zoomed['pageScale'], initial['pageScale'])
+                        self.pinch(session, x, y, 108, 60)
+                        self.assertAlmostEqual(page.evaluate('testCanvas.getZoom()'), initial['zoom'], delta=.002)
+                        self.pinch(session, x, y, 10, 180)
+                        self.assertAlmostEqual(page.evaluate('testCanvas.getZoom()'), 1.5, delta=.002)
+                        self.pinch(session, x, y, 180, 2)
+                        self.assertAlmostEqual(page.evaluate('testCanvas.getZoom()'), initial['zoom'], delta=.002)
+                        before_pan = page.evaluate('testCanvas.viewportTransform.slice()')
+                        self.touch_drag(session, x, y, 20, 15)
+                        after_pan = page.evaluate('testCanvas.viewportTransform.slice()')
+                        self.assertAlmostEqual(after_pan[4] - before_pan[4], 20, delta=1)
+                        self.assertAlmostEqual(after_pan[5] - before_pan[5], 15, delta=1)
+                        self.assertTrue(page.evaluate('testCanvas.selection && testCanvas.mainTouchId === null'))
+                        context.close()
+                self.assertFalse(self.errors, self.errors)
+            finally:
+                browser.close()
+
+    def test_pinch_preserves_selected_item_and_recovers_after_cancel(self):
+        from playwright.sync_api import sync_playwright, expect
+
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                context, page = self.open_page(browser, 390)
+                session = context.new_cdp_session(page)
+                page.locator('[data-panel-target="textPanel"]').tap()
+                page.locator('.text-preset-card[title="Add a Heading"]').tap()
+                expect(page.locator('#mobileInventoryDialog')).to_be_hidden()
+                page.wait_for_function('testCanvas.getActiveObject() && !testCanvas.getActiveObject().isEditing')
+                original = page.evaluate('''() => {
+                    const object = testCanvas.getActiveObject();
+                    const rect = testCanvas.upperCanvasEl.getBoundingClientRect();
+                    return {x: rect.x + object.oCoords.moveCtl.x, y: rect.y + object.oCoords.moveCtl.y,
+                            object: object.toObject()};
+                }''')
+                # The first finger owns an item drag until the second finger joins.
+                first = {'x': original['x'], 'y': original['y'], 'id': 0}
+                second = {'x': original['x'] + 60, 'y': original['y'], 'id': 1}
+                session.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [first]})
+                self.assertTrue(page.evaluate('!!testCanvas._currentTransform'))
+                session.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [first, second]})
+                for step in range(1, 6):
+                    session.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [
+                        {**first, 'x': first['x'] - 4 * step}, {**second, 'x': second['x'] + 4 * step}]})
+                self.assertEqual(page.evaluate('testCanvas.getActiveObject().toObject()'), original['object'])
+                self.assertFalse(page.evaluate('!!testCanvas._currentTransform'))
+                # Lifting either finger switches to paper pan, never an item drag.
+                second['x'] += 20
+                session.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': [
+                    {**first, 'x': first['x'] - 20}]})
+                before_pan = page.evaluate('testCanvas.viewportTransform.slice()')
+                second.update(x=second['x'] + 15, y=second['y'] + 12)
+                session.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [second]})
+                after_pan = page.evaluate('testCanvas.viewportTransform.slice()')
+                self.assertAlmostEqual(after_pan[4] - before_pan[4], 15, delta=1)
+                self.assertAlmostEqual(after_pan[5] - before_pan[5], 12, delta=1)
+                session.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+                self.assertEqual(page.evaluate('testCanvas.getActiveObject().toObject()'), original['object'])
+                self.assertFalse(page.evaluate('!!testCanvas.getActiveObject().isEditing'))
+                # The same selected item can still be moved after zooming.
+                point = page.evaluate('''() => {
+                    const object = testCanvas.getActiveObject();
+                    const rect = testCanvas.upperCanvasEl.getBoundingClientRect();
+                    return {x: rect.x + object.oCoords.moveCtl.x, y: rect.y + object.oCoords.moveCtl.y,
+                            left: object.left, top: object.top, zoom: testCanvas.getZoom()};
+                }''')
+                self.touch_drag(session, point['x'], point['y'], 12, 8)
+                moved = page.evaluate('({left: testCanvas.getActiveObject().left, top: testCanvas.getActiveObject().top})')
+                self.assertAlmostEqual(moved['left'] - point['left'], 12 / point['zoom'], delta=2)
+                self.assertAlmostEqual(moved['top'] - point['top'], 8 / point['zoom'], delta=2)
+                page.screenshot(path=str(Path(gettempdir()) / 'balloorina-mobile-canvas-pinch.png'), animations='disabled')
+                # Interrupted gestures release Fabric's first finger and restore controls.
+                stage = page.locator('.upper-canvas').bounding_box()
+                x, y = stage['x'] + stage['width'] * .2, stage['y'] + stage['height'] * .2
+                for interruption in ('cancel', 'blur'):
+                    with self.subTest(interruption=interruption):
+                        first = {'x': x, 'y': y, 'id': 0}
+                        second = {'x': x + 60, 'y': y, 'id': 1}
+                        session.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [first]})
+                        session.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [first, second]})
+                        if interruption == 'cancel':
+                            session.send('Input.dispatchTouchEvent', {'type': 'touchCancel', 'touchPoints': []})
+                        else:
+                            page.evaluate("window.dispatchEvent(new Event('blur'))")
+                            session.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+                        self.assertTrue(page.evaluate('''testCanvas.selection && !testCanvas.skipTargetFind &&
+                            testCanvas.mainTouchId === null && !testCanvas._currentTransform'''))
+                        before_pan = page.evaluate('testCanvas.viewportTransform.slice()')
+                        self.touch_drag(session, x, y, 12, 8)
+                        after_pan = page.evaluate('testCanvas.viewportTransform.slice()')
+                        self.assertAlmostEqual(after_pan[4] - before_pan[4], 12, delta=1)
+                        self.assertAlmostEqual(after_pan[5] - before_pan[5], 8, delta=1)
+                context.close()
+                self.assertFalse(self.errors, self.errors)
+            finally:
+                browser.close()
 
     def test_touch_moves_paper_without_moving_objects_and_mouse_still_works(self):
         from playwright.sync_api import sync_playwright, expect
