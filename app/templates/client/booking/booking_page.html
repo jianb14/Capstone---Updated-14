@@ -5,7 +5,8 @@
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261031a">
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261023hover">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031popular2">
+<link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261031ui3">
 <script defer src="{% static 'js/booking_form_ui.js' %}?v=20261025account1"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
@@ -28,27 +29,30 @@
     <!-- Centered Calendar Section -->
     <div class="booking-calendar-panel">
         <div class="panel-header">
-            <h2>Events Calendar</h2>
-            <p>An overview of all scheduled events. Select a date to book.</p>
-        </div>
-        <div class="calendar-wrapper">
+            <div>
+                <h2>Events Calendar</h2>
+                <p>An overview of all scheduled events. Select a date to book.</p>
+            </div>
             <div class="calendar-legend">
                 <div class="legend-item"><span class="legend-color confirmed"></span>Booked (Approved)</div>
             </div>
-
+        </div>
+        <div class="calendar-wrapper">
             <!-- Custom Calendar Toolbar (replaces FullCalendar default UI) -->
             <div class="cal-toolbar">
                 <div class="cal-nav-group">
-                    <button type="button" id="cal-prev" class="cal-nav-btn" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
-                    <button type="button" id="cal-next" class="cal-nav-btn" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button>
+                    <button type="button" id="cal-prev" class="cal-nav-btn" aria-label="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></button>
+                    <button type="button" id="cal-next" class="cal-nav-btn" aria-label="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></button>
                 </div>
                 <button type="button" id="cal-title" class="cal-title-btn" aria-haspopup="true" aria-expanded="false">
                     <span id="cal-title-text">Loading…</span>
-                    <i class="fa-solid fa-chevron-down cal-title-caret"></i>
+                    <svg viewBox="0 0 24 24" class="cal-title-caret" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
                 </button>
                 <div class="cal-view-group" role="group" aria-label="Calendar view">
-                    <button type="button" class="cal-view-btn active" data-view="dayGridMonth">Month</button>
-                    <button type="button" class="cal-view-btn" data-view="timeGridWeek">Week</button>
+                    <div class="booking-view-tabs">
+                        <button type="button" class="cal-view-btn active" data-view="dayGridMonth">Month</button>
+                        <button type="button" class="cal-view-btn" data-view="timeGridWeek">Week</button>
+                    </div>
                     <button type="button" id="cal-today" class="cal-view-btn cal-today-btn">Today</button>
                 </div>
             </div>
@@ -62,9 +66,9 @@
             <!-- Custom Month/Year Picker Modal -->
             <div id="custom-month-year-picker" class="month-year-picker" style="display: none;">
                 <div class="myp-header">
-                    <button type="button" id="myp-prev-year"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button type="button" id="myp-prev-year" aria-label="Previous year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></button>
                     <span id="myp-year-display">2026</span>
-                    <button type="button" id="myp-next-year"><i class="fa-solid fa-chevron-right"></i></button>
+                    <button type="button" id="myp-next-year" aria-label="Next year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></button>
                 </div>
                 <div class="myp-months-grid">
                     <button type="button" data-month="0">Jan</button>
@@ -141,6 +145,7 @@
                         {% for package in packages %}
                         <div class="package-card" data-id="{{ package.id }}" data-package="{{ package.name }}" data-price="{{ package.price }}">
                             <div class="package-info">
+                                {% include 'components/booking_popular_badge.html' %}
                                 <h4>{{ package.name }}</h4>
                                 <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
                                 <p class="feature-label">Package Inclusions</p>

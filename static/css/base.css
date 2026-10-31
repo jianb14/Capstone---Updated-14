@@ -3055,7 +3055,7 @@ nav.scrolled {
     width: 132px;
     height: 132px;
     border-radius: 50%;
-    border: 6px solid var(--black);
+    border: 6px solid var(--page-background, var(--black));
     background: #ffffff;
     color: #000000;
     display: flex;
@@ -3064,7 +3064,7 @@ nav.scrolled {
     font-weight: 600;
     font-size: 4rem;
     font-family: 'Poppins', sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
 }
 
 .tcarousel-quote {
@@ -5061,15 +5061,25 @@ nav.scrolled {
 }
 
 .cta-banner {
+    --cta-surface: #181818;
+    --cta-text: #f5f5f4;
+    --cta-muted: #b5b5b5;
+    --cta-border: #343434;
+    --cta-primary-bg: #f5f5f4;
+    --cta-primary-text: #151515;
+    --cta-primary-hover: #dededc;
+    --cta-secondary-border: #505050;
+    --cta-secondary-hover: #242424;
+    --cta-secondary-hover-border: #686868;
     position: relative;
     overflow: hidden;
     max-width: 1200px;
     margin: 0 auto;
     text-align: center;
-    padding: 5rem 3rem;
+    padding: 4.5rem 2.75rem;
     border-radius: 24px;
-    background: #141414;
-    border: 1px solid var(--light-gray);
+    background: var(--cta-surface);
+    border: 1px solid var(--cta-border);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -5079,7 +5089,7 @@ nav.scrolled {
     font-size: 2.6rem;
     font-weight: 800;
     letter-spacing: -1px;
-    color: #ffffff;
+    color: var(--cta-text);
     -webkit-text-fill-color: currentColor;
     margin-bottom: 1rem;
 }
@@ -5089,7 +5099,7 @@ nav.scrolled {
     z-index: 2;
     max-width: 640px;
     margin: 0 auto 2.2rem;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--cta-muted);
     font-size: 1.08rem;
     line-height: 1.7;
 }
@@ -5099,7 +5109,7 @@ nav.scrolled {
     z-index: 2;
     display: flex;
     justify-content: center;
-    gap: 1rem;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
@@ -5108,38 +5118,57 @@ nav.scrolled {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.72rem 1.6rem;
-    font-family: 'Montserrat', sans-serif;
+    min-width: 224px;
+    min-height: 52px;
+    max-width: 100%;
+    padding: 13px 24px;
+    font-family: inherit;
     font-weight: 600;
     font-size: 0.9rem;
-    letter-spacing: 0.5px;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    text-align: center;
     text-decoration: none;
-    border-radius: 5px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    box-shadow: none;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .cta-btn-primary {
-    background: #ffffff;
-    color: #111827;
-    border: 1px solid #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    background: var(--cta-primary-bg);
+    color: var(--cta-primary-text);
+    border-color: var(--cta-primary-bg);
 }
 
-.cta-btn-primary:hover {
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    border-color: rgba(255, 255, 255, 0.8);
+.cta-btn-primary:hover,
+.cta-btn-primary:active {
+    background: var(--cta-primary-hover);
+    color: var(--cta-primary-text);
+    border-color: var(--cta-primary-hover);
 }
 
 .cta-btn-secondary {
-    background: transparent;
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: var(--cta-surface);
+    color: var(--cta-text);
+    border-color: var(--cta-secondary-border);
 }
 
-.cta-btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.08);
+.cta-btn-secondary:hover,
+.cta-btn-secondary:active {
+    background: var(--cta-secondary-hover);
+    color: var(--cta-text);
+    border-color: var(--cta-secondary-hover-border);
+}
+
+.cta-btn:focus-visible {
+    outline: 2px solid var(--cta-text);
+    outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cta-btn { transition: none; }
 }
 
 /* ---------- Scroll Reveal (per-element staggered) ---------- */
@@ -5190,7 +5219,7 @@ nav.scrolled {
     background: #111827;
     color: #ffffff;
     border-color: #ffffff;
-    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
+    box-shadow: none;
 }
 
 [data-theme="light"] .tcarousel-quote {
@@ -5227,40 +5256,21 @@ nav.scrolled {
 
 /* CTA banner light mode — light gray card (#f6f6f6), dark text/buttons */
 [data-theme="light"] .cta-banner {
-    background: #f6f6f6;
-    border-color: #d1d5db;
+    --cta-surface: #f6f6f6;
+    --cta-text: #1a1a1a;
+    --cta-muted: #606060;
+    --cta-border: #d8d8d8;
+    --cta-primary-bg: #1a1a1a;
+    --cta-primary-text: #fafafa;
+    --cta-primary-hover: #353535;
+    --cta-secondary-border: #c8c8c8;
+    --cta-secondary-hover: #eaeaea;
+    --cta-secondary-hover-border: #aaaaaa;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .cta-banner h2 {
-    color: #111827;
-    -webkit-text-fill-color: #111827;
-}
-
-[data-theme="light"] .cta-banner p {
-    color: #4b5563;
-}
-
-[data-theme="light"] .cta-btn-primary {
-    background: #111827;
-    color: #ffffff;
-    border-color: #111827;
-}
-
-[data-theme="light"] .cta-btn-primary:hover {
-    background: #374151;
-    border-color: #374151;
-}
-
-[data-theme="light"] .cta-btn-secondary {
-    background: transparent;
-    color: #111827;
-    border-color: rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="light"] .cta-btn-secondary:hover {
-    background: #ffffff;
-    border-color: rgba(0, 0, 0, 0.4);
+    -webkit-text-fill-color: currentColor;
 }
 
 [data-theme="light"] .occasion-chip {
@@ -5380,7 +5390,7 @@ nav.scrolled {
     }
 
     .cta-banner {
-        padding: 3.5rem 1.5rem;
+        padding: 3.125rem 1.375rem;
         border-radius: 18px;
     }
 
@@ -5390,6 +5400,18 @@ nav.scrolled {
 
     .cta-banner p {
         font-size: 0.98rem;
+    }
+
+    .cta-banner-buttons {
+        flex-direction: column;
+        align-items: stretch;
+        max-width: 360px;
+        margin-inline: auto;
+    }
+
+    .cta-banner-buttons .cta-btn {
+        width: 100%;
+        min-width: 0;
     }
 }
 /* ---------- Mobile Responsive: Hero / Stats / How It Works ---------- */

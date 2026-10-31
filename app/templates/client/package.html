@@ -1,6 +1,10 @@
 {% extends 'client/base.html' %}
 {% load static humanize %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hero_balloons.css' %}?v=20261031sharedhero1">
+{% endblock %}
+
 {% block content %}
 <style>
 #packages .package-logistics { box-sizing: border-box; width: 100%; max-width: 1000px; justify-content: flex-start; gap: 12px; padding: 18px 22px; overflow-wrap: anywhere; }
@@ -32,7 +36,8 @@
 
 <!-- PACKAGES PAGE -->
 <div id="packages" class="page">
-    <section class="packages-hero">
+    <section class="packages-hero" data-floating-hero>
+        {% include 'components/hero_balloons.html' %}
         <span class="about-tagline">Balloorina.ph Event Packages</span>
         <h1>
             Complete Packages,
@@ -418,6 +423,7 @@
 
 
 
+<script src="{% static 'js/hero_balloons.js' %}?v=20261031sharedhero1"></script>
 {% endblock content %}
 
 

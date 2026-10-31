@@ -12,6 +12,7 @@ from .payments import _is_abandoned_paymongo_payment  # noqa: F401
 from ..geocoding import GeocodingUnavailable, reverse_place, search_places, valid_coordinates
 from ..booking_lifecycle import event_start_at, lifecycle_display, process_booking, set_approval_deadlines
 from ..booking_changes import change_context, eligibility, schedule_atomic, ensure_available
+from ..package_catalog import ordered_packages
 
 
 @login_required
@@ -65,7 +66,7 @@ def booking_page(request):
     booked_ranges = {}
 
     # Get active packages and optionals for the stepper
-    active_packages = Package.objects.filter(is_active=True).prefetch_related("preview_images")
+    active_packages = ordered_packages(Package.objects.filter(is_active=True).prefetch_related("preview_images"))
     active_addons = AddOn.objects.filter(is_active=True).prefetch_related("preview_images")
     active_additionals = AdditionalOnly.objects.all().prefetch_related("preview_images")
     service_charge_config = get_service_charge_config()

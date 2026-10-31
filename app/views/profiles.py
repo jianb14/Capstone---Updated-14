@@ -13,6 +13,7 @@ from ..booking_changes import eligibility
 from ..profile_forms import EditProfileForm
 from ..account_lists import account_page_size
 from ..request_protection import deduplicate_submission
+from ..package_catalog import ordered_packages
 
 
 def _concern_data(ticket):
@@ -410,7 +411,7 @@ def customer_profile(request):
             edit_link_booking = target
 
     # Get active packages, addons, additionals for the edit modal dropdown
-    active_packages = Package.objects.filter(is_active=True).prefetch_related("preview_images")
+    active_packages = ordered_packages(Package.objects.filter(is_active=True).prefetch_related("preview_images"))
     active_addons = AddOn.objects.filter(is_active=True).prefetch_related("preview_images")
     active_additionals = AdditionalOnly.objects.all().prefetch_related("preview_images")
     service_charge_config = get_service_charge_config()

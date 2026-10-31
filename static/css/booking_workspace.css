@@ -1,0 +1,129 @@
+/* Presentation only. Calendar rules and the five-step booking flow stay in their existing scripts. */
+.booking-page {
+    --bui-bg: #161616;
+    --bui-ink: #f5f5f5;
+    --bui-muted: #a3a3a3;
+    --bui-line: #303030;
+    --bui-soft: #202020;
+    --bui-hover: rgb(255 255 255 / 3.5%);
+    --bui-blue: #93b4ff;
+    --bui-danger: #f19191;
+    padding: calc(var(--nav-h, 64px) + 36px) 5% 72px;
+}
+[data-theme="light"] .booking-page {
+    --bui-bg: #fff;
+    --bui-ink: #181818;
+    --bui-muted: #737373;
+    --bui-line: #e5e5e5;
+    --bui-soft: #f7f7f7;
+    --bui-hover: rgb(0 0 0 / 2.2%);
+    --bui-blue: #285eaf;
+    --bui-danger: #b8353c;
+}
+.booking-page .booking-calendar-panel { max-width: 1120px; padding: 0; border: 0; border-radius: 0; background: transparent; animation: none; box-shadow: none; color: var(--bui-ink); }
+.booking-calendar-panel > .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 26px; text-align: left; }
+.booking-calendar-panel > .panel-header h2 { font-size: 25px; font-weight: 600; letter-spacing: -.035em; line-height: 1.35; margin: 0 0 8px; color: var(--bui-ink); }
+.booking-calendar-panel > .panel-header p { font-size: 13px; line-height: 1.8; color: var(--bui-muted); }
+.booking-page .calendar-legend { flex: none; justify-content: flex-start; margin: 0; }
+.booking-page .legend-item { padding: 10px 13px; border: 1px solid var(--bui-line); border-radius: 10px; font-size: 11px; font-weight: 500; gap: 9px; color: var(--bui-muted); background: var(--bui-bg); }
+.booking-page .legend-color { width: 8px; height: 8px; flex: none; border-radius: 50%; }
+.booking-page .legend-color.confirmed { background: var(--bui-blue); }
+.booking-page .calendar-wrapper { position: relative; min-width: 0; padding: 22px; border: 1px solid var(--bui-line); border-radius: 16px; background: var(--bui-bg); box-shadow: none; }
+.booking-page .cal-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0 0 22px; }
+.booking-page .cal-nav-group { display: flex; align-items: center; gap: 4px; }
+.booking-page :where(.cal-nav-btn,.cal-title-btn,.cal-view-btn,.myp-header button,.myp-months-grid button) { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--bui-ink); font-family: inherit; font-weight: 500; text-transform: none; letter-spacing: 0; box-shadow: none; transition: background-color 160ms ease, border-color 160ms ease; }
+.booking-page :is(.cal-nav-btn,.myp-header button) { width: 36px; height: 36px; flex: none; font-size: 13px; }
+.booking-page .cal-nav-btn { border-color: transparent; background: transparent; }
+.booking-page :is(.cal-nav-btn,.cal-title-btn,.myp-header button,.myp-months-grid button):hover:not(:disabled) { background: var(--bui-soft); color: var(--bui-ink); border-color: transparent; }
+.booking-page :is(.cal-nav-btn,.cal-title-btn,.myp-header button) svg { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.booking-page .cal-title-btn { justify-self: start; justify-content: flex-start; min-width: 0; max-width: 100%; gap: 9px; padding: 7px 9px; font-size: 18px; font-weight: 600; line-height: 1.5; order: 0; }
+.booking-page #cal-title-text { min-width: 0; white-space: normal; }
+.booking-page .cal-title-caret { opacity: .65; }
+.booking-page .cal-view-group { display: flex; align-items: center; gap: 10px; padding: 0; border: 0; border-radius: 0; background: transparent; width: auto; margin: 0; }
+.booking-view-tabs { display: flex; gap: 3px; padding: 4px; border: 1px solid var(--bui-line); border-radius: 11px; background: var(--bui-soft); }
+.booking-page .cal-view-btn { min-height: 32px; padding: 7px 12px; font-size: 11px; line-height: 1.5; color: var(--bui-muted); border: 0; }
+.booking-page .cal-view-btn:hover:not(:disabled) { background: var(--bui-hover); color: var(--bui-ink); }
+.booking-page .cal-view-btn.active { background: var(--bui-bg); color: var(--bui-ink); box-shadow: 0 1px 4px #0000000a; }
+.booking-page #cal-today { min-height: 42px; padding: 8px 13px; border: 1px solid var(--bui-line); border-radius: 10px; background: var(--bui-bg); color: var(--bui-ink); }
+.booking-page :is(.cal-toolbar,.month-year-picker) button:disabled { opacity: .4; color: var(--bui-muted); cursor: default; }
+.booking-page :is(.cal-toolbar,.month-year-picker) button:focus-visible { outline: 2px solid var(--bui-muted); outline-offset: 3px; }
+.booking-page .month-year-picker { top: 74px; left: 22px; transform: none; width: min(288px, calc(100% - 44px)); max-width: none; padding: 14px; border: 1px solid var(--bui-line); border-radius: 14px; background: var(--bui-bg); color: var(--bui-ink); box-shadow: 0 8px 26px #00000018; }
+.booking-page .myp-header { margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--bui-ink); }
+.booking-page .myp-months-grid { gap: 6px; }
+.booking-page .myp-months-grid button { min-height: 36px; padding: 6px; font-size: 11px; }
+.booking-page .myp-months-grid button.active-month { border-color: var(--bui-line); background: var(--bui-soft); color: var(--bui-ink); }
+
+/* The mount ID keeps these UI rules above legacy calendar colors in both themes. */
+.booking-page #booking-calendar { max-width: none; margin: 0; color: var(--bui-ink); --fc-border-color: var(--bui-line); --fc-page-bg-color: var(--bui-bg); --fc-neutral-bg-color: var(--bui-soft); --fc-today-bg-color: var(--bui-soft); --fc-neutral-text-color: var(--bui-muted); }
+.booking-page #booking-calendar #booking-calendar-mount :is(table,thead,tbody,tr,th,td) { border-color: var(--bui-line) !important; background: transparent !important; box-shadow: none; }
+.booking-page #booking-calendar #booking-calendar-mount table { margin: 0; }
+.booking-page #booking-calendar #booking-calendar-mount :is(th,td) { padding: 0; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-scrollgrid { overflow: hidden; border-radius: 12px; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-col-header-cell { background: var(--bui-soft) !important; text-align: center; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-col-header-cell-cushion { padding: 13px 4px; font-size: 10px; font-weight: 500; letter-spacing: .045em; color: var(--bui-muted) !important; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-day { background: var(--bui-bg) !important; }
+.booking-page #booking-calendar #booking-calendar-mount :is(.fc-daygrid-day-frame,.fc-daygrid-day-top,.fc-daygrid-day-events,.fc-daygrid-day-bg,.fc-timegrid-col,.fc-timegrid-col-frame) { background: transparent !important; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-day-frame { min-height: 106px !important; padding: 5px 3px; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-day-number { padding: 5px; margin: 0; font-size: 12px; font-weight: 500; line-height: 22px; color: var(--bui-ink) !important; text-decoration: none; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-day:not(.fc-day-past):not(.fc-day-other):not(.booking-day-disabled):not(.booking-day-blocked):hover { background: var(--bui-hover) !important; }
+.booking-page #booking-calendar #booking-calendar-mount :is(.fc-day-today,.booking-day-blocked) { background: var(--bui-soft) !important; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-day-today:not(.booking-day-disabled):not(.booking-day-blocked) .fc-daygrid-day-number { display: grid; place-items: center; min-width: 28px; height: 28px; margin: 2px; padding: 0; border-radius: 8px; background: var(--bui-ink); color: var(--bui-bg) !important; }
+.booking-page #booking-calendar #booking-calendar-mount :is(.fc-day-past,.fc-day-other,.booking-day-disabled,.booking-day-blocked) .fc-daygrid-day-number { color: var(--bui-muted) !important; font-weight: 400; opacity: .55 !important; }
+.booking-page #booking-calendar #booking-calendar-mount .booking-day-blocked-label { color: var(--bui-muted); font-size: 10px; }
+.booking-page #booking-calendar #booking-calendar-mount .booking-day-blocked-label .bbl-text { white-space: normal; overflow-wrap: anywhere; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-event { border: 0 !important; border-radius: 5px; background: color-mix(in srgb, var(--bui-blue) 13%, var(--bui-bg)) !important; color: var(--bui-blue) !important; box-shadow: none; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-event .fc-event-main { color: inherit !important; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-event-title { font-weight: 500; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-event[style*="width: 12px"] { background: var(--bui-blue) !important; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-more-link { color: var(--bui-muted) !important; font-size: 10px; background: transparent; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-timegrid-slot { height: 32px; }
+.booking-page #booking-calendar #booking-calendar-mount :is(.fc-timegrid-axis-cushion,.fc-timegrid-slot-label-cushion) { color: var(--bui-muted) !important; font-size: 10px; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-popover { border: 1px solid var(--bui-line); border-radius: 12px; background: var(--bui-bg); color: var(--bui-ink); box-shadow: 0 8px 24px #00000018; }
+.booking-page #booking-calendar #booking-calendar-mount .fc-popover-header { background: var(--bui-soft); color: var(--bui-ink); }
+.booking-page .calendar-load-error { background: var(--bui-bg); border-color: var(--bui-line); color: var(--bui-muted); }
+.booking-page .calendar-load-error p { color: var(--bui-muted); }
+.booking-page .calendar-reload-btn { border: 1px solid var(--bui-line); background: var(--bui-soft); color: var(--bui-ink); border-radius: 9px; }
+
+/* Apply the admin palette to the existing form components; inputs and field names are untouched. */
+.booking-page #bookingModalOverlay { --form-surface: var(--bui-bg); --form-panel: var(--bui-bg); --form-soft: var(--bui-soft); --form-border: var(--bui-line); --form-ink: var(--bui-ink); --form-muted: var(--bui-muted); --form-danger: var(--bui-danger); --form-accent: var(--bui-ink); --form-on-accent: var(--bui-bg); }
+.booking-page #bookingModalOverlay .booking-modal-box { padding: 28px; border-radius: 16px; box-shadow: 0 24px 70px #00000024; scrollbar-color: var(--bui-line) transparent; }
+.booking-page #bookingModalOverlay .stepper-step h3 { font-size: 21px; font-weight: 600; letter-spacing: -.025em; color: var(--bui-ink) !important; }
+.booking-page #bookingModalOverlay .step-desc { font-size: 13px; }
+.booking-page #bookingModalOverlay .stepper-header { margin-bottom: 28px; }
+.booking-page #bookingModalOverlay .form-group > label { font-size: 13px; font-weight: 500; }
+.booking-page #bookingModalOverlay .form-group :is(input:not([type=hidden]):not([type=color]):not([type=file]),textarea,.custom-select-trigger) { background-color: var(--bui-bg) !important; border-color: var(--bui-line); border-radius: 10px; font-size: 13px; min-height: 44px; }
+.booking-page #bookingModalOverlay .form-group textarea { min-height: 112px; }
+.booking-page #bookingModalOverlay .form-group :is(input:not([type=hidden]),textarea,.custom-select-trigger):focus-visible { border-color: var(--bui-muted); outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bui-muted) 18%, transparent); }
+.booking-page #bookingModalOverlay .package-card { border-radius: 12px; box-shadow: none; }
+.booking-page #bookingModalOverlay .package-card:hover { border-color: var(--bui-muted); box-shadow: none; }
+.booking-page #bookingModalOverlay .package-card.selected { background: var(--bui-soft); border-color: var(--bui-ink); box-shadow: none; }
+.booking-page #bookingModalOverlay :is(.booking-back-btn,.btn-submit,.location-use-my-btn,.reference-browse) { min-height: 44px; border-radius: 9px; padding: 10px 18px; font-size: 13px; font-weight: 500; box-shadow: none; }
+.booking-page #bookingModalOverlay .btn-submit:hover { background: color-mix(in srgb, var(--bui-ink) 88%, var(--bui-bg)); border-color: transparent; }
+.booking-page #bookingModalOverlay .booking-back-btn:hover { background: var(--bui-soft); border-color: var(--bui-muted); }
+.booking-page #bookingModalOverlay :is(.booking-summary-container,.preview-group,.design-selection-summary,.reference-dropzone) { border-radius: 12px; box-shadow: none; }
+
+@media (max-width: 768px) {
+    .booking-page { padding: calc(var(--nav-h, 64px) + 26px) 4% 48px; }
+    .booking-calendar-panel > .panel-header { flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
+    .booking-calendar-panel > .panel-header h2 { font-size: 22px; }
+    .booking-calendar-panel > .panel-header p { font-size: 12px; }
+    .booking-page .calendar-wrapper { padding: 18px 14px; }
+    .booking-page .cal-toolbar { grid-template-columns: auto minmax(0, 1fr); gap: 12px 6px; }
+    .booking-page .cal-title-btn { font-size: 16px; justify-self: end; padding: 7px; }
+    .booking-page .cal-view-group { grid-column: 1 / -1; justify-content: space-between; }
+    .booking-page .month-year-picker { top: 62px; left: 14px; width: min(288px, calc(100% - 28px)); }
+    .booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-day-frame { min-height: 76px !important; padding: 2px; }
+    .booking-page #booking-calendar #booking-calendar-mount .fc-col-header-cell-cushion { font-size: 9px; padding: 10px 2px; }
+    .booking-page #booking-calendar #booking-calendar-mount .fc-daygrid-day-number { font-size: 10px; padding: 4px; }
+    .booking-page #booking-calendar #booking-calendar-mount .booking-day-blocked-label { font-size: 8px; }
+    .booking-page #bookingModalOverlay .booking-modal-box { padding: 22px; }
+}
+@media (max-width: 400px) {
+    .booking-page .calendar-wrapper { padding: 14px 10px; border-radius: 14px; }
+    .booking-page .cal-title-btn { font-size: 15px; gap: 5px; }
+    .booking-page .cal-nav-btn { width: 32px; height: 36px; }
+    .booking-page #bookingModalOverlay .booking-modal-box { padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .booking-page :is(.cal-toolbar,.month-year-picker) button { transition: none; }
+}

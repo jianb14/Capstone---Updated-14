@@ -1,5 +1,5 @@
 /* ==========================================================================
-   HERO FLOATING OBJECTS - image decorative layer (HOME PAGE)
+   HERO FLOATING OBJECTS - shared public-page decorative layer
    --------------------------------------------------------------------------
    - Gumagamit ng mga party image mula sa static/images/*-float.png.
    - Data-driven: lahat ng balloon ay object sa BALLOONS config array.
@@ -9,20 +9,23 @@
        2. FADE IN / FADE OUT life cycle
        3. SOFT BLINK (CSS keyframes, kanya-kanyang timing)
        4. ROTATION + SCALE habang naglalakbay
-   - Walang JS intervals - puro compositor-driven (transform/opacity lang).
+   - Mouse interaction uses a separate spring wrapper so the existing floating
+     paths, fades, and layout remain independent. No JS intervals.
    - Nirerespeto ang prefers-reduced-motion (static balloons).
    ========================================================================== */
 
 (function () {
     'use strict';
 
-    var heroSection = document.querySelector('.hero');
+    var heroSection = document.querySelector('.hero, [data-floating-hero]');
     if (!heroSection || heroSection.dataset.balloonsInitialized) return;
     heroSection.dataset.balloonsInitialized = 'true';
+    var isInnerHero = heroSection.hasAttribute('data-floating-hero');
 
     var reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     var tabletQuery = window.matchMedia('(max-width: 968px)');
     var mobileQuery = window.matchMedia('(max-width: 640px)');
+    var pointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
 
     /* Lakas ng galaw ayon sa depth: maliliit (bg) = pinakamalakas na galaw; malalaki (fg) = mabagal lang para hindi nagpapatong. */
     var DEPTH_SPEED = { fg: 0.65, mg: 1, bg: 1.35 };
@@ -48,7 +51,7 @@
      *   x, y   -> position (% ng hero)
      *   rot0   -> static na rotation (deg)
      *   depth  -> 'fg' | 'mg' | 'bg' (lakas ng galaw + layering)
-     *   mX, mY -> posisyon sa MOBILE (% ng hero) - apat na sulok
+     *   mX, mY -> legacy mobile corner positions; mobile now has its own layout.
      *
      * LAYOUT RULES (para hindi magkatabi/nagpapatong at walang napuputol):
      *   - Bawat item ay may sariling "puwesto" - malayo ang mga ito sa isat isa, at maliit lang ang drift ng
@@ -56,9 +59,8 @@
      *   - Lahat ng item, KASAMA ang drift range nito, ay nakapasok sa hero
      *     (may margin sa gilid) para walang object na napuputol sa edge -
      *     iyon ang dating hati na nakikita sa hero.
-     *   - Sa MOBILE, apat lang ang kita at naka-pwesto sa apat na SULOK
-     *     (top-left, top-right, bottom-left, bottom-right) gamit ang mX/mY -
-     *     para hindi nagdidikit sa gitna at hindi tumatabla sa text/CTA.
+     *   - Mobile uses eight decorations in reserved top/bottom space, with
+     *     larger balloons, small accents, and a bounded drift around each slot.
      */
     var BALLOONS = [
         /* ============ KALIWA (malalaki, desktop lang, mabagal ang galaw) ============ */
@@ -205,6 +207,29 @@
           hideTablet: false, hideMobile: true }
     ];
 
+    // Dedicated mobile composition. Positions are centers; y is the distance
+    // from the top/bottom edge. The matching CSS reserves room for both rows.
+    var MOBILE_BALLOONS = [
+        { img: 0, size: 68, x: 16, y: 70, rot0: -4, depth: 'fg', opacity: 0.82 },
+        { img: 1, size: 30, x: 40, y: 44, rot0: 5, depth: 'bg', opacity: 0.62 },
+        { img: 4, size: 36, x: 63, y: 86, rot0: -5, depth: 'bg', opacity: 0.60 },
+        { img: 5, size: 56, x: 87, y: 64, rot0: 4, depth: 'mg', opacity: 0.76 },
+        { img: 5, size: 52, x: 13, y: 65, rot0: -4, depth: 'mg', opacity: 0.74, bottom: true },
+        { img: 3, size: 38, x: 38, y: 89, rot0: 5, depth: 'bg', opacity: 0.62, bottom: true },
+        { img: 1, size: 30, x: 61, y: 45, rot0: -5, depth: 'bg', opacity: 0.60, bottom: true },
+        { img: 0, size: 65, x: 86, y: 64, rot0: 4, depth: 'fg', opacity: 0.78, bottom: true }
+    ].map(function (cfg, index) {
+        cfg.mobileLayout = true;
+        cfg.tint = cfg.depth === 'bg' ? 1 : 0;
+        cfg.drift = {
+            dur: 26 + index * 2,
+            delay: -(index * 3 + 4),
+            wps: [[12, -8, 2, 1.02], [-10, 10, -2, 0.99], [8, -6, 1, 1]]
+        };
+        cfg.life = { mode: 'soft', dur: 28 + index * 2, delay: -index * 4 };
+        return cfg;
+    });
+
     /* Buong balloon visual - gumagamit ng mga party image mula sa
        static/images. Ang cfg.img ang pumipili kung aling image ang gagamitin:
        0=doubleballoon, 1=giftbox, 2=partyhat (naayos na ang crop), 3=partyhorn,
@@ -224,6 +249,22 @@
         var isMobile = mobileQuery.matches;
         var px = (isMobile && cfg.mX != null) ? cfg.mX : cfg.x;
         var py = (isMobile && cfg.mY != null) ? cfg.mY : cfg.y;
+        var size = cfg.size;
+        var positionX = px + '%';
+        var positionY = py + '%';
+        if (cfg.mobileLayout) {
+            var width = heroSection.clientWidth;
+            size *= Math.max(0.82, Math.min(1.15, width / 390));
+            // Reserve room for rotation, scale and the full drift path.
+            var angle = (Math.abs(cfg.rot0) + 2) * Math.PI / 180;
+            var halfWidth = (size * Math.cos(angle) + size * 1.35 * Math.sin(angle)) * 0.51;
+            var margin = halfWidth + 10;
+            positionX = Math.max(margin, Math.min(width - margin, width * cfg.x / 100)) + 'px';
+            var edgeOffset = cfg.y;
+            // Keep small bottom accents above the centered inner-page scroll cue.
+            if (isInnerHero && cfg.bottom && cfg.depth === 'bg') edgeOffset = cfg.img === 3 ? 122 : 115;
+            positionY = cfg.bottom ? 'calc(100% - ' + edgeOffset + 'px)' : edgeOffset + 'px';
+        }
         var el = document.createElement('div');
         el.className = [
             'balloon',
@@ -234,15 +275,15 @@
             cfg.hideMobile ? 'balloon--hide-mobile' : ''
         ].filter(Boolean).join(' ');
 
-        el.style.setProperty('--x', px + '%');
-        el.style.setProperty('--y', py + '%');
-        el.style.setProperty('--size', cfg.size + 'px');
+        el.style.setProperty('--x', positionX);
+        el.style.setProperty('--y', positionY);
+        el.style.setProperty('--size', size + 'px');
         el.style.setProperty('--opacity', cfg.opacity);
         el.style.setProperty('--blink-dur', (cfg.blinkDur || 8) + 's');
         el.style.setProperty('--blink-delay', (cfg.blinkDelay || 0) + 's');
         el.style.setProperty('--blink-min', cfg.blinkMin != null ? cfg.blinkMin : 0.5);
         /* Static na tindig ng balloon (hiwalay sa drift rotation) */
-        el.style.transform = 'rotate(' + (cfg.rot0 || 0) + 'deg)';
+        el.style.transform = (cfg.mobileLayout ? 'translate(-50%, -50%) ' : '') + 'rotate(' + (cfg.rot0 || 0) + 'deg)';
 
         var drift = document.createElement('div');
         drift.className = 'balloon-drift';
@@ -251,9 +292,12 @@
         shape.className = 'balloon-shape';
         shape.innerHTML = balloonVisualMarkup(cfg);
 
-        drift.appendChild(shape);
+        var interaction = document.createElement('div');
+        interaction.className = 'balloon-interaction';
+        interaction.appendChild(shape);
+        drift.appendChild(interaction);
         el.appendChild(drift);
-        return { el: el, cfg: cfg };
+        return { el: el, cfg: cfg, interaction: interaction, x: 0, y: 0, vx: 0, vy: 0 };
     }
 
     /* Drift keyframes: home -> wp1 -> wp2 -> wp3 -> home (seamless loop).
@@ -284,6 +328,10 @@
        'soft' = nagiging faint lang, hindi mawawala tuluyan */
     function lifeKeyframes(cfg) {
         var o = cfg.opacity;
+        if (cfg.mobileLayout) {
+            // Mobile decorations stay present throughout the animation.
+            return [{ opacity: o }, { opacity: o * 0.86 }, { opacity: o }];
+        }
         if (cfg.life.mode === 'soft') {
             return [
                 { opacity: o, offset: 0 },
@@ -351,17 +399,110 @@
     }
 
     var items = [];
+    var pointer = { active: false, x: 0, y: 0 };
+    var interactionFrame = 0;
+    var previousInteractionTime = 0;
+    var heroInView = true;
+
+    function resetInteraction() {
+        window.cancelAnimationFrame(interactionFrame);
+        interactionFrame = 0;
+        previousInteractionTime = 0;
+        pointer.active = false;
+        items.forEach(function (item) {
+            item.x = item.y = item.vx = item.vy = 0;
+            item.interaction.style.removeProperty('transform');
+        });
+    }
+
+    function canInteract() {
+        return pointerQuery.matches && !reducedMotionQuery.matches &&
+            !document.hidden && heroInView && heroSection.isConnected;
+    }
+
+    function animateInteraction(now) {
+        interactionFrame = 0;
+        if (!canInteract()) {
+            resetInteraction();
+            return;
+        }
+        var dt = previousInteractionTime ? Math.min((now - previousInteractionTime) / 1000, 0.032) : 1 / 60;
+        previousInteractionTime = now;
+        var heroRect = heroSection.getBoundingClientRect();
+        if (pointer.y < heroRect.top || pointer.y > heroRect.bottom) pointer.active = false;
+        var px = ((pointer.x - heroRect.left) / heroRect.width - 0.5) * 2;
+        var py = ((pointer.y - heroRect.top) / heroRect.height - 0.5) * 2;
+        // Batch geometry reads before writing transforms. Read the drift parent
+        // so interaction offsets do not feed back into their own hit positions.
+        var visible = items.filter(function (item) { return item.el.offsetWidth > 0; });
+        var bounds = visible.map(function (item) { return item.el.firstChild.getBoundingClientRect(); });
+        var settling = false;
+        visible.forEach(function (item, index) {
+            var rect = bounds[index];
+            var depth = item.cfg.depth === 'fg' ? 1 : item.cfg.depth === 'mg' ? 0.75 : 0.45;
+            var tx = 0;
+            var ty = 0;
+            if (pointer.active) {
+                tx = px * 7 * depth;
+                ty = py * 5 * depth;
+                var dx = rect.left + rect.width / 2 - pointer.x;
+                var dy = rect.top + rect.height * 0.4 - pointer.y;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+                var radius = Math.max(100, Math.min(165, rect.width + 65));
+                if (distance < radius) {
+                    var force = Math.pow(1 - distance / radius, 1.5) * (32 + depth * 20);
+                    tx += (distance > 1 ? dx / distance : (px < 0 ? -1 : 1)) * force;
+                    ty += (distance > 1 ? dy / distance : -0.5) * force;
+                }
+                // Limit only the extra mouse displacement at the hero's edges.
+                tx = Math.max(Math.min(0, heroRect.left + 6 - rect.left), Math.min(tx, Math.max(0, heroRect.right - 6 - rect.right)));
+                ty = Math.max(Math.min(0, heroRect.top + 6 - rect.top), Math.min(ty, Math.max(0, heroRect.bottom - 6 - rect.bottom)));
+            }
+            item.vx += ((tx - item.x) * 90 - item.vx * 16) * dt;
+            item.vy += ((ty - item.y) * 90 - item.vy * 16) * dt;
+            item.x += item.vx * dt;
+            item.y += item.vy * dt;
+            if (Math.abs(item.x) + Math.abs(item.y) + Math.abs(item.vx) + Math.abs(item.vy) > 0.08) settling = true;
+            item.interaction.style.transform = 'translate3d(' + item.x.toFixed(3) + 'px, ' + item.y.toFixed(3) + 'px, 0)';
+        });
+        if (pointer.active || settling) interactionFrame = window.requestAnimationFrame(animateInteraction);
+        else resetInteraction();
+    }
+
+    heroSection.addEventListener('pointermove', function (event) {
+        if (event.pointerType !== 'mouse' || !canInteract()) return;
+        pointer.active = true;
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        if (!interactionFrame) {
+            previousInteractionTime = 0;
+            interactionFrame = window.requestAnimationFrame(animateInteraction);
+        }
+    }, { passive: true });
+    heroSection.addEventListener('pointerleave', function () { pointer.active = false; }, { passive: true });
+    window.addEventListener('blur', resetInteraction);
+    window.addEventListener('resize', resetInteraction, { passive: true });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) resetInteraction(); });
+    if (typeof pointerQuery.addEventListener === 'function') pointerQuery.addEventListener('change', resetInteraction);
+    else if (typeof pointerQuery.addListener === 'function') pointerQuery.addListener(resetInteraction);
+    if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+            heroInView = entries[0].isIntersecting;
+            if (!heroInView) resetInteraction();
+        }).observe(heroSection);
+    }
 
     function build() {
+        resetInteraction();
         /* I-cancel ang mga running animations bago mag-rebuild */
         items.forEach(function (item) {
-            item.el.getAnimations().forEach(function (anim) {
+            item.el.getAnimations({ subtree: true }).forEach(function (anim) {
                 anim.cancel();
             });
         });
         layer.innerHTML = '';
 
-        items = BALLOONS.map(createBalloon);
+        items = (mobileQuery.matches ? MOBILE_BALLOONS : BALLOONS).map(createBalloon);
         var frag = document.createDocumentFragment();
         items.forEach(function (item) {
             frag.appendChild(item.el);
@@ -387,6 +528,16 @@
         tabletQuery.addListener(onSettingChange);
         mobileQuery.addListener(onSettingChange);
     }
+
+    var mobileResizeFrame = 0;
+    window.addEventListener('resize', function () {
+        if (!mobileQuery.matches) return;
+        window.cancelAnimationFrame(mobileResizeFrame);
+        mobileResizeFrame = window.requestAnimationFrame(function () {
+            mobileResizeFrame = 0;
+            if (mobileQuery.matches) build();
+        });
+    }, { passive: true });
 
     build();
 })();

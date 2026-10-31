@@ -1,6 +1,10 @@
 {% extends 'client/base.html' %}
 {% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hero_balloons.css' %}?v=20261031sharedhero1">
+{% endblock %}
+
 {% block content %}
 
 <!-- Thin outline icon sprite (same stroke style as the home "Why Choose" icons) -->
@@ -26,7 +30,8 @@
 </svg>
 
 <div id="about" class="page">
-    <section class="about-hero">
+    <section class="about-hero" data-floating-hero>
+        {% include 'components/hero_balloons.html' %}
         <span class="about-tagline">{{ about_content.hero_label|default:"About Balloorina.ph" }}</span>
         <h1>
             {{ hero_title_main|default:"Celebrating Moments," }}
@@ -262,5 +267,6 @@
     </section>
 </div>
 
+<script src="{% static 'js/hero_balloons.js' %}?v=20261031sharedhero1"></script>
 {% endblock content %}
 

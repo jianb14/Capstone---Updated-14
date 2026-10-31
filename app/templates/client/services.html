@@ -1,11 +1,16 @@
 {% extends 'client/base.html' %}
 {% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hero_balloons.css' %}?v=20261031sharedhero1">
+{% endblock %}
+
 {% block content %}
     <link rel="stylesheet" href="{% static 'css/services_widgets.css' %}?v=20261025d">
 
     <div id="services" class="page">
-        <section class="about-hero">
+        <section class="about-hero" data-floating-hero>
+            {% include 'components/hero_balloons.html' %}
             <span class="about-tagline">{{ service_content.hero_label|default:"Balloorina Event Styling" }}</span>
             <h1>{{ service_content.hero_title|default:"Crafted for Every Occasion" }}</h1>
             <p>{{ service_content.hero_subtitle|default:"From intimate birthdays to grand weddings, our balloon styling and event decoration services bring every celebration to life." }}</p>
@@ -286,6 +291,7 @@
     {{ services_widget_data|json_script:"services-widget-data" }}
     {{ availability_data|json_script:"booking-availability-data" }}
 
+    <script src="{% static 'js/hero_balloons.js' %}?v=20261031sharedhero1"></script>
     <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
     <script src="{% static 'js/booking_picker_a.js' %}?v=20261025account1"></script>
     <script src="{% static 'js/booking_picker_c.js' %}?v=20261025account1"></script>

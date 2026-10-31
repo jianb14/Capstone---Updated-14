@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <!-- Shared components ng Step 3 map card + Step 4 Design Preferences -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261023hover">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031popular2">
 <link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261023checkbox">
 <script defer src="{% static 'js/booking_form_ui.js' %}?v=20261025account1"></script>
 <!-- Leaflet (edit modal Step 2 location map) — free OSM tiles, no API key.
@@ -235,6 +235,7 @@
                     {% for package in packages %}
                     <div class="package-card edit-package-card" data-package="{{ package.name }}" data-price="{{ package.price }}">
                         <div class="package-info">
+                            {% include 'components/booking_popular_badge.html' %}
                             <h4>{{ package.name }}</h4>
                             <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
                             <p class="feature-label">Package Inclusions</p>

@@ -2,8 +2,9 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/hero_balloons.css' %}">
-<link rel="stylesheet" href="{% static 'css/home_stats.css' %}?v=20261025a">
+<link rel="stylesheet" href="{% static 'css/hero_balloons.css' %}?v=20261031sharedhero1">
+<link rel="stylesheet" href="{% static 'css/home_stats.css' %}?v=20261031softbg1">
+<link rel="stylesheet" href="{% static 'css/home_creations.css' %}?v=20261031smooth2">
 {% endblock %}
 
 {% block content %}
@@ -293,93 +294,70 @@
     </section>
 
     <!-- Featured Work Preview -->
-    <section class="featured-work">
+    <section class="featured-work" id="latest-creations" aria-labelledby="latest-creations-title">
         <div class="section-header">
-            <h2>Our Latest Creations</h2>
+            <h2 id="latest-creations-title">Our Latest Creations</h2>
             <p>Explore some of our recent work and get inspired for your next celebration.</p>
         </div>
-        <div class="home-gallery-grid">
-            {% for img in latest_creations %}
-            <div class="gallery-item">
-                <img src="{{ img.image.url }}" alt="{{ img.caption|default:'Recent Creation' }}" loading="lazy">
-                {% if img.caption %}
-                <div class="gallery-caption">{{ img.caption }}</div>
-                {% endif %}
+        <div class="creation-carousel" role="region" aria-roledescription="carousel" aria-label="Latest creations">
+            <div class="creation-carousel__viewport" role="group" aria-label="Photo carousel" aria-describedby="creationCarouselHelp">
+                <div class="creation-carousel__stage">
+                    <div class="creation-carousel__camera">
+                        <ul class="home-creations-ring" aria-label="Latest photos">
+                            {% for img in latest_creations %}
+                            <li class="creation-item">
+                                <a class="creation-card" href="{{ img.image.url }}" target="_blank" rel="noopener"
+                                    data-creation data-caption="{{ img.caption }}" aria-haspopup="dialog"
+                                    aria-controls="creationViewer" aria-label="View creation {{ forloop.counter }}{% if img.caption %}: {{ img.caption }}{% endif %}">
+                                    <figure>
+                                        <div class="creation-photo">
+                                            <img src="{{ img.image.url }}" alt="{{ img.caption|default:'Balloon styling creation' }}" loading="lazy" decoding="async" draggable="false">
+                                            <span class="creation-unavailable" hidden>Image unavailable</span>
+                                        </div>
+                                        <figcaption class="creation-caption">{{ img.caption|default:'View photo' }}</figcaption>
+                                    </figure>
+                                </a>
+                            </li>
+                            {% empty %}
+                            <li class="creations-empty" role="status">
+                                <p>No new creations to show yet. Check back soon!</p>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             </div>
-            {% empty %}
-            <div class="gallery-empty" style="grid-column: 1 / -1;">
-                <p>No new creations to show yet. Check back soon!</p>
+          <div class="creation-carousel__navigation" hidden>
+            <p class="creation-carousel__hint" aria-hidden="true"><span class="creation-hint-desktop">Drag to explore</span><span class="creation-hint-touch">Swipe to explore</span><span class="creation-hint-divider">/</span><span class="creation-hint-desktop">Click a photo to view</span><span class="creation-hint-touch">Tap a photo to view</span></p>
+            <div class="creation-carousel__controls">
+              <button type="button" data-carousel-previous aria-label="Previous creation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+              <span class="creation-carousel__counter" aria-hidden="true">01 <span>/ {{ latest_creations|length|stringformat:'02d' }}</span></span>
+              <button type="button" data-carousel-next aria-label="Next creation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+              <button type="button" class="creation-carousel__pause" data-carousel-pause aria-label="Pause automatic rotation" aria-pressed="false"><svg class="creation-icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg><svg class="creation-icon-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m9 5 10 7-10 7z"/></svg></button>
             </div>
-            {% endfor %}
+          </div>
+          <p id="creationCarouselHelp" class="creation-sr-only">Drag or swipe to rotate. Use the left and right arrow keys to choose a photo, and Enter to open it.</p>
+          <p class="creation-carousel__live creation-sr-only" aria-live="polite" aria-atomic="true"></p>
         </div>
 
-        <!-- Lightbox Modal -->
-        <div class="gallery-lightbox" id="galleryLightbox">
-            <button class="lightbox-close" id="lightboxClose">&times;</button>
-            <img class="lightbox-img" id="lightboxImg" src="" alt="">
-            <div class="lightbox-caption" id="lightboxCaption"></div>
-        </div>
+        <dialog class="creation-viewer" id="creationViewer" aria-label="Creation preview" aria-describedby="creationViewerCaption">
+            <header class="creation-viewer__header">
+                <span>Our Latest Creations</span>
+                <span class="creation-viewer__counter" aria-live="polite"></span>
+                <button class="creation-viewer__close" type="button" aria-label="Close photo preview" autofocus><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+            </header>
+            <div class="creation-viewer__body">
+                <button class="creation-viewer__previous" type="button" aria-label="Previous photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+                <div class="creation-viewer__stage" aria-busy="false">
+                    <img class="creation-viewer__image" alt="" draggable="false" hidden>
+                    <p class="creation-viewer__status" role="status" hidden></p>
+                </div>
+                <button class="creation-viewer__next" type="button" aria-label="Next photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+            </div>
+            <p class="creation-viewer__caption" id="creationViewerCaption"></p>
+        </dialog>
 
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const items = document.querySelectorAll('.home-gallery-grid .gallery-item');
-
-                // --- SCROLL REVEAL (IntersectionObserver + stagger) ---
-                // Kapag pumasok na sa viewport ang isang image, saka lang ito
-                // magla-"show" — may stagger (90ms) bawat sunod-sunod na item.
-                const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-                if (reducedMotion || !('IntersectionObserver' in window)) {
-                    // Walang animation: ipakita agad lahat
-                    items.forEach(item => item.classList.add('show'));
-                } else {
-                    const revealObserver = new IntersectionObserver((entries) => {
-                        let stagger = 0;
-                        entries.forEach((entry) => {
-                            if (!entry.isIntersecting) return;
-                            const item = entry.target;
-                            revealObserver.unobserve(item);
-                            setTimeout(() => item.classList.add('show'), stagger);
-                            stagger += 90;
-                        });
-                    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
-
-                    items.forEach(item => revealObserver.observe(item));
-                }
-
-                // --- LIGHTBOX ---
-                const lightbox = document.getElementById('galleryLightbox');
-                const lightboxImg = document.getElementById('lightboxImg');
-                const lightboxCaption = document.getElementById('lightboxCaption');
-                const lightboxClose = document.getElementById('lightboxClose');
-
-                items.forEach(item => {
-                    item.addEventListener('click', () => {
-                        const img = item.querySelector('img');
-                        const caption = item.querySelector('.gallery-caption');
-                        lightboxImg.src = img.src;
-                        lightboxCaption.textContent = caption ? caption.textContent : '';
-                        lightbox.classList.add('active');
-                        document.body.style.overflow = 'hidden';
-                    });
-                });
-
-                lightboxClose.addEventListener('click', closeLightbox);
-                lightbox.addEventListener('click', (e) => {
-                    if (e.target === lightbox) closeLightbox();
-                });
-
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') closeLightbox();
-                });
-
-                function closeLightbox() {
-                    lightbox.classList.remove('active');
-                    document.body.style.overflow = '';
-                }
-            });
-        </script>
-        <div style="text-align: center; margin-top: 3rem;">
+        <div class="creations-footer">
             <a href="{% url 'gallery' %}" class="btn btn-primary"><span>View Full Gallery</span></a>
         </div>
     </section>
@@ -514,10 +492,11 @@
 </div>
 
 <!-- Floating balloons sa hero (data-driven decorative layer) -->
-<script src="{% static 'js/hero_balloons.js' %}"></script>
+<script src="{% static 'js/hero_balloons.js' %}?v=20261031sharedhero1"></script>
 
 <!-- Count-up animation ng stats numbers (scroll-triggered) -->
 <script src="{% static 'js/stats_countup.js' %}?v=20261025a"></script>
+<script src="{% static 'js/home_creations.js' %}?v=20261031smooth2"></script>
 
 {% endblock content %}
 
