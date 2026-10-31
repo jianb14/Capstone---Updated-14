@@ -404,6 +404,30 @@ class AccountTableBrowserTests(StaticLiveServerTestCase):
                                 check_kpi_colors()
                             page.wait_for_function('document.documentElement.scrollWidth<=innerWidth+1')
                             page.evaluate('scrollTo(0,0)')
+                            if route in ('customer_profile','my_payments'):
+                                action = page.locator('.account-table [data-tooltip]:visible').first
+                                action.hover()
+                                tooltip = page.get_by_role('tooltip')
+                                expect(tooltip).to_be_visible()
+                                expect(tooltip).to_have_text(action.get_attribute('data-tooltip'))
+                                widget_colors = page.locator('#ai-fab').evaluate('''el => {
+                                    const s=getComputedStyle(el,'::after'); return [s.backgroundColor,s.color];
+                                }''')
+                                expect(tooltip).to_have_css('background-color', widget_colors[0])
+                                expect(tooltip).to_have_css('color', widget_colors[1])
+                                bounds = tooltip.bounding_box()
+                                self.assertGreaterEqual(bounds['x'],0)
+                                self.assertGreaterEqual(bounds['y'],0)
+                                self.assertLessEqual(bounds['x']+bounds['width'],width)
+                                page.screenshot(path=str(artifacts/f'account-tooltip-{route}-{theme}-{width}.png'))
+                                action.focus()
+                                expect(tooltip).to_be_visible()
+                                expect(action).to_have_attribute('aria-describedby','account-action-tooltip')
+                                action.press('Escape')
+                                expect(tooltip).to_be_hidden()
+                                page.locator('#accountContent').focus()
+                            else:
+                                expect(page.locator('.account-action-tooltip')).to_have_count(0)
                             page.screenshot(path=str(artifacts/f'account-table-{route}-{theme}-{width}.png'),animations='disabled')
                             if width==1440:
                                 page.locator('[data-list-footer]:visible').first.screenshot(path=str(artifacts/f'account-footer-{route}-{theme}.png'),animations='disabled')

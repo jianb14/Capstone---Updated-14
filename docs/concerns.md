@@ -10,7 +10,9 @@ While sending, the button is disabled and repeat submit events are ignored. If t
 
 The upload area supports browsing and drag-and-drop, with removable previews. Both the browser and server enforce up to four JPG, PNG or WEBP images, each at most 5MB. The server verifies actual image content, rather than trusting the file extension.
 
-The page presents the reporting form beside recent concern history on desktop. History includes the subject, ticket number, category, status and submission date. On smaller screens the form appears first and history rows become compact cards with visible View and Cancel controls. The subject field shows its character count; field errors and submission feedback remain inline.
+The page presents the reporting form beside recent concern history on desktop. History includes the subject, ticket number, category, status and submission date. On smaller screens the form appears first and the table scrolls horizontally with visible View and Cancel controls. Required labels have red asterisks; attachments are marked `(optional)`. Inputs, focus rings, validation colors, table surfaces, status badges and upload controls follow the admin concern palette in both themes. Empty required fields turn red on focus or submission, retaining the red border and focus ring until valid text is entered or a category is selected. Clearing a value or entering only whitespace restores the error; the Other field is required only for that category. The subject field shows its character count and field errors remain inline.
+
+Submission and cancellation show the shared admin-style top-right success/error toast. A successful submission keeps its toast visible through account navigation (or restores it after a full page load). Cancellation uses the shared client confirmation styling, keeps focus on the safe action initially, and disables dismissal while the request is pending. Failed requests preserve the draft or confirmation for retry.
 
 ## Admin queue and notifications
 

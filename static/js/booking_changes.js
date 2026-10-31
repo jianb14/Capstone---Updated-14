@@ -10,31 +10,20 @@ AccountPages.enhance('customer_profile', 'booking_changes.js', function(scope) {
         window.CustomerBookingModals?.close(false);
         let reason = null;
         try {
-            if (window.Swal?.fire) {
-                const result = await window.Swal.fire({
-                    title: 'Request booking changes',
-                    text: `Tell us why you want to change Booking #${bookingId}. You can select your changes on the next screen.`,
-                    input: 'textarea', inputLabel: 'Why are you requesting changes?',
-                    inputPlaceholder: 'For example: We need a larger package because more guests will attend.',
-                    inputAttributes: { maxlength: '2000', rows: '4' },
-                    inputValidator: value => {
-                        const length = value.trim().length;
-                        if (length < 10 || length > 2000) return 'Please provide a reason between 10 and 2,000 characters.';
-                    },
-                    showCancelButton: true, confirmButtonText: 'Continue to Changes',
-                    cancelButtonText: 'Cancel', returnFocus: false,
-                    customClass: { popup: 'app-dialog-popup booking-reason-dialog' }
-                });
-                if (result.isConfirmed) reason = result.value.trim();
-            } else {
-                // Preserve access if the existing SweetAlert CDN cannot load.
-                let value = '';
-                while (true) {
-                    value = window.prompt('Why are you requesting booking changes? Enter 10 to 2,000 characters.', value);
-                    if (value === null) break;
-                    if (value.trim().length >= 10 && value.trim().length <= 2000) { reason = value.trim(); break; }
-                }
-            }
+            const result = await window.AppToast.confirm({
+                title: 'Request booking changes',
+                text: `Tell us why you want to change Booking #${bookingId}. You can select your changes on the next screen.`,
+                input: 'textarea', inputLabel: 'Why are you requesting changes?',
+                inputPlaceholder: 'For example: We need a larger package because more guests will attend.',
+                inputAttributes: { maxlength: '2000', rows: '4' },
+                inputValidator: value => {
+                    const length = value.trim().length;
+                    if (length < 10 || length > 2000) return 'Please provide a reason between 10 and 2,000 characters.';
+                },
+                confirmText: 'Continue to Changes',
+                cancelText: 'Cancel', returnFocus: false
+            });
+            if (result.isConfirmed) reason = result.value.trim();
             return reason;
         } finally {
             askingReason = false;

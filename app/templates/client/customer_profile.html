@@ -6,15 +6,15 @@
 {% block account_content %}
 <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20261013a">
 <link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
-<script defer src="{% static 'js/booking_changes.js' %}?v=20261025account2"></script>
-<script defer src="{% static 'js/customer_booking_details.js' %}?v=20261025account1"></script>
+<script defer src="{% static 'js/booking_changes.js' %}?v=20261031feedback"></script>
+<script defer src="{% static 'js/customer_booking_details.js' %}?v=20261031feedback"></script>
 <link rel="stylesheet" href="{% static 'css/booking_event_design.css' %}?v=20261021a">
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <!-- Shared components ng Step 3 map card + Step 4 Design Preferences -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031popular2">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031upload3">
 <link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261023checkbox">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261025account1"></script>
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261031upload3"></script>
 <!-- Leaflet (edit modal Step 2 location map) — free OSM tiles, no API key.
      Graceful degradation: text location stays required if this fails. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -22,7 +22,7 @@
 <script src="{% static 'js/booking_location_map.js' %}?v=20261025account1"></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261025account1"></script>
-<script src="{% static 'js/booking_picker_c.js' %}?v=20261025account1"></script>
+<script src="{% static 'js/booking_picker_c.js' %}?v=20261031feedback"></script>
 <script src="{% static 'js/booking_logistics.js' %}?v=20261021d"></script>
 {{ availability_data|json_script:"booking-availability-data" }}
 {{ logistics_config|json_script:"edit-logistics-config" }}
@@ -2844,7 +2844,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         if (reviewImagesInput) {
             reviewImagesInput.addEventListener('change', function () {
                 if (this.files.length > 4) {
-                    alert('You can only upload a maximum of 4 pictures.');
+                    AppToast.fire({icon: 'error', title: 'You can only upload a maximum of 4 pictures.'});
                     this.value = ''; // Reset input so they have to select again
                 }
             });

@@ -1,14 +1,15 @@
 ﻿{% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261025b">
+{% include 'components/auth_presentation_assets.html' %}
 <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
 <link rel="stylesheet" href="{% static 'css/password_requirements.css' %}?v=20261025b">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="{% static 'js/theme-toggle.js' %}"></script>
 {% include 'components/password_visibility_assets.html' %}
 
-<div class="body auth-with-back">
+<div class="body auth-with-back auth-scene" data-floating-hero data-floating-auth>
+    {% include 'components/hero_balloons.html' %}
     {% include 'components/auth_back_link.html' %}
     <div class="auth-container">
 
@@ -25,12 +26,12 @@
             <!-- Name Fields (Two Column) -->
             <div class="name-row">
                 <div class="field-group">
-                    <label class="input-label" for="first_name">First Name <span style="color: red;">*</span></label>
+                    <label class="input-label" for="first_name">First Name <span class="auth-required" aria-hidden="true">*</span></label>
                     <input type="text" id="first_name" name="first_name" placeholder="Enter your first name" data-label="First Name" required>
                     <small class="field-error"></small>
                 </div>
                 <div class="field-group">
-                    <label class="input-label" for="last_name">Last Name <span style="color: red;">*</span></label>
+                    <label class="input-label" for="last_name">Last Name <span class="auth-required" aria-hidden="true">*</span></label>
                     <input type="text" id="last_name" name="last_name" placeholder="Enter your last name" data-label="Last Name" required>
                     <small class="field-error"></small>
                 </div>
@@ -38,28 +39,28 @@
 
             <!-- Username -->
             <div class="field-group">
-                <label class="input-label" for="username">Username <span style="color: red;">*</span></label>
+                <label class="input-label" for="username">Username <span class="auth-required" aria-hidden="true">*</span></label>
                 <input type="text" id="username" name="username" placeholder="Choose a username (e.g., juan_dc)" data-label="Username" required>
                 <small class="field-error"></small>
             </div>
             
             <!-- Email -->
             <div class="field-group">
-                <label class="input-label" for="email">Gmail Address <span style="color: red;">*</span></label>
+                <label class="input-label" for="email">Gmail Address <span class="auth-required" aria-hidden="true">*</span></label>
                 <input type="email" name="email" id="email" placeholder="Enter your Gmail address (e.g., juan@gmail.com)" data-label="Gmail Address" pattern="[A-Za-z0-9._%+-]+@gmail\.com" title="Please use a valid Gmail address." required>
                 <small class="field-error"></small>
             </div>
             
             <!-- Phone Number -->
             <div class="field-group">
-                <label class="input-label" for="phone">Phone Number <span style="color: red;">*</span></label>
+                <label class="input-label" for="phone">Phone Number <span class="auth-required" aria-hidden="true">*</span></label>
                 <input type="tel" name="phone" id="phone" placeholder="Enter your phone number (e.g., 09123456789)" data-label="Phone Number" required>
                 <small class="field-error"></small>
             </div>
             
             <!-- Password with Show/Hide Toggle -->
             <div class="field-group">
-                <label class="input-label" for="password">Password <span style="color: red;">*</span></label>
+                <label class="input-label" for="password">Password <span class="auth-required" aria-hidden="true">*</span></label>
                 <div class="password-container password-visibility-field">
                     <input type="password" class="pass-input" id="password" name="password" placeholder="Create a password (at least 8 characters)" data-label="Password" required>
                     {% include 'components/password_visibility.html' with input_id='password' password_label='password' %}
@@ -70,7 +71,7 @@
 
             <!-- Confirm Password with Show/Hide Toggle -->
             <div class="field-group">
-                <label class="input-label" for="confirm_password">Confirm Password <span style="color: red;">*</span></label>
+                <label class="input-label" for="confirm_password">Confirm Password <span class="auth-required" aria-hidden="true">*</span></label>
                 <div class="password-container password-visibility-field">
                     <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter your password to confirm" data-label="Confirm Password" required>
                     {% include 'components/password_visibility.html' with input_id='confirm_password' password_label='confirmation password' %}
@@ -80,12 +81,12 @@
 
             <div class="terms-check-wrap">
                 <label for="terms_ack" class="terms-check-label">
-                    <input type="checkbox" id="terms_ack" name="terms_ack" required>
+                    <input type="checkbox" id="terms_ack" name="terms_ack" data-label="Terms agreement" required>
                     <span>
                         I agree to the
                         <a href="{% url 'terms_conditions' %}" target="_blank" rel="noopener">Terms &amp; Conditions</a>
                         and
-                        <a href="{% url 'data_privacy' %}" target="_blank" rel="noopener">Privacy Policy</a>.
+                        <a href="{% url 'data_privacy' %}" target="_blank" rel="noopener">Privacy Policy</a>. <span class="auth-required" aria-hidden="true">*</span>
                     </span>
                 </label>
                 <small class="field-error" id="terms-error"></small>
@@ -102,24 +103,12 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% include 'components/client_feedback_assets.html' %}
 <script src="{% static 'js/email_otp.js' %}"></script>
 <script>
 
     document.addEventListener("DOMContentLoaded", function() {
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 4000,
-            timerProgressBar: true,
-            background: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#1a1a1a',
-            color: document.documentElement.getAttribute('data-theme') === 'light' ? '#111827' : '#fff',
-            didOpen: (toast) => {
-                toast.addEventListener('mouseenter', Swal.stopTimer)
-                toast.addEventListener('mouseleave', Swal.resumeTimer)
-            }
-        });
+        const Toast = AppToast;
 
         const registerForm = document.getElementById('registerForm');
         if (registerForm) {
@@ -136,7 +125,7 @@
             };
             let submitAttempted = false;
 
-            const getFieldGroup = (input) => input.closest('.field-group');
+            const getFieldGroup = (input) => input.closest('.field-group, .terms-check-wrap');
 
             const setFieldError = (input, message) => {
                 const fieldGroup = getFieldGroup(input);
@@ -144,6 +133,12 @@
 
                 const errorElement = fieldGroup.querySelector('.field-error');
                 if (!errorElement) return;
+
+                input.setAttribute('aria-invalid', String(Boolean(message)));
+                if (!errorElement.id) errorElement.id = `${input.id}-error`;
+                const descriptions = new Set((input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+                descriptions.add(errorElement.id);
+                input.setAttribute('aria-describedby', [...descriptions].join(' '));
 
                 if (message) {
                     fieldGroup.classList.add('has-error');
@@ -155,8 +150,9 @@
             };
 
             const getValidationMessage = (input) => {
+                if (input.type === 'checkbox' && input.validity.valueMissing) return 'Please agree to the Terms & Conditions and Privacy Policy.';
                 if (input.validity.valueMissing) {
-                    return `${input.dataset.label || input.name} is required*`;
+                    return `${input.dataset.label || input.name} is required.`;
                 }
                 if (input.type === 'email' && input.validity.typeMismatch) {
                     return "Please enter a valid email address (must include '@').";
@@ -319,6 +315,7 @@
 
             if (termsCheckbox) {
                 termsCheckbox.addEventListener('change', () => {
+                    if (submitAttempted) validateField(termsCheckbox);
                     const termsError = document.getElementById('terms-error');
                     if (termsError && termsCheckbox.checked) {
                         termsError.textContent = '';

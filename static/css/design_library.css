@@ -11,6 +11,7 @@
     --dl-ready: #86d8a8;
     --dl-ready-bg: #193025;
     --dl-focus: #888;
+    --dl-hover-border:#4a4a4a;
 }
 [data-theme="light"] :where(.my-designs-section, .pkg-select-box, .design-offer-picker) {
     --dl-surface: #fff;
@@ -24,6 +25,7 @@
     --dl-ready: #196b3d;
     --dl-ready-bg: #edf7f0;
     --dl-focus: #777;
+    --dl-hover-border:#cecece;
 }
 html.design-modal-open { overflow: hidden; scrollbar-gutter: stable; }
 .my-designs-section .create-new-btn { border: 0; padding: 12px 16px; font-family: inherit; cursor: pointer; flex-shrink: 0; }
@@ -98,8 +100,8 @@ html.design-modal-open { overflow: hidden; scrollbar-gutter: stable; }
 .pkg-select-box .pkg-close-btn:focus-visible { outline: 2px solid var(--dl-focus); outline-offset: 3px; }
 .design-offer-picker .design-tabs button:focus-visible { outline-offset: -4px; }
 .design-offer-picker .pkg-cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; }
-.design-offer-picker .pkg-card { min-width: 0; padding: 22px; background: var(--dl-surface); border-color: var(--dl-border); border-radius: 12px; text-align: left; transition: border-color .18s ease, box-shadow .18s ease; }
-.design-offer-picker .pkg-card:hover { border-color: var(--dl-muted); box-shadow: 0 4px 16px #0000000a; }
+.design-offer-picker .pkg-card { min-width: 0; padding: 22px; background: var(--dl-surface); border-color: var(--dl-border); border-radius: 14px; text-align: left; transition: border-color .18s ease, background-color .18s ease; }
+.design-offer-picker .pkg-card:is(:hover,:focus-within) { border-color: var(--dl-hover-border); background:var(--dl-raised); box-shadow:none; transform:none; }
 .design-offer-picker .pkg-card-title { font-size: 1rem; font-weight: 600; line-height: 1.5; margin: 0 0 8px; text-transform: none; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .design-offer-picker .pkg-card-price { font-size: 1.8rem; font-weight: 700; line-height: 1.3; margin-bottom: 0; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .design-offer-picker .pkg-card-price small { display: block; margin-top: 6px; color: var(--dl-muted); font-size: .7rem; font-weight: 500; }
@@ -109,9 +111,9 @@ html.design-modal-open { overflow: hidden; scrollbar-gutter: stable; }
 .dl-card-inclusions li { display: flex; align-items: flex-start; gap: 8px; overflow-wrap: anywhere; }
 .dl-card-inclusions li + li { margin-top: 6px; }
 .dl-card-more { margin: 8px 0 0; color: var(--dl-muted); font-size: .7rem; }
-.design-offer-picker .pkg-modal-btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-top: auto; padding: 11px 12px; border: 1px solid var(--dl-button); border-radius: 8px; line-height: 1.5; font-size: .76rem; background: var(--dl-button); color: var(--dl-button-text); text-align: left; }
+.design-offer-picker .pkg-modal-btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-top: auto; padding: 11px 12px; border: 1px solid var(--dl-button); border-radius: 10px; line-height: 1.5; font-size: .76rem; background: var(--dl-button); color: var(--dl-button-text); text-align: left; }
 .design-offer-picker .pkg-modal-btn svg { width: 17px; height: 17px; flex: 0 0 17px; }
-.design-offer-picker .pkg-modal-btn:hover { border-color: var(--dl-button); background: var(--dl-button); opacity: .86; }
+.design-offer-picker .pkg-modal-btn:hover { border-color: var(--dl-button); background: var(--dl-button); opacity:1; }
 .design-offer-picker .design-empty-offers { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px; padding: 36px 20px; color: var(--dl-text); text-align: center; opacity: 1; }
 .dl-empty-icon { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin-bottom: 18px; border-radius: 14px; background: var(--dl-raised); color: var(--dl-muted); }
 .dl-empty-icon svg { width: 28px; height: 28px; }
@@ -154,7 +156,11 @@ html.design-modal-open { overflow: hidden; scrollbar-gutter: stable; }
 .dl-detail-actions .feature-modal-btn, .dl-back-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 12px 18px; border-radius: 7px; font-family: inherit; font-size: .8rem; font-weight: 600; line-height: 1.5; text-decoration: none; cursor: pointer; margin: 0; }
 .dl-detail-actions .feature-modal-btn { background: var(--dl-button); color: var(--dl-button-text); border: 1px solid var(--dl-button); }
 .dl-detail-actions .dl-back-btn { background: transparent; color: var(--dl-text); border: 1px solid var(--dl-border); }
-.dl-detail-actions :is(a, button):hover { opacity: .8; }
+.dl-detail-actions :is(a, button) { border-radius:10px; transition:background-color .15s,border-color .15s; }
+.dl-detail-actions :is(a, button):hover { opacity:1; }
+.design-offer-picker .pkg-modal-btn:hover, .dl-detail-actions .feature-modal-btn:hover { background:#e4e4e7; border-color:#e4e4e7; color:#181818; transform:none; box-shadow:none; }
+[data-theme="light"] .design-offer-picker .pkg-modal-btn:hover, [data-theme="light"] .dl-detail-actions .feature-modal-btn:hover { background:#303030; border-color:#303030; color:#fff; }
+.dl-detail-actions .dl-back-btn:hover { background:var(--dl-raised); border-color:var(--dl-border); }
 .dl-starting-point-page { max-width: 1200px; margin: auto; padding: 130px 24px 80px; min-height: 70vh; }
 .dl-starting-point-page > h1 { margin-bottom: 6px; }
 .dl-starting-point-page > p { color: var(--dl-muted); font-size: .9rem; line-height: 1.7; margin-top: 0; }

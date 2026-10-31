@@ -490,6 +490,9 @@ def edit_review(request, review_id):
     comment = (request.POST.get("comment") or '').strip()
     images_to_delete = request.POST.getlist("delete_images[]")
     new_images = request.FILES.getlist("images")
+    if any(image.size > 5 * 1024 * 1024 for image in new_images):
+        return JsonResponse({'status': 'error', 'message': 'Each photo must be 5MB or smaller.',
+                             'errors': {'images': 'Each photo must be 5MB or smaller.'}}, status=400)
 
     # Validate rating range
     try:

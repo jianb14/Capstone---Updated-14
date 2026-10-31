@@ -84,6 +84,23 @@
 .booking-page .calendar-load-error p { color: var(--bui-muted); }
 .booking-page .calendar-reload-btn { border: 1px solid var(--bui-line); background: var(--bui-soft); color: var(--bui-ink); border-radius: 9px; }
 
+/* Animate three containers once; calendar cells and form interactions stay independent. */
+@keyframes booking-page-enter {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .booking-calendar-panel > .panel-header > div:first-child {
+        animation: booking-page-enter 520ms cubic-bezier(.22, 1, .36, 1) backwards;
+    }
+    .booking-calendar-panel > .panel-header .calendar-legend {
+        animation: booking-page-enter 520ms cubic-bezier(.22, 1, .36, 1) 70ms backwards;
+    }
+    .booking-page .calendar-wrapper {
+        animation: booking-page-enter 640ms cubic-bezier(.22, 1, .36, 1) 120ms backwards;
+    }
+}
+
 /* Apply the admin palette to the existing form components; inputs and field names are untouched. */
 .booking-page #bookingModalOverlay { --form-surface: var(--bui-bg); --form-panel: var(--bui-bg); --form-soft: var(--bui-soft); --form-border: var(--bui-line); --form-ink: var(--bui-ink); --form-muted: var(--bui-muted); --form-danger: var(--bui-danger); --form-accent: var(--bui-ink); --form-on-accent: var(--bui-bg); }
 .booking-page #bookingModalOverlay .booking-modal-box { padding: 28px; border-radius: 16px; box-shadow: 0 24px 70px #00000024; scrollbar-color: var(--bui-line) transparent; }
@@ -101,6 +118,62 @@
 .booking-page #bookingModalOverlay .btn-submit:hover { background: color-mix(in srgb, var(--bui-ink) 88%, var(--bui-bg)); border-color: transparent; }
 .booking-page #bookingModalOverlay .booking-back-btn:hover { background: var(--bui-soft); border-color: var(--bui-muted); }
 .booking-page #bookingModalOverlay :is(.booking-summary-container,.preview-group,.design-selection-summary,.reference-dropzone) { border-radius: 12px; box-shadow: none; }
+
+/* Calm package states and the same field feedback throughout the booking wizard. */
+.booking-page #bookingModalOverlay {
+    --booking-card-hover:#1b1b1b; --booking-card-hover-border:#424242;
+    --booking-card-active:#202020; --booking-card-active-border:#555;
+    --booking-focus-border:#4a4a4a; --booking-focus-ring:rgba(153,153,153,.45);
+    --booking-error-ring:rgba(241,145,145,.4);
+    font-family:'Montserrat',sans-serif;
+}
+[data-theme="light"] .booking-page #bookingModalOverlay {
+    --booking-card-hover:#fafafa; --booking-card-hover-border:#d4d4d4;
+    --booking-card-active:#f3f3f3; --booking-card-active-border:#bdbdbd;
+    --booking-focus-border:#cecece; --booking-focus-ring:rgba(105,105,105,.4);
+    --booking-error-ring:rgba(184,53,60,.4);
+}
+.booking-page #bookingModalOverlay .package-card:hover {
+    background:var(--booking-card-hover) !important; border-color:var(--booking-card-hover-border) !important;
+    box-shadow:none !important; transform:none;
+}
+.booking-page #bookingModalOverlay .package-card.selected,
+.booking-page #bookingModalOverlay .package-card.selected:hover {
+    background:var(--booking-card-active) !important; border-color:var(--booking-card-active-border) !important;
+    box-shadow:none !important;
+}
+.booking-page #bookingModalOverlay :is(.booking-field-error,.input-required,.reference-upload-status.is-error),
+.booking-page #bookingModalOverlay #bookingForm :is(.booking-field-error,.review-field-error) {
+    color:var(--bui-danger) !important; font-weight:400 !important; text-transform:none;
+}
+.booking-page #bookingModalOverlay .booking-optional { color:var(--bui-muted); font-weight:400; font-size:.92em; }
+.booking-page #bookingModalOverlay .form-group :is(input:not([type="hidden"]):not([type="file"]):not([type="color"]),textarea,.custom-select-trigger):focus {
+    border-color:var(--booking-focus-border) !important; outline:2px solid var(--booking-focus-ring) !important;
+    outline-offset:2px !important; box-shadow:none !important; transform:none;
+}
+.booking-page #bookingModalOverlay #bookingForm .form-group :is(input,textarea,.custom-select-trigger).has-error,
+.booking-page #bookingModalOverlay #bookingForm .time-field.has-error input,
+.booking-page #bookingModalOverlay #bookingForm .form-group.has-error > :is(input,textarea),
+.booking-page #bookingModalOverlay #bookingForm .form-group.has-error .custom-select-trigger { border-color:var(--bui-danger) !important; }
+.booking-page #bookingModalOverlay #bookingForm .form-group :is(input,textarea,.custom-select-trigger).has-error:focus,
+.booking-page #bookingModalOverlay #bookingForm .time-field.has-error input:focus,
+.booking-page #bookingModalOverlay #bookingForm .form-group.has-error > :is(input,textarea):focus,
+.booking-page #bookingModalOverlay #bookingForm .custom-select-container:focus-within .custom-select-trigger[aria-invalid="true"],
+.booking-page #bookingModalOverlay #bookingForm .custom-select-container.open .custom-select-trigger[aria-invalid="true"],
+.booking-page #bookingModalOverlay #bookingForm .booking-input-holder:focus-within input[aria-invalid="true"]:not([type="hidden"]),
+.booking-page #bookingModalOverlay #bookingForm .booking-input-holder:has(.booking-picker-pop:not([hidden])) input[aria-invalid="true"]:not([type="hidden"]) {
+    outline:2px solid var(--booking-error-ring) !important; outline-offset:2px !important;
+    border-color:var(--bui-danger) !important; box-shadow:none !important;
+}
+.booking-page #bookingModalOverlay :is(.booking-picker-pop,.booking-picker-pop button,.booking-picker-pop select,.booking-picker-pop input,.booking-picker-pop option) {
+    font-family:'Montserrat',sans-serif !important;
+}
+.booking-page #bookingModalOverlay .reference-browse { cursor:pointer; transition:background-color .15s,border-color .15s; }
+.booking-page #bookingModalOverlay .reference-browse:hover {
+    background:#333 !important; border-color:#555; color:var(--bui-ink);
+    box-shadow:none; transform:none;
+}
+[data-theme="light"] .booking-page #bookingModalOverlay .reference-browse:hover { background:#e9e9e9 !important; border-color:#c5c5c5; }
 
 @media (max-width: 768px) {
     .booking-page { padding: calc(var(--nav-h, 64px) + 26px) 4% 48px; }

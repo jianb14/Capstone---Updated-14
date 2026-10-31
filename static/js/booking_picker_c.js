@@ -158,18 +158,12 @@ function makeTime(input, kind, getIso) {
             + '. Ending at ' + A2.minutesToLabel(m) + ' has a total overtime fee of ₱' + fee.toLocaleString('en-PH')
             + ' (' + otHours + ' billable hour(s) × ₱' + otPolicy.overtimeRate.toLocaleString('en-PH')
             + '). Each started overtime hour is charged in full. This is the overtime amount in your updated booking total.';
-          var confirmed;
-          if (g.Swal && typeof g.Swal.fire === 'function') {
-            var result = await g.Swal.fire({
-              title: 'Extend your booking?', text: message, icon: 'info',
-              showCancelButton: true, confirmButtonText: 'Confirm +₱' + fee.toLocaleString('en-PH'),
-              cancelButtonText: previous ? 'Keep previous time' : 'Choose another time', focusCancel: true, returnFocus: false,
-              customClass: { popup: 'app-dialog-popup' }
-            });
-            confirmed = result.isConfirmed;
-          } else {
-            confirmed = g.confirm(message);
-          }
+          var result = await g.AppToast.confirm({
+            title: 'Extend your booking?', text: message, icon: 'info',
+            confirmText: 'Confirm +₱' + fee.toLocaleString('en-PH'),
+            cancelText: previous ? 'Keep previous time' : 'Choose another time', focusCancel: true, returnFocus: false
+          });
+          var confirmed = result.isConfirmed;
           if (!confirmed) { display.focus(); return; }
           // Discard a confirmation if the underlying date/start changed meanwhile.
           if (getIso() !== originalDate || (startEl && startEl.value !== originalStart)) return;

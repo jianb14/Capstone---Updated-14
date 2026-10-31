@@ -1,5 +1,6 @@
 /* Customer concern workspace. Modal and upload controls live in concern_details.css. */
 .concern-page {
+    --concern-error-ring: rgba(241,145,145,.4);
     min-height: calc(100vh - 120px);
     padding: 128px 32px 80px;
     color: var(--concern-text);
@@ -8,6 +9,7 @@
     background-size: 20px 20px;
 }
 [data-theme="light"] .concern-page {
+    --concern-error-ring: rgba(184,53,60,.4);
     background-color: #fafafa;
     background-image: radial-gradient(circle, rgba(0,0,0,.08) .8px, transparent 1px);
 }
@@ -31,23 +33,24 @@
 .concern-label-row { display: flex; justify-content: space-between; gap: 12px; }
 .concern-label-row > span { color: var(--concern-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
 .concern-optional { color: var(--concern-muted); margin-left: 5px; font-size: 10px; font-weight: 400; }
+.concern-form .concern-required { color: var(--concern-danger); }
 .concern-form input:not([type="hidden"]):not([type="file"]), .concern-form textarea, .concern-form select {
-    width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid var(--concern-line); border-radius: 7px;
-    font: inherit; font-size: 13px; font-weight: 400; color: var(--concern-text); background: var(--concern-soft);
+    width: 100%; min-width: 0; min-height: 48px; padding: 12px 14px; border: 1px solid var(--concern-line); border-radius: 11px;
+    font: inherit; font-size: 13px; font-weight: 400; color: var(--concern-text) !important; background: var(--concern-surface) !important;
     outline: none; transition: border-color .15s;
 }
-.concern-form input::placeholder, .concern-form textarea::placeholder { color: var(--concern-muted); opacity: .8; }
-.concern-form input:focus, .concern-form textarea:focus { border-color: var(--concern-muted); box-shadow: 0 0 0 2px color-mix(in srgb, var(--concern-muted) 12%, transparent); }
+.concern-form input::placeholder, .concern-form textarea::placeholder { color: var(--concern-muted) !important; opacity: 1; }
+.concern-form input:focus, .concern-form textarea:focus { background: var(--concern-surface) !important; border-color: var(--concern-focus-border) !important; outline: 2px solid var(--concern-focus-ring) !important; outline-offset: 2px !important; box-shadow: none !important; }
 .concern-form textarea { min-height: 120px; max-height: 280px; resize: vertical; line-height: 1.8; scrollbar-width: thin; scrollbar-color: #555 #191919; color-scheme: dark; }
 [data-theme="light"] .concern-form textarea { scrollbar-color: #b4bac3 #f6f7f9; color-scheme: light; }
 .concern-field-help, .concern-form .field-info { display: block; margin: 7px 0 0; color: var(--concern-muted); font-size: 11px; line-height: 1.7; }
 .concern-form .form-group { margin: 0; }
 .other-category-wrap { display: none; }
-.concern-form .field-error { display: none; margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: var(--concern-danger); }
+.concern-form .field-error { display: none; margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: var(--concern-danger) !important; }
 .concern-form .field-error.show { display: block; }
-.concern-form .has-error, .concern-form .custom-filter-dropdown.has-error .dropdown-trigger { border-color: var(--concern-danger) !important; }
+.concern-form .has-error:not(:focus), .concern-form .custom-filter-dropdown.has-error .dropdown-trigger:not(:focus) { border-color: var(--concern-danger) !important; }
 .custom-filter-dropdown { position: relative; width: 100%; }
-.concern-page .dropdown-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid var(--concern-line); border-radius: 7px; background: var(--concern-soft); color: var(--concern-text); font-size: 13px; line-height: 1.5; cursor: pointer; }
+.concern-page .dropdown-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid var(--concern-line); border-radius: 11px; background: var(--concern-surface); color: var(--concern-text); font-size: 13px; line-height: 1.5; cursor: pointer; }
 .concern-page .dropdown-trigger:focus-visible { outline: 2px solid var(--concern-muted); outline-offset: 3px; }
 .concern-page .dropdown-options { display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20; list-style: none; padding: 5px; margin: 0; border: 1px solid var(--concern-line); border-radius: 8px; background: var(--concern-surface); box-shadow: 0 10px 30px rgba(0,0,0,.12); }
 .concern-page .custom-filter-dropdown.open .dropdown-options { display: block; }
@@ -113,3 +116,53 @@
     .concern-row-subject { -webkit-line-clamp: 3; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { .concern-page * { transition: none !important; } }
+
+/* Match the admin concern palette within the account shell as well. */
+#accountContent[data-account-page="report_concern"] {
+    --account-bg:#161616; --account-text:#f5f5f5; --account-muted:#a3a3a3;
+    --account-line:#303030; --account-soft:#202020; --account-hover:rgba(255,255,255,.035);
+    --account-danger:#f19191;
+}
+[data-theme="light"] #accountContent[data-account-page="report_concern"] {
+    --account-bg:#fff; --account-text:#181818; --account-muted:#737373;
+    --account-line:#e5e5e5; --account-soft:#f7f7f7; --account-hover:rgba(0,0,0,.022);
+    --account-danger:#b8353c;
+}
+#accountContent[data-account-page="report_concern"] .account-table-wrap,
+#accountContent[data-account-page="report_concern"] .account-table { background:var(--account-bg); }
+#accountContent[data-account-page="report_concern"] .account-table :is(thead,th) { background:var(--account-soft) !important; color:var(--account-muted) !important; border-color:var(--account-line) !important; }
+#accountContent[data-account-page="report_concern"] .account-table :is(tbody,tr,td) { background:transparent !important; border-color:var(--account-line) !important; color:var(--account-text) !important; }
+#accountContent[data-account-page="report_concern"] .account-table tbody tr:hover { background:var(--account-hover) !important; }
+#accountContent[data-account-page="report_concern"] .account-table tbody tr:hover td { background:transparent; }
+#accountContent .concern-page .status { min-height:25px; padding:4px 9px; border-radius:7px; font-size:10px; line-height:1.5; }
+#accountContent .concern-page .status-new { color:#e8bc62; background:rgba(210,153,24,.09); }
+#accountContent .concern-page .status-in_progress { color:#93b4ff; background:rgba(68,122,218,.09); }
+#accountContent .concern-page .status-resolved { color:#7bd4a1; background:rgba(35,164,106,.09); }
+#accountContent .concern-page .status-cancelled { color:#f19191; background:rgba(214,68,68,.07); }
+[data-theme="light"] #accountContent .concern-page .status-new { color:#946000; }
+[data-theme="light"] #accountContent .concern-page .status-in_progress { color:#285eaf; }
+[data-theme="light"] #accountContent .concern-page .status-resolved { color:#187447; }
+[data-theme="light"] #accountContent .concern-page .status-cancelled { color:#b8353c; }
+.concern-cancel-dialog #cancelConcernTicket { color:var(--cf-ink) !important; font-size:12px; }
+.concern-cancel-dialog #cancelConcernForm { margin:0; }
+.concern-cancel-dialog #cancelConcernFeedback:empty { display:none; }
+html:has(.concern-cancel-dialog[open]) { overflow:hidden; }
+
+/* Legacy notification CSS also sets page-wide light-mode field styles. */
+#accountContent .concern-form :where(input:not([type="hidden"]):not([type="file"]),textarea,select) {
+    border-color:var(--concern-line) !important; background:var(--concern-surface) !important; color:var(--concern-text) !important;
+}
+#accountContent .concern-form :is(input,textarea):focus {
+    border-color:var(--concern-focus-border) !important; outline:2px solid var(--concern-focus-ring) !important; outline-offset:2px !important; box-shadow:none !important;
+}
+#accountContent .concern-form .has-error,
+#accountContent .concern-form .custom-filter-dropdown.has-error .dropdown-trigger { border-color:var(--concern-danger) !important; }
+#accountContent .concern-form :is(input,textarea).has-error:focus,
+#accountContent .concern-form .custom-filter-dropdown.has-error:is(:focus-within,.open) .dropdown-trigger {
+    border-color:var(--concern-danger) !important;
+    outline:2px solid var(--concern-error-ring) !important;
+    outline-offset:2px !important; box-shadow:none !important;
+}
+#accountContent .concern-page .panel { border-color:var(--concern-line) !important; background:var(--concern-surface) !important; color:var(--concern-text) !important; }
+#accountContent .concern-page :is(h1,h2) { color:var(--concern-text) !important; }
+#accountContent .concern-form :is(.field-info,#concernUploadHelp) { color:var(--concern-muted) !important; }

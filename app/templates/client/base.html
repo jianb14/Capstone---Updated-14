@@ -29,10 +29,8 @@
     <script src="{% static 'js/theme-toggle.js' %}?v=20261026a"></script>
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261031hero1">
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Shared Toast helper: iisang pinagmumulan ng toasts + dedupe guard -->
-    <script src="{% static 'js/toast_helper.js' %}?v=20261022mono"></script>
+    {% include 'components/client_feedback_assets.html' %}
+    <link rel="stylesheet" href="{% static 'css/client_form_focus.css' %}?v=20261031a">
 </head>
 
 <body>
@@ -1500,283 +1498,7 @@
             color: #a1a1aa;
         }
 
-        /* Ensure SweetAlert modals appear above the AI widget */
-        .swal2-container {
-            z-index: 10000 !important;
-        }
-
-        /* ==========================================
-           SweetAlert2 — TOASTS at DIALOGS, na-pareho sa
-           admin design (SweetAlert2 defaults + inline
-           params lang ang gumagawa ng kulay, gaya ng
-           admin_base.html).
-           IMPORTANTE: sa SweetAlert2 v11, ang TOAST ay may
-           klaseng `swal2-popup swal2-toast` — kaya ang
-           `.swal2-popup { }` ay NATATAMA rin ang toast.
-           Doon nanggawa ang DALAWANG border at malaking
-           border-radius sa toast. Kaya ang tamang saklaw:
-             • `.swal2-toast`                  → toast lang
-             • `.swal2-popup:not(.swal2-toast)` → dialog lang
-           BUTTONS: ang kulay ng dialog ay galing sa `.app-dialog-*`
-           tokens (PUTI/gray/red), parareho sa admin na gumagamit ng
-           `customClass` + `buttonsStyling:false`. WALANG
-           `background-color: #0d6efd !important` sa `.swal2-confirm`
-           ngayon — ito ang nanalo sa laban sa per-call na
-           `confirmButtonColor`, kaya dati nagiging BLUE ang delete.
-           ========================================== */
-
-         /* --- DARK MODE (default) --- */
-         /* --- TOAST: default na itsura ng SweetAlert2, gaya ng admin.
-            Ang inline na background/color ng AppToast mixin (#1a1a1a/#fff)
-            ang gumagawa ng dark card — hindi na natin pinipilit ang
-            border/shadow/bold-font, para pantay sa admin toast (pic 2). */
-         .swal2-toast {
-             background: #1a1a1a !important;
-             color: #ffffff !important;
-         }
-         .swal2-toast .swal2-title {
-             color: #ffffff !important;
-         }
-         .swal2-toast .swal2-timer-progress-bar {
-             background: rgba(255, 255, 255, 0.25) !important;
-         }
-         .swal2-popup:not(.swal2-toast) {
-             background: #1a1a1a !important;
-             color: #ffffff !important;
-             border: 1px solid rgba(255, 255, 255, 0.12) !important;
-             border-radius: 14px !important;
-         }
-         .swal2-popup:not(.swal2-toast) .swal2-title {
-             color: #ffffff !important;
-         }
-         .swal2-popup:not(.swal2-toast) .swal2-html-container {
-             color: #d4d4d8 !important;
-         }
-
-         /* --- LIGHT MODE --- */
-         [data-theme="light"] .swal2-toast {
-             background: #ffffff !important;
-             color: #111111 !important;
-         }
-         [data-theme="light"] .swal2-toast .swal2-title {
-             color: #111111 !important;
-         }
-         [data-theme="light"] .swal2-toast .swal2-timer-progress-bar {
-             background: rgba(17, 17, 17, 0.25) !important;
-         }
-         [data-theme="light"] .swal2-popup:not(.swal2-toast) {
-             background: #ffffff !important;
-             color: #111111 !important;
-             border: 1px solid #e5e7eb !important;
-         }
-         [data-theme="light"] .swal2-popup:not(.swal2-toast) .swal2-title {
-             color: #111111 !important;
-         }
-         [data-theme="light"] .swal2-popup:not(.swal2-toast) .swal2-html-container {
-             color: #52525b !important;
-         }
-         /* --- DIALOG design tokens: KAPAREHO ng admin ---
-            Admin: `customClass` + `buttonsStyling:false` (tingnan ang
-            admin_base.css `.booking-request-*` / admin_payment_list.html):
-              • popup   → bg #111111, border #2a2a2a, radius 8px
-              • title   → #f5f7fb, 2rem, weight 700
-              • confirm → PUTI (#f0f0f0) na may dark text
-              • cancel  → dark gray (#242424 / #d6d6d6)
-            Ang `danger: true` ng AppToast.confirm() ang nagdadagdag ng
-            `.app-dialog-confirm--danger` para RED (#dc2626) pa rin ang
-            destructive confirm — gaya ng admin delete flow.
-            NOTE: ginagamit ang `.swal2-popup.app-dialog-popup:not(.swal2-toast)` na
-            selector para pantayan (at malampasan sa order) ang
-            generic na `.swal2-popup:not(.swal2-toast)` sa itaas. */
-         .swal2-popup.app-dialog-popup:not(.swal2-toast) {
-             background: #111111 !important;
-             border: 1px solid #2a2a2a !important;
-             border-radius: 8px !important;
-             width: min(92vw, 560px) !important;
-             padding: 0.2rem 1.2rem 1rem !important;
-         }
-         .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-title {
-             color: #f5f7fb !important;
-             font-size: 2rem !important;
-             font-weight: 700 !important;
-             letter-spacing: -0.02em !important;
-             line-height: 1.15 !important;
-             margin: 0 0 0.7rem !important;
-         }
-         .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-html-container {
-             color: #d4d4d8 !important;
-             font-size: 0.95rem !important;
-             margin: 0 !important;
-         }
-         .app-dialog-actions {
-             gap: 0.6rem !important;
-             margin-top: 1rem !important;
-             margin-bottom: 1rem !important;
-         }
-         .app-dialog-confirm,
-         .app-dialog-cancel {
-             min-width: 104px !important;
-             border: 1px solid transparent !important;
-             border-radius: 8px !important;
-             padding: 0.55rem 1.05rem !important;
-             font-size: 0.95rem !important;
-             font-weight: 600 !important;
-             box-shadow: none !important;
-         }
-         .app-dialog-confirm {
-             background: #f0f0f0 !important;
-             color: #111111 !important;
-             border-color: #f0f0f0 !important;
-         }
-         .app-dialog-confirm:hover {
-             background: #dcdcdc !important;
-             border-color: #dcdcdc !important;
-         }
-         .app-dialog-cancel {
-             background: #242424 !important;
-             color: #d6d6d6 !important;
-             border-color: #3a3a3a !important;
-         }
-         .app-dialog-cancel:hover {
-             background: #2f2f2f !important;
-         }
-         /* Destructive confirm — RED, gaya ng admin delete flow. */
-         .app-dialog-confirm--danger {
-             background: #dc2626 !important;
-             color: #ffffff !important;
-             border-color: #dc2626 !important;
-         }
-         .app-dialog-confirm--danger:hover {
-             background: #b91c1c !important;
-             border-color: #b91c1c !important;
-         }
-
-         /* --- LIGHT MODE dialogs --- */
-         [data-theme="light"] .swal2-popup.app-dialog-popup:not(.swal2-toast) {
-             background: #ffffff !important;
-             border: 1px solid #e5e7eb !important;
-         }
-         [data-theme="light"] .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-title {
-             color: #111827 !important;
-         }
-         [data-theme="light"] .swal2-popup.app-dialog-popup:not(.swal2-toast) .swal2-html-container {
-             color: #4b5563 !important;
-         }
-         [data-theme="light"] .app-dialog-confirm {
-             background: #111827 !important;
-             color: #ffffff !important;
-             border-color: #111827 !important;
-         }
-         [data-theme="light"] .app-dialog-confirm:hover {
-             background: #1f2937 !important;
-             border-color: #1f2937 !important;
-         }
-         [data-theme="light"] .app-dialog-cancel {
-             background: #f3f4f6 !important;
-             color: #4b5563 !important;
-             border-color: #d1d5db !important;
-         }
-         [data-theme="light"] .app-dialog-confirm--danger {
-             background: #dc2626 !important;
-             color: #ffffff !important;
-             border-color: #dc2626 !important;
-         }
-
-         /* --- BUTTONS (generic fallback): shape/size lang, WALANG color.
-            Ang mga dialog na gumagamit ng AppToast.confirm() ay may
-            sariling `.app-dialog-*` tokens sa itaas. Ang fallback na
-            ito ang humahawak sa mga makalumang dialog na hindi pa
-            naka-customClass. WALANG `background-color !important` dito
-            — dati may `#0d6efd !important` na nanalo laban sa inline
-            na `confirmButtonColor`, kaya nagiging BLUE ang delete. */
-         .swal2-popup:not(.swal2-toast) .swal2-confirm {
-             border-radius: 8px !important;
-             font-weight: 600 !important;
-         }
-         .swal2-popup:not(.swal2-toast) .swal2-cancel {
-             border-radius: 8px !important;
-             font-weight: 600 !important;
-         }
-
-         /* --- ICONS: consistent, bagay sa both themes --- */
-         .swal2-icon.swal2-success {
-             border-color: #22c55e !important;
-             color: #22c55e !important;
-         }
-         .swal2-icon.swal2-success .swal2-success-line-tip,
-         .swal2-icon.swal2-success .swal2-success-line-long {
-             background-color: #22c55e !important;
-         }
-         .swal2-icon.swal2-error {
-             border-color: #dc2626 !important;
-             color: #dc2626 !important;
-         }
-         .swal2-icon.swal2-error .swal2-x-mark-line-left,
-         .swal2-icon.swal2-error .swal2-x-mark-line-right {
-             background-color: #dc2626 !important;
-         }
-         .swal2-icon.swal2-info {
-             border-color: #3b82f6 !important;
-             color: #3b82f6 !important;
-         }
-         .swal2-icon.swal2-warning {
-             border-color: #eab308 !important;
-             color: #eab308 !important;
-         }
-
-         /* --- RESPONSIVE: compact toasts + dialogs sa tablet/mobile --- */
-         /* TABLET (≤1024px): bahagyang mas maliit na dialog at toast */
-         @media (max-width: 1024px) {
-             .swal2-popup:not(.swal2-toast) {
-                 max-width: calc(100vw - 32px) !important;
-                 padding: 1.3rem 1.1rem !important;
-             }
-             .swal2-popup:not(.swal2-toast) .swal2-title {
-                 font-size: 1.15rem !important;
-             }
-         }
-         /* MOBILE (≤768px): KAGAYA NG ADMIN — SweetAlert2 defaults lang
-            sa toast (icon 32×32, title 16px, default padding). Ang dating
-            `width/height: 1.05rem` sa `.swal2-icon` ay naiipit ng
-            `min-width: auto` (32px min-content ng panloob na graphic) kaya
-            32 × 16.8px ang lumalabas na box — OVAL ang bilog at
-            nananambulat ang checkmark/x-mark. Ang max-width guard lang ang
-            natitira (≈ katumbas ng default na max-width:100% ng SweetAlert2)
-            para hindi lumabas ang toast sa viewport. */
-         @media (max-width: 768px) {
-             .swal2-toast {
-                 max-width: calc(100vw - 24px) !important;
-             }
-         }
-         /* SMALL MOBILE (≤480px): maliit na screen, laging
-            umaandar ang max-width calc para hindi lumabas
-            ang toast sa labas ng viewport. */
-         @media (max-width: 480px) {
-             .swal2-popup:not(.swal2-toast) {
-                 width: calc(100vw - 24px) !important;
-                 max-width: calc(100vw - 24px) !important;
-                 padding: 1.1rem 0.9rem !important;
-             }
-             .swal2-popup:not(.swal2-toast) .swal2-icon {
-                 width: 3.2rem !important;
-                 height: 3.2rem !important;
-             }
-             .swal2-popup:not(.swal2-toast) .swal2-icon .swal2-icon-content {
-                 font-size: 1.6rem !important;
-             }
-             .swal2-popup:not(.swal2-toast) .swal2-title {
-                 font-size: 1.05rem !important;
-             }
-             .swal2-popup:not(.swal2-toast) .swal2-html-container {
-                 font-size: 0.85rem !important;
-             }
-             .swal2-popup:not(.swal2-toast) .swal2-confirm,
-             .swal2-popup:not(.swal2-toast) .swal2-cancel {
-                 font-size: 0.85rem !important;
-                 padding: 0.5rem 1.1rem !important;
-             }
-         }
-     </style>
+</style>
 
     {% if user.is_authenticated %}
     <link rel="stylesheet" href="{% static 'css/ai_chat.css' %}?v=20261028d">
@@ -2418,36 +2140,28 @@
                             delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>';
                             delBtn.onclick = async (e) => {
                                 e.stopPropagation();
-                                AppToast.confirm({
-                                    title: 'Are you sure?',
-                                    text: "You won't be able to revert this!",
-                                    confirmText: 'Yes, delete it!',
-                                    danger: true
-                                }).then(async (result) => {
-                                    if (result.isConfirmed) {
-                                        const deletedId = session.id;
-                                        await fetch('/api/chat/clear/', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'X-CSRFToken': '{{ csrf_token }}'
-                                            },
-                                            body: JSON.stringify({ session_id: deletedId })
-                                        });
-
-                                        if (currentSessionId && Number(currentSessionId) === Number(deletedId)) {
-                                            startNewChat();
-                                        }
-                                        
-                                        // Always reload the list to update sidebar UI
-                                        await loadSessions();
-
-                                        AppToast.fire({
-                                            icon: 'success',
-                                            title: 'Your chat has been deleted.'
-                                        });
-                                    }
-                                });
+                                if (delBtn.disabled) return;
+                                delBtn.disabled = true;
+                                try {
+                                    const result = await AppToast.confirm({
+                                        title: 'Delete this chat?', text: "This action cannot be undone.",
+                                        confirmText: 'Delete chat', danger: true
+                                    });
+                                    if (!result.isConfirmed) return;
+                                    const deletedId = session.id;
+                                    const response = await fetch('/api/chat/clear/', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                                        body: JSON.stringify({ session_id: deletedId })
+                                    });
+                                    const data = await response.json().catch(() => ({}));
+                                    if (!response.ok || data.error) throw new Error(data.error || 'Could not delete your chat. Please try again.');
+                                    if (currentSessionId && Number(currentSessionId) === Number(deletedId)) startNewChat();
+                                    await loadSessions();
+                                    AppToast.fire({icon: 'success', title: 'Your chat has been deleted.'});
+                                } catch (error) {
+                                    AppToast.fire({icon: 'error', title: error.message || 'Could not delete your chat. Please try again.'});
+                                } finally { delBtn.disabled = false; }
                             };
                             li.appendChild(delBtn);
 
@@ -3002,19 +2716,21 @@
     </script>
     {% endif %}
 
-    <!-- Global SweetAlert Django Messages Handler -->
+    <!-- Global client feedback for Django messages -->
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             {% if messages %}
                 {% for message in messages %}
+                {
                     const messageType = '{{ message.tags|escapejs }}' === 'error' ? 'error' : ('{{ message.tags|escapejs }}' === 'success' ? 'success' : 'info');
                     const messageText = '{{ message|escapejs }}';
                     const isLoginSuccess = messageType === 'success' && messageText.toLowerCase().includes('login successful');
                     AppToast.fire({
                         icon: messageType,
                         title: messageText,
-                        timer: isLoginSuccess ? 1500 : 4000
+                        timer: isLoginSuccess ? 1500 : 3000
                     });
+                }
                 {% endfor %}
             {% endif %}
         });

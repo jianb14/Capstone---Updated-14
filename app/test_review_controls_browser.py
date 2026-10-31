@@ -50,6 +50,13 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
             page = context.new_page()
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
+            def hover_color(theme):
+                # Chrome versions serialize very low alpha values differently.
+                return page.evaluate('''color => {
+                    const probe = document.createElement('div');
+                    probe.style.backgroundColor = color; document.body.append(probe);
+                    const value = getComputedStyle(probe).backgroundColor; probe.remove(); return value;
+                }''', 'rgba(0,0,0,.022)' if theme == 'light' else 'rgba(255,255,255,.035)')
             def drop_files(zone, names):
                 transfer = page.evaluate_handle('''({bytes, names}) => {
                     const data = new DataTransfer();
@@ -76,6 +83,21 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
                                     box = page.locator(section).bounding_box()
                                     self.assertGreaterEqual(box['x'],0)
                                     self.assertLessEqual(box['x']+box['width'],layout_width)
+                                card = page.locator('.pending-review-card').first
+                                button = card.get_by_role('button', name='Leave a Review')
+                                border = 'rgb(229, 229, 229)' if layout_theme == 'light' else 'rgb(48, 48, 48)'
+                                page.locator('.my-reviews-title').hover()
+                                expect(card).to_have_css('border-color', border)
+                                card.hover()
+                                expect(card).to_have_css('border-color', 'rgb(206, 206, 206)' if layout_theme == 'light' else 'rgb(74, 74, 74)')
+                                expect(card).to_have_css('box-shadow', 'none')
+                                accents = ('rgb(148, 96, 0)', 'rgb(24, 116, 71)', 'rgb(40, 94, 175)') if layout_theme == 'light' else ('rgb(232, 188, 98)', 'rgb(123, 212, 161)', 'rgb(147, 180, 255)')
+                                for stat, accent in zip(page.locator('.mr-stat').all(), accents):
+                                    for element in ('.mr-stat-label', '.mr-stat-num', '.mr-stat-top svg'):
+                                        expect(stat.locator(element)).to_have_css('color', accent)
+                                button.hover()
+                                expect(button).to_have_css('border-color', border)
+                                expect(button).to_have_css('background-color', hover_color(layout_theme))
                                 page.screenshot(path=str(artifacts/f'my-reviews-layout-{layout_theme}-{layout_width}.png'),full_page=True)
                     for theme in ('light', 'dark'):
                         page.evaluate('(theme) => document.documentElement.dataset.theme = theme', theme)
@@ -104,6 +126,20 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
                             expect(page.locator('#edit-comment')).to_have_value('Our original review')
                             expect(page.locator('#edit-star4')).to_be_checked()
                             expect(page.locator('#edit-star-rating label.active')).to_have_count(4)
+                            red = 'rgb(184, 53, 60)' if theme == 'light' else 'rgb(241, 145, 145)'
+                            comment = page.locator('#edit-comment')
+                            expect(dialog.locator('.review-required').first).to_have_css('color', red)
+                            expect(dialog.locator('#editUploadHint')).to_contain_text('5MB per photo')
+                            expect(dialog.locator('.review-optional')).to_have_text('(optional)')
+                            comment.fill('   ')
+                            expect(comment).to_have_attribute('aria-invalid', 'true')
+                            expect(comment).to_have_css('border-color', red)
+                            expect(comment).to_have_css('outline-color', 'rgba(184, 53, 60, 0.4)' if theme == 'light' else 'rgba(241, 145, 145, 0.4)')
+                            expect(dialog.locator('#edit_review_comment_error')).to_have_css('color', red)
+                            expect(dialog.locator('#edit_review_comment_error')).to_have_css('font-weight', '400')
+                            comment.fill('Our original review')
+                            expect(comment).to_have_attribute('aria-invalid', 'false')
+                            expect(comment).to_have_css('outline-color', 'rgba(105, 105, 105, 0.4)' if theme == 'light' else 'rgba(153, 153, 153, 0.45)')
                             bounds = dialog.locator('.modal-card').bounding_box()
                             self.assertGreaterEqual(bounds['y'],0)
                             self.assertLessEqual(bounds['y']+bounds['height'],height)
@@ -112,7 +148,7 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
                             self.assertLessEqual(footer['y']+footer['height'],height)
                             close_button = dialog.get_by_role('button',name='Close edit review')
                             close_button.hover()
-                            expect(close_button).to_have_css('background-color', 'rgba(0, 0, 0, 0.04)' if theme == 'light' else 'rgba(255, 255, 255, 0.06)')
+                            expect(close_button).to_have_css('background-color', hover_color(theme))
                             if width in (1440,390):
                                 page.screenshot(path=str(artifacts / f'review-upload-{route}-{theme}-{width}.png'))
                             self.assertEqual(page.evaluate('document.body.style.overflow'),'hidden')
@@ -133,7 +169,7 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
                             page.wait_for_function('document.getElementById("expandedImg").complete && document.getElementById("expandedImg").naturalWidth > 0')
                             close_bounds = viewer.get_by_role('button',name='Close review photo').bounding_box()
                             viewer.get_by_role('button',name='Close review photo').hover()
-                            expect(viewer.get_by_role('button',name='Close review photo')).to_have_css('background-color', 'rgba(0, 0, 0, 0.04)' if theme == 'light' else 'rgba(255, 255, 255, 0.06)')
+                            expect(viewer.get_by_role('button',name='Close review photo')).to_have_css('background-color', hover_color(theme))
                             self.assertGreaterEqual(close_bounds['y'],0)
                             self.assertLessEqual(close_bounds['x']+close_bounds['width'],width)
                             if width in (1440,390):
@@ -144,7 +180,12 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
                     page.set_viewport_size({'width':1440,'height':1000})
                     trigger.click()
                     menu.get_by_role('menuitem',name='Edit review').click()
+                    page.locator('#edit_images_ui').set_input_files({'name':'oversized.png','mimeType':'image/png','buffer':b'x' * (5 * 1024 * 1024 + 1)})
+                    expect(page.locator('#editReviewForm .review-upload-size-error')).to_be_visible()
+                    expect(page.locator('#edit-unified-images-preview img')).to_have_count(1)
+                    self.assertEqual(page.locator('#edit_images').evaluate('el => el.files.length'),0)
                     drop_files(page.locator('#editReviewForm [data-review-upload]'), ['new-photo.png','document.txt'])
+                    expect(page.locator('#editReviewForm .review-upload-size-error')).to_be_hidden()
                     expect(page.locator('#edit-unified-images-preview img')).to_have_count(2)
                     expect(page.locator('#editReviewForm .review-upload-type-error')).to_be_visible()
                     page.locator('#edit-unified-images-preview .new-review-image button').click()
@@ -187,6 +228,13 @@ class ReviewControlsBrowserTests(StaticLiveServerTestCase):
                     page.evaluate('(theme) => document.documentElement.dataset.theme = theme',theme)
                     page.set_viewport_size({'width':390,'height':844})
                     page.get_by_role('button',name='Leave a Review').click()
+                    page.locator('#reviewForm [data-review-upload]').evaluate('''zone => {
+                        const data = new DataTransfer();
+                        data.items.add(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'oversized.png', {type:'image/png'}));
+                        zone.dispatchEvent(new DragEvent('drop', {bubbles:true, cancelable:true, dataTransfer:data}));
+                    }''')
+                    expect(page.locator('#reviewForm .review-upload-size-error')).to_be_visible()
+                    self.assertEqual(page.locator('#review_images').evaluate('el => el.files.length'),0)
                     page.get_by_role('button',name='Submit Review',exact=True).click()
                     expect(page.locator('#review_rating_error')).to_be_visible()
                     expect(page.locator('#review_comment_error')).to_be_visible()

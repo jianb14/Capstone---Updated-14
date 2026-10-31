@@ -48,17 +48,20 @@ AccountPages.register('report_concern', 'concern', function(scope) {
         if (element) { element.textContent = text; element.classList.toggle('show', !!text); }
         const input = document.getElementById(id);
         if (input) { input.classList.toggle('has-error', !!text); input.setAttribute('aria-invalid', String(!!text)); }
-        if (id === 'category') dropdown.classList.toggle('has-error', !!text);
+        if (id === 'category') {
+            dropdown.classList.toggle('has-error', !!text);
+            trigger.setAttribute('aria-invalid', String(!!text));
+        }
     }
-    function validate() {
+    function validate(ids = ['category', 'other_category', 'subject', 'message']) {
         const errors = {
             category: category.value ? '' : 'Please select a category.',
             other_category: category.value === 'other' && !other.value.trim() ? 'Please specify the concern type.' : '',
             subject: subject.value.trim() ? '' : 'Please enter a subject.',
             message: message.value.trim() ? '' : 'Please enter your message.'
         };
-        Object.entries(errors).forEach(([id, text]) => fieldError(id, text));
-        return Object.keys(errors).find(id => errors[id]);
+        ids.forEach(id => fieldError(id, errors[id]));
+        return ids.find(id => errors[id]);
     }
     function toggleMenu(open) {
         dropdown.classList.toggle('open', open);
@@ -72,13 +75,21 @@ AccountPages.register('report_concern', 'concern', function(scope) {
             option.setAttribute('aria-selected', String(selected));
         });
         otherWrap.style.display = category.value === 'other' ? 'block' : 'none';
+        other.required = category.value === 'other';
         if (category.value !== 'other') other.value = '';
         if (attempted) validate();
+        else {
+            if (category.value || trigger.getAttribute('aria-invalid') === 'true') validate(['category']);
+            if (category.value !== 'other') fieldError('other_category', '');
+        }
     }
     trigger.tabIndex = 0;
     trigger.setAttribute('role', 'button');
     trigger.setAttribute('aria-haspopup', 'listbox');
     trigger.setAttribute('aria-label', 'Choose concern category');
+    trigger.setAttribute('aria-required', 'true');
+    trigger.setAttribute('aria-describedby', 'category_error');
+    trigger.addEventListener('focus', () => validate(['category']));
     dropdown.querySelector('.dropdown-options').setAttribute('role', 'listbox');
     trigger.addEventListener('click', () => toggleMenu(!dropdown.classList.contains('open')));
     trigger.addEventListener('keydown', event => {
@@ -100,7 +111,10 @@ AccountPages.register('report_concern', 'concern', function(scope) {
         });
     });
     category.addEventListener('change', syncCategory);
-    [other, subject, message].forEach(input => input.addEventListener('input', () => { if (attempted) validate(); }));
+    [other, subject, message].forEach(input => {
+        input.addEventListener('focus', () => validate([input.id]));
+        input.addEventListener('input', () => validate([input.id]));
+    });
     const syncSubjectCount = () => { subjectCount.textContent = subject.value.length + '/150'; };
     subject.addEventListener('input', syncSubjectCount);
     syncSubjectCount();
@@ -196,12 +210,21 @@ AccountPages.register('report_concern', 'concern', function(scope) {
             const { response, data } = await post(form.action, new FormData(form));
             if (!scope.active) return;
             if (!response.ok || !data.success) throw new Error(data.message || data.error || 'Please review your details and try again.');
-            announce(feedback, data.message);
+            const notice = {icon: 'success', title: data.message || 'Concern submitted. Our team will review it soon.'};
+            announce(feedback, notice.title);
             // Retain the submission key until the server confirms success, including after a lost response.
-            if (window.AccountNavigation) window.AccountNavigation.navigate(data.redirect_url,{force:true});
-            else window.location.assign(data.redirect_url);
+            if (window.AccountNavigation) {
+                // The shared toast lives outside account content and survives its replacement.
+                AppToast.fire(notice);
+                window.AccountNavigation.navigate(data.redirect_url,{force:true});
+            } else {
+                AppToast.onNextPage(notice);
+                window.location.assign(data.redirect_url);
+            }
         } catch (error) {
+            if (!scope.active) return;
             announce(feedback, requestError(error), true);
+            AppToast.fire({icon: 'error', title: requestError(error)});
             submitting = false;
             submit.disabled = false;
             submit.textContent = 'Try again';
@@ -292,6 +315,8 @@ AccountPages.register('report_concern', 'concern', function(scope) {
         event.preventDefault();
         if (cancelling || !cancelTicket) return;
         cancelling = true; cancelSubmit.disabled = true; cancelSubmit.textContent = 'Cancelling…';
+        cancelForm.setAttribute('aria-busy', 'true');
+        confirm.querySelectorAll('[data-close-dialog]').forEach(button => button.disabled = true);
         announce(cancelFeedback, '');
         try {
             const { response, data } = await post(cancelForm.action, new FormData(cancelForm));
@@ -300,10 +325,19 @@ AccountPages.register('report_concern', 'concern', function(scope) {
             if (!response.ok || !data.success) throw new Error(data.message || 'We could not cancel this concern. Please try again.');
             confirm.close();
             announce(historyFeedback, data.message);
+            AppToast.fire({icon: 'success', title: data.message});
             if (detail.open) detail.querySelector('[data-close-dialog]').focus();
             else document.querySelector('[data-view-id="' + cancelTicket.id + '"]')?.focus();
-        } catch (error) { announce(cancelFeedback, requestError(error), true); }
-        finally { cancelling = false; cancelSubmit.disabled = false; cancelSubmit.textContent = 'Cancel concern'; }
+        } catch (error) {
+            if (!scope.active) return;
+            announce(cancelFeedback, requestError(error), true);
+            AppToast.fire({icon: 'error', title: requestError(error)});
+        }
+        finally {
+            cancelling = false; cancelSubmit.disabled = false; cancelSubmit.textContent = 'Cancel concern';
+            cancelForm.setAttribute('aria-busy', 'false');
+            confirm.querySelectorAll('[data-close-dialog]').forEach(button => button.disabled = false);
+        }
     });
     [detail, confirm, lightbox].forEach(dialog => {
         dialog.addEventListener('click', event => {

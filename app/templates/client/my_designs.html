@@ -1,11 +1,15 @@
 {% extends 'client/base.html' %}
 {% load static %}
 {% load humanize %}
+{% block title %}My Designs | Balloorina.ph{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/my_designs.css' %}?v=20261022f">
 <link rel="stylesheet" href="{% static 'css/design_workflow.css' %}?v=20261022b">
-<link rel="stylesheet" href="{% static 'css/design_library.css' %}?v=20261023draft">
+<link rel="stylesheet" href="{% static 'css/design_library.css' %}?v=20261031b">
+<link rel="stylesheet" href="{% static 'css/my_designs_workspace.css' %}?v=20261031d">
+<script src="{% static 'js/admin_selects.js' %}?v=20261031design1" defer></script>
+<script src="{% static 'js/my_designs.js' %}?v=20261031c" defer></script>
 {% endblock %}
 {% block content %}
 
@@ -34,7 +38,7 @@
     </symbol>
 </svg>
 
-<section class="my-designs-section">
+<section class="my-designs-section design-library-workspace">
     <div class="container my-designs-container">
         
         <div class="designs-header">
@@ -48,30 +52,21 @@
         </div>
         {% if design_usage.at_limit %}<div class="design-limit-note" id="designLimitNote" role="note"><strong>Saved design limit reached</strong><p>Your limit is {{ design_usage.limit }} saved designs. Remove unused designs to make room for a new one. You can still edit and save your existing designs.</p></div>{% endif %}
 
-        <!-- Search + Sort Toolbar (same dropdown style as the reviews page) -->
+        <!-- Live search and shared admin-style sorting. -->
         <form method="GET" action="{% url 'my_designs' %}" class="designs-filter-group" id="designsFilterForm">
+            <input type="hidden" name="per_page" id="designPageSize" value="{{ per_page }}">
             <p class="design-storage-count" id="designStorageCount"><strong>{{ design_usage.used }}/{{ design_usage.limit }}</strong> designs saved <span>Includes Draft and Ready to book designs.</span></p>
             <div class="designs-search-wrapper">
                 <svg class="designs-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"/>
                     <path d="m21 21-4.3-4.3"/>
                 </svg>
-                <input type="text" name="q" class="designs-search-input" placeholder="Search designs..." value="{{ search_query }}">
+                <input type="search" name="q" class="designs-search-input" aria-label="Search designs" placeholder="Search designs or packages..." value="{{ search_query }}" maxlength="255" autocomplete="off">
+                <button type="button" id="designSearchClear" class="design-search-clear" aria-label="Clear design search"{% if not search_query %} hidden{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
             </div>
 
-            <div class="custom-filter-dropdown" id="sortDropdown">
-                <div class="dropdown-trigger">
-                    <span id="sortDropdownText">
-                        {% if sort_filter == 'oldest' %}Oldest First{% elif sort_filter == 'name' %}Name A-Z{% else %}Newest First{% endif %}
-                    </span>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <ul class="dropdown-options">
-                    <li data-value="newest" class="{% if sort_filter != 'oldest' and sort_filter != 'name' %}selected{% endif %}">Newest First</li>
-                    <li data-value="oldest" class="{% if sort_filter == 'oldest' %}selected{% endif %}">Oldest First</li>
-                    <li data-value="name" class="{% if sort_filter == 'name' %}selected{% endif %}">Name A-Z</li>
-                </ul>
-                <select name="sort" id="sort-filter" class="filter-select">
+            <div class="designs-sort" id="sortDropdown">
+                <select name="sort" id="sort-filter" data-admin-select aria-label="Sort designs">
                     <option value="newest" {% if sort_filter != 'oldest' and sort_filter != 'name' %}selected{% endif %}>Newest First</option>
                     <option value="oldest" {% if sort_filter == 'oldest' %}selected{% endif %}>Oldest First</option>
                     <option value="name" {% if sort_filter == 'name' %}selected{% endif %}>Name A-Z</option>
@@ -79,6 +74,8 @@
             </div>
         </form>
 
+        <p id="designSearchStatus" class="design-search-status" role="status" aria-live="polite" hidden></p>
+        <div id="designLibraryResults">
         {% if designs %}
             <div class="designs-grid">
                 {% for design in designs %}
@@ -102,19 +99,19 @@
 
                         <!-- 3-Dots Menu -->
                         <div class="design-menu-wrapper">
-                            <button class="menu-dots-btn" onclick="toggleMenu('menu-{{ design.id }}', event)">
-                                <svg class="mi"><use href="#ic-ellipsis-v"/></svg>
+                            <button type="button" class="menu-dots-btn" onclick="toggleMenu('menu-{{ design.id }}', event)" aria-label="Design options for {{ design.name }}" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-{{ design.id }}">
+                                <svg class="mi" aria-hidden="true"><use href="#ic-ellipsis-v"/></svg>
                             </button>
-                            <div class="design-dropdown-menu" id="menu-{{ design.id }}">
-                                <button onclick="openRenameModal({{ design.id }}, '{{ design.name|escapejs }}')">
+                            <div class="design-dropdown-menu" id="menu-{{ design.id }}" role="menu" aria-label="Design actions" hidden>
+                                <button type="button" role="menuitem" onclick="openRenameModal({{ design.id }})">
                                     <svg class="mi"><use href="#ic-square-pen"/></svg> Rename
                                 </button>
                                 {% if design.thumbnail %}
-                                <a href="{{ design.thumbnail.url }}" download="{{ design.name }}.png" style="display: block; width: 100%; text-decoration: none; color: inherit;">
-                                    <button style="width: 100%; text-align: left;"><svg class="mi"><use href="#ic-download"/></svg> Download</button>
+                                <a role="menuitem" href="{{ design.thumbnail.url }}" download="{{ design.name }}.png">
+                                    <svg class="mi"><use href="#ic-download"/></svg> Download
                                 </a>
                                 {% endif %}
-                                <button class="delete-action" onclick="openDeleteModal({{ design.id }})">
+                                <button type="button" role="menuitem" class="delete-action" onclick="openDeleteModal({{ design.id }})">
                                     <svg class="mi"><use href="#ic-trash"/></svg> Delete
                                 </button>
                             </div>
@@ -144,72 +141,44 @@
                 {% endfor %}
             </div>
             
-            <!-- Pagination Controls -->
-            {% if designs.has_other_pages %}
-            <div class="pagination-container">
-                <div class="pagination">
-                    {% if designs.has_previous %}
-                        <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if sort_filter and sort_filter != 'newest' %}sort={{ sort_filter }}&amp;{% endif %}page={{ designs.previous_page_number }}" class="page-link">Prev</a>
-                    {% else %}
-                        <span class="page-link disabled">Prev</span>
-                    {% endif %}
+            {% include 'components/account_table_footer.html' with page=designs page_key='page' pagination_label='Designs' %}
 
-                    {% for num in designs.paginator.page_range %}
-                        {% if designs.number == num %}
-                            <span class="page-link active">{{ num }}</span>
-                        {% elif num > designs.number|add:'-3' and num < designs.number|add:'3' %}
-                            <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if sort_filter and sort_filter != 'newest' %}sort={{ sort_filter }}&amp;{% endif %}page={{ num }}" class="page-link">{{ num }}</a>
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if designs.has_next %}
-                        <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if sort_filter and sort_filter != 'newest' %}sort={{ sort_filter }}&amp;{% endif %}page={{ designs.next_page_number }}" class="page-link">Next</a>
-                    {% else %}
-                        <span class="page-link disabled">Next</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
         {% else %}
             {% if search_query %}
                 <!-- No results sa search (same treatment sa "no reviews match" message ng reviews page) -->
-                <div class="designs-no-results">
-                    <div class="designs-no-results-icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h3>No designs match your search.</h3>
-                    <p>Try a different keyword or clear the search to see all your designs.</p>
-                    <a href="{% url 'my_designs' %}" class="overlay-btn edit-btn designs-clear-btn">
-                        Clear Search
-                    </a>
+                <div class="design-library-empty">
+                    <span class="design-empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg></span>
+                    <h3>No matching designs</h3>
+                    <p>Try a design name, package, entrance arch, or welcome stand.</p>
+                    <button type="button" class="overlay-btn edit-btn designs-clear-btn" data-clear-design-search>Clear search</button>
                 </div>
             {% else %}
                 <!-- Empty State -->
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <i class="fas fa-paint-brush"></i>
-                    </div>
-                    <h3>No designs yet.</h3>
-                    <p>Start creating beautiful setups and backdrops using our interactive design canvas. Your saved designs will appear here.</p>
+                <div class="design-library-empty">
+                    <span class="design-empty-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8m-4-4h8"/></svg></span>
+                    <h3>Your designs start here</h3>
+                    <p>Choose a starting point and save your first setup. Your drafts and ready-to-book designs will appear here.</p>
+                    <button type="button" class="overlay-btn edit-btn" onclick="openModal('selectPackageModal')">Create a design</button>
                 </div>
             {% endif %}
         {% endif %}
+        </div>
 
         <!-- Stats Bar (bottom of page) -->
         <div class="designs-stats-bar">
             <div class="design-stat-card">
-                <span class="design-stat-value">{{ total_designs }}</span>
                 <span class="design-stat-label">Total Designs</span>
+                <span class="design-stat-value">{{ total_designs }}</span>
             </div>
             <div class="design-stat-card">
-                <span class="design-stat-value">{{ created_this_month }}</span>
                 <span class="design-stat-label">Created This Month</span>
+                <span class="design-stat-value">{{ created_this_month }}</span>
             </div>
             <div class="design-stat-card">
+                <span class="design-stat-label">Last Edited</span>
                 <span class="design-stat-value design-stat-time">
                     {% if last_edited %}{{ last_edited.updated_at|naturaltime }}{% else %}&mdash;{% endif %}
                 </span>
-                <span class="design-stat-label">Last Edited</span>
             </div>
         </div>
         
@@ -217,26 +186,21 @@
 </section>
 
 <!-- Rename Modal -->
-<div class="modal-overlay" id="renameModal">
+<div class="modal-overlay" id="renameModal" role="dialog" aria-modal="true" aria-labelledby="renameDesignTitle" aria-describedby="renameDesignHelp" tabindex="-1">
     <div class="modal-content">
-        <h3>Rename Design</h3>
-        <input type="text" id="renameInput" class="form-control" placeholder="Enter new name...">
-        <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeModal('renameModal')">Cancel</button>
-            <button class="btn-save" onclick="submitRename()">Save Name</button>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Modal -->
-<div class="modal-overlay" id="deleteModal">
-    <div class="modal-content">
-        <h3>Delete Design</h3>
-        <p>Are you sure you want to delete this design? This action cannot be undone.</p>
-        <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
-            <button class="btn-danger" onclick="submitDelete()">Delete</button>
-        </div>
+        <header class="design-rename-header"><h3 id="renameDesignTitle">Rename Design</h3><button type="button" class="design-modal-close" onclick="closeModal('renameModal')" aria-label="Close rename design"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+        <p id="renameDesignHelp">Choose a name to find this setup easily.</p>
+        <form id="renameDesignForm" novalidate>
+            {% csrf_token %}
+            <label for="renameInput">Design name <span class="design-required" aria-hidden="true">*</span></label>
+            <input type="text" id="renameInput" name="name" class="form-control" maxlength="255" required autocomplete="off" aria-describedby="renameNameError" placeholder="Enter a design name">
+            <p id="renameNameError" class="design-field-error" role="alert" hidden></p>
+            <p id="renameRequestError" class="design-field-error" role="alert" hidden></p>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('renameModal')">Cancel</button>
+                <button type="submit" class="btn-save" id="renameSave">Save Name</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -251,172 +215,5 @@
     </div>
 </div>
 
-<script>
-    let currentDesignId = null;
 
-    // Toggle 3-dots menu
-    function toggleMenu(menuId, event) {
-        event.preventDefault();
-        event.stopPropagation();
-        
-        // Close all other open menus
-        document.querySelectorAll('.design-dropdown-menu').forEach(menu => {
-            if(menu.id !== menuId) {
-                menu.classList.remove('show');
-            }
-        });
-        
-        const menu = document.getElementById(menuId);
-        menu.classList.toggle('show');
-    }
-
-    // Close menus when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.design-menu-wrapper')) {
-            document.querySelectorAll('.design-dropdown-menu').forEach(menu => {
-                menu.classList.remove('show');
-            });
-        }
-    });
-
-    // Modal Helpers
-    const modalOpeners = new Map();
-    function openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        modalOpeners.set(modalId, document.activeElement);
-        modal.classList.add('show');
-        document.documentElement.classList.add('design-modal-open');
-        (modal.querySelector('input, button, [tabindex]') || modal).focus({preventScroll: true});
-    }
-    
-    function closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        modal.querySelector('dialog[open]')?.close();
-        modal.classList.remove('show');
-        if (!document.querySelector('.modal-overlay.show, .dl-offer-dialog[open]')) document.documentElement.classList.remove('design-modal-open');
-        modalOpeners.get(modalId)?.focus({preventScroll: true});
-    }
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
-        modal.addEventListener('keydown', event => {
-            if (modal.querySelector('dialog[open]')) return;
-            if (event.key === 'Escape') { event.preventDefault(); closeModal(modal.id); }
-            if (event.key !== 'Tab') return;
-            const targets = [...modal.querySelectorAll('a[href], button, input, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
-            const first = targets[0], last = targets[targets.length - 1];
-            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-        });
-    });
-
-    // Rename flow
-    function openRenameModal(id, currentName) {
-        currentDesignId = id;
-        document.getElementById('renameInput').value = currentName;
-        // Close the dropdown immediately
-        document.querySelectorAll('.design-dropdown-menu.show').forEach(m => m.classList.remove('show'));
-        openModal('renameModal');
-    }
-
-    async function submitRename() {
-        if(!currentDesignId) return;
-        const newName = document.getElementById('renameInput').value;
-        if(!newName.trim()) return;
-
-        try {
-            const res = await fetch(`/my-designs/rename/${currentDesignId}/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ name: newName })
-            });
-            const data = await res.json();
-            if(data.status === 'success') {
-                document.getElementById(`title-${currentDesignId}`).innerText = data.name;
-                closeModal('renameModal');
-            } else {
-                alert(data.message);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-    // Delete flow
-    function openDeleteModal(id) {
-        currentDesignId = id;
-        document.querySelectorAll('.design-dropdown-menu.show').forEach(m => m.classList.remove('show'));
-        openModal('deleteModal');
-    }
-
-    async function submitDelete() {
-        if(!currentDesignId) return;
-        try {
-            const res = await fetch(`/my-designs/delete/${currentDesignId}/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
-                }
-            });
-            const data = await res.json();
-            if(data.status === 'success') {
-                location.reload(); // Reload to update grid or show empty state
-            } else {
-                alert(data.message);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-    // Custom Sort Dropdown JS (same pattern as reviews page, pero
-    // auto-submit ng form para server-side sorting)
-    (function () {
-        const dropdown = document.getElementById('sortDropdown');
-        const select = document.getElementById('sort-filter');
-        const textSpan = document.getElementById('sortDropdownText');
-        if (!dropdown || !select || !textSpan) return;
-
-        const optionsList = dropdown.querySelector('.dropdown-options');
-
-        // Sync ng selected class base sa current select value
-        function syncSelected() {
-            optionsList.querySelectorAll('li').forEach(opt => {
-                if (opt.dataset.value === select.value) {
-                    opt.classList.add('selected');
-                } else {
-                    opt.classList.remove('selected');
-                }
-            });
-        }
-
-        dropdown.addEventListener('click', (e) => {
-            const wasOpen = dropdown.classList.contains('open');
-            document.querySelectorAll('.custom-filter-dropdown').forEach(d => d.classList.remove('open'));
-            if (!wasOpen) dropdown.classList.add('open');
-        });
-
-        optionsList.addEventListener('click', (e) => {
-            const li = e.target.closest('li');
-            if (!li) return;
-            e.stopPropagation();
-
-            select.value = li.dataset.value;
-            textSpan.textContent = li.textContent;
-            syncSelected();
-            dropdown.classList.remove('open');
-
-            // Server-side: isumite ang form (q + sort na kasama)
-            document.getElementById('designsFilterForm').submit();
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target)) {
-                dropdown.classList.remove('open');
-            }
-        });
-    })();
-</script>
 {% endblock content %}

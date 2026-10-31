@@ -13,6 +13,7 @@ from datetime import time
 from decimal import Decimal
 from pathlib import Path
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -85,6 +86,35 @@ class BookingDesignStepTests(TestCase):
         return Booking.objects.create(**defaults)
 
     # --- create_booking -------------------------------------------------
+
+    def test_oversized_reference_rejected_before_creating_booking(self):
+        for field in ('reference_images', 'reference_image'):
+            with self.subTest(field=field):
+                upload = SimpleUploadedFile('large.png', b'x' * (5 * 1024 * 1024 + 1), content_type='image/png')
+                response = self.client.post(reverse('create_booking'), _base_payload(**{field: upload}),
+                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+                self.assertEqual(response.status_code, 400)
+                self.assertIn('5MB', response.json()['message'])
+                self.assertFalse(Booking.objects.filter(user=self.user).exists())
+
+    def test_oversized_reference_edit_preserves_booking(self):
+        booking = self._create_booking(motto_text='Original motto')
+        upload = SimpleUploadedFile('large.png', b'x' * (5 * 1024 * 1024 + 1), content_type='image/png')
+        response = self.client.post(reverse('edit_booking', args=[booking.pk]),
+            _base_payload(motto_text='Changed motto', reference_images=upload),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('5MB', response.json()['message'])
+        booking.refresh_from_db()
+        self.assertEqual(booking.motto_text, 'Original motto')
+
+    def test_reference_size_limit_accepts_exactly_five_megabytes(self):
+        from django.test import RequestFactory
+        from .views.bookings import _reference_upload_size_error
+
+        upload = SimpleUploadedFile('boundary.png', b'x' * (5 * 1024 * 1024), content_type='image/png')
+        request = RequestFactory().post('/', {'reference_images': upload})
+        self.assertEqual(_reference_upload_size_error(request), '')
 
     def test_create_booking_saves_map_and_design_fields(self):
         resp = self.client.post(

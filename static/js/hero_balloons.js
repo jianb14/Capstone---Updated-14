@@ -21,6 +21,7 @@
     if (!heroSection || heroSection.dataset.balloonsInitialized) return;
     heroSection.dataset.balloonsInitialized = 'true';
     var isInnerHero = heroSection.hasAttribute('data-floating-hero');
+    var isAuthHero = heroSection.hasAttribute('data-floating-auth');
 
     var reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     var tabletQuery = window.matchMedia('(max-width: 968px)');
@@ -262,7 +263,7 @@
             positionX = Math.max(margin, Math.min(width - margin, width * cfg.x / 100)) + 'px';
             var edgeOffset = cfg.y;
             // Keep small bottom accents above the centered inner-page scroll cue.
-            if (isInnerHero && cfg.bottom && cfg.depth === 'bg') edgeOffset = cfg.img === 3 ? 122 : 115;
+            if (isInnerHero && !isAuthHero && cfg.bottom && cfg.depth === 'bg') edgeOffset = cfg.img === 3 ? 122 : 115;
             positionY = cfg.bottom ? 'calc(100% - ' + edgeOffset + 'px)' : edgeOffset + 'px';
         }
         var el = document.createElement('div');
@@ -272,7 +273,8 @@
             cfg.blink ? 'balloon--blink' : '',
             cfg.tint > 0 ? 'hb-t' + cfg.tint : '',
             cfg.hideTablet ? 'balloon--hide-tablet' : '',
-            cfg.hideMobile ? 'balloon--hide-mobile' : ''
+            cfg.hideMobile ? 'balloon--hide-mobile' : '',
+            cfg.authEdge ? 'balloon--auth-edge' : ''
         ].filter(Boolean).join(' ');
 
         el.style.setProperty('--x', positionX);
@@ -492,6 +494,23 @@
         }).observe(heroSection);
     }
 
+    function positionAuthEdges() {
+        if (!isAuthHero || mobileQuery.matches) return;
+        var container = heroSection.querySelector('.auth-container');
+        if (!container) return;
+        var content = container.getBoundingClientRect();
+        var scene = heroSection.getBoundingClientRect();
+        items.forEach(function (item) {
+            if (!item.cfg.authEdge) return;
+            var space = item.cfg.bottom ? scene.bottom - content.bottom : content.top - scene.top;
+            var offset = Math.max(0, space / 2);
+            var size = Math.max(12, Math.min(item.cfg.size, (space - 26) / 1.35));
+            item.el.style.setProperty('--x', item.cfg.x + '%');
+            item.el.style.setProperty('--y', item.cfg.bottom ? 'calc(100% - ' + offset + 'px)' : offset + 'px');
+            item.el.style.setProperty('--size', size + 'px');
+        });
+    }
+
     function build() {
         resetInteraction();
         /* I-cancel ang mga running animations bago mag-rebuild */
@@ -502,12 +521,50 @@
         });
         layer.innerHTML = '';
 
-        items = (mobileQuery.matches ? MOBILE_BALLOONS : BALLOONS).map(createBalloon);
+        var composition = mobileQuery.matches ? MOBILE_BALLOONS : BALLOONS;
+        if (isAuthHero) {
+            // Use the full home collection, arranged in the form's side lanes.
+            var authSlots = [[8,14],[22,10],[17,34],[6,46],[24,52],[12,68],
+                [25,76],[7,87],[19,91],[27,28],[18,56],[28,86]];
+            composition = mobileQuery.matches
+                ? MOBILE_BALLOONS.map(function (cfg, index) {
+                    return Object.assign({}, cfg, { img: index === 6 ? 2 : cfg.img });
+                })
+                : BALLOONS.map(function (cfg, index) {
+                    var slot = authSlots[Math.floor(index / 2)];
+                    var size = Math.min(cfg.size, index < 2 ? 92 : 62);
+                    return Object.assign({}, cfg, {
+                        x: index % 2 ? 100 - slot[0] - 4 : slot[0],
+                        y: slot[1], size: size, hideTablet: false,
+                        opacity: Math.max(cfg.opacity, .6),
+                        life: Object.assign({}, cfg.life, { mode: 'soft' }),
+                        drift: Object.assign({}, cfg.drift, {
+                            wps: cfg.drift.wps.map(function (wp) { return [wp[0] * .55, wp[1] * .55, wp[2], wp[3]]; })
+                        })
+                    });
+                });
+            if (!mobileQuery.matches) {
+                composition = composition.concat([
+                    { img:1, x:42, bottom:false }, { img:4, x:52, bottom:false }, { img:2, x:62, bottom:false },
+                    { img:3, x:40, bottom:true }, { img:1, x:51, bottom:true }, { img:4, x:62, bottom:true }
+                ].map(function (cfg, index) {
+                    return Object.assign({}, cfg, { authEdge:true, mobileLayout:true,
+                        y:40, size:30, depth:'bg', tint:1, opacity:.65,
+                        drift:{dur:32 + index * 2, delay:-index * 4, wps:[[4,-3,2,1],[-4,3,-2,1],[2,-2,1,1]]},
+                        life:{mode:'soft',dur:34 + index * 2, delay:-index * 3}
+                    });
+                }));
+            }
+        }
+        items = composition.map(createBalloon);
         var frag = document.createDocumentFragment();
+        var sideLayer = isAuthHero ? document.createElement('div') : null;
+        if (sideLayer) { sideLayer.className = 'auth-side-decorations'; frag.appendChild(sideLayer); }
         items.forEach(function (item) {
-            frag.appendChild(item.el);
+            (sideLayer && !item.cfg.authEdge ? sideLayer : frag).appendChild(item.el);
         });
         layer.appendChild(frag);
+        positionAuthEdges();
 
         /* Reduced motion: static balloons lang - walang galaw, blink, fade */
         if (!reducedMotionQuery.matches) {
@@ -531,13 +588,17 @@
 
     var mobileResizeFrame = 0;
     window.addEventListener('resize', function () {
-        if (!mobileQuery.matches) return;
+        if (!mobileQuery.matches && !isAuthHero) return;
         window.cancelAnimationFrame(mobileResizeFrame);
         mobileResizeFrame = window.requestAnimationFrame(function () {
             mobileResizeFrame = 0;
-            if (mobileQuery.matches) build();
+            if (mobileQuery.matches || isAuthHero) build();
         });
     }, { passive: true });
 
     build();
+    if (isAuthHero && window.ResizeObserver) {
+        var authContainer = heroSection.querySelector('.auth-container');
+        if (authContainer) new ResizeObserver(positionAuthEdges).observe(authContainer);
+    }
 })();

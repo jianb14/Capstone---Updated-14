@@ -77,7 +77,8 @@
             this.input.setAttribute('aria-invalid', message ? 'true' : 'false');
         }
         feedback(message) {
-            if (window.AdminConfigurationFeedback) window.AdminConfigurationFeedback.show(message, 'success');
+            if (!this.admin && window.AppToast) window.AppToast.fire({icon: 'success', title: message});
+            else if (window.AdminConfigurationFeedback) window.AdminConfigurationFeedback.show(message, 'success');
             else this.$('[data-send-status]').textContent = message;
         }
         bind() {

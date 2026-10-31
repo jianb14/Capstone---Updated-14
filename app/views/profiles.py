@@ -555,6 +555,8 @@ def submit_review(request, id):
         if not comment:
             return invalid('Please enter your review.', 'comment')
         images = request.FILES.getlist('images')
+        if any(image.size > 5 * 1024 * 1024 for image in images):
+            return invalid('Each photo must be 5MB or smaller.', 'images')
         if len(images) > 4:
             return invalid('You can only upload a maximum of 4 pictures.')
         review = Review.objects.create(user=request.user, booking=booking, rating=rating, comment=comment)

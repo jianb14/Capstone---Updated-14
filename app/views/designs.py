@@ -7,6 +7,7 @@ from ..models import DesignOffer
 from ..design_validation import EvaluationCatalog, design_card_status
 from ..design_previews import preview_bytes, preview_version
 from ..design_limits import DesignLimitReached, create_saved_design, saved_design_usage
+from ..account_lists import account_page_size
 from ..canvas_builtins import STYRO_NAME, BUILTIN_MESSAGE
 from ..design_validation import (KINDS, selection_groups, design_offer, offer_is_ready, offer_payload, eligible_assets, asset_payload, evaluate_design, evaluate_saved_design, evaluation_message, restore_catalog_metadata)
 
@@ -41,10 +42,17 @@ def my_designs_page(request):
     # Order by updated_at descending so newest are first
     designs_list = UserDesign.objects.filter(user=request.user).select_related('base_package').order_by("-updated_at")
 
-    # Search by design name (?q=)
-    search_query = request.GET.get("q", "").strip()
-    if search_query:
-        designs_list = designs_list.filter(name__icontains=search_query)
+    # Match visible design and starting-point metadata, including legacy packages.
+    search_query = request.GET.get("q", "").strip()[:255]
+    type_words = {'package':'package', 'entrance':'entrance', 'arch':'entrance', 'welcome':'stand', 'stand':'stand'}
+    for word in search_query.split():
+        match = (Q(name__icontains=word) | Q(base_package__name__icontains=word)
+                 | Q(design_offer__package__name__icontains=word)
+                 | Q(design_offer__entrance__name__icontains=word)
+                 | Q(design_offer__stand__name__icontains=word))
+        if word.lower() in type_words:
+            match |= Q(design_offer__kind=type_words[word.lower()])
+        designs_list = designs_list.filter(match)
 
     # Sort (?sort=): newest (default) | oldest | name
     sort_filter = request.GET.get("sort", "newest").strip()
@@ -53,9 +61,12 @@ def my_designs_page(request):
         "oldest": "updated_at",
         "name": "name",
     }
-    designs_list = designs_list.order_by(valid_sorts.get(sort_filter, "-updated_at"))
+    if sort_filter not in valid_sorts:
+        sort_filter = 'newest'
+    designs_list = designs_list.order_by(valid_sorts[sort_filter], '-pk')
 
-    paginator = Paginator(designs_list, 8)  # Show 8 designs per page
+    per_page = account_page_size(request)
+    paginator = Paginator(designs_list, per_page)
     page_number = request.GET.get("page")
     designs = paginator.get_page(page_number)
 
@@ -88,6 +99,7 @@ def my_designs_page(request):
             "design_groups": selection_groups(catalog),
             "search_query": search_query,
             "sort_filter": sort_filter,
+            "per_page": per_page,
             "total_designs": stats['total'],
             "design_usage": saved_design_usage(request.user, total=stats['total']),
             "created_this_month": stats['month'],

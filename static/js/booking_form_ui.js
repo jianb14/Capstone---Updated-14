@@ -70,22 +70,30 @@ AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
         if(zone.dataset.ready)return;zone.dataset.ready='1';
         const input=document.getElementById(zone.dataset.fileInput),status=zone.querySelector('.reference-upload-status');
         if(!input)return;
+        // Capture before the wizard's accumulation handler, for browsing and drops.
+        input.addEventListener('change',()=>{
+            const files=[...input.files],transfer=new DataTransfer();
+            const isImage=file=>file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(file.name);
+            const tooLarge=files.some(file=>file.size>5*1024*1024);
+            zone.dataset.uploadError=tooLarge?'Each photo must be 5MB or smaller.':files.some(file=>!isImage(file))?'Please choose image files.':'';
+            for(const file of files)if(isImage(file) && file.size<=5*1024*1024)transfer.items.add(file);
+            input.files=transfer.files;
+        },true);
         zone.addEventListener('click',()=>input.click());
         for(const type of ['dragenter','dragover'])zone.addEventListener(type,event=>{event.preventDefault();zone.classList.add('is-dragging');});
         zone.addEventListener('dragleave',event=>{if(!zone.contains(event.relatedTarget))zone.classList.remove('is-dragging');});
         zone.addEventListener('drop',event=>{
             event.preventDefault();zone.classList.remove('is-dragging');
-            const transfer=new DataTransfer();
-            for(const file of event.dataTransfer.files)if(file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(file.name))transfer.items.add(file);
-            if(!transfer.files.length){status.textContent='Please choose image files.';status.classList.add('is-error');return;}
-            input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+            input.files=event.dataTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
         });
         const update=()=>{
+            if(zone.dataset.uploadError){status.classList.add('is-error');status.textContent=zone.dataset.uploadError;return;}
             const total=input.closest('form')?.querySelector('input[name="reference_images"]')?.files.length || 0;
             status.classList.remove('is-error');status.textContent=total?`${total} new image${total===1?'':'s'} selected`:'';
         };
-        input.addEventListener('change',update);
+        input.addEventListener('change',()=>queueMicrotask(update));
         input.closest('form')?.addEventListener('click',()=>queueMicrotask(update));
+        input.closest('form')?.addEventListener('reset',()=>{zone.dataset.uploadError='';status.textContent='';status.classList.remove('is-error');});
     }
     function enhance(root) {
         if(!(root instanceof Element))return;

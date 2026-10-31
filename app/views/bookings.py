@@ -542,6 +542,13 @@ def _validate_design_preferences(theme, palette):
     return ""
 
 
+def _reference_upload_size_error(request):
+    uploads = request.FILES.getlist('reference_images')
+    if request.FILES.get('reference_image'):
+        uploads.append(request.FILES['reference_image'])
+    return 'Each reference photo must be 5MB or smaller.' if any(upload.size > 5 * 1024 * 1024 for upload in uploads) else ''
+
+
 @login_required
 @deduplicate_submission
 @schedule_atomic
@@ -552,6 +559,12 @@ def create_booking(request):
     is_ajax = request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
 
     if request.method == "POST":
+        upload_error = _reference_upload_size_error(request)
+        if upload_error:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': upload_error}, status=400)
+            messages.error(request, upload_error)
+            return redirect('booking_page')
         selected_design = None
         selected_offer = None
         if request.POST.get("user_design_id"):
@@ -1122,6 +1135,9 @@ def edit_booking(request, id):
         return _booking_edit_error(request, id, "Confirmed bookings can no longer be edited. Please review details before submission.", profile=True)
 
     if request.method == "POST":
+        upload_error = _reference_upload_size_error(request)
+        if upload_error:
+            return _booking_edit_error(request, id, upload_error, profile=True)
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
         special_requests = request.POST.get("special_requests", "")

@@ -3,9 +3,9 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/reviews.css' %}?v=20261004a">
-<link rel="stylesheet" href="{% static 'css/review_controls.css' %}?v=20261025c">
+<link rel="stylesheet" href="{% static 'css/review_controls.css' %}?v=20261031a">
 <link rel="stylesheet" href="{% static 'css/review_motion.css' %}?v=20261025a">
-<script src="{% static 'js/review_controls.js' %}?v=20261025account1" defer></script>
+<script src="{% static 'js/review_controls.js' %}?v=20261031a" defer></script>
 <script src="{% static 'js/review_page.js' %}?v=20261025account1" defer></script>
 <script src="{% static 'js/review_motion.js' %}?v=20261025account1" defer></script>
 
@@ -298,7 +298,10 @@
             if (field === 'comment') {
                 const group = editReviewCommentInput ? editReviewCommentInput.closest('.form-group') : null;
                 if (group) group.classList.toggle('has-error', !!message);
-                if (editReviewCommentInput) editReviewCommentInput.classList.toggle('has-error', !!message);
+                if (editReviewCommentInput) {
+                    editReviewCommentInput.classList.toggle('has-error', !!message);
+                    editReviewCommentInput.setAttribute('aria-invalid', String(!!message));
+                }
                 if (editReviewCommentErrorEl) editReviewCommentErrorEl.textContent = message || '';
             }
         };
@@ -316,11 +319,11 @@
             const commentValue = editReviewCommentInput ? editReviewCommentInput.value.trim() : '';
 
             if (!ratingValue) {
-                setEditReviewFieldError('rating', 'Rating is required*');
+                setEditReviewFieldError('rating', 'Please select a rating.');
                 firstInvalid = 'rating';
             }
             if (!commentValue) {
-                setEditReviewFieldError('comment', 'Review is required*');
+                setEditReviewFieldError('comment', 'Please enter your review.');
                 if (!firstInvalid) firstInvalid = 'comment';
             }
             return firstInvalid;
@@ -350,8 +353,11 @@
         }
 
         if (editReviewCommentInput) {
+            editReviewCommentInput.addEventListener('focus', () => {
+                setEditReviewFieldError('comment', editReviewCommentInput.value.trim() ? '' : 'Please enter your review.');
+            });
             editReviewCommentInput.addEventListener('input', () => {
-                if (editReviewSubmitAttempted) validateEditReviewForm();
+                setEditReviewFieldError('comment', editReviewCommentInput.value.trim() ? '' : 'Please enter your review.');
             });
         }
     });

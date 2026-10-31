@@ -4,9 +4,9 @@
 
 {% block account_page %}report_concern{% endblock %}
 {% block account_content %}
-<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20261025-concern6">
+<link rel="stylesheet" href="{% static 'css/report_concern.css' %}?v=20261031-concern9">
 
-<link rel="stylesheet" href="{% static 'css/concern_details.css' %}?v=20261025-concern7">
+<link rel="stylesheet" href="{% static 'css/concern_details.css' %}?v=20261031-concern8">
 
 <div class="concern-page">
     <header class="concern-page-header account-page-header">
@@ -25,7 +25,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="submission_key" value="{{ form_data.submission_key }}">
                 <div class="concern-field">
-                    <label for="category">Category</label>
+                    <label for="category">Category <span class="concern-required" aria-hidden="true">*</span></label>
                     <div class="custom-filter-dropdown" id="categoryDropdown">
                         <div class="dropdown-trigger">
                             <span id="categoryDropdownText">Select Category</span>
@@ -38,7 +38,7 @@
                             <li data-value="booking">Booking Concern</li>
                             <li data-value="other">Other</li>
                         </ul>
-                        <select id="category" name="category" class="filter-select">
+                        <select id="category" name="category" class="filter-select" required aria-describedby="category_error">
                             <option value="" {% if not form_data.category %}selected{% endif %}>Select Category</option>
                             <option value="bug" {% if form_data.category == 'bug' %}selected{% endif %}>Bug Report</option>
                             <option value="account" {% if form_data.category == 'account' %}selected{% endif %}>Account Issue</option>
@@ -51,48 +51,51 @@
                 </div>
 
                 <div id="otherCategoryWrap" class="other-category-wrap">
-                    <label for="other_category">Specify Concern Type</label>
+                    <label for="other_category">Specify Concern Type <span class="concern-required" aria-hidden="true">*</span></label>
                     <input
                         type="text"
                         id="other_category"
                         name="other_category"
                         maxlength="80"
+                        aria-describedby="other_category_error"
                         value="{{ form_data.other_category|default:'' }}"
                         placeholder="e.g., specify your concern type">
                     <small class="field-error" id="other_category_error"></small>
                 </div>
 
                 <div class="concern-field">
-                    <div class="concern-label-row"><label for="subject">Subject</label><span id="concernSubjectCount" aria-hidden="true">0/150</span></div>
+                    <div class="concern-label-row"><label for="subject">Subject <span class="concern-required" aria-hidden="true">*</span></label><span id="concernSubjectCount" aria-hidden="true">0/150</span></div>
                     <input
                         type="text"
                         id="subject"
                         name="subject"
                         maxlength="150"
+                        required aria-describedby="subject_error"
                         placeholder="A short summary of the issue"
                         value="{{ form_data.subject|default:'' }}">
                     <small class="field-error" id="subject_error"></small>
                 </div>
 
                 <div class="concern-field">
-                    <label for="message">What happened?</label>
+                    <label for="message">What happened? <span class="concern-required" aria-hidden="true">*</span></label>
                     <textarea
                         id="message"
                         name="message"
                         rows="4"
+                        required
                         aria-describedby="concernMessageHelp message_error" placeholder="Describe the issue and what you were trying to do.">{{ form_data.message|default:'' }}</textarea>
                     <p class="concern-field-help" id="concernMessageHelp">Include a booking number if your concern is about a booking or payment.</p>
                     <small class="field-error" id="message_error"></small>
                 </div>
 
                 <div class="form-group">
-                    <label for="concern_images">Attachments <span class="concern-optional">Optional</span></label>
+                    <label for="concern_images">Attachments <span class="concern-optional">(optional)</span></label>
                     <div class="concern-upload-zone" id="concernUploadZone" role="group" aria-label="Upload concern images" aria-describedby="concernUploadHelp">
                         <svg class="concern-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17H6a4 4 0 0 1-.6-7.95 6.5 6.5 0 0 1 12.5-1.4A4.7 4.7 0 0 1 18 17h-1M12 21V11m-4 4 4-4 4 4"/></svg>
                         <p>Choose an image or drag &amp; drop it here</p>
                         <small id="concernUploadHelp">JPG, PNG or WEBP · Up to 5MB per image</small>
                         <button type="button" class="concern-browse" id="concernBrowse">Browse File</button>
-                        <input type="file" id="concern_images" name="concern_images" multiple accept="image/jpeg,image/png,image/webp" class="concern-file-input" aria-label="Choose concern images">
+                        <input type="file" id="concern_images" name="concern_images" multiple accept="image/jpeg,image/png,image/webp" class="concern-file-input" tabindex="-1" aria-label="Choose concern images" aria-describedby="concernUploadHelp concernUploadFeedback">
                     </div>
                     <small class="field-info">Attach up to 4 images.</small>
                     <p id="concernUploadFeedback" class="concern-feedback" role="status" aria-live="polite"></p>
@@ -178,14 +181,17 @@
     </footer>
 </dialog>
 
-<dialog class="concern-dialog concern-confirm-dialog" id="concernCancelModal" aria-labelledby="cancelConcernTitle" aria-describedby="cancelConcernExplanation">
-    <h2 id="cancelConcernTitle">Cancel this concern?</h2>
-    <p id="cancelConcernExplanation">Your concern will stay in your history as Cancelled. Our team will not process it.</p>
-    <p id="cancelConcernTicket" class="concern-cancel-reference"></p>
+<dialog class="client-feedback-dialog concern-cancel-dialog" id="concernCancelModal" aria-labelledby="cancelConcernTitle" aria-describedby="cancelConcernExplanation cancelConcernTicket">
+    <header class="client-feedback-header">
+        <h2 id="cancelConcernTitle" class="client-feedback-title">Cancel this concern?</h2>
+        <button type="button" class="client-feedback-close" data-close-dialog="concernCancelModal" aria-label="Close confirmation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </header>
+    <p id="cancelConcernExplanation" class="client-feedback-message">Your concern will stay in your history as Cancelled. Our team will not process it.</p>
+    <p id="cancelConcernTicket" class="client-feedback-message"></p>
     <form method="post" id="cancelConcernForm">
         {% csrf_token %}
-        <p id="cancelConcernFeedback" class="concern-feedback" role="alert"></p>
-        <div class="concern-dialog-actions"><button type="button" class="concern-button concern-button-secondary" data-close-dialog="concernCancelModal" autofocus>Keep concern</button><button type="submit" class="concern-button concern-button-danger-solid" id="confirmCancelConcern">Cancel concern</button></div>
+        <p id="cancelConcernFeedback" class="client-feedback-field-error" role="alert"></p>
+        <div class="client-feedback-actions"><button type="button" class="client-feedback-button" data-close-dialog="concernCancelModal" autofocus>Keep concern</button><button type="submit" class="client-feedback-button client-feedback-danger" id="confirmCancelConcern">Cancel concern</button></div>
     </form>
 </dialog>
 
@@ -195,5 +201,5 @@
 </dialog>
 
 
-<script src="{% static 'js/report_concern.js' %}?v=20261026a"></script>
+<script src="{% static 'js/report_concern.js' %}?v=20261031-concern9"></script>
 {% endblock %}

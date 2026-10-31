@@ -109,6 +109,9 @@ AccountPages.enhance('my_reviews', 'review_controls.js', function(scope) {
         if (event.target.matches('.review-uploaded-img') && ['Enter',' '].includes(event.key)) { event.preventDefault(); window.openReviewImage(event.target); }
     });
     document.querySelectorAll('.review-dialog form').forEach(form => {
+        form.addEventListener('reset', () => {
+            form.querySelectorAll('[aria-invalid]').forEach(control => control.removeAttribute('aria-invalid'));
+        });
         form.addEventListener('submit', () => {
             queueMicrotask(() => {
                 const invalid = form.querySelector('.has-error');
@@ -119,6 +122,7 @@ AccountPages.enhance('my_reviews', 'review_controls.js', function(scope) {
     document.querySelectorAll('[data-review-upload]').forEach(zone => {
         const input = document.getElementById(zone.dataset.reviewUpload);
         const error = zone.parentElement.querySelector('.review-upload-type-error');
+        const sizeError = zone.parentElement.querySelector('.review-upload-size-error');
         const isImage = file => file.type.startsWith('image/') || (!file.type && /\.(png|jpe?g|webp|gif|avif|heic|heif|bmp|svg)$/i.test(file.name));
         let dragDepth = 0;
         function clearDrag() { dragDepth = 0; zone.classList.remove('is-dragging'); }
@@ -126,8 +130,9 @@ AccountPages.enhance('my_reviews', 'review_controls.js', function(scope) {
         // and dropping use the same image validation and four-photo limit.
         input.addEventListener('change', () => {
             const files = [...input.files];
-            const images = files.filter(isImage);
-            error.hidden = images.length === files.length;
+            const images = files.filter(file => isImage(file) && file.size <= 5 * 1024 * 1024);
+            error.hidden = files.every(isImage);
+            sizeError.hidden = files.every(file => file.size <= 5 * 1024 * 1024);
             if (images.length !== files.length) {
                 const transfer = new DataTransfer();
                 images.forEach(file => transfer.items.add(file));
@@ -154,7 +159,7 @@ AccountPages.enhance('my_reviews', 'review_controls.js', function(scope) {
             input.files = event.dataTransfer.files;
             input.dispatchEvent(new Event('change', {bubbles:true}));
         });
-        input.form.addEventListener('reset', () => { clearDrag(); error.hidden = true; });
+        input.form.addEventListener('reset', () => { clearDrag(); error.hidden = true; sizeError.hidden = true; });
     });
 
 }, -30);

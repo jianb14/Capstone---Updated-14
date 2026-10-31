@@ -2817,58 +2817,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .trim();
     }
 
-    function showToast(message, type = 'info', heading = null) {
-        const container = document.querySelector('.canvas-toast-container') || createToastContainer();
-        // A toast opened from a native mobile dialog must live inside that
-        // dialog to remain interactive; its popover still draws above it.
-        const parent = document.querySelector('dialog:modal') || document.body;
-        if (container.parentElement !== parent) {
-            if (container.matches(':popover-open')) container.hidePopover();
-            parent.appendChild(container);
-            if (parent.tagName === 'DIALOG') parent.addEventListener('close', () => {
-                if (container.parentElement !== parent) return;
-                const visible = container.matches(':popover-open');
-                if (visible) container.hidePopover();
-                document.body.appendChild(container);
-                if (visible && container.childElementCount) container.showPopover();
-            }, {once: true});
-        }
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-        const content = document.createElement('div'); content.className = 'toast-content';
-        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('fill', 'none'); icon.setAttribute('stroke', 'currentColor');
-        icon.setAttribute('stroke-width', '1.6'); icon.setAttribute('stroke-linecap', 'round'); icon.setAttribute('stroke-linejoin', 'round'); icon.setAttribute('aria-hidden', 'true');
-        icon.classList.add('canvas-toast-icon');
-        icon.innerHTML = type === 'success' ? '<path d="m5 12 4 4L19 6"/>' : '<circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/>';
-        const copy = document.createElement('div'); copy.className = 'canvas-toast-copy';
-        const title = document.createElement('strong'); title.textContent = heading || (type === 'error' ? 'Limit reached' : 'Design notice');
-        const text = document.createElement('span'); text.className = 'canvas-toast-message'; text.textContent = message;
-        copy.append(title, text);
-        const close = document.createElement('button'); close.type = 'button'; close.className = 'canvas-toast-close'; close.setAttribute('aria-label', 'Dismiss notification'); close.innerHTML = inventoryIconHtml('close');
-        content.append(icon, copy, close); toast.appendChild(content); container.appendChild(toast);
-        if (!container.matches(':popover-open')) container.showPopover();
-        const dismiss = () => {
-            toast.classList.remove('show');
-            setTimeout(() => {
-                toast.remove();
-                if (!container.childElementCount && container.matches(':popover-open')) container.hidePopover();
-            }, 300);
-        };
-        close.addEventListener('click', dismiss);
-        // Keep the existing slide/bounce transition and its original timings.
-        setTimeout(() => {
-            toast.classList.add('show');
-            setTimeout(dismiss, 3000);
-        }, 100);
-    }
-    function createToastContainer() {
-        const container = document.createElement('div');
-        container.className = 'toast-container canvas-toast-container';
-        container.setAttribute('popover', 'manual');
-        document.body.appendChild(container);
-        return container;
+    function showToast(message, type = 'info') {
+        AppToast.fire({icon: type, title: message});
     }
 
     function getDraggableItemPayload(item) {
@@ -3315,22 +3265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.AppToast.fire({ icon: icon, title: title });
                 return;
             }
-            if (window.Swal && typeof window.Swal.fire === 'function') {
-                window.Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true,
-                    icon: icon,
-                    title: title
-                });
-                return;
-            }
-        } catch (toastError) {
-            /* ignore — fallback sa alert sa baba */
-        }
-        if (icon === 'error') alert(title);
+        } catch (error) { console.error('Unable to show canvas feedback:', error); }
     }
 
     function renderRecentColors() {
@@ -3953,7 +3888,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const nextW = parseInt(canvasWidthInput.value, 10) || ARTBOARD_W;
             const nextH = parseInt(canvasHeightInput.value, 10) || ARTBOARD_H;
             if (nextW < 100 || nextH < 100 || nextW > 5000 || nextH > 5000) {
-                alert('Canvas size must be between 100 and 5000 pixels.');
+                AppToast.fire({icon: 'error', title: 'Canvas size must be between 100 and 5000 pixels.'});
                 return;
             }
 

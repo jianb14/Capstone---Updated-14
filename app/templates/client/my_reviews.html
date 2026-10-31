@@ -5,10 +5,10 @@
 {% block account_page %}my_reviews{% endblock %}
 {% block account_content %}
 <link rel="stylesheet" href="{% static 'css/my_reviews.css' %}?v=20260921f">
-<link rel="stylesheet" href="{% static 'css/review_controls.css' %}?v=20261025c">
-<link rel="stylesheet" href="{% static 'css/my_reviews_layout.css' %}?v=20261025b">
+<link rel="stylesheet" href="{% static 'css/review_controls.css' %}?v=20261031a">
+<link rel="stylesheet" href="{% static 'css/my_reviews_layout.css' %}?v=20261031b">
 <link rel="stylesheet" href="{% static 'css/review_motion.css' %}?v=20261025a">
-<script src="{% static 'js/review_controls.js' %}?v=20261025account1" defer></script>
+<script src="{% static 'js/review_controls.js' %}?v=20261031a" defer></script>
 <script src="{% static 'js/review_page.js' %}?v=20261025account1" defer></script>
 <script src="{% static 'js/review_motion.js' %}?v=20261025account1" defer></script>
 
@@ -23,17 +23,17 @@
             <a href="{% url 'reviews' %}" class="mr-community-link">View all reviews <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
         </header>
             <div class="mr-stats" aria-label="Your review summary">
-                <div class="mr-stat">
+                <div class="mr-stat mr-stat--awaiting">
                     <div class="mr-stat-top"><span class="mr-stat-label">Awaiting review</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h4"/></svg></div>
                     <span class="mr-stat-num">{{ pending_page_obj.paginator.count }}</span>
                     <span class="mr-stat-note">Completed events to share</span>
                 </div>
-                <div class="mr-stat">
+                <div class="mr-stat mr-stat--published">
                     <div class="mr-stat-top"><span class="mr-stat-label">Published</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H12l-9 1 2-6a8.5 8.5 0 1 1 16-3.5Z"/><path d="M8 11h8m-8 4h5"/></svg></div>
                     <span class="mr-stat-num">{{ published_count }}</span>
                     <span class="mr-stat-note">Experiences you have shared</span>
                 </div>
-                <div class="mr-stat">
+                <div class="mr-stat mr-stat--rating">
                     <div class="mr-stat-top"><span class="mr-stat-label">Average rating</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></div>
                     <span class="mr-stat-num">{% if published_count %}{{ avg_rating|floatformat:1 }}<small>/ 5</small>{% else %}&mdash;{% endif %}</span>
                     <span class="mr-stat-note">{% if published_count %}Across your published reviews{% else %}Starts with your first review{% endif %}</span>
@@ -248,7 +248,10 @@ AccountPages.register('my_reviews', "template", function(scope) {
             if (field === 'comment') {
                 const group = reviewCommentInput ? reviewCommentInput.closest('.form-group') : null;
                 if (group) group.classList.toggle('has-error', !!message);
-                if (reviewCommentInput) reviewCommentInput.classList.toggle('has-error', !!message);
+                if (reviewCommentInput) {
+                    reviewCommentInput.classList.toggle('has-error', !!message);
+                    reviewCommentInput.setAttribute('aria-invalid', String(!!message));
+                }
                 if (reviewCommentErrorEl) reviewCommentErrorEl.textContent = message || '';
             }
         };
@@ -266,11 +269,11 @@ AccountPages.register('my_reviews', "template", function(scope) {
             const commentValue = reviewCommentInput ? reviewCommentInput.value.trim() : '';
 
             if (!ratingValue) {
-                setCreateReviewFieldError('rating', 'Rating is required*');
+                setCreateReviewFieldError('rating', 'Please select a rating.');
                 firstInvalid = 'rating';
             }
             if (!commentValue) {
-                setCreateReviewFieldError('comment', 'Review is required*');
+                setCreateReviewFieldError('comment', 'Please enter your review.');
                 if (!firstInvalid) firstInvalid = 'comment';
             }
             return firstInvalid;
@@ -300,8 +303,11 @@ AccountPages.register('my_reviews', "template", function(scope) {
         }
 
         if (reviewCommentInput) {
+            reviewCommentInput.addEventListener('focus', () => {
+                setCreateReviewFieldError('comment', reviewCommentInput.value.trim() ? '' : 'Please enter your review.');
+            });
             reviewCommentInput.addEventListener('input', () => {
-                if (createReviewSubmitAttempted) validateCreateReviewForm();
+                setCreateReviewFieldError('comment', reviewCommentInput.value.trim() ? '' : 'Please enter your review.');
             });
         }
 
@@ -479,7 +485,10 @@ AccountPages.register('my_reviews', "template", function(scope) {
             if (field === 'comment') {
                 const group = editReviewCommentInput ? editReviewCommentInput.closest('.form-group') : null;
                 if (group) group.classList.toggle('has-error', !!message);
-                if (editReviewCommentInput) editReviewCommentInput.classList.toggle('has-error', !!message);
+                if (editReviewCommentInput) {
+                    editReviewCommentInput.classList.toggle('has-error', !!message);
+                    editReviewCommentInput.setAttribute('aria-invalid', String(!!message));
+                }
                 if (editReviewCommentErrorEl) editReviewCommentErrorEl.textContent = message || '';
             }
         };
@@ -497,11 +506,11 @@ AccountPages.register('my_reviews', "template", function(scope) {
             const commentValue = editReviewCommentInput ? editReviewCommentInput.value.trim() : '';
 
             if (!ratingValue) {
-                setEditReviewFieldError('rating', 'Rating is required*');
+                setEditReviewFieldError('rating', 'Please select a rating.');
                 firstInvalid = 'rating';
             }
             if (!commentValue) {
-                setEditReviewFieldError('comment', 'Review is required*');
+                setEditReviewFieldError('comment', 'Please enter your review.');
                 if (!firstInvalid) firstInvalid = 'comment';
             }
             return firstInvalid;
@@ -531,8 +540,11 @@ AccountPages.register('my_reviews', "template", function(scope) {
         }
 
         if (editReviewCommentInput) {
+            editReviewCommentInput.addEventListener('focus', () => {
+                setEditReviewFieldError('comment', editReviewCommentInput.value.trim() ? '' : 'Please enter your review.');
+            });
             editReviewCommentInput.addEventListener('input', () => {
-                if (editReviewSubmitAttempted) validateEditReviewForm();
+                setEditReviewFieldError('comment', editReviewCommentInput.value.trim() ? '' : 'Please enter your review.');
             });
         }
     });

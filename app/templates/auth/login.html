@@ -2,14 +2,15 @@
 
 {% block content %}
 <title>{% block title %}Login | Balloorina{% endblock %}</title>
-<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% include 'components/auth_presentation_assets.html' %}
 <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261026a">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="{% static 'js/theme-toggle.js' %}"></script>
 {% include 'components/password_visibility_assets.html' %}
 {% block auth_extra_css %}{% endblock %}
 
-<div class="body auth-with-back">
+<div class="body auth-with-back auth-scene" data-floating-hero data-floating-auth>
+    {% include 'components/hero_balloons.html' %}
     {% include 'components/auth_back_link.html' %}
     <div class="auth-container">
         <!-- Logo -->
@@ -64,32 +65,20 @@
 
 {% block auth_overlays %}{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% include 'components/client_feedback_assets.html' %}
 <script src="{% static 'js/email_otp.js' %}"></script>
-<!-- Password Toggle Script and SweetAlert2 -->
+<!-- Password validation and client feedback -->
 <script>
 
 document.addEventListener("DOMContentLoaded", function() {
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        background: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#1a1a1a',
-        color: document.documentElement.getAttribute('data-theme') === 'light' ? '#111827' : '#fff',
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-    });
+    const Toast = AppToast;
 
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         const requiredInputs = Array.from(loginForm.querySelectorAll('input[required]'));
         let submitAttempted = false;
 
-        const getFieldGroup = (input) => input.closest('.field-group');
+        const getFieldGroup = (input) => input.closest('.field-group, .terms-check-wrap');
 
         const setFieldError = (input, message) => {
             const fieldGroup = getFieldGroup(input);
@@ -97,6 +86,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
             const errorElement = fieldGroup.querySelector('.field-error');
             if (!errorElement) return;
+
+            input.setAttribute('aria-invalid', String(Boolean(message)));
+            if (!errorElement.id) errorElement.id = `${input.id}-error`;
+            const descriptions = new Set((input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+            descriptions.add(errorElement.id);
+            input.setAttribute('aria-describedby', [...descriptions].join(' '));
 
             if (message) {
                 fieldGroup.classList.add('has-error');
@@ -109,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const getValidationMessage = (input) => {
             if (input.validity.valueMissing) {
-                return `${input.dataset.label || input.name} is required*`;
+                return `${input.dataset.label || input.name} is required.`;
             }
             if (input.type === 'email' && input.validity.typeMismatch) {
                 return "Please enter a valid email address (must include '@').";

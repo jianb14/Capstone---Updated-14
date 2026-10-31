@@ -1,0 +1,13 @@
+/* Focus and validation colors must appear together, without animating from
+   the browser's default outline/currentColor or an earlier border state. */
+body :is(
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]):not([type="range"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+    textarea,
+    select,
+    [role="combobox"],
+    .custom-select-trigger,
+    .dropdown-trigger,
+    .account-select-trigger
+) {
+    transition-property: background-color, color !important;
+}

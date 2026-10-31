@@ -162,7 +162,7 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         if (event.key === 'Escape') event.bookingPickerWasOpen = Array.from(document.querySelectorAll('.booking-picker-pop')).some(pop => pop.getClientRects().length);
     }, true);
     AccountPages.listen(document, 'keydown', event => {
-        if (!active || document.querySelector('.swal2-container')) return;
+        if (!active || document.querySelector('.client-feedback-dialog[open]')) return;
         // Nested date/time picker popovers handle their own Escape/Tab first.
         if (event.bookingPickerWasOpen) return;
         if (event.key === 'Escape') { event.preventDefault(); close(); return; }

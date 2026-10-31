@@ -64,6 +64,44 @@ class DesignLibraryTests(TestCase):
         self.assertNotContains(response, reverse('booking_page') + f'?design_id={self.draft.pk}')
         self.assertContains(response, 'Continue Editing')
 
+    def test_admin_style_page_sizes_remain_bounded_and_preserve_filters(self):
+        for index in range(9):
+            UserDesign.objects.create(user=self.user, name=f'Paged design {index:02}', canvas_json='{"objects": []}')
+        for size, expected in (('4',4), ('8',8), ('1000',8)):
+            with self.subTest(size=size):
+                response = self.client.get(reverse('my_designs'), {'q':'Paged design', 'sort':'name', 'per_page':size})
+                self.assertEqual(response.context['designs'].paginator.per_page, expected)
+                self.assertEqual(len(response.context['designs']), expected)
+                self.assertEqual(response.context['designs'].paginator.count, 9)
+                self.assertContains(response, 'aria-label="Rows per page"')
+                self.assertContains(response, 'sort=name')
+                self.assertContains(response, 'q=Paged+design')
+        response = self.client.get(reverse('my_designs'), {'q':'Paged design', 'sort':'name', 'per_page':4, 'page':2})
+        self.assertEqual(response.context['designs'].start_index(), 5)
+        self.assertEqual(response.context['designs'][0].name, 'Paged design 04')
+
+    def test_search_matches_design_and_starting_point_names_without_other_users(self):
+        legacy = UserDesign.objects.create(user=self.user, name='Legacy setup', base_package=self.offers[0].package, canvas_json='{}')
+        entrance = UserDesign.objects.create(user=self.user, name='Doorway setup', design_offer=self.offers[1], canvas_json='{}')
+        stand = UserDesign.objects.create(user=self.user, name='Greeting setup', design_offer=self.offers[2], canvas_json='{}')
+        UserDesign.objects.create(user=self.other, name='Private setup', design_offer=self.offers[0], canvas_json='{}')
+        for query, expected in (
+            ('Library package', {self.ready.pk,self.draft.pk,legacy.pk}),
+            ('Library entrance', {entrance.pk}), ('welcome stand', {stand.pk}),
+            ('Ready package', {self.ready.pk}), ('DOORWAY', {entrance.pk}), ('not-found', set()),
+        ):
+            response = self.client.get(reverse('my_designs'), {'q':query})
+            self.assertEqual({item.pk for item in response.context['designs']}, expected, query)
+
+    def test_empty_states_offer_relevant_actions(self):
+        response = self.client.get(reverse('my_designs'), {'q':'not-found'})
+        self.assertContains(response, 'No matching designs')
+        self.assertContains(response, 'data-clear-design-search')
+        self.client.force_login(self.other)
+        response = self.client.get(reverse('my_designs'))
+        self.assertContains(response, 'Your designs start here')
+        self.assertContains(response, 'Create a design')
+
     def test_card_hides_raw_validator_messages_and_bounds_guidance(self):
         result = evaluate_saved_design(self.draft)
         result['invalid_items'] = ['Internal catalog metadata detail']

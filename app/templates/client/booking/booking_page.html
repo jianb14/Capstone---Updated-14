@@ -5,9 +5,9 @@
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261031a">
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031popular2">
-<link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261031ui3">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261025account1"></script>
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031upload3">
+<link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261031upload4">
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261031upload3"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
      booking_location_map.js at mananatiling required ang text location. -->
@@ -15,7 +15,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261025account1"></script>
-<script src="{% static 'js/booking_picker_c.js' %}?v=20261025account1"></script>
+<script src="{% static 'js/booking_picker_c.js' %}?v=20261031feedback"></script>
 <script src="{% static 'js/booking_location_map.js' %}?v=20261025account1"></script>
 <script src="{% static 'js/booking_logistics.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
@@ -346,7 +346,7 @@
                             <div id="location_logistics_preview" class="location-logistics-preview" aria-live="polite"></div>
                             {% include 'client/booking/_map_sources.html' %}
 
-                            <label for="venue_landmark" class="location-landmark-label"><i class="fa-solid fa-thumbtack"></i> Nearest landmark / gate / floor (Optional)</label>
+                            <label for="venue_landmark" class="location-landmark-label"><i class="fa-solid fa-thumbtack"></i> Nearest landmark / gate / floor <span class="booking-optional">(optional)</span></label>
                             <input type="text" id="venue_landmark" name="venue_landmark" maxlength="255" autocomplete="off"
                                 placeholder="e.g., Near Blue Gate, 2nd floor of Robinsons Mall">
                             <small class="booking-hint">Enter your own landmark or arrival instructions. This field is optional.</small>
@@ -440,7 +440,7 @@
 
                         <!-- ✍️ Motto / text sa backdrop -->
                         <div class="form-group full-width">
-                            <label for="motto_text"><i class="fa-solid fa-font"></i> Motto / Text on the Backdrop (Optional)</label>
+                            <label for="motto_text"><i class="fa-solid fa-font"></i> Motto / Text on the Backdrop <span class="booking-optional">(optional)</span></label>
                             <input type="text" id="motto_text" name="motto_text" maxlength="150"
                                 placeholder='e.g., "Happy 18th, Maria!" or "Congrats Batch 2026!"'>
                             <small class="booking-hint">The exact text you want on the backdrop or signage.</small>
@@ -448,14 +448,14 @@
 
                         <!-- Special Requests (moved from Step 3) -->
                         <div class="form-group full-width">
-                            <label for="booking_special_requests"><i class="far fa-comment"></i> Design Notes / Special Requests (Optional)</label>
+                            <label for="booking_special_requests"><i class="far fa-comment"></i> Design Notes / Special Requests <span class="booking-optional">(optional)</span></label>
                             <textarea id="booking_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                         </div>
 
                         <!-- Reference Images (moved from Step 3) -->
                         <div class="form-group full-width">
                             {% if not prefilled_design %}
-                                <label for="booking_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
+                                <label for="booking_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures <span class="booking-optional">(optional)</span></label>
                                 {% include 'client/booking/_reference_upload.html' with input_id='booking_reference_images_ui' %}
                                 <!-- Hidden proper input for backend submission -->
                                 <input type="file" id="booking_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
@@ -2720,8 +2720,17 @@
         const config = fieldMap[fieldKey];
         if (!config || !config.errorEl) return;
 
-        config.container?.classList.toggle('has-error', !!message);
         config.inputEl?.classList.toggle('has-error', !!message);
+        config.inputEl?.setAttribute('aria-invalid', String(!!message));
+        // Time pickers keep the submitted value hidden and render a separate input.
+        const display = config.inputEl?.id && document.getElementById(config.inputEl.id + '_display');
+        if (display) {
+            display.classList.toggle('has-error', !!message);
+            display.setAttribute('aria-invalid', String(!!message));
+        }
+        // Event type and its conditional Other input share a group. Clearing one
+        // field must preserve the group's error while the other is still invalid.
+        config.container?.classList.toggle('has-error', !!config.container.querySelector('[aria-invalid="true"]'));
         config.errorEl.textContent = message || '';
     }
 
@@ -2730,14 +2739,14 @@
             .forEach((fieldKey) => setBookingFieldError(fieldKey, ''));
     }
 
-    function validateBookingStepTwoFields() {
+    function validateBookingStepTwoFields({notify = false} = {}) {
         clearBookingValidationErrors();
         let firstInvalidField = null;
 
         /* ADMIN-BLOCKED DATE: hindi dapat maka-proceed kapag blocked */
         if (dateInput.value && moduleIsBlockedDate(dateInput.value)) {
             setBookingFieldError('event_date', 'This date is unavailable. Please choose a different date.');
-            showUnavailableToast();
+            if (notify) showUnavailableToast();
             firstInvalidField = 'event_date';
         }
 
@@ -2745,7 +2754,7 @@
            inline error + toast, kasama ang earliest available date). */
         if (dateInput.value && moduleIsLeadBlockedDate(dateInput.value)) {
             setBookingFieldError('event_date', getLeadBlockedLabel(dateInput.value));
-            showLeadBlockedToast();
+            if (notify) showLeadBlockedToast();
             if (!firstInvalidField) firstInvalidField = 'event_date';
         }
 
@@ -2836,14 +2845,9 @@
                     mapStatusEl.textContent = 'No pin yet — drop a pin or pick from search. Required for exact fee.';
                 }
             } catch (e) { /* noop */ }
-            if (window.AppToast && !validateBookingStepTwoFields._pinToastAt) validateBookingStepTwoFields._pinToastAt = 0;
-            try {
-                const nowTs = Date.now();
-                if (window.AppToast && nowTs - validateBookingStepTwoFields._pinToastAt > 4000) {
-                    validateBookingStepTwoFields._pinToastAt = nowTs;
-                    AppToast.fire({ icon: 'warning', title: 'Map pin required.', text: 'Drop a pin or pick from search for the exact logistics fee.' });
-                }
-            } catch (e) { /* noop */ }
+            if (notify && (!firstInvalidField || firstInvalidField === 'event_location') && window.AppToast) {
+                AppToast.fire({ icon: 'warning', title: 'Map pin required.', text: 'Drop a pin or pick from search for the exact logistics fee.' });
+            }
             if (!firstInvalidField) firstInvalidField = 'event_location';
         }
 
@@ -3113,7 +3117,7 @@
 
         btnNextToSummary.addEventListener('click', function () {
             bookingSubmitAttempted = true;
-            const firstInvalidField = validateBookingStepTwoFields();
+            const firstInvalidField = validateBookingStepTwoFields({notify:true});
             if (firstInvalidField) {
                 focusBookingField(firstInvalidField);
             return;
@@ -3321,13 +3325,13 @@
 
 
     // =============================================
-    // AJAX FORM SUBMISSION WITH SWEETALERT2
+    // AJAX FORM SUBMISSION WITH SHARED FEEDBACK
     // =============================================
     const btnSubmitBooking = document.getElementById('btnSubmitBooking');
 
     btnSubmitBooking.addEventListener('click', function () {
         bookingSubmitAttempted = true;
-        const firstInvalidField = validateBookingStepTwoFields();
+        const firstInvalidField = validateBookingStepTwoFields({notify:true});
         if (firstInvalidField) {
             showStep(3);
             focusBookingField(firstInvalidField);
@@ -3501,25 +3505,16 @@
         };
 
         const reminderMessage = 'Once this booking is confirmed, it can no longer be edited or canceled. Continue submitting?';
-        if (typeof AppToast !== 'undefined') {
-            AppToast.confirm({
-                title: 'Submit booking now?',
-                text: reminderMessage,
-                confirmText: 'Yes, Submit',
-                cancelText: 'Review Again'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    executeBookingSubmit();
-                }
-            });
-            return;
-        }
-
-        if (!window.confirm(reminderMessage)) {
-            return;
-        }
-
-        executeBookingSubmit();
+        AppToast.confirm({
+            title: 'Submit booking now?',
+            text: reminderMessage,
+            confirmText: 'Yes, Submit',
+            cancelText: 'Review Again'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                executeBookingSubmit();
+            }
+        });
     });
 
     // --- Handle Prefilled Design on Page Load ---

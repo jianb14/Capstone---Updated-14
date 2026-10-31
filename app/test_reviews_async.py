@@ -4,11 +4,12 @@ from pathlib import Path
 from unittest import skipUnless
 
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .models import Booking, Review, User
+from .models import Booking, Review, ReviewImage, User
 
 
 class AsyncReviewValidationTests(TestCase):
@@ -41,6 +42,35 @@ class AsyncReviewValidationTests(TestCase):
         self.client.force_login(other)
         self.assertEqual(self.post({'rating':5,'comment':'Hello'}).status_code,404)
         self.assertFalse(Review.objects.exists())
+
+    def test_oversized_photo_cannot_create_a_review(self):
+        image = SimpleUploadedFile('large.png', b'x' * (5 * 1024 * 1024 + 1), content_type='image/png')
+        response = self.post({'rating':5, 'comment':'My review', 'images':image})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['errors']['images'], 'Each photo must be 5MB or smaller.')
+        self.assertFalse(Review.objects.exists())
+        self.assertFalse(ReviewImage.objects.exists())
+
+    def test_oversized_edit_preserves_text_rating_and_existing_photo(self):
+        review = Review.objects.create(user=self.user, booking=self.booking, rating=4, comment='Original review')
+        existing = ReviewImage.objects.create(review=review, image='review_images/keep.png')
+        image = SimpleUploadedFile('large.png', b'x' * (5 * 1024 * 1024 + 1), content_type='image/png')
+        response = self.client.post(reverse('edit_review', args=[review.pk]),
+            {'rating':5, 'comment':'Changed review', 'delete_images[]':existing.pk, 'images':image},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['errors']['images'], 'Each photo must be 5MB or smaller.')
+        review.refresh_from_db()
+        self.assertEqual((review.rating, review.comment), (4, 'Original review'))
+        self.assertTrue(review.images.filter(pk=existing.pk).exists())
+
+    def test_photo_at_the_five_mb_boundary_is_accepted(self):
+        from .test_concerns import photo
+        content = photo().read()
+        image = SimpleUploadedFile('boundary.png', content + b'\0' * (5 * 1024 * 1024 - len(content)), content_type='image/png')
+        response = self.post({'rating':5, 'comment':'My review', 'images':image})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(ReviewImage.objects.get().image.size, 5 * 1024 * 1024)
 
     def test_empty_states_are_present_even_without_pending_or_published_reviews(self):
         self.booking.status = 'confirmed'

@@ -333,7 +333,7 @@
 
     function confirmDeleteDialog() {
         const overlay = document.getElementById("adminChatConfirmOverlay");
-        if (!overlay) return Promise.resolve(window.confirm("Delete this message?"));
+        if (!overlay) return window.AppToast ? AppToast.confirm({title: "Delete this message?", danger: true, confirmText: "Delete message"}).then(result => result.isConfirmed) : Promise.resolve(false);
         return new Promise(function (resolve) {
             const cancelBtn = document.getElementById("adminChatConfirmCancel");
             const deleteBtn = document.getElementById("adminChatConfirmDelete");
