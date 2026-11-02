@@ -11,10 +11,12 @@
 preDeployCommand = "python manage.py migrate --no-input"
 
 # Start the web server on Railway's $PORT:
-#   1. migrate again (idempotent no-op safety net in case pre-deploy is skipped)
-#   2. collect static files for WhiteNoise (DEBUG=False in production)
-#   3. gunicorn; --timeout 120 because AI calls can take up to 90s
-startCommand = "python manage.py migrate --no-input && python manage.py collectstatic --no-input && gunicorn --config gunicorn.conf.py Project.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
+#   1. verify shared Redis at runtime (private networking is unavailable at build)
+#   2. migrate again (idempotent no-op safety net in case pre-deploy is skipped)
+#   3. collect static files for WhiteNoise (DEBUG=False in production)
+#   4. gunicorn; --timeout 120 because AI calls can take up to 90s
+# Add the Redis service and REDIS_URL reference BEFORE deploying this version.
+startCommand = "python manage.py check_cache --require-redis && python manage.py migrate --no-input && python manage.py collectstatic --no-input && gunicorn --config gunicorn.conf.py Project.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
 
 # Restart the container if the process crashes (e.g. database unreachable).
 restartPolicyType = "ON_FAILURE"
