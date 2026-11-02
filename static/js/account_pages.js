@@ -15,6 +15,7 @@
     function cleanup(callback) { current?.cleanup(callback); }
     function unmount() {
         if (!current) return;
+        document.dispatchEvent(new CustomEvent('account:unmounting', {detail: {root: current.root}}));
         current.active = false;
         current.controller.abort();
         current.disposers.reverse().forEach(dispose => { try { dispose(); } catch (error) { console.error(error); } });

@@ -260,6 +260,7 @@
             const url = new URL(this.root.dataset.inboxUrl, location.origin);
             url.searchParams.set('q', this.$('[data-inbox-search]').value.trim()); url.searchParams.set('status', this.filter);
             const list = this.$('[data-inbox-list]');
+            const skeletonLoad = quiet ? null : window.SiteLoading?.start(list, {variant: 'chat', mode: more ? 'append' : 'replace'});
             this.$('[data-more-inbox]').disabled = true;
             try {
                 // Refresh all already loaded pages so older conversations are not dropped.
@@ -296,7 +297,7 @@
                 if (version !== this.inboxVersion) return;
                 const box = this.$('[data-inbox-error]'); box.hidden = false; box.textContent = error.message + ' Retrying automatically.';
                 this.$('[data-sync]').textContent = 'Reconnecting…';
-            } finally {if (version === this.inboxVersion) this.$('[data-more-inbox]').disabled = false;}
+            } finally {skeletonLoad?.finish();if (version === this.inboxVersion) this.$('[data-more-inbox]').disabled = false;}
         }
         async loadSummary() {
             if (this.open) return;
@@ -315,7 +316,7 @@
             if (show) {
                 this.$('[data-welcome]').hidden = true; this.$('[data-conversation]').hidden = false;
                 await this.loadState({initial: !this.messages.size}); this.input.focus();
-            } else { this.saveDraft(); this.$('#adminChatToggle').focus(); }
+            } else { window.SiteLoading?.clear(this.root);this.saveDraft(); this.$('#adminChatToggle').focus(); }
         }
         atBottom() { return this.history.scrollHeight - this.history.scrollTop - this.history.clientHeight < 90; }
         bottom(smooth = false) {
@@ -330,6 +331,7 @@
         async loadState({initial = false, older = false, before = null} = {}) {
             if (this.loading || !this.open || this.admin && !this.sessionId) return;
             const epoch = this.epoch; this.loading = true;
+            const skeletonLoad = initial || older || before ? window.SiteLoading?.start(this.list, {variant: 'chat', mode: older ? 'append' : 'replace'}) : null;
             const url = new URL(this.root.dataset.stateUrl, location.origin);
             if (this.sessionId) url.searchParams.set('session_id', this.sessionId);
             if (this.threadQuery) url.searchParams.set('q', this.threadQuery);
@@ -369,7 +371,7 @@
                     const placeholder = empty('Could not load messages', 'Your conversation is safe. Check your connection and try again.');
                     placeholder.append(button('Try again', 'sc-button', () => this.loadState({initial: true}))); this.list.replaceChildren(placeholder);
                 }
-            } finally { if (epoch === this.epoch) {this.loading = false; this.$('[data-older]').disabled = false;} }
+            } finally { skeletonLoad?.finish();if (epoch === this.epoch) {this.loading = false; this.$('[data-older]').disabled = false;} }
         }
         updateHeader(session) {
             this.$('[data-name]').textContent = session.name;
@@ -633,6 +635,7 @@
             footer.append(button('Done', 'sc-button', () => this.dialog.close()));
             if (!this.sessionId) {media.append(node('p', '', 'No photos shared yet.')); return;}
             const epoch = this.epoch;
+            const skeletonLoad = window.SiteLoading?.start(media, {variant: 'cards'});
             try {
                 const url = new URL(this.root.dataset.stateUrl, location.origin); url.searchParams.set('session_id', this.sessionId); url.searchParams.set('media', '1');
                 const data = await this.request(url); if (!this.dialog.open || epoch !== this.epoch) return;
@@ -643,6 +646,7 @@
                 if (!data.media?.length) media.append(node('p', '', 'No photos shared yet.'));
                 else if (data.media.length === 100) body.append(node('p', '', 'Showing the latest 100 photos. Earlier photos are available in the conversation.'));
             } catch (error) {media.append(node('p', 'sc-error', error.message));}
+            finally { skeletonLoad?.finish(); }
         }
         showImage(url, name = 'Chat photo') {
             const [body, footer] = this.openDialog('Photo attachment', true);

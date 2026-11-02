@@ -116,6 +116,7 @@
         const timeout=setTimeout(()=>current.abort(),20000);
         const url=new URL(root.dataset.dashboardUrl,location.origin);url.search=params.toString();
         selects.close();message();status.textContent='Updating dashboard...';results.setAttribute('aria-busy','true');
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'chart', signal: current.signal});
         try{
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:current.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});
@@ -132,7 +133,7 @@
             status.textContent=`Updated ${result.updated} (PH time)`;
         }catch(error){
             if(requestID===version){message(error.name==='AbortError'?'The request took too long. Your current dashboard is still here.':error.message);status.textContent='Showing the last applied report';}
-        }finally{clearTimeout(timeout);if(requestID===version)results.setAttribute('aria-busy','false');}
+        }finally{skeletonLoad?.finish();clearTimeout(timeout);if(requestID===version)results.setAttribute('aria-busy','false');}
     }
     form.addEventListener('input',event=>{if(event.target.matches('input[type="date"]')){draft++;field('filter_preset').value='';presets('');}});
     form.addEventListener('submit',event=>{

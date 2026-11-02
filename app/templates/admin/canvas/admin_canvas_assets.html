@@ -239,10 +239,12 @@
             return url;
         }
 
+        let canvasLoadRequest;
         function fetchCanvasAssets(urlObj) {
-            if (tableContainer) tableContainer.style.opacity = '0.5';
+            canvasLoadRequest?.abort(); const controller = canvasLoadRequest = new AbortController();
+            const skeletonLoad = window.SiteLoading?.start(tableContainer, {variant: 'table', signal: controller.signal});
 
-            fetch(urlObj.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            fetch(urlObj.toString(), { signal: controller.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (response) { return response.text(); })
                 .then(function (html) {
                     const parser = new DOMParser();
@@ -255,7 +257,7 @@
                 })
                 .catch(function () {
                     if (tableContainer) tableContainer.style.opacity = '1';
-                });
+                }).finally(() => skeletonLoad?.finish());
         }
 
         function showToast(message, icon) {
@@ -302,9 +304,11 @@
         }
 
         function refreshCanvasAssetsPage(urlObj) {
-            if (tableContainer) tableContainer.style.opacity = '0.5';
+            canvasLoadRequest?.abort(); const controller = canvasLoadRequest = new AbortController();
+            const categoryLoad = window.SiteLoading?.start(document.getElementById('canvasCategoriesTableBody'), {variant: 'table', signal: controller.signal});
+            const skeletonLoad = window.SiteLoading?.start(tableContainer, {variant: 'table', signal: controller.signal});
 
-            return fetch(urlObj.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            return fetch(urlObj.toString(), { signal: controller.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (response) { return response.text(); })
                 .then(function (html) {
                     const parser = new DOMParser();
@@ -314,7 +318,7 @@
                 })
                 .catch(function () {
                     if (tableContainer) tableContainer.style.opacity = '1';
-                });
+                }).finally(() => { skeletonLoad?.finish(); categoryLoad?.finish(); });
         }
 
         function onFilterChanged(resetPage) {

@@ -91,6 +91,7 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
         refreshing?.abort();
         refreshing = new AbortController();
         region().setAttribute('aria-busy', 'true');
+        const skeletonLoad = window.SiteLoading?.start(region(), {variant: 'cards', signal: refreshing.signal});
         try {
             const response = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}, signal:refreshing.signal, cache:'no-store'});
             if (!response.ok) throw new Error('Could not refresh reviews.');
@@ -107,6 +108,7 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
             if (error.name !== 'AbortError' && id === refreshId) refreshError(url);
             return false;
         } finally {
+            skeletonLoad?.finish();
             if (id === refreshId) region().removeAttribute('aria-busy');
         }
     }

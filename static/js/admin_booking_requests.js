@@ -42,6 +42,7 @@
         controller?.abort();
         const active = new AbortController(); controller = active; latestUrl = url;
         results.setAttribute('aria-busy', 'true'); feedback.hidden = true;
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: active.signal});
         try {
             const response = await fetch(url, { signal: active.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok) throw new Error('Request failed');
@@ -59,6 +60,7 @@
             retry.addEventListener('click', () => load(latestUrl, historyMode));
             feedback.append(retry); feedback.hidden = false;
         } finally {
+            skeletonLoad?.finish();
             if (controller === active) results.setAttribute('aria-busy', 'false');
         }
     }

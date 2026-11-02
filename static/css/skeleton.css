@@ -1,0 +1,14 @@
+/* Placeholders are measured from the live content and painted outside widget mounts. */
+:root { --site-skeleton-base:#292929; --site-skeleton-highlight:#393939; }
+:root[data-theme="light"] { --site-skeleton-base:#e5e5e5; --site-skeleton-highlight:#f3f3f3; }
+.site-loading-portal { position:fixed !important; inset:0 !important; width:auto !important; height:auto !important; overflow:hidden !important; z-index:2147483000 !important; pointer-events:none !important; }
+.site-skeleton-layer { position:absolute; box-sizing:border-box; pointer-events:none; overflow:hidden; margin:0; padding:0; border:0; }
+.site-skeleton-shape { position:absolute; display:block; box-sizing:border-box; margin:0; padding:0; border:0; }
+.site-skeleton-shape,.site-image-loading { background-color:var(--site-skeleton-base); background-image:linear-gradient(100deg,transparent 20%,var(--site-skeleton-highlight) 48%,transparent 76%); background-size:220% 100%; animation:site-skeleton-shimmer 1.7s linear infinite; }
+.site-image-loading { color:transparent; }
+.site-loading-slot { box-sizing:border-box; max-width:100%; pointer-events:none; }
+.site-loading-empty { padding:8px 0; font:inherit; font-size:.8rem; line-height:1.5; }
+.site-loading-label { display:inline-block; }
+.site-loading-status { position:fixed !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip-path:inset(50%) !important; white-space:nowrap !important; border:0 !important; }
+@keyframes site-skeleton-shimmer { from { background-position:110% 0; } to { background-position:-110% 0; } }
+@media(prefers-reduced-motion:reduce) { .site-skeleton-shape,.site-image-loading { animation:none; background-image:none; } }

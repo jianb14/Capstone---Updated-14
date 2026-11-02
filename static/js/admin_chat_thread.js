@@ -984,12 +984,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function loadMedia() {
+        const skeletonLoad = window.SiteLoading?.start(mediaGrid, {variant: 'cards'});
         fetch(MEDIA_URL + "?session_id=" + SESSION_ID)
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 if (data && Array.isArray(data.media)) renderMedia(data.media);
             })
-            .catch(function () {});
+            .catch(function () {}).finally(() => skeletonLoad?.finish());
     }
 
     function openMediaLightbox(index) {

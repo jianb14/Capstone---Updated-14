@@ -487,7 +487,9 @@
         return null;
     }
 
-    async function loadHistory() {
+    async function loadHistory(showLoading = false) {
+        const skeletonLoad = showLoading ? window.SiteLoading?.start(messagesEl, {variant: 'chat'}) : null;
+        try {
         if (!currentSessionId) {
             await loadSessions();
         }
@@ -505,6 +507,7 @@
         if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
         renderMessages(data.messages || []);
         if (widget.classList.contains("open")) await markRead();
+        } finally { skeletonLoad?.finish(); }
     }
 
     async function ensureAdminSession() {
@@ -553,11 +556,12 @@
         widget.classList.add("open");
         const aiWidget = document.getElementById("ai-widget");
         if (aiWidget) aiWidget.classList.remove("active");
-        loadHistory().then(function () { setTimeout(scrollBottom, 60); }).catch(function () {});
+        loadHistory(true).then(function () { setTimeout(scrollBottom, 60); }).catch(function () {});
         setTimeout(() => input.focus(), 80);
     }
 
     function closeWidget() {
+        window.SiteLoading?.clear(widget);
         widget.classList.remove("open");
     }
 
@@ -984,6 +988,7 @@
     }
 
     function loadMedia() {
+        const skeletonLoad = window.SiteLoading?.start(mediaGrid, {variant: 'cards'});
         if (!currentSessionId) return;
         fetch(`${urls.media}?session_id=${encodeURIComponent(currentSessionId)}`, {
             headers: { "X-CSRFToken": csrfToken },
@@ -992,7 +997,7 @@
             .then(function (data) {
                 if (data && Array.isArray(data.media)) renderMedia(data.media);
             })
-            .catch(function () {});
+            .catch(function () {}).finally(() => skeletonLoad?.finish());
     }
 
     function openMediaLightbox(index) {

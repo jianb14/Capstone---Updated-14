@@ -52,10 +52,11 @@
         const controller = listRequest = new AbortController(), version = ++listVersion;
         const notice = workspace.querySelector('[data-list-feedback]'); feedback(notice);
         workspace.classList.add('is-loading'); workspace.setAttribute('aria-busy', 'true');
+        const skeletonLoad = window.SiteLoading?.start(workspace.querySelector('.ac-table-wrap, .catalog-table-wrap') || workspace, {variant: 'table', signal: controller.signal});
         try {
             const data = await request(url, {signal:controller.signal});
             if (version !== listVersion) return;
-            const focus = workspace.contains(document.activeElement) ? document.activeElement : null;
+            skeletonLoad?.finish(); const focus = workspace.contains(document.activeElement) ? document.activeElement : null;
             const focusName = focus?.name, start = focus?.selectionStart, end = focus?.selectionEnd;
             const position = scrollY;
             selects.release(workspace); workspace.innerHTML = data.html; selects.enhance();
@@ -71,6 +72,7 @@
         } catch (error) {
             if (!controller.signal.aborted && version === listVersion) feedback(notice, error.message);
         } finally {
+            skeletonLoad?.finish();
             if (version === listVersion) {workspace.classList.remove('is-loading'); workspace.removeAttribute('aria-busy');}
         }
     }
@@ -113,6 +115,7 @@
         dialogFeedback.dataset.loading = 'true'; feedback(dialogFeedback, 'Loading...'); root.querySelector('#catalogDialogTitle').textContent = 'Details';
         if (!dialog.open) dialog.showModal();
         document.body.classList.add('ac-modal-open');
+        const skeletonLoad = window.SiteLoading?.start(root.querySelector('[data-catalog-body]'), {variant: 'form', signal: controller.signal});
         try {
             const data = await request(url, {signal:controller.signal});
             if (version !== modalVersion || !dialog.open) return;
@@ -131,7 +134,7 @@
             root.querySelector('[data-catalog-body]').scrollTop = 0;
             content.querySelector('input:not([type=hidden],[type=checkbox],[type=file]),textarea')?.focus({preventScroll:true});
         } catch (error) {if (!controller.signal.aborted) feedback(dialogFeedback, error.message);}
-        finally {if (version === modalVersion) delete dialogFeedback.dataset.loading;}
+        finally {skeletonLoad?.finish();if (version === modalVersion) delete dialogFeedback.dataset.loading;}
     }
     function fieldError(form, name, message = '') {
         const group = form.querySelector(`[data-field="${CSS.escape(name)}"]`);

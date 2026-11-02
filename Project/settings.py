@@ -1,4 +1,5 @@
 from pathlib import Path
+import mimetypes
 import os
 from dotenv import load_dotenv
 import dj_database_url
@@ -196,6 +197,8 @@ TIME_ZONE = 'Asia/Manila'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Windows may omit WebP from its MIME registry; serve optimized images as images.
+mimetypes.add_type('image/webp', '.webp')
 
 # WhiteNoise can serve files straight from the staticfiles finders (the repo's
 # static/ and app/static/ directories) instead of only from STATIC_ROOT. On

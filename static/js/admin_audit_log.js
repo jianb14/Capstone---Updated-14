@@ -68,6 +68,7 @@
         let timedOut=false;
         const clock=setTimeout(()=>{timedOut=true;controller.abort();},12000);
         results.setAttribute('aria-busy','true');announce('');
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: controller.signal});
         try{
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:controller.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});
@@ -89,7 +90,7 @@
                 const message=timedOut?'The request took too long. Your current list is still here.':error.message;
                 announce(message,error.status===400?null:()=>load(url,push));
             }
-        }finally{clearTimeout(clock);if(requested===version)results.removeAttribute('aria-busy');}
+        }finally{skeletonLoad?.finish();clearTimeout(clock);if(requested===version)results.removeAttribute('aria-busy');}
     }
     function reset(all=true){
         if(all){search.value='';form.elements.role.value='';clear.hidden=true;}

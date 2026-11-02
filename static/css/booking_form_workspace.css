@@ -1,0 +1,98 @@
+/* Identical presentation for booking creation and My Bookings editing. */
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace {
+    --bui-bg: #161616;
+    --bui-ink: #f5f5f5;
+    --bui-muted: #a3a3a3;
+    --bui-line: #303030;
+    --bui-soft: #202020;
+    --bui-hover: rgb(255 255 255 / 3.5%);
+    --bui-blue: #93b4ff;
+    --bui-danger: #f19191;
+}
+[data-theme="light"] :is(#bookingModalOverlay,#editBookingModal).booking-form-workspace {
+    --bui-bg: #fff;
+    --bui-ink: #181818;
+    --bui-muted: #737373;
+    --bui-line: #e5e5e5;
+    --bui-soft: #f7f7f7;
+    --bui-hover: rgb(0 0 0 / 2.2%);
+    --bui-blue: #285eaf;
+    --bui-danger: #b8353c;
+}
+/* Apply the admin palette to the existing form components; inputs and field names are untouched. */
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace { --form-surface: var(--bui-bg); --form-panel: var(--bui-bg); --form-soft: var(--bui-soft); --form-border: var(--bui-line); --form-ink: var(--bui-ink); --form-muted: var(--bui-muted); --form-danger: var(--bui-danger); --form-accent: var(--bui-ink); --form-on-accent: var(--bui-bg); }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .booking-modal-box { padding: 28px; border-radius: 16px; box-shadow: 0 24px 70px #00000024; scrollbar-color: var(--bui-line) transparent; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .stepper-step h3 { font-size: 21px; font-weight: 600; letter-spacing: -.025em; color: var(--bui-ink) !important; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .step-desc { font-size: 13px; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .stepper-header { margin-bottom: 28px; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(.form-group > label,.custom-select-container > label) { font-size: 13px; font-weight: 500; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .form-group :is(input:not([type=hidden]):not([type=color]):not([type=file]),textarea,.custom-select-trigger) { background-color: var(--bui-bg) !important; border-color: var(--bui-line); border-radius: 10px; font-size: 13px; min-height: 44px; padding:.55rem .75rem; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .booking-input-holder input { padding-right:42px; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .form-group textarea { min-height: 112px; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .form-group :is(input:not([type=hidden]),textarea,.custom-select-trigger):focus-visible { border-color: var(--bui-muted); outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bui-muted) 18%, transparent); }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .package-card { border-radius: 12px; box-shadow: none; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .package-card:hover { border-color: var(--bui-muted); box-shadow: none; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .package-card.selected { background: var(--bui-soft); border-color: var(--bui-ink); box-shadow: none; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(.booking-back-btn,.btn-submit,.location-use-my-btn,.reference-browse) { min-height: 44px; border-radius: 9px; padding: 10px 18px; font-size: 13px; font-weight: 500; box-shadow: none; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .btn-submit:hover { background: color-mix(in srgb, var(--bui-ink) 88%, var(--bui-bg)); border-color: transparent; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .booking-back-btn:hover { background: var(--bui-soft); border-color: var(--bui-muted); }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(.booking-summary-container,.preview-group,.design-selection-summary,.reference-dropzone) { border-radius: 12px; box-shadow: none; }
+
+/* Calm package states and the same field feedback throughout the booking wizard. */
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace {
+    --booking-card-hover:#1b1b1b; --booking-card-hover-border:#424242;
+    --booking-card-active:#202020; --booking-card-active-border:#555;
+    --booking-focus-border:#4a4a4a; --booking-focus-ring:rgba(153,153,153,.45);
+    --booking-error-ring:rgba(241,145,145,.4);
+    font-family:'Montserrat',sans-serif;
+}
+[data-theme="light"] :is(#bookingModalOverlay,#editBookingModal).booking-form-workspace {
+    --booking-card-hover:#fafafa; --booking-card-hover-border:#d4d4d4;
+    --booking-card-active:#f3f3f3; --booking-card-active-border:#bdbdbd;
+    --booking-focus-border:#cecece; --booking-focus-ring:rgba(105,105,105,.4);
+    --booking-error-ring:rgba(184,53,60,.4);
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .package-card:hover {
+    background:var(--booking-card-hover) !important; border-color:var(--booking-card-hover-border) !important;
+    box-shadow:none !important; transform:none;
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .package-card.selected,
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .package-card.selected:hover {
+    background:var(--booking-card-active) !important; border-color:var(--booking-card-active-border) !important;
+    box-shadow:none !important;
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(.booking-field-error,.input-required,.reference-upload-status.is-error),
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) :is(.booking-field-error,.review-field-error) {
+    color:var(--bui-danger) !important; font-weight:400 !important; text-transform:none;
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .booking-optional { color:var(--bui-muted); font-weight:400; font-size:.92em; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .form-group :is(input:not([type="hidden"]):not([type="file"]):not([type="color"]),textarea,.custom-select-trigger):focus {
+    border-color:var(--booking-focus-border) !important; outline:2px solid var(--booking-focus-ring) !important;
+    outline-offset:2px !important; box-shadow:none !important; transform:none;
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .form-group :is(input,textarea,.custom-select-trigger).has-error,
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .time-field.has-error input,
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .form-group.has-error > :is(input,textarea),
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .form-group.has-error .custom-select-trigger { border-color:var(--bui-danger) !important; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .form-group :is(input,textarea,.custom-select-trigger).has-error:focus,
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .time-field.has-error input:focus,
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .form-group.has-error > :is(input,textarea):focus,
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .custom-select-container:focus-within .custom-select-trigger[aria-invalid="true"],
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .custom-select-container.open .custom-select-trigger[aria-invalid="true"],
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .booking-input-holder:focus-within input[aria-invalid="true"]:not([type="hidden"]),
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(#bookingForm,#editBookingForm) .booking-input-holder:has(.booking-picker-pop:not([hidden])) input[aria-invalid="true"]:not([type="hidden"]) {
+    outline:2px solid var(--booking-error-ring) !important; outline-offset:2px !important;
+    border-color:var(--bui-danger) !important; box-shadow:none !important;
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace :is(.booking-picker-pop,.booking-picker-pop button,.booking-picker-pop select,.booking-picker-pop input,.booking-picker-pop option) {
+    font-family:'Montserrat',sans-serif !important;
+}
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .reference-browse { cursor:pointer; transition:background-color .15s,border-color .15s; }
+:is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .reference-browse:hover {
+    background:#333 !important; border-color:#555; color:var(--bui-ink);
+    box-shadow:none; transform:none;
+}
+[data-theme="light"] :is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .reference-browse:hover { background:#e9e9e9 !important; border-color:#c5c5c5; }
+
+@media (max-width:768px) { :is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .booking-modal-box { padding:22px; } }
+@media (max-width:400px) { :is(#bookingModalOverlay,#editBookingModal).booking-form-workspace .booking-modal-box { padding:18px; } }

@@ -67,6 +67,7 @@
         clearTimeout(timer); listController?.abort(); selects.close();
         const controller = listController = new AbortController(), version = ++listVersion;
         results.setAttribute('aria-busy', 'true'); feedback(notice);
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: controller.signal});
         try {
             const data = await request(url, {signal:controller.signal});
             if (version !== listVersion) return;
@@ -84,7 +85,7 @@
                     false, () => load(url, push));
             }
             return false;
-        } finally { if (version === listVersion) results.removeAttribute('aria-busy'); }
+        } finally { skeletonLoad?.finish();if (version === listVersion) results.removeAttribute('aria-busy'); }
     }
     function restoreFilters(url) {
         for (const key of keys) {
@@ -157,15 +158,16 @@
         root.querySelector('#reviewModalBody').scrollTop = 0;
         if (push) {const url = new URL(location.href); url.searchParams.set('review_id', id); history.pushState({}, '', url);}
         if (initial) return;
+        const skeletonLoad = window.SiteLoading?.start(root.querySelector('#reviewModalBody'), {variant: 'details', signal: controller.signal});
         try {
             const data = await request(detailsURL(id), {signal:controller.signal});
-            if (version === detailVersion && modal.open) displayDetail(data);
+            if (version === detailVersion && modal.open) { skeletonLoad?.finish(); displayDetail(data); }
         } catch (error) {
             if (version === detailVersion && !controller.signal.aborted && modal.open) {
                 feedback(detailNotice, error.name === 'AbortError' ? 'The review took too long to load. Please try again.' : error.message,
                     false, () => openDetails(id, origin, false));
             }
-        }
+        } finally { skeletonLoad?.finish(); }
     }
     function closeDetails(clean = true) {
         if (saving) return;

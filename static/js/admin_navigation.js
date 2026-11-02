@@ -74,8 +74,10 @@
         clear.hidden=!input.value;
         if(!valid(query)){idle();return;}
         const current=controller=new AbortController(),timeout=setTimeout(()=>current.abort(),12000);
+        let skeletonLoad;
         feedback('Searching records…');open();
         try{
+            skeletonLoad = window.SiteLoading?.start(list, {variant: 'chat', signal: current.signal});
             const url=new URL(root.dataset.searchUrl,location.origin);url.searchParams.set('q',query);
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:current.signal,headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});
             if(response.redirected)throw new Error('Your session ended. Sign in again to search.');
@@ -85,7 +87,7 @@
             if(requestID!==version)return;
             loadedQuery=query;render(data);position();
         }catch(error){if(requestID===version&&!panel.hidden)feedback(error.name==='AbortError'?'Search took too long. Please try again.':error.message,true,true);}
-        finally{clearTimeout(timeout);}
+        finally{skeletonLoad?.finish();clearTimeout(timeout);}
     }
     function schedule(){
         clear.hidden=!input.value;loadedQuery='';clearTimeout(timer);controller?.abort();++version;open();

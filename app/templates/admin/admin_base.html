@@ -6,8 +6,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin Dashboard - Balloorina{% endblock %}</title>
+    {% include 'components/favicon.html' %}
+    {% include 'components/skeleton_assets.html' %}
     <script src="{% static 'js/admin_sidebar.js' %}?v=20261026b"></script>
-    <script src="{% static 'js/account_pages.js' %}?v=20261025a"></script>
+    <script src="{% static 'js/account_pages.js' %}?v=20261102sk1"></script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +28,7 @@
     <!-- Theme Toggle -->
     <link rel="stylesheet" href="{% static 'css/admin_light_mode.css' %}?v=20261017a">
     <link rel="stylesheet" href="{% static 'css/theme_controls.css' %}?v=20261026b">
-    <link rel="stylesheet" href="{% static 'css/customer_notifications.css' %}?v=20261026b">
+    <link rel="stylesheet" href="{% static 'css/customer_notifications.css' %}?v=20261102sk3">
     <link rel="stylesheet" href="{% static 'css/account_menu.css' %}?v=20261026b">
     <link rel="stylesheet" href="{% static 'css/admin_header.css' %}?v=20261026e">
     <link rel="stylesheet" href="{% static 'css/admin_navigation.css' %}?v=20261026a">
@@ -46,15 +48,15 @@
     <main class="main-content">
         {% include 'components/admin_topbar.html' %}
 
-        <div class="content-wrapper">
+        <div class="content-wrapper" data-skeleton-page>
             {% block content %}{% endblock %}
         </div>
     </main>
 
     <!-- JavaScript -->
-    <script src="{% static 'js/customer_notifications.js' %}?v=20261026e"></script>
+    <script src="{% static 'js/customer_notifications.js' %}?v=20261102sk1"></script>
     <script src="{% static 'js/account_menu.js' %}?v=20261026b"></script>
-    <script src="{% static 'js/admin_navigation.js' %}?v=20261026a"></script>
+    <script src="{% static 'js/admin_navigation.js' %}?v=20261102sk1"></script>
     <script>window.AdminSidebar?.mount();</script>
 
     {% block extra_js %}{% endblock %}

@@ -100,6 +100,7 @@
         if (loading) return;
         if (document.activeElement===more) bell.focus({preventScroll:true});
         loading=true; list.setAttribute('aria-busy','true'); more.disabled=true; status('');
+        const skeletonLoad = window.SiteLoading?.start(list, {variant: 'chat', mode: append ? 'append' : 'replace'});
         let superseded=false;
         try {
             await mutation;
@@ -126,11 +127,13 @@
         } catch(error) {
             status(error.name==='AbortError'?'Notifications took too long to load. Your current list is still here.':error.message,()=>refresh(append));
         } finally {
+            skeletonLoad?.finish();
             loading=false; list.removeAttribute('aria-busy'); more.disabled=false;
             if (superseded && !panel.hidden) refresh(append);
         }
     }
     function close(restore=false) {
+        window.SiteLoading?.clear(list);
         if (canPopover && panel.matches(':popover-open')) panel.hidePopover();
         panel.classList.remove('show'); panel.hidden=true; bell.setAttribute('aria-expanded','false');
         if (restore) bell.focus();

@@ -9,7 +9,7 @@
        2. FADE IN / FADE OUT life cycle
        3. SOFT BLINK (CSS keyframes, kanya-kanyang timing)
        4. ROTATION + SCALE habang naglalakbay
-   - Mouse interaction uses a separate spring wrapper so the existing floating
+   - Hover and touch interaction use a separate spring wrapper so the floating
      paths, fades, and layout remain independent. No JS intervals.
    - Nirerespeto ang prefers-reduced-motion (static balloons).
    ========================================================================== */
@@ -22,6 +22,7 @@
     heroSection.dataset.balloonsInitialized = 'true';
     var isInnerHero = heroSection.hasAttribute('data-floating-hero');
     var isAuthHero = heroSection.hasAttribute('data-floating-auth');
+    var isGalleryHero = heroSection.classList.contains('gallery-hero');
 
     var reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     var tabletQuery = window.matchMedia('(max-width: 968px)');
@@ -36,8 +37,8 @@
 
     /* Multiplier ng layo ng galaw ayon sa screen size */
     function currentMoveScale() {
-        if (mobileQuery.matches) return 0.35;
-        if (tabletQuery.matches) return 0.6;
+        if (mobileQuery.matches) return 0.8;
+        if (tabletQuery.matches) return 0.75;
         return 1;
     }
 
@@ -223,7 +224,7 @@
         cfg.mobileLayout = true;
         cfg.tint = cfg.depth === 'bg' ? 1 : 0;
         cfg.drift = {
-            dur: 26 + index * 2,
+            dur: 14 + index * 1.1,
             delay: -(index * 3 + 4),
             wps: [[12, -8, 2, 1.02], [-10, 10, -2, 0.99], [8, -6, 1, 1]]
         };
@@ -263,7 +264,7 @@
             positionX = Math.max(margin, Math.min(width - margin, width * cfg.x / 100)) + 'px';
             var edgeOffset = cfg.y;
             // Keep small bottom accents above the centered inner-page scroll cue.
-            if (isInnerHero && !isAuthHero && cfg.bottom && cfg.depth === 'bg') edgeOffset = cfg.img === 3 ? 122 : 115;
+            if (isInnerHero && !isAuthHero && !isGalleryHero && cfg.bottom && cfg.depth === 'bg') edgeOffset = cfg.img === 3 ? 122 : 115;
             positionY = cfg.bottom ? 'calc(100% - ' + edgeOffset + 'px)' : edgeOffset + 'px';
         }
         var el = document.createElement('div');
@@ -418,8 +419,14 @@
     }
 
     function canInteract() {
-        return pointerQuery.matches && !reducedMotionQuery.matches &&
+        return !reducedMotionQuery.matches &&
             !document.hidden && heroInView && heroSection.isConnected;
+    }
+
+    function requestInteraction() {
+        if (interactionFrame) return;
+        previousInteractionTime = 0;
+        interactionFrame = window.requestAnimationFrame(animateInteraction);
     }
 
     function animateInteraction(now) {
@@ -444,6 +451,10 @@
             var depth = item.cfg.depth === 'fg' ? 1 : item.cfg.depth === 'mg' ? 0.75 : 0.45;
             var tx = 0;
             var ty = 0;
+            var minX = Math.min(0, heroRect.left + 6 - rect.left);
+            var maxX = Math.max(0, heroRect.right - 6 - rect.right);
+            var minY = Math.min(0, heroRect.top + 6 - rect.top);
+            var maxY = Math.max(0, heroRect.bottom - 6 - rect.bottom);
             if (pointer.active) {
                 tx = px * 7 * depth;
                 ty = py * 5 * depth;
@@ -456,14 +467,20 @@
                     tx += (distance > 1 ? dx / distance : (px < 0 ? -1 : 1)) * force;
                     ty += (distance > 1 ? dy / distance : -0.5) * force;
                 }
-                // Limit only the extra mouse displacement at the hero's edges.
-                tx = Math.max(Math.min(0, heroRect.left + 6 - rect.left), Math.min(tx, Math.max(0, heroRect.right - 6 - rect.right)));
-                ty = Math.max(Math.min(0, heroRect.top + 6 - rect.top), Math.min(ty, Math.max(0, heroRect.bottom - 6 - rect.bottom)));
+                tx = Math.max(minX, Math.min(tx, maxX));
+                ty = Math.max(minY, Math.min(ty, maxY));
             }
             item.vx += ((tx - item.x) * 90 - item.vx * 16) * dt;
             item.vy += ((ty - item.y) * 90 - item.vy * 16) * dt;
             item.x += item.vx * dt;
             item.y += item.vy * dt;
+            // A tap can add momentum; keep its extra movement within the hero.
+            var nextX = Math.max(minX, Math.min(item.x, maxX));
+            var nextY = Math.max(minY, Math.min(item.y, maxY));
+            if (nextX !== item.x) item.vx = 0;
+            if (nextY !== item.y) item.vy = 0;
+            item.x = nextX;
+            item.y = nextY;
             if (Math.abs(item.x) + Math.abs(item.y) + Math.abs(item.vx) + Math.abs(item.vy) > 0.08) settling = true;
             item.interaction.style.transform = 'translate3d(' + item.x.toFixed(3) + 'px, ' + item.y.toFixed(3) + 'px, 0)';
         });
@@ -472,14 +489,37 @@
     }
 
     heroSection.addEventListener('pointermove', function (event) {
-        if (event.pointerType !== 'mouse' || !canInteract()) return;
+        if (event.pointerType !== 'mouse' || !pointerQuery.matches || !canInteract()) return;
         pointer.active = true;
         pointer.x = event.clientX;
         pointer.y = event.clientY;
-        if (!interactionFrame) {
-            previousInteractionTime = 0;
-            interactionFrame = window.requestAnimationFrame(animateInteraction);
-        }
+        requestInteraction();
+    }, { passive: true });
+    heroSection.addEventListener('pointerdown', function (event) {
+        if (!event.isPrimary || event.button !== 0 || !canInteract()) return;
+        // Listen through the decorative layer without taking clicks from controls.
+        if (event.target.closest('a,button,input,select,textarea,label,summary,[role="button"],[contenteditable],.auth-container')) return;
+        var closest = null;
+        var nearest = Infinity;
+        items.forEach(function (item) {
+            if (!item.el.offsetWidth || Number(getComputedStyle(item.el).opacity) < 0.15) return;
+            var rect = item.el.firstChild.getBoundingClientRect();
+            var dx = rect.left + rect.width / 2 - event.clientX;
+            var dy = rect.top + rect.height * 0.4 - event.clientY;
+            var distance = Math.hypot(dx, dy);
+            var radius = Math.max(44, Math.min(100, Math.max(rect.width, rect.height) * 0.7));
+            if (distance <= radius && distance < nearest) {
+                closest = { item: item, dx: dx, dy: dy, distance: distance };
+                nearest = distance;
+            }
+        });
+        if (!closest) return;
+        if (event.pointerType !== 'mouse') pointer.active = false;
+        var item = closest.item;
+        var direction = closest.distance > 3 ? closest.dx / closest.distance : (item.cfg.x < 50 ? 1 : -1);
+        item.vx = Math.max(-260, Math.min(260, item.vx + direction * 210));
+        item.vy = Math.max(-260, Math.min(260, item.vy - 190));
+        requestInteraction();
     }, { passive: true });
     heroSection.addEventListener('pointerleave', function () { pointer.active = false; }, { passive: true });
     window.addEventListener('blur', resetInteraction);
@@ -522,13 +562,33 @@
         layer.innerHTML = '';
 
         var composition = mobileQuery.matches ? MOBILE_BALLOONS : BALLOONS;
+        if (isGalleryHero && !mobileQuery.matches) {
+            // The gallery header is shorter; keep four small accents at its sides.
+            composition = [0, 2, 8, 10].map(function (index) {
+                var cfg = BALLOONS[index];
+                return Object.assign({}, cfg, {
+                    size: Math.min(cfg.size, 56), opacity: 0.55,
+                    hideTablet: false, blink: false,
+                    life: Object.assign({}, cfg.life, { mode: 'soft' }),
+                    drift: Object.assign({}, cfg.drift, {
+                        wps: cfg.drift.wps.map(function (wp) { return [wp[0] * 0.4, wp[1] * 0.4, wp[2], wp[3]]; })
+                    })
+                });
+            });
+        }
         if (isAuthHero) {
             // Use the full home collection, arranged in the form's side lanes.
+            var hasBackLink = !!heroSection.querySelector('.auth-home-back');
             var authSlots = [[8,14],[22,10],[17,34],[6,46],[24,52],[12,68],
                 [25,76],[7,87],[19,91],[27,28],[18,56],[28,86]];
             composition = mobileQuery.matches
                 ? MOBILE_BALLOONS.map(function (cfg, index) {
-                    return Object.assign({}, cfg, { img: index === 6 ? 2 : cfg.img });
+                    return Object.assign({}, cfg, {
+                        img: index === 6 ? 2 : cfg.img,
+                        // Give the back link its own touch area above the first balloon.
+                        y: hasBackLink && index === 0 ? 110 : cfg.y,
+                        size: hasBackLink && index === 0 ? 52 : cfg.size
+                    });
                 })
                 : BALLOONS.map(function (cfg, index) {
                     var slot = authSlots[Math.floor(index / 2)];

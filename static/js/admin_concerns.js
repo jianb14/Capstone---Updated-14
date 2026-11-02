@@ -61,6 +61,7 @@
         clearTimeout(timer); listRequest?.abort(); selects.close();
         const controller=listRequest=new AbortController(), version=++listVersion;
         results.setAttribute('aria-busy','true'); showError(notice,'');
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: controller.signal});
         try {
             const data=await request(url,{signal:controller.signal}); if(version!==listVersion)return;
             // Move focus out of a footer that is about to be replaced.
@@ -74,7 +75,7 @@
             if(history)window.history.pushState({},'',actual);
         } catch(error) {
             if(version===listVersion && !controller.signal.aborted)showError(notice,error.name==='AbortError'?'The request took too long. Your current list is still here.':error.message,()=>load(url,history));
-        } finally { if(version===listVersion)results.removeAttribute('aria-busy'); }
+        } finally { skeletonLoad?.finish();if(version===listVersion)results.removeAttribute('aria-busy'); }
     }
     function reset(all=true) {
         if(all){form.reset();search.value='';form.elements.category.value='';form.elements.concern_status.value='';clear.hidden=true;}
@@ -124,8 +125,10 @@
         detailRequest=new AbortController();detail.hidden=true;save.hidden=true;ticket=null;
         setText('acTicketNumber','Concern details');setText('concernModalTitle','Loading concern');showError(detailNotice,'Loading the latest details…');
         if(!modal.open){modal.showModal();document.body.classList.add('ac-modal-open');}
+        const skeletonLoad = window.SiteLoading?.start(detail.parentElement, {variant: 'details', signal: detailRequest.signal});
         try { const data=await request(url,{signal:detailRequest.signal});if(version===detailVersion && modal.open)displayTicket(data); }
         catch(error){if(version===detailVersion && modal.open && !detailRequest.signal.aborted){setText('concernModalTitle','Concern details');showError(detailNotice,error.message,()=>openDetails(url,origin));}}
+        finally { skeletonLoad?.finish(); }
     }
     function closeDetails(cleanURL=true) { if(saving)return;removeTicketURL=cleanURL;selects.close();detailRequest?.abort();modal.close(); }
     modal.addEventListener('close',()=>{

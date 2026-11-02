@@ -343,6 +343,7 @@
         if (!modal || listing) return;
         listing = true;
         const list = modal.querySelector('[data-invitation-list]');
+        const skeletonLoad = window.SiteLoading?.start(list, {variant: 'table'});
         try {
             const response = await fetch(modal.dataset.listUrl, { credentials: 'same-origin', headers: {'Accept': 'application/json'} });
             if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Invitations could not be loaded. Reopen this dialog or sign in again to retry.');
@@ -380,7 +381,7 @@
                 list.append(row);
             });
         } catch (error) { list.textContent = error.message; }
-        finally { listing = false; }
+        finally { skeletonLoad?.finish(); listing = false; }
     }
     if (!modal) return;
     const inviteForm = modal.querySelector('[data-security-flow]'), revokeForm = modal.querySelector('.ase-revoke');

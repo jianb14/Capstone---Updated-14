@@ -185,6 +185,7 @@
         const version = ++quizVersion;
         const button = byId('quizSubmit'); button.disabled = true; button.textContent = 'Styling your theme…';
         message(quizResult, 'Creating your theme', 'Your event details are with our AI stylist. This may take a moment.', 'loading');
+        const skeletonLoad = window.SiteLoading?.start(quizResult, {variant: 'cards'});
         try {
             const response = await fetch(data.quizUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }, body: JSON.stringify(preferences) });
             const result = await response.json();
@@ -213,6 +214,7 @@
         } catch (_) {
             if (version === quizVersion) message(quizResult, 'Connection interrupted', 'We could not reach the AI stylist. Check your connection and try again.', 'error');
         } finally {
+            skeletonLoad?.finish();
             if (version === quizVersion) { button.disabled = false; button.innerHTML = '<span>Get My AI Theme</span>'; quizResult.setAttribute('aria-busy', 'false'); }
         }
     });
@@ -232,6 +234,7 @@
         if (!value) { message(availability, 'Choose your event date', 'Open the calendar and select an available date to check.', 'error'); dateInput.focus(); return; }
         const version = ++requestVersion; check.disabled = true; check.textContent = 'Checking…';
         message(availability, 'Checking your date', 'Looking for open time slots for your event.', 'loading');
+        const skeletonLoad = window.SiteLoading?.start(availability, {variant: 'calendar'});
         try {
             const response = await fetch(data.availabilityUrl + '?date=' + encodeURIComponent(value)), result = await response.json();
             if (version !== requestVersion) return;
@@ -255,6 +258,7 @@
         } catch (_) {
             if (version === requestVersion) message(availability, 'Connection interrupted', 'Check your connection and try again.', 'error');
         } finally {
+            skeletonLoad?.finish();
             if (version === requestVersion) { check.disabled = false; check.innerHTML = '<span>Check Availability</span>'; availability.setAttribute('aria-busy', 'false'); }
         }
     });

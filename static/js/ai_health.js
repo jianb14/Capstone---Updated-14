@@ -55,6 +55,8 @@
         const request = new AbortController();
         controller = request;
         const timeout = setTimeout(() => request.abort(), 15000);
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: request.signal});
+        const summaryLoad = updateSummary ? window.SiteLoading?.start(summary, {variant: 'chart', signal: request.signal}) : null;
         root.classList.add('is-loading');
         if (updateSummary) root.classList.add('is-refreshing');
         root.setAttribute('aria-busy', 'true');
@@ -106,6 +108,7 @@
             notice.hidden = false;
             status.textContent = 'Update failed. The last loaded figures are still shown.';
         } finally {
+            skeletonLoad?.finish();summaryLoad?.finish();
             clearTimeout(timeout);
             if (id === sequence && !disposed) {
                 root.classList.remove('is-loading', 'is-refreshing');

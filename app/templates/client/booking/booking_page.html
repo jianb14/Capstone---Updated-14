@@ -6,8 +6,9 @@
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031upload3">
-<link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261031upload4">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261031upload3"></script>
+<link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261102a">
+<link rel="stylesheet" href="{% static 'css/booking_form_workspace.css' %}?v=20261102a">
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261102a"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
      booking_location_map.js at mananatiling required ang text location. -->
@@ -16,7 +17,7 @@
 <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261025account1"></script>
 <script src="{% static 'js/booking_picker_c.js' %}?v=20261031feedback"></script>
-<script src="{% static 'js/booking_location_map.js' %}?v=20261025account1"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261102sk1"></script>
 <script src="{% static 'js/booking_logistics.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
 {{ availability_data|json_script:"booking-availability-data" }}
@@ -89,7 +90,7 @@
     </div>
 
     <!-- Booking Modal Form -->
-    <div class="modal-overlay" id="bookingModalOverlay">
+    <div class="modal-overlay booking-form-workspace" id="bookingModalOverlay">
         <div class="booking-modal-box">
             <div class="modal-header stepper-header">
                 <div class="stepper-wrapper">
@@ -2051,6 +2052,7 @@
            (form/stepper keeps working) at papalitan ng friendly fallback ang
            "Loading…" sa halip na nakatagan. */
         var calendar = null;
+        const calendarSkeleton = window.SiteLoading?.start(calendarEl, {variant: 'calendar'});
         try {
             if (typeof FullCalendar === 'undefined') {
                 throw new Error('FullCalendar library not loaded (CDN failed or was blocked).');
@@ -2275,6 +2277,7 @@
             }
         }
 
+        calendarSkeleton?.finish();
         if (calendar) {
             /* Siguraduhing tama ang pill <-> dot mode pagkatapos ng unang render */
             applyCalendarEventMode();

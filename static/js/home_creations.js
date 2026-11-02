@@ -544,6 +544,7 @@
         index = (destination + cards.length) % cards.length;
         if (!sourceRect) focusPhoto(index);
         const currentRequest = ++request;
+        const skeletonLoad = window.SiteLoading?.start(stage, {variant: 'image', label: 'Loading photo...'});
         stopAnimation();
         image.hidden = true;
         stage.setAttribute('aria-busy', 'true');
@@ -555,6 +556,7 @@
         previous.disabled = next.disabled = cards.length < 2;
         const loader = new Image();
         loader.onload = () => {
+            skeletonLoad?.finish();
             if (currentRequest !== request || !viewer.open || closing) return;
             image.src = loader.src;
             image.alt = cards[index].querySelector('img').alt;
@@ -566,6 +568,7 @@
             });
         };
         loader.onerror = () => {
+            skeletonLoad?.finish();
             if (currentRequest !== request || !viewer.open || closing) return;
             stage.setAttribute('aria-busy', 'false');
             status.textContent = 'This photo could not be loaded. Try the next photo.';

@@ -72,6 +72,7 @@ AccountPages.register('my_profile','account-deletion',function(scope) {
         }
         const controller = request;
         const timeout = setTimeout(() => controller.abort(),30000);
+        const skeletonLoad = action ? null : window.SiteLoading?.start(form.querySelector('.profile-dialog__fields'), {variant: 'details', signal: controller.signal});
         try {
             const response = await fetch(action ? dialog.dataset.actionUrl : dialog.dataset.statusUrl,{
                 method:action ? 'POST' : 'GET',body:action ? payload : undefined,
@@ -95,7 +96,7 @@ AccountPages.register('my_profile','account-deletion',function(scope) {
                 throw new Error(data.message || 'We could not confirm this request. Please try again.');
             }
             return data;
-        } finally { clearTimeout(timeout); }
+        } finally { skeletonLoad?.finish(); clearTimeout(timeout); }
     }
     async function load() {
         const opened = cycle;

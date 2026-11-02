@@ -46,6 +46,7 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         sequence += 1;
         if (request) request.abort();
         request = null;
+        window.SiteLoading?.clear(previous.root);
         disposeMap(previous.root);
         previous.root.classList.remove('show');
         previous.root.removeAttribute('aria-busy');
@@ -114,6 +115,7 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         const token = ++sequence;
         const controller = new AbortController();
         request = controller;
+        const skeletonLoad = window.SiteLoading?.start(content, {variant: mode === 'design' ? 'cards' : 'details', signal: controller.signal});
         const timeout = setTimeout(() => controller.abort(), 20000);
         try {
             const endpoint = document.getElementById('bookingModal').dataset.contentUrl.replace('/0/', '/' + id + '/');
@@ -143,6 +145,7 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
             const message = error.name === 'AbortError' ? 'Loading took too long. Please try again.' : error.message;
             setMessage(content, message, () => open(id, mode));
         } finally {
+            skeletonLoad?.finish();
             clearTimeout(timeout);
             if (active === session) root.removeAttribute('aria-busy');
         }

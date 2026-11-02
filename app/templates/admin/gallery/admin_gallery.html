@@ -185,10 +185,13 @@
             dropdown.classList.remove('open');
         }
 
+        let galleryRequest;
         function fetchGallerySection(url) {
-            if (tableContainer) tableContainer.style.opacity = '0.5';
+            galleryRequest?.abort(); const controller = galleryRequest = new AbortController();
+            const skeletonLoad = window.SiteLoading?.start(tableContainer, {variant: 'table', signal: controller.signal});
 
             fetch(url, {
+                signal: controller.signal,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(response => response.text())
@@ -206,7 +209,7 @@
                 })
                 .catch(() => {
                     if (tableContainer) tableContainer.style.opacity = '1';
-                });
+                }).finally(() => skeletonLoad?.finish());
         }
 
         trigger.addEventListener('click', function () {

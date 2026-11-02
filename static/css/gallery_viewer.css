@@ -9,8 +9,6 @@
     --gallery-scroll-thumb: #71717a;
     --gallery-scroll-hover: #92929c;
     color-scheme: dark;
-    scrollbar-width: thin;
-    scrollbar-color: var(--gallery-scroll-thumb) var(--gallery-scroll-track);
 }
 
 :root[data-theme="light"]:has(#gallery) {
@@ -249,25 +247,20 @@
     .gallery-viewer__close { transition: none; }
 }
 
-/* Match the page, filter strip, and caption scrollbars in both themes. */
-:root:has(#gallery)::-webkit-scrollbar,
+/* Keep the page scrollbar native, matching other pages and navbar alignment. */
+/* Compact scrollbars are limited to the filter strip and image captions. */
 #gallery .gallery-filter::-webkit-scrollbar,
 .gallery-viewer__details::-webkit-scrollbar { width:6px; height:5px; }
-:root:has(#gallery)::-webkit-scrollbar-track,
 #gallery .gallery-filter::-webkit-scrollbar-track,
 .gallery-viewer__details::-webkit-scrollbar-track { border-radius:999px; background:var(--gallery-scroll-track); }
-:root:has(#gallery)::-webkit-scrollbar-thumb,
 #gallery .gallery-filter::-webkit-scrollbar-thumb,
 .gallery-viewer__details::-webkit-scrollbar-thumb { border-radius:999px; background:var(--gallery-scroll-thumb); }
-:root:has(#gallery)::-webkit-scrollbar-thumb:hover,
 #gallery .gallery-filter::-webkit-scrollbar-thumb:hover,
 .gallery-viewer__details::-webkit-scrollbar-thumb:hover { background:var(--gallery-scroll-hover); }
-:root:has(#gallery)::-webkit-scrollbar-button,
 #gallery .gallery-filter::-webkit-scrollbar-button,
 .gallery-viewer__details::-webkit-scrollbar-button { display:none; }
-:root:has(#gallery)::-webkit-scrollbar-corner { background:var(--gallery-scroll-track); }
 @supports selector(::-webkit-scrollbar) {
-    :root:has(#gallery), #gallery .gallery-filter, .gallery-viewer .gallery-viewer__details {
+    #gallery .gallery-filter, .gallery-viewer .gallery-viewer__details {
         scrollbar-width: auto;
         scrollbar-color: auto;
     }

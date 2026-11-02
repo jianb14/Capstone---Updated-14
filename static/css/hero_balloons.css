@@ -6,7 +6,7 @@
    - Independent layers so the original float and mouse motion compose:
        .balloon       -> life cycle (fade in/out) via Web Animations API
        .balloon-drift -> repositioning (A->B->C->D) via Web Animations API
-       .balloon-interaction -> spring displacement from mouse proximity
+       .balloon-interaction -> spring displacement from hover or a tap
        .balloon-shape -> soft blink (CSS keyframes)
    - Performance: transform + opacity lang; walang JS intervals.
    ========================================================================== */
@@ -22,6 +22,11 @@
 /* Inner-page content remains above the decorative layer, including scroll links. */
 [data-floating-hero] {
     isolation: isolate;
+}
+
+.gallery-hero[data-floating-hero] {
+    position: relative;
+    overflow: hidden;
 }
 
 [data-floating-hero] > :not(.hero-balloons) {
@@ -149,11 +154,15 @@ html[data-theme="light"] .balloon-shape img {
 @media (max-width: 640px) {
     #home .hero {
         padding-top: 7.5rem;
-        padding-bottom: 7rem;
+        padding-bottom: 9rem;
     }
 
     [data-floating-hero] {
         padding-top: 9rem;
+    }
+
+    .gallery-hero[data-floating-hero] {
+        padding-bottom: 9rem;
     }
 
     .balloon--hide-mobile {

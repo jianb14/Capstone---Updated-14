@@ -261,6 +261,7 @@
             const assistant = bubble(job, 'assistant');
             assistant.setAttribute('aria-busy', String(job.state === 'queued' || job.state === 'running'));
             if (job.state === 'succeeded' || job.state === 'failed') {
+                window.SiteLoading?.clear(assistant); assistant.querySelector('.ai-response-placeholder')?.remove();
                 if (assistant.dataset.finished !== job.id) {
                     options.finalize(assistant, job.result);
                     bindEditActions(assistant, job.result.images);
@@ -270,6 +271,7 @@
                     assistant.dataset.finished = job.id;
                 }
             } else if (job.partial_text) {
+                window.SiteLoading?.clear(assistant); assistant.querySelector('.ai-response-placeholder')?.remove();
                 if (assistant.dataset.partial !== job.partial_text) {
                     assistant.innerHTML = options.format(job.partial_text);
                     assistant.dataset.partial = job.partial_text;

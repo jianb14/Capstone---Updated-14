@@ -78,13 +78,14 @@
         dialog.showModal(); document.body.classList.add('ac-modal-open');
         clearErrors(); setStage(codePending ? 'code' : 'password');
         if (!codePending) { passwordForm.elements.old_password.focus(); return; }
+        const skeletonLoad = window.SiteLoading?.start(codeForm, {variant: 'form'});
         busy = true; tick();
         try {
             const result = await request(codeForm.action);
             if (result.restart || !result.success) { codePending = false; setStage('password'); tell(result.message || 'Start your password change again.'); }
-            else { applyState(result); digits[0].focus(); }
+            else { applyState(result); skeletonLoad?.finish(); digits[0].focus(); }
         } catch (error) { tell(error.message); }
-        finally { busy = false; tick(); }
+        finally { skeletonLoad?.finish(); busy = false; tick(); }
     };
     const close = () => {
         dialog.close();

@@ -1,0 +1,55 @@
+{% load static %}
+{% with welcome_name=public_site.site_name|default:"Balloorina" %}
+<dialog class="welcome-screen" id="siteWelcome" data-welcome-phase="film" aria-labelledby="welcomeTitle" aria-describedby="welcomeDescription" tabindex="-1" data-skeleton-ignore>
+    <template data-welcome-images>
+        {% for creation in latest_creations|slice:":6" %}
+        <img src="{% url 'gallery_image_preview' creation.pk %}?v={{ creation.image.name|urlencode }}" alt="" width="480" height="640" loading="eager" fetchpriority="high" decoding="async">
+        {% empty %}
+        <img src="{% static 'images/welcome/birthday.webp' %}?v=20261103deck2" alt="" width="400" height="600" loading="eager" fetchpriority="high" decoding="async">
+        <img src="{% static 'images/welcome/wedding.webp' %}?v=20261103deck2" alt="" width="400" height="600" loading="eager" fetchpriority="high" decoding="async">
+        <img src="{% static 'images/welcome/corporate.webp' %}?v=20261103deck2" alt="" width="400" height="600" loading="eager" fetchpriority="high" decoding="async">
+        <img src="{% static 'images/welcome/christening.webp' %}?v=20261103deck2" alt="" width="400" height="600" loading="eager" fetchpriority="high" decoding="async">
+        {% endfor %}
+    </template>
+
+    <div class="welcome-screen__scene">
+        <div class="welcome-screen__film" aria-hidden="true" data-welcome-freeze>
+            <div class="welcome-screen__back-card welcome-screen__back-card--left" data-welcome-back="1" data-welcome-freeze></div>
+            <div class="welcome-screen__back-card welcome-screen__back-card--right" data-welcome-back="2" data-welcome-freeze></div>
+            <div class="welcome-screen__film-window" data-welcome-freeze>
+                <div class="welcome-screen__film-strip" data-welcome-freeze></div>
+            </div>
+        </div>
+
+        <div class="welcome-screen__collage" aria-hidden="true" data-welcome-freeze>
+            {% for lane in "0123" %}
+            <div class="welcome-screen__lane" data-welcome-lane="{{ lane }}"><div class="welcome-screen__track" data-welcome-freeze></div></div>
+            {% endfor %}
+        </div>
+
+        <button class="welcome-screen__skip" type="button" data-welcome-skip>Skip intro <span aria-hidden="true">&nearr;</span></button>
+
+        <div class="welcome-screen__content">
+            <p class="welcome-screen__eyebrow" data-welcome-freeze>Every celebration tells a story</p>
+            <h1 class="welcome-screen__title" id="welcomeTitle" aria-label="{{ welcome_name }}">
+                <span class="welcome-screen__brand" aria-hidden="true">{% for letter in welcome_name %}<span class="welcome-screen__letter" style="--letter:{{ forloop.counter0 }}" data-welcome-freeze>{% if letter == ' ' %}&nbsp;{% else %}{{ letter }}{% endif %}</span>{% endfor %}</span>
+            </h1>
+            <p class="welcome-screen__description" id="welcomeDescription" data-welcome-freeze>Balloon styling &amp; event design</p>
+
+            <button class="welcome-screen__enter" type="button" data-welcome-enter aria-label="Enter website">
+                <svg class="welcome-screen__enter-ring" viewBox="0 0 120 120" aria-hidden="true" data-welcome-freeze>
+                    <defs><path id="welcomeEnterPath" d="M60,60 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0"/></defs>
+                    <text><textPath href="#welcomeEnterPath" textLength="288">LET'S CELEBRATE &middot; LET'S CELEBRATE &middot; </textPath></text>
+                </svg>
+                <span class="welcome-screen__enter-arrow" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 25 25 7M7 7h18v18"/></svg></span>
+            </button>
+        </div>
+
+        <p class="welcome-screen__roles" aria-hidden="true" data-welcome-freeze><span>Balloon Styling</span><span>Event Design</span></p>
+        <p class="welcome-screen__note" data-welcome-freeze>Beautifully styled. Uniquely yours.</p>
+    </div>
+    <div class="welcome-screen__panels" aria-hidden="true"></div>
+    <p class="welcome-screen__sr" role="status" aria-live="polite" data-welcome-announcement></p>
+</dialog>
+{% endwith %}
+<script>window.BalloorinaWelcome?.mount();</script>

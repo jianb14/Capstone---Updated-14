@@ -7,26 +7,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ public_site.site_name }} | Balloon Styling &amp; Event Design{% endblock %}</title>
+    {% include 'components/favicon.html' %}
+    {% include 'components/skeleton_assets.html' %}
     <meta name="description"
         content="Turning Moments Into Elegant Celebrations. Premium balloon styling and event decoration for birthdays, weddings, corporate events in the Philippines.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261031avatar1">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261102footer4">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260914a">
-    <link rel="stylesheet" href="{% static 'css/customer_notifications.css' %}?v=20261026a">
+    <link rel="stylesheet" href="{% static 'css/customer_notifications.css' %}?v=20261102sk3">
     <link rel="stylesheet" href="{% static 'css/account_menu.css' %}?v=20261026c">
     <link rel="stylesheet" href="{% static 'css/theme_controls.css' %}?v=20261026a">
     <script src="{% static 'js/account_menu.js' %}?v=20261026b" defer></script>
-    <script src="{% static 'js/customer_notifications.js' %}?v=20261026e" defer></script>
-    <script src="{% static 'js/account_pages.js' %}?v=20261025a"></script>
-    <script src="{% static 'js/account_navigation.js' %}?v=20261026b" defer></script>
+    <script src="{% static 'js/customer_notifications.js' %}?v=20261102sk1" defer></script>
+    <script src="{% static 'js/account_pages.js' %}?v=20261102sk1"></script>
+    <script src="{% static 'js/account_navigation.js' %}?v=20261102sk3" defer></script>
     <link rel="stylesheet" href="{% static 'css/ai_design_guide.css' %}?v=20261023-ai6">
 <link rel="stylesheet" href="{% static 'css/support_chat.css' %}?v=20261028c">
 <link rel="stylesheet" href="{% static 'css/client_admin_chat_widget.css' %}?v=20261028d">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="{% static 'js/theme-toggle.js' %}?v=20261026a"></script>
+    <link rel="stylesheet" href="{% static 'css/welcome.css' %}?v=20261103spread1">
+    <script src="{% static 'js/welcome.js' %}?v=20261103spread1"></script>
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/page_background.css' %}?v=20261031hero1">
     {% include 'components/client_feedback_assets.html' %}
@@ -35,12 +39,16 @@
 
 <body>
 
+    {% include 'components/welcome.html' %}
+
     {% include 'components/navbar.html' %}
 
 
+    <div id="sitePageContent" {% block skeleton_page_attribute %}data-skeleton-page{% endblock %}>
     {% block content %}
 
     {% endblock content %}
+    </div>
 
     {% include 'components/footer.html' %}
 
@@ -1639,7 +1647,7 @@
     <script src="{% static 'js/ai_design_guide.js' %}?v=20261023-ai3"></script>
     <script src="{% static 'js/ai_markdown.js' %}?v=20261023-ai3"></script>
     <script src="{% static 'js/ai_requests.js' %}?v=20261023-ai5"></script>
-    <script src="{% static 'js/ai_request_ui.js' %}?v=20261023-ai5"></script>
+    <script src="{% static 'js/ai_request_ui.js' %}?v=20261102sk3"></script>
     <script src="{% static 'js/ai_chat.js' %}?v=20261028a" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -2101,6 +2109,7 @@
 
             // ---- Load Chat Sessions (Sidebar) ----
             async function loadSessions() {
+                const skeletonLoad = window.SiteLoading?.start(document.getElementById('ai-recent-chat-list'), {variant: 'chat'});
                 try {
                     const response = await fetch('/api/chat/sessions/', {
                         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
@@ -2211,13 +2220,14 @@
                     }
                 } catch (e) {
                     console.error('Failed to load sessions', e);
-                }
+                } finally { skeletonLoad?.finish(); }
             }
 
 
             // ---- Load Chat History (Messages) ----
             async function loadChatHistory(sessionId) {
                 if (!sessionId) return;
+                const skeletonLoad = window.SiteLoading?.start(chatBox, {variant: 'chat'});
                 selectedReferenceId = null;
                 requestUi?.clearEdit();
 
@@ -2261,7 +2271,7 @@
                     }
                 } catch (e) {
                     console.log('Could not load chat history:', e);
-                }
+                } finally { skeletonLoad?.finish(); }
             }
 
             function ensureIntroMessage() {

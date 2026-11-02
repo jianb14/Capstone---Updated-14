@@ -49,6 +49,7 @@
         clearTimeout(searchTimer); listController?.abort(); listController = new AbortController();
         const sequence = ++listSequence;
         content.setAttribute('aria-busy', 'true');
+        const skeletonLoad = window.SiteLoading?.start(content.querySelector('.ac-table-wrap, .ab-table-wrap') || content, {variant: 'table', signal: listController.signal});
         const errorNode = root.querySelector('[data-load-error]'); showError(errorNode, '');
         try {
             const data = await json(url, {signal: listController.signal});
@@ -63,7 +64,7 @@
             }
         } catch (error) {
             if (error.name !== 'AbortError') { showError(errorNode, `${error.message} Your last results are still shown.`); }
-        } finally { if (sequence === listSequence) content.removeAttribute('aria-busy'); }
+        } finally { skeletonLoad?.finish();if (sequence === listSequence) content.removeAttribute('aria-busy'); }
     }
     function filtersURL() {
         const form = content.querySelector('[data-booking-filters]'), url = new URL(base, location.origin);
@@ -97,6 +98,7 @@
         modalContent.innerHTML = '<header class="ab-modal-header"><h2 id="abModalTitle">Loading booking…</h2><button type="button" class="ac-close" data-dialog-close aria-label="Close details"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="ab-modal-body"><p role="status">Please wait…</p></div>';
         if (!details.open) details.showModal();
         document.body.classList.add('ab-modal-open');
+        const skeletonLoad = window.SiteLoading?.start(modalContent.querySelector('.ab-modal-body'), {variant: 'details', signal: modalController.signal});
         try {
             const data = await json(url, {signal: modalController.signal});
             if (sequence !== modalSequence || !details.open) return;
@@ -130,7 +132,7 @@
                 const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
                 retry.addEventListener('click', () => openModal(url.href, updateHistory)); body.replaceChildren(message, retry);
             }
-        }
+        } finally { skeletonLoad?.finish(); }
     }
     function closeDialog(dialog) {
         if (posting && dialog !== image) return;

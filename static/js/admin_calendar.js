@@ -118,7 +118,9 @@
             list.append(row);
         });
     }
-    async function loadState() {
+    async function loadState({background = false} = {}) {
+        const skeletonLoad = background ? null : window.SiteLoading?.start(mount, {variant: 'calendar'});
+        try {
         const data = await request(root.dataset.calendarUrl);
         if (!data.httpOK || !Array.isArray(data.events) || !Array.isArray(data.blocked_dates) || !Array.isArray(data.past_blocked_dates)) throw new Error('The calendar returned an incomplete update. Please refresh it.');
         allEvents = data.events; conflicts = data.conflict_counts; today = data.today_iso; dateInput.min = today;
@@ -127,6 +129,7 @@
         blockedDates = new Set(allEvents.filter(isBlockedFlagEvent).map(item => item.start.slice(0,10)));
         renderBlockedList(data.blocked_dates); renderBlockedList(data.past_blocked_dates, true);
         calendar?.setOption('now',today); refreshEvents(); updateHint(); updateToolbar(); scheduleDayRefresh();
+        } finally { skeletonLoad?.finish(); }
     }
     // Use server time so browser timezone/clock settings cannot archive today early.
     function scheduleDayRefresh(delay) {
@@ -138,7 +141,7 @@
         if (Date.now() + serverClockOffset < nextDayAt) { scheduleDayRefresh(); return; }
         if (busy || document.hidden) { scheduleDayRefresh(60000); return; }
         setBusy(true);
-        try { await loadState(); }
+        try { await loadState({background: true}); }
         catch (_) { scheduleDayRefresh(60000); }
         finally { setBusy(false); }
     }

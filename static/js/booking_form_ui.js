@@ -104,6 +104,14 @@ AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
             if(button.dataset.color)button.setAttribute('aria-label',button.dataset.color);
         }
         root.querySelectorAll('.reference-dropzone').forEach(setupUpload);
+        for(const trigger of root.querySelectorAll('.custom-select-trigger')) {
+            if(trigger.dataset.focusReady)continue;
+            trigger.dataset.focusReady='1';trigger.tabIndex=0;trigger.setAttribute('role','button');
+            trigger.addEventListener('keydown',event=>{
+                if(event.key==='Enter' || event.key===' '){event.preventDefault();trigger.click();}
+                if(event.key==='Escape')trigger.closest('.custom-select-container')?.classList.remove('open');
+            });
+        }
     }
     scope.ready(()=>{
         for(const root of document.querySelectorAll('#bookingModalOverlay,#editBookingModal')) {

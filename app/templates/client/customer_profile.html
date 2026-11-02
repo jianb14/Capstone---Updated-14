@@ -4,22 +4,23 @@
 
 {% block account_page %}customer_profile{% endblock %}
 {% block account_content %}
-<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20261013a">
+<link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20261102a">
 <link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
 <script defer src="{% static 'js/booking_changes.js' %}?v=20261031feedback"></script>
-<script defer src="{% static 'js/customer_booking_details.js' %}?v=20261031feedback"></script>
+<script defer src="{% static 'js/customer_booking_details.js' %}?v=20261102sk1"></script>
 <link rel="stylesheet" href="{% static 'css/booking_event_design.css' %}?v=20261021a">
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <!-- Shared components ng Step 3 map card + Step 4 Design Preferences -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031upload3">
 <link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261023checkbox">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261031upload3"></script>
+<link rel="stylesheet" href="{% static 'css/booking_form_workspace.css' %}?v=20261102a">
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261102a"></script>
 <!-- Leaflet (edit modal Step 2 location map) — free OSM tiles, no API key.
      Graceful degradation: text location stays required if this fails. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/booking_location_map.js' %}?v=20261025account1"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261102sk1"></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261025account1"></script>
 <script src="{% static 'js/booking_picker_c.js' %}?v=20261031feedback"></script>
@@ -192,7 +193,7 @@
 {% include 'client/booking/_customer_modals.html' %}
 
 <!-- EDIT BOOKING MODAL -->
-<div id="editBookingModal" class="modal-overlay">
+<div id="editBookingModal" class="modal-overlay booking-form-workspace">
     <div class="booking-modal-box">
         <div class="modal-header stepper-header">
             <div class="stepper-wrapper">
@@ -363,7 +364,7 @@
                             data-lead-days="{{ booking_lead_time_days|default:0 }}"
                             data-min-bookable-date="{{ min_bookable_date|default:'' }}">
                         <small class="review-field-error" id="edit_event_date_error"></small>
-                        <small class="edit-date-hint">{% if booking_lead_time_days %}Please book at least {{ booking_lead_time_days }} day(s) ahead (earliest: {{ min_bookable_date }}). {% endif %}Past dates can't be selected. Operating hours: 7:00 AM – 6:00 PM.</small>
+                        <small class="edit-date-hint booking-hint">{% if booking_lead_time_days %}Please book at least {{ booking_lead_time_days }} day(s) ahead (earliest: {{ min_bookable_date }}). {% endif %}Past dates can't be selected. Operating hours: 7:00 AM – 6:00 PM.</small>
                     </div>
 
                     <div class="form-group full-width">
@@ -408,7 +409,7 @@
                         <div id="edit_location_logistics_preview" class="location-logistics-preview" aria-live="polite"></div>
                         {% include 'client/booking/_map_sources.html' %}
 
-                        <label for="edit_venue_landmark" class="location-landmark-label"><i class="fa-solid fa-thumbtack"></i> Nearest landmark / gate / floor (Optional)</label>
+                        <label for="edit_venue_landmark" class="location-landmark-label"><i class="fa-solid fa-thumbtack"></i> Nearest landmark / gate / floor <span class="booking-optional">(optional)</span></label>
                         <input type="text" id="edit_venue_landmark" name="venue_landmark" maxlength="255" autocomplete="off"
                             placeholder="e.g., Near Blue Gate, 2nd floor of Robinsons Mall">
                         <small class="booking-hint">Enter your own landmark or arrival instructions. This field is optional.</small>
@@ -494,7 +495,7 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label for="edit_motto_text"><i class="fa-solid fa-font"></i> Motto / Text on the Backdrop (Optional)</label>
+                        <label for="edit_motto_text"><i class="fa-solid fa-font"></i> Motto / Text on the Backdrop <span class="booking-optional">(optional)</span></label>
                         <input type="text" id="edit_motto_text" name="motto_text" maxlength="150"
                             placeholder='e.g., "Happy 18th, Maria!" or "Congrats Batch 2026!"'>
                         <small class="booking-hint">The exact text you want on the backdrop or signage.</small>
@@ -502,13 +503,13 @@
 
                     <!-- Special Requests (moved from Step 2) -->
                     <div class="form-group full-width">
-                        <label for="edit_special_requests"><i class="far fa-comment"></i> Design Notes / Special Requests (Optional)</label>
+                        <label for="edit_special_requests"><i class="far fa-comment"></i> Design Notes / Special Requests <span class="booking-optional">(optional)</span></label>
                         <textarea id="edit_special_requests" name="special_requests" rows="4" class="form-control" placeholder="Add any special requests, themes, or notes for your event..."></textarea>
                     </div>
 
                     <!-- Reference Images (moved from Step 2) -->
                     <div class="form-group full-width" id="edit_images_section">
-                        <label for="edit_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures (Optional)</label>
+                        <label for="edit_reference_images_ui"><i class="far fa-images"></i> Add Reference Pictures <span class="booking-optional">(optional)</span></label>
                         {% include 'client/booking/_reference_upload.html' with input_id='edit_reference_images_ui' %}
                         <!-- Hidden proper input for backend submission -->
                         <input type="file" id="edit_reference_images" name="reference_images" accept="image/*" multiple style="display: none;">
@@ -730,199 +731,33 @@ AccountPages.register('customer_profile', "template", function(scope) {
             });
         }
 
-        // --- EDIT BOOKING FORM INLINE VALIDATION ---
+        // Submission and passive edits use the same validator as the Next button.
         const editBookingForm = document.getElementById('editBookingForm');
-        const editEventTypeSelectEl = document.getElementById('edit_event_type_select');
-        const editEventTypeOtherEl = document.getElementById('edit_event_type_other');
-        const editEventDateEl = document.getElementById('edit_event_date');
-        const editStartTimeEl = document.getElementById('edit_start_time');
-        const editEndTimeEl = document.getElementById('edit_end_time');
-        const editEventLocationEl = document.getElementById('edit_event_location');
-        const editEventTypeCustomSelect = document.getElementById('editEventTypeCustomSelect');
-        let editBookingSubmitAttempted = false;
-    let isEditCustomDesign = false;
-
-        const setEditBookingFieldError = (key, message) => {
-            const fieldConfigs = {
-                event_type: {
-                    container: editEventTypeCustomSelect,
-                    input: editEventTypeSelectEl,
-                    errorEl: document.getElementById('edit_event_type_error')
-                },
-                event_type_other: {
-                    container: editEventTypeOtherEl ? editEventTypeOtherEl.closest('.form-group') : null,
-                    input: editEventTypeOtherEl,
-                    errorEl: document.getElementById('edit_event_type_other_error')
-                },
-                event_date: {
-                    container: editEventDateEl ? editEventDateEl.closest('.form-group') : null,
-                    input: editEventDateEl,
-                    errorEl: document.getElementById('edit_event_date_error')
-                },
-                start_time: {
-                    container: editStartTimeEl ? editStartTimeEl.closest('.time-field') : null,
-                    input: editStartTimeEl,
-                    errorEl: document.getElementById('edit_start_time_error')
-                },
-                end_time: {
-                    container: editEndTimeEl ? editEndTimeEl.closest('.time-field') : null,
-                    input: editEndTimeEl,
-                    errorEl: document.getElementById('edit_end_time_error')
-                },
-                event_location: {
-                    container: editEventLocationEl ? editEventLocationEl.closest('.form-group') : null,
-                    input: editEventLocationEl,
-                    errorEl: document.getElementById('edit_event_location_error')
-                }
-            };
-
-            const config = fieldConfigs[key];
-            if (!config) return;
-            config.container?.classList.toggle('has-error', !!message);
-            config.input?.classList.toggle('has-error', !!message);
-            if (config.errorEl) config.errorEl.textContent = message || '';
-        };
-
-        const clearEditBookingErrors = () => {
-            setEditBookingFieldError('event_type', '');
-            setEditBookingFieldError('event_type_other', '');
-            setEditBookingFieldError('event_date', '');
-            setEditBookingFieldError('start_time', '');
-            setEditBookingFieldError('end_time', '');
-            setEditBookingFieldError('event_location', '');
-        };
-
-        const validateEditBookingForm = () => {
-            clearEditBookingErrors();
-            let firstInvalidField = null;
-
-            if (!editEventTypeSelectEl || !editEventTypeSelectEl.value) {
-                setEditBookingFieldError('event_type', 'Event Type is required*');
-                firstInvalidField = 'event_type';
-            }
-
-            if (
-                editEventTypeSelectEl &&
-                editEventTypeSelectEl.value === 'Other' &&
-                editEventTypeOtherEl &&
-                !editEventTypeOtherEl.value.trim()
-            ) {
-                setEditBookingFieldError('event_type_other', 'Please specify your event type.*');
-                if (!firstInvalidField) firstInvalidField = 'event_type_other';
-            }
-
-            if (!editEventDateEl || !editEventDateEl.value) {
-                setEditBookingFieldError('event_date', 'Event Date is required*');
-                if (!firstInvalidField) firstInvalidField = 'event_date';
-            } else if (editEventDateEl.value < editEventDateEl.min) {
-                // Mirror ng server-side na "Cannot change to a past date."
-                setEditBookingFieldError('event_date', 'Event Date cannot be in the past.*');
-                if (!firstInvalidField) firstInvalidField = 'event_date';
-            } else if (typeof isEditLeadBlocked === 'function' && isEditLeadBlocked(editEventDateEl.value)) {
-                // LEAD-TIME (inline validator): mirror ng edit_booking backend.
-                setEditBookingFieldError('event_date', getEditLeadMessage());
-                if (!firstInvalidField) firstInvalidField = 'event_date';
-            }
-
-            if (!editStartTimeEl || !editStartTimeEl.value) {
-                setEditBookingFieldError('start_time', 'Start Time is required*');
-                if (!firstInvalidField) firstInvalidField = 'start_time';
-            } else {
-                const startMinutes = getEditMinutesFromTimeValue(editStartTimeEl.value);
-                if (startMinutes !== null && (startMinutes < 7 * 60 || startMinutes > 17 * 60 + 45)) {
-                    setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time between 7:00 AM and 5:45 PM.*');
-                    if (!firstInvalidField) firstInvalidField = 'start_time';
-                }
-            }
-
-            if (!editEndTimeEl || !editEndTimeEl.value) {
-                setEditBookingFieldError('end_time', 'End Time is required*');
-                if (!firstInvalidField) firstInvalidField = 'end_time';
-            } else {
-                // Duration guard (overnight-aware) — walang 6:00 PM end cap.
-                const startMinCheck = editStartTimeEl ? getEditMinutesFromTimeValue(editStartTimeEl.value) : null;
-                const endMinutes = getEditMinutesFromTimeValue(editEndTimeEl.value);
-                const durMinutes = getEditDurationMinutes(startMinCheck, endMinutes);
-                if (durMinutes !== null && durMinutes < window.BookingAvailability.getDurationPolicy().minMinutes) {
-                    setEditBookingFieldError('end_time', `Event duration must be at least ${window.BookingAvailability.getDurationPolicy().minMinutes / 60} hours.*`);
-                    if (!firstInvalidField) firstInvalidField = 'end_time';
-                }
-            }
-
-            if (!editEventLocationEl || !editEventLocationEl.value.trim()) {
-                setEditBookingFieldError('event_location', 'Event Location is required*');
-                if (!firstInvalidField) firstInvalidField = 'event_location';
-            }
-
-            return firstInvalidField;
-        };
-
-        if (editBookingForm) {
-            editBookingForm.addEventListener('submit', function (e) {
-                editBookingSubmitAttempted = true;
-                const firstInvalidField = validateEditBookingForm();
-                if (firstInvalidField) {
-                    e.preventDefault();
-                    showEditStep(3);
-                    if (firstInvalidField === 'event_type' && editEventTypeCustomSelect) {
-                        const trigger = editEventTypeCustomSelect.querySelector('.custom-select-trigger');
-                        if (trigger) trigger.focus();
-                    } else if (firstInvalidField === 'event_type_other' && editEventTypeOtherEl) {
-                        editEventTypeOtherEl.focus();
-                    } else if (firstInvalidField === 'event_date' && editEventDateEl) {
-                        editEventDateEl.focus();
-                    } else if (firstInvalidField === 'start_time' && editStartTimeEl) {
-                        editStartTimeEl.focus();
-                    } else if (firstInvalidField === 'end_time' && editEndTimeEl) {
-                        editEndTimeEl.focus();
-                    } else if (firstInvalidField === 'event_location' && editEventLocationEl) {
-                        editEventLocationEl.focus();
-                    }
-                }
-            });
-        }
-
-        const editRealtimeFields = [editEventDateEl, editStartTimeEl, editEndTimeEl, editEventLocationEl, editEventTypeOtherEl];
-        editRealtimeFields.forEach((field) => {
+        editBookingForm?.addEventListener('submit', function (event) {
+            editBookingSubmitAttempted = true;
+            const firstInvalidField = validateEditBookingForm({notify:true});
+            if (!firstInvalidField) return;
+            event.preventDefault();
+            showEditStep(3);
+            const target = firstInvalidField === 'event_type'
+                ? editEventTypeCustomSelect?.querySelector('.custom-select-trigger')
+                : document.getElementById('edit_' + firstInvalidField);
+            target?.focus();
+        });
+        [editEventTypeSelect, editEventDateEl, editStartTimeEl, editEndTimeEl,
+            editEventLocationEl, editEventTypeOtherEl].forEach(field => {
             if (!field) return;
-            field.addEventListener('input', () => {
+            for (const type of ['input', 'change']) field.addEventListener(type, () => {
                 if (editBookingSubmitAttempted) validateEditBookingForm();
             });
         });
-
-        /* ⏱️ REGRESSION: ang custom time picker (booking_picker_c.js) ay
-           nagse-dispatch ng 'change' — HINDI 'input'. Kaya kung 'input' lang
-           ang nakikinig, mananatiling naka-display ang dating "Start/End Time
-           is required*" error kahit pumili na ng oras. Dito din tina-trigger
-           ang re-validation para malinis ang error agad. */
-        [editStartTimeEl, editEndTimeEl, editEventDateEl].forEach((field) => {
-            if (!field) return;
-            field.addEventListener('change', () => {
-                if (editBookingSubmitAttempted) validateEditBookingForm();
-            });
-        });
-
-        if (editEventTypeSelectEl) {
-            editEventTypeSelectEl.addEventListener('change', () => {
-                if (editBookingSubmitAttempted) validateEditBookingForm();
-            });
-        }
-
-        if (editEventTypeCustomSelect) {
-            const options = editEventTypeCustomSelect.querySelectorAll('.custom-select-options li');
-            options.forEach((option) => {
-                option.addEventListener('click', () => {
-                    if (editBookingSubmitAttempted) validateEditBookingForm();
-                });
-            });
-        }
     });
 
     // --- EDIT BOOKING LEAD-TIME POLICY (SiteSettings.booking_lead_time_days) ---
     // Galing sa data-* attributes ng #edit_event_date (sinet ng customer_profile
     // view). Grandfather rule: kapag hindi binago ang petsa mula sa original,
     // hindi haharangin kahit nasa lead window. Nasa global scope para magamit
-    // ng DALAWANG validateEditBookingForm (inline + steppers).
+    // ng shared validator at stepper navigation.
     const getEditLeadPolicy = () => {
         const dateEl = document.getElementById('edit_event_date');
         const rawLead = dateEl ? parseInt(dateEl.dataset.leadDays || '0', 10) : 0;
@@ -1070,6 +905,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
     const editEventTypeOtherEl = document.getElementById('edit_event_type_other');
 
     let editBookingSubmitAttempted = false;
+    let isEditCustomDesign = false;
 
     function formatEditPrice(val) {
         return '₱' + parseFloat(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1112,8 +948,17 @@ AccountPages.register('customer_profile', "template", function(scope) {
         const config = fieldMap[fieldKey];
         if (!config || !config.errorEl) return;
 
-        config.container?.classList.toggle('has-error', !!message);
         config.inputEl?.classList.toggle('has-error', !!message);
+        config.inputEl?.setAttribute('aria-invalid', String(!!message));
+        // Time pickers keep the submitted value hidden and render a separate input.
+        const display = config.inputEl?.id && document.getElementById(config.inputEl.id + '_display');
+        if (display) {
+            display.classList.toggle('has-error', !!message);
+            display.setAttribute('aria-invalid', String(!!message));
+        }
+        // Event type and its conditional Other input share a group. Clearing one
+        // field must preserve the group's error while the other is still invalid.
+        config.container?.classList.toggle('has-error', !!config.container.querySelector('[aria-invalid="true"]'));
         config.errorEl.textContent = message || '';
     }
 
@@ -1210,7 +1055,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
     updateEditTimeConstraints();
     refreshEditStepTwoNextState();
 
-    function validateEditBookingForm() {
+    function validateEditBookingForm({notify = false} = {}) {
         clearEditBookingValidationErrors();
         let firstInvalidField = null;
 
@@ -1288,6 +1133,9 @@ AccountPages.register('customer_profile', "template", function(scope) {
                         editMapStatusEl.textContent = 'No pin yet — drop a pin or pick from search. Required for exact fee.';
                     }
                 } catch (e) { /* noop */ }
+                if (notify && (!firstInvalidField || firstInvalidField === 'event_location') && window.AppToast) {
+                    AppToast.fire({icon:'warning', title:'Map pin required.', text:'Drop a pin or pick from search for the exact logistics fee.'});
+                }
                 if (!firstInvalidField) firstInvalidField = 'event_location';
             }
         }
@@ -2004,7 +1852,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
     if (btnNextEditToSummary) {
         btnNextEditToSummary.addEventListener('click', function () {
             editBookingSubmitAttempted = true;
-            const firstInvalidField = validateEditBookingForm();
+            const firstInvalidField = validateEditBookingForm({notify:true});
             if (firstInvalidField) {
                 if (firstInvalidField === 'event_type' && editEventTypeCustomSelect) {
                     const trigger = editEventTypeCustomSelect.querySelector('.custom-select-trigger');
@@ -2484,7 +2332,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 const label = imagesSection.querySelector('label');
                 const uiInput = document.getElementById('edit_reference_images_ui');
                 const helpText = imagesSection.querySelector('small');
-                if (label) label.style.display = 'block';
+                if (label) label.style.removeProperty('display');
                 if (uiInput) uiInput.style.display = 'block';
                 if (helpText) helpText.style.display = 'block';
             }
@@ -2724,22 +2572,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         }
     });
 
-    window.toggleEditOtherEventType = function (value) {
-        const otherInput = document.getElementById('edit_event_type_other');
-        const hiddenInput = document.getElementById('edit_event_type_select');
 
-        if (value === 'Other') {
-            otherInput.style.display = 'block';
-            otherInput.required = true;
-            otherInput.name = 'event_type';
-            hiddenInput.removeAttribute('name');
-        } else {
-            otherInput.style.display = 'none';
-            otherInput.required = false;
-            otherInput.removeAttribute('name');
-            hiddenInput.name = 'event_type';
-        }
-    };
 
     // =============================================
     // EDIT MODAL: CUSTOM SELECT DROPDOWN LOGIC
@@ -2773,7 +2606,8 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 editCustomSelect.classList.remove('open');
 
                 // Trigger the 'Other' logic
-                window.toggleEditOtherEventType(value);
+                toggleEditOtherEventType(hiddenInput);
+                hiddenInput.dispatchEvent(new Event('change', {bubbles:true}));
             });
         });
 

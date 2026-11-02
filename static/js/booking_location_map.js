@@ -137,14 +137,19 @@
         try { map.attributionControl.setPrefix(false); } catch (e) { /* noop */ }
         mapReady = true;
 
+        var mapSkeleton = global.SiteLoading?.start(mapEl, {variant: 'image', label: 'Loading map...'});
+        map.once('unload', () => mapSkeleton?.finish());
         var editableTiles = global.L.tileLayer(TILE_URL, TILE_OPTIONS);
+        editableTiles.once('load', () => mapSkeleton?.finish());
         /* Fallback: kung bumagsak man ang Esri, awtomatikong lumipat sa
            OSM France HOT (libre rin, walang key) — buong layer ang pinapalitan
            (hindi lang URL) para sumama ang tamang attribution. */
         editableTiles.on('tileerror', function onEditableTileError() {
             editableTiles.off('tileerror', onEditableTileError);
             try { map.removeLayer(editableTiles); } catch (e) { /* noop */ }
-            editableTiles = global.L.tileLayer(FALLBACK_TILE_URL, FALLBACK_TILE_OPTIONS).addTo(map);
+            editableTiles = global.L.tileLayer(FALLBACK_TILE_URL, FALLBACK_TILE_OPTIONS);
+            editableTiles.once('load tileerror', () => mapSkeleton?.finish());
+            editableTiles.addTo(map);
         });
         editableTiles.addTo(map);
 
@@ -201,6 +206,7 @@
         function reverseGeocodeIntoFields(lat, lng) {
             var token = ++reverseRequestToken;
             setStatus(statusEl, 'Finding address for the pinned location…', false);
+            var reverseSkeleton = global.SiteLoading?.start(statusEl, {variant: 'inline', label: 'Finding address...'});
             var params = new URLSearchParams({ lat: lat, lng: lng });
             fetch((opts.reverseUrl || REVERSE_URL) + '?' + params.toString())
                 .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('reverse failed')); })
@@ -217,7 +223,7 @@
                 .catch(function () {
                     if (token !== reverseRequestToken) return;
                     setStatus(statusEl, 'Pin saved. Address lookup is unavailable right now.', true);
-                });
+                }).finally(() => reverseSkeleton?.finish());
         }
 
         marker.on('dragend', function () {
@@ -286,6 +292,8 @@
             if (searchController) searchController.abort();
             searchController = new AbortController();
             setStatus(statusEl, 'Searching places…', false);
+            if (suggestionsEl) suggestionsEl.hidden = false;
+            var searchSkeleton = global.SiteLoading?.start(suggestionsEl, {variant: 'text', signal: searchController.signal});
             var params = new URLSearchParams({ q: q });
             fetch((opts.searchUrl || SEARCH_URL) + '?' + params.toString(), { signal: searchController.signal })
                 .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('search failed')); })
@@ -301,7 +309,7 @@
                         suggestionsEl.querySelector('.map-suggestion-empty').textContent = 'Search unavailable. Pin the venue on the map or try again.';
                     }
                     setStatus(statusEl, 'Place search is unavailable right now. You can drop a pin on the map instead.', true);
-                });
+                }).finally(() => searchSkeleton?.finish());
         }
 
         AccountPages.cleanup(() => { cancelSearch(); map.remove(); });
@@ -598,11 +606,16 @@
         // Extra "Leaflet" prefix text tanggalin (attribution ng provider, buhay).
         try { map.attributionControl.setPrefix(false); } catch (e) { /* noop */ }
 
+        var mapSkeleton = global.SiteLoading?.start(mapEl, {variant: 'image', label: 'Loading map...'});
+        map.once('unload', () => mapSkeleton?.finish());
         var readOnlyTiles = global.L.tileLayer(TILE_URL, TILE_OPTIONS);
+        readOnlyTiles.once('load', () => mapSkeleton?.finish());
         readOnlyTiles.on('tileerror', function onReadOnlyTileError() {
             readOnlyTiles.off('tileerror', onReadOnlyTileError);
             try { map.removeLayer(readOnlyTiles); } catch (e) { /* noop */ }
-            readOnlyTiles = global.L.tileLayer(FALLBACK_TILE_URL, FALLBACK_TILE_OPTIONS).addTo(map);
+            readOnlyTiles = global.L.tileLayer(FALLBACK_TILE_URL, FALLBACK_TILE_OPTIONS);
+            readOnlyTiles.once('load tileerror', () => mapSkeleton?.finish());
+            readOnlyTiles.addTo(map);
         });
         readOnlyTiles.addTo(map);
 

@@ -25,6 +25,7 @@
         const version = searchVersion, controller = new AbortController();
         searchRequest = controller;
         results.setAttribute('aria-busy','true'); status.hidden = true;
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'cards', signal: controller.signal});
         try {
             const response = await fetch(url, {credentials:'same-origin', signal:controller.signal,
                 headers:{Accept:'text/html','X-Requested-With':'XMLHttpRequest'}});
@@ -46,7 +47,7 @@
             status.replaceChildren(document.createTextNode('Could not update designs. Your previous results are still here. '));
             const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Try again';
             retry.addEventListener('click', () => refresh(url)); status.append(retry); status.hidden = false;
-        } finally { if (version === searchVersion) results.removeAttribute('aria-busy'); }
+        } finally { skeletonLoad?.finish();if (version === searchVersion) results.removeAttribute('aria-busy'); }
     }
     search.addEventListener('input', () => {
         clear.hidden = !search.value; cancelSearch();

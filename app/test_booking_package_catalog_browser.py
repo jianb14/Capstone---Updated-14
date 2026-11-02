@@ -16,6 +16,112 @@ from .test_booking_package_catalog import seed_booking_packages
 @skipUnless(os.environ.get('RUN_PACKAGES_BROWSER') == '1', 'Optional Playwright verification')
 @override_settings(SESSION_ENGINE='django.contrib.sessions.backends.signed_cookies')
 class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
+    def test_edit_feedback_matches_create_in_light_and_dark(self):
+        from playwright.sync_api import expect, sync_playwright
+
+        seed_booking_packages()
+        user = User.objects.create_user(username='edit-feedback-browser', role='customer', email_verified=True)
+        booking = Booking.objects.create(user=user, event_type='Birthday', event_date=date(2099, 7, 15),
+            event_time=time(7), event_end_time=time(10), event_location='Bacoor venue',
+            package_type='Package 1-B', total_price=9500, status='pending')
+        self.client.force_login(user)
+        artifacts = Path(settings.BASE_DIR) / '.booking-followup-check'
+        artifacts.mkdir(exist_ok=True)
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless=True)
+            context = browser.new_context(reduced_motion='no-preference')
+            context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(self.live_server_url + '/') else route.abort())
+            context.add_cookies([{'name':settings.SESSION_COOKIE_NAME,'value':self.client.cookies[settings.SESSION_COOKIE_NAME].value,'url':self.live_server_url}])
+            page = context.new_page(); errors = []
+            page.on('pageerror', lambda error: errors.append(str(error)))
+            try:
+                for theme in ('light','dark'):
+                    for width in (1440,390):
+                        page.set_viewport_size({'width':width,'height':1000})
+                        page.goto(self.live_server_url + reverse('customer_profile') + f'?open_edit={booking.pk}', wait_until='domcontentloaded')
+                        modal = page.locator('#editBookingModal'); expect(modal).to_be_visible()
+                        expect(modal).to_have_css('padding-left','10px' if width < 481 else '20px')
+                        page.evaluate('''theme=>{
+                            document.documentElement.dataset.theme=theme;
+                            window.editNotices=[]; AppToast.fire=options=>{editNotices.push(options);return Promise.resolve({});};
+                            BookingLocationMap.isMapReady=()=>true;
+                        }''', theme)
+                        card = modal.locator('.package-card[data-package="Package 1-A"]')
+                        card.hover()
+                        expect(card).to_have_css('border-color','rgb(212, 212, 212)' if theme=='light' else 'rgb(66, 66, 66)')
+                        expect(card).to_have_css('background-color','rgb(250, 250, 250)' if theme=='light' else 'rgb(27, 27, 27)')
+                        card.click()
+                        expect(card).to_have_css('border-color','rgb(189, 189, 189)' if theme=='light' else 'rgb(85, 85, 85)')
+                        expect(card).to_have_css('background-color','rgb(243, 243, 243)' if theme=='light' else 'rgb(32, 32, 32)')
+                        page.locator('#btnNextEditStep').click(); page.locator('#btnNextEditPreview').click()
+                        page.evaluate('''()=>{
+                            for(const id of ['edit_event_type_select','edit_start_time','edit_end_time','edit_event_lat_input','edit_event_lng_input']){
+                                const el=document.getElementById(id);el.value='';el.dispatchEvent(new Event('change',{bubbles:true}));
+                            }
+                        }''')
+                        page.locator('#edit_event_location').fill('')
+                        page.locator('#btnNextEditToSummary').click()
+                        red = 'rgb(184, 53, 60)' if theme=='light' else 'rgb(241, 145, 145)'
+                        red_ring = 'rgba(184, 53, 60, 0.4)' if theme=='light' else 'rgba(241, 145, 145, 0.4)'
+                        normal_ring = 'rgba(105, 105, 105, 0.4)' if theme=='light' else 'rgba(153, 153, 153, 0.45)'
+                        for selector in ('#edit_event_type_error','#edit_start_time_error','#edit_end_time_error','#edit_event_location_error','.input-required'):
+                            expect(modal.locator(selector).first).to_have_css('color',red)
+                        trigger = modal.locator('#editEventTypeCustomSelect .custom-select-trigger')
+                        for control in (trigger,page.locator('#edit_start_time_display'),page.locator('#edit_end_time_display'),page.locator('#edit_event_location')):
+                            control.focus()
+                            state = control.evaluate('el=>{const s=getComputedStyle(el);return [s.borderColor,s.outlineColor,s.outlineWidth];}')
+                            self.assertEqual(state,[red,red_ring,'2px'],control.get_attribute('id') or 'event type')
+                            expect(control).to_have_attribute('aria-invalid','true')
+                        trigger.click(); trigger.click(); trigger.click()
+                        expect(trigger).to_have_css('outline-color',red_ring)
+                        modal.locator('#editEventTypeCustomSelect [data-value="Other"]').click()
+                        other = page.locator('#edit_event_type_other'); expect(other).to_be_visible()
+                        other.focus(); expect(other).to_have_css('outline-color',red_ring)
+                        other.fill('Private celebration'); expect(other).to_have_attribute('aria-invalid','false')
+                        trigger.click(); modal.locator('#editEventTypeCustomSelect [data-value="Birthday"]').click()
+                        expect(trigger).to_have_attribute('aria-invalid','false')
+                        page.locator('#edit_start_time_display').click()
+                        option = modal.locator('.booking-picker-pop:not([hidden]) .booking-picker-timeopt').first
+                        option.focus(); expect(page.locator('#edit_start_time_display')).to_have_css('outline-color',red_ring)
+                        expect(option).to_have_css('font-family','Montserrat, sans-serif')
+                        modal.locator('.booking-picker-pop:not([hidden]) .booking-picker-timeopt[data-value="07:00"]').click()
+                        expect(page.locator('#edit_start_time_display')).to_have_attribute('aria-invalid','false')
+                        expect(page.locator('#edit_start_time_display')).to_have_css('outline-color',normal_ring)
+                        page.locator('#edit_end_time_display').click()
+                        modal.locator('.booking-picker-pop:not([hidden]) .booking-picker-timeopt[data-value="10:00"]').click()
+                        expect(page.locator('#edit_end_time_display')).to_have_attribute('aria-invalid','false')
+                        page.locator('#edit_event_location').fill('Molino Bacoor Cavite venue')
+                        self.assertEqual(page.evaluate('editNotices.length'),0)
+                        page.locator('#btnNextEditToSummary').click()
+                        self.assertEqual(page.evaluate('editNotices.filter(n=>n.title==="Map pin required.").length'),1)
+                        trigger.click(); modal.locator('#editEventTypeCustomSelect [data-value="Wedding"]').click()
+                        self.assertEqual(page.evaluate('editNotices.length'),1)
+                        page.locator('#edit_event_date').click()
+                        expect(modal.locator('.booking-picker-pop:not([hidden]) .booking-picker-day').first).to_have_css('font-family','Montserrat, sans-serif')
+                        page.locator('#edit_event_location').focus()
+                        page.evaluate('''()=>{
+                            document.getElementById('edit_event_lat_input').value='14.414';
+                            document.getElementById('edit_event_lng_input').value='120.982';
+                        }''')
+                        page.locator('#btnNextEditToSummary').click()
+                        expect(page.locator('#edit-step-4')).to_be_visible()
+                        modal.locator('#editDesignThemeChips [data-value="Other"]').click()
+                        for selector in ('#edit_design_theme_other','#edit_motto_text','#edit_special_requests'):
+                            control = page.locator(selector); control.focus()
+                            expect(control).to_have_css('outline-color',normal_ring)
+                            expect(control).to_have_css('outline-width','2px')
+                        optional = modal.locator('.booking-optional'); expect(optional).to_have_count(4)
+                        for index in range(optional.count()):
+                            expect(optional.nth(index)).to_have_text('(optional)')
+                            expect(optional.nth(index)).to_have_css('color','rgb(115, 115, 115)' if theme=='light' else 'rgb(163, 163, 163)')
+                        browse = modal.get_by_role('button',name='Browse Files',exact=True); browse.hover()
+                        expect(browse).to_have_css('background-color','rgb(233, 233, 233)' if theme=='light' else 'rgb(51, 51, 51)')
+                        expect(modal.locator('.reference-dropzone')).to_contain_text('5MB per photo')
+                        modal.screenshot(path=str(artifacts / f'edit-booking-feedback-{theme}-{width}.png'))
+                self.assertEqual(errors,[])
+            finally:
+                context.close(); browser.close()
+
     def test_create_feedback_focus_picker_fonts_and_pin_warning_only_on_next(self):
         from playwright.sync_api import expect, sync_playwright
         from .test_concerns import photo

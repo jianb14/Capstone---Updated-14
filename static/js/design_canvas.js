@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    let workspaceSkeleton = window.SiteLoading?.start(dropZone, {variant: 'canvas', label: 'Preparing design workspace...'});
     const dropHint = byId('dropHint');
     const selectionToolbar = byId('selectionToolbar');
     const contextToolbar = byId('objectContextToolbar');
@@ -1422,6 +1423,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function restoreCanvasState(state) {
+        workspaceSkeleton?.finish();
+        workspaceSkeleton = window.SiteLoading?.start(dropZone, {variant: 'canvas', label: 'Restoring design...'});
         isLoadingState = true;
 
         canvas.loadFromJSON(state, () => {
@@ -1510,6 +1513,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             isLoadingState = false;
+            workspaceSkeleton?.finish();
         });
     }
 
@@ -2526,9 +2530,11 @@ document.addEventListener('DOMContentLoaded', function() {
         return () => addShapeToCanvas({...data}, offset ? {x: artboard.left + offset.x, y: artboard.top + offset.y} : null);
     }
     function addRasterImage(data, pointer) {
+        const assetLoad = window.SiteLoading?.start(dropZone, {variant: 'image', label: 'Loading design asset...'});
         fabric.Image.fromURL(
             data.src,
             (img) => {
+                assetLoad?.finish();
                 if (!img) return;
                 if (data.designSource === 'catalog' && !checkQuota(data.category, data.categoryId, retryShape(data, pointer))) return;
                 const desiredW = data.width || 180;
@@ -2558,7 +2564,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addSvgImage(data, pointer) {
+        const assetLoad = window.SiteLoading?.start(dropZone, {variant: 'image', label: 'Loading design asset...'});
         fabric.loadSVGFromURL(data.src, (objects, options) => {
+            assetLoad?.finish();
             if (!objects || !objects.length) {
                 addRasterImage(data, pointer);
                 return;
@@ -3398,9 +3406,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const file = event.target.files[0];
             if (!file) return;
 
+            const assetLoad = window.SiteLoading?.start(dropZone, {variant: 'image', label: 'Loading background...'});
             const reader = new FileReader();
+            reader.onerror = reader.onabort = () => assetLoad?.finish();
             reader.onload = (loadEvent) => {
                 fabric.Image.fromURL(loadEvent.target.result, (img) => {
+                    assetLoad?.finish();
                     if (!img) return;
 
                     fitBackgroundImageToArtboard(img);
@@ -4852,6 +4863,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 restoreCanvasState(draftCanvasJson);
             } catch (error) {
+                workspaceSkeleton?.finish();
                 console.error('Failed to load canvas draft:', error);
             }
         } else if (window.savedCanvasJson) {
@@ -4862,12 +4874,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         : JSON.stringify(window.savedCanvasJson);
                 restoreCanvasState(jsonStr);
             } catch (error) {
+                workspaceSkeleton?.finish();
                 console.error('Failed to load saved canvas json:', error);
             }
         } else {
             updateHintVisibility();
             updateControlsState();
             updateVisualCart();
+            workspaceSkeleton?.finish();
         }
     }, 100);
 

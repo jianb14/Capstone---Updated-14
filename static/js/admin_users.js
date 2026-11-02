@@ -40,9 +40,10 @@
         clearTimeout(timer);listRequest?.abort();selects.close();
         const controller=listRequest=new AbortController(),version=++listVersion;
         results.setAttribute('aria-busy','true');feedback(notice,'');
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: controller.signal});
         try {
             const data=await request(url,{signal:controller.signal});if(version!==listVersion)return false;
-            if(results.contains(document.activeElement))search.focus({preventScroll:true});
+            skeletonLoad?.finish(); if(results.contains(document.activeElement))search.focus({preventScroll:true});
             selects.release(results);const scroll=window.scrollY;
             results.innerHTML=data.html;updateCounts(data.counts);selects.enhance();animateList();
             const actual=new URL(url,location.href);actual.pathname=listURL.pathname;actual.searchParams.delete('user_id');actual.searchParams.set('page',String(data.page));
@@ -54,7 +55,7 @@
         } catch(error) {
             if(version===listVersion && !controller.signal.aborted)feedback(notice,error.name==='AbortError'?'The request took too long. Your current list is still here.':error.message,()=>load(url,{history}));
             return false;
-        } finally {if(version===listVersion)results.removeAttribute('aria-busy');}
+        } finally {skeletonLoad?.finish();if(version===listVersion)results.removeAttribute('aria-busy');}
     }
     function lockScroll(){if(originalOverflow===undefined){originalOverflow=document.body.style.overflow;document.body.style.overflow='hidden';}}
     function unlockScroll(){if(!modal.open&&!confirmation.open&&originalOverflow!==undefined){document.body.style.overflow=originalOverflow;originalOverflow=undefined;}}
@@ -62,13 +63,14 @@
     async function fillDetails(id) {
         detailRequest?.abort();const controller=detailRequest=new AbortController(),version=++detailVersion;
         content.hidden=true;feedback(detailNotice,'Loading account details...');
+        const skeletonLoad = window.SiteLoading?.start(content.parentElement, {variant: 'details', signal: controller.signal});
         try {
             const data=await request(detailURL(id),{signal:controller.signal});
             if(version!==detailVersion||!modal.open||String(detailId)!==String(id))return;
             content.innerHTML=data.html;content.hidden=false;feedback(detailNotice,'');
         } catch(error) {
             if(version===detailVersion&&!controller.signal.aborted)feedback(detailNotice,error.name==='AbortError'?'Loading took too long. Please try again.':error.message,()=>fillDetails(id));
-        }
+        } finally { skeletonLoad?.finish(); }
     }
     function openDetails(id,origin) {
         detailId=String(id);detailOrigin=origin;selects.close();lockScroll();

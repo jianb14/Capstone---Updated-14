@@ -22,6 +22,7 @@ AccountPages.register('my_profile','password-otp',scope=>{
         const data=new FormData(form); if (action) data.set('action',action);
         busy=true; finalizing=action==='verify'; message(''); buttons();
         const controller=request, timeout=setTimeout(()=>controller.abort(),30000);
+        const skeletonLoad = action ? null : window.SiteLoading?.start(form.querySelector('.profile-dialog__fields'), {variant: 'form', signal: controller.signal});
         try {
             const response=await fetch(dialog.dataset.endpoint,{method:action?'POST':'GET',body:action?data:undefined,
                 credentials:'same-origin',cache:'no-store',signal:controller.signal,
@@ -42,10 +43,10 @@ AccountPages.register('my_profile','password-otp',scope=>{
             ready=true;
             dialog.querySelector('[data-profile-otp-email]').textContent=result.masked_email;
             if (action==='resend') code.value='';
-            message(result.message || ''); code.focus();
+            skeletonLoad?.finish(); message(result.message || ''); code.focus();
         } catch(error) {
             if (active(id)) { message(error.name==='AbortError'?'Connection interrupted. Please try again.':error.message); feedback.focus(); }
-        } finally { clearTimeout(timeout); if (active(id)) { busy=false; finalizing=false; buttons(); } }
+        } finally { skeletonLoad?.finish(); clearTimeout(timeout); if (active(id)) { busy=false; finalizing=false; buttons(); } }
     }
     function open() {
         if (dialog.open) return;

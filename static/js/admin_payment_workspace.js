@@ -63,6 +63,7 @@
         listController?.abort();
         const controller = listController = new AbortController(), version = ++listVersion;
         queues.setAttribute('aria-busy', 'true');
+        const skeletonLoad = window.SiteLoading?.start(queues.querySelector('.account-table-wrap, .ac-table-wrap, .pm-table-wrap') || queues, {variant: 'table', signal: controller.signal});
         try {
             const doc = await request(url, {signal: controller.signal});
             if (controller.signal.aborted || version !== listVersion) return false;
@@ -94,6 +95,7 @@
             }
             return false;
         } finally {
+            skeletonLoad?.finish();
             if (version === listVersion) queues.removeAttribute('aria-busy');
         }
     }
@@ -126,10 +128,11 @@
         settingsSave.disabled = true;
         feedback(settingsBody, 'Loading payment settings…', 'info');
         settingsBody.setAttribute('aria-busy', 'true'); openDialog(settingsDialog);
+        const skeletonLoad = window.SiteLoading?.start(settingsBody, {variant: 'form', signal: controller.signal});
         try {
             const data = await settingsRequest(settingsDialog.dataset.settingsUrl, {signal: controller.signal});
             if (controller.signal.aborted) return;
-            settingsBody.innerHTML = data.html;
+            skeletonLoad?.finish(); settingsBody.innerHTML = data.html;
             settingsSave.disabled = false;
             settingsBody.querySelector('input:not([type="hidden"])')?.focus({preventScroll: true});
         } catch (error) {
@@ -138,7 +141,7 @@
                 const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
                 retry.addEventListener('click', openSettings); settingsBody.append(retry);
             }
-        } finally { if (settingsController === controller) settingsBody.removeAttribute('aria-busy'); }
+        } finally { skeletonLoad?.finish();if (settingsController === controller) settingsBody.removeAttribute('aria-busy'); }
     }
     root.addEventListener('submit', async event => {
         if (event.target.id !== 'pmSettingsForm') return;
@@ -190,6 +193,7 @@
         feedback(detailBody, 'Loading payment details…', 'info');
         detailBody.setAttribute('aria-busy', 'true');
         openDialog(detailDialog);
+        const skeletonLoad = window.SiteLoading?.start(detailBody, {variant: 'details', signal: controller.signal});
         if (push) {
             const next = queueURL(), id = new URL(url, location.href).pathname.match(/\/(\d+)\/detail\/?$/)?.[1];
             if (id) {
@@ -213,6 +217,7 @@
                 detailBody.append(' ', retry);
             }
         } finally {
+            skeletonLoad?.finish();
             if (controller === detailController) detailBody.removeAttribute('aria-busy');
         }
     }

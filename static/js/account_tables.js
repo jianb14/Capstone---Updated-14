@@ -78,6 +78,7 @@
         const id=++sequence, url=new URL(target,location.href);
         const results=document.getElementById(list.dataset.resultsId);
         results?.setAttribute('aria-busy','true'); announce('');
+        const skeletonLoad = window.SiteLoading?.start(results?.querySelector('.account-table-wrap') || results, {variant: 'table', signal: controller.signal});
         const delay=setTimeout(()=> { if (scope.active && id===sequence) announce('Updating your results…'); },200);
         const timeout=setTimeout(()=>controller.abort(),20000);
         try {
@@ -91,7 +92,7 @@
             const fresh=doc.getElementById(list.dataset.resultsId);
             if (!fresh) throw new Error('Results are unavailable.');
             if (!scope.active || id!==sequence) return;
-            const focused=document.activeElement, restoreFocus=results.contains(focused);
+            skeletonLoad?.finish(); const focused=document.activeElement, restoreFocus=results.contains(focused);
             const field=focused?.matches('[data-list-search]') ? {name:focused.name,value:focused.value,start:focused.selectionStart,end:focused.selectionEnd} : null;
             const sizeControl=focused?.closest('.account-page-size');
             const tabControl=focused?.closest('[data-list-tab]')?.dataset.tabTarget;
@@ -128,6 +129,7 @@
             announce('We couldn’t update the list. Your current results are still here.',()=>refresh(url,{pop}));
         } finally {
             clearTimeout(delay); clearTimeout(timeout);
+            skeletonLoad?.finish();
             if (scope.active && id===sequence) { results?.removeAttribute('aria-busy'); pending=null; }
         }
     }

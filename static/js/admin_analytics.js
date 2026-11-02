@@ -220,6 +220,7 @@
     const currentRequest = requestNumber;
     controller = new AbortController(); const activeController = controller;
     const timeout = setTimeout(() => activeController.abort('timeout'), 15000);
+        const skeletonLoad = window.SiteLoading?.start(results, {variant: 'chart', signal: activeController.signal});
     results.setAttribute('aria-busy', 'true'); loadStatus.textContent = 'Updating report…'; errorBox.hidden = true;
     try {
       const url = new URL(root.dataset.reportUrl, location.origin); url.search = params.toString();
@@ -234,7 +235,7 @@
       appliedFilters = payload.filters;
       dateReset.href=root.dataset.reportUrl+'?'+dateResetParams(appliedFilters).toString();
       selects?.sync(); presetState(payload.filters.filter_preset); exportLink.href = payload.export_url; excelLink.href = payload.excel_url;
-      makeCharts();
+      skeletonLoad?.finish(); makeCharts();
       if (restoreTabFocus) results.querySelector(`[data-report-tab="${payload.filters.tab}"]`)?.focus({preventScroll:true});
       url.search = new URLSearchParams(payload.filters).toString();
       if (historyMode === 'push' && url.href !== location.href) history.pushState({}, '', url);
@@ -248,6 +249,7 @@
       loadStatus.textContent = 'Previous report displayed';
     } finally {
       clearTimeout(timeout);
+      skeletonLoad?.finish();
       if (currentRequest === requestNumber) results.setAttribute('aria-busy', 'false');
     }
   }

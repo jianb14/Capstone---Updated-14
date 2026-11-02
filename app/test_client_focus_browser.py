@@ -15,7 +15,7 @@ class ClientFocusFrameTests(SimpleTestCase):
         css_root = Path(settings.BASE_DIR) / 'static/css'
         css = '\n'.join((css_root / name).read_text(encoding='utf-8') for name in (
             'base.css', 'client_booking.css', 'booking_form_components.css',
-            'booking_workspace.css', 'client_form_focus.css',
+            'booking_workspace.css', 'booking_form_workspace.css', 'client_form_focus.css',
         ))
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
@@ -24,7 +24,7 @@ class ClientFocusFrameTests(SimpleTestCase):
                 page = browser.new_page(reduced_motion='no-preference')
                 page.route('**/*', lambda route: route.abort())
                 page.set_content('<html><style>' + css + '</style><body class="booking-page">'
-                    '<div id="bookingModalOverlay"><form id="bookingForm">'
+                    '<div id="bookingModalOverlay" class="booking-form-workspace"><form id="bookingForm">'
                     '<div class="form-group"><input id="field"><textarea id="notes"></textarea>'
                     '<div class="custom-select-container"><button type="button" '
                     'class="custom-select-trigger" id="dropdown">Select event</button></div></div>'
