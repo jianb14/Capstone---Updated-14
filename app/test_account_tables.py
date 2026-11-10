@@ -209,9 +209,8 @@ class AccountTableBrowserTests(StaticLiveServerTestCase):
                 expect(page.locator('#accountContent')).to_have_attribute('data-account-page','customer_profile')
                 page.wait_for_function('!window.AccountNavigation.navigating')
                 page.locator(f'[onclick="openEditModal(\'{pending.pk}\')"]').first.click()
-                page.locator('#btnNextEditStep').click()
-                page.locator('#btnNextEditPreview').click()
                 page.locator('#btnNextEditToSummary').click()
+                page.locator('#btnNextEditStep').click()
                 page.locator('#edit_special_requests').fill('Saved without a page reload')
                 page.locator('#btnNextEditDesignToReview').click()
                 with page.expect_response(lambda response:'/edit/' in response.url and response.request.method=='POST') as updated:

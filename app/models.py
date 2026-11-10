@@ -1026,6 +1026,7 @@ class Notification(models.Model):
     concern = models.ForeignKey('ConcernTicket', on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     message = models.TextField()
     is_read = models.BooleanField(default=False)
+    bar_shown_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

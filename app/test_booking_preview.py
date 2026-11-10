@@ -1,4 +1,4 @@
-"""Tests for the booking Step 2 preview images (package/add-on/additional)."""
+"""Tests for booking gallery image payloads (package/add-on/additional)."""
 import io
 import tempfile
 
@@ -82,14 +82,15 @@ class BookingPreviewPageTests(TempMediaMixin, TestCase):
 
         for marker in (
             'id="booking-preview-data"',
-            'id="step-5-indicator"',
+            'id="step-4-indicator"',
             'id="step-2"',
-            'id="btnNextToDetails"',
-            'id="btnBackToPackages"',
-            "function renderPackagePreview()",
-            "window.BookingFormUI.renderPreview",
+            'id="btnPackagesBack"',
+            "window.BookingFormUI.setupPackageGallery",
         ):
             self.assertContains(response, marker)
+
+        self.assertNotContains(response, 'id="step-5-indicator"')
+        self.assertNotContains(response, 'id="previewImagesGrid"')
 
         payload = response.context["preview_data"]
         self.assertIn(str(self.package.id), payload["packages"])

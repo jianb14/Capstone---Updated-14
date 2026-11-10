@@ -22,6 +22,7 @@ AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
         warning:'<path d="m12 3 10 18H2Zm0 6v5m0 3h.01"/>',
         left:'<path d="m12 5-7 7 7 7M5 12h15"/>',
         right:'<path d="m12 5 7 7-7 7M4 12h15"/>',
+        chevron:'<path d="m9 5 7 7-7 7"/>',
         down:'<path d="m6 9 6 6 6-6"/>',
         close:'<path d="m6 6 12 12M18 6 6 18"/>',
         ban:'<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>'
@@ -37,34 +38,174 @@ AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
     };
     function emptyPreview() {
         const box=document.createElement('div');box.className='preview-item-empty';
-        box.innerHTML=icon('image')+'<div><strong>Preview not available yet</strong><p>Your selection is saved. You can continue with this item.</p></div>';
+        box.innerHTML=icon('image')+'<div><strong>Preview not available yet</strong><p>You can still choose this item and continue.</p></div>';
         return box;
     }
-    function renderPreview(grid, items, emptyMessage) {
-        if(!grid)return;
-        grid.replaceChildren();
-        for(const item of items) {
-            const group=document.createElement('section');group.className='preview-group';
-            const title=document.createElement('h4');title.className='preview-group-title';title.textContent=item.label;group.append(title);
-            const sources=(item.images || []).filter(Boolean).slice(0,2);
-            if(!sources.length)group.append(emptyPreview());
-            else {
-                const images=document.createElement('div');images.className='preview-group-grid';
-                for(const src of sources) {
-                    const tile=document.createElement('div');tile.className='preview-image-tile';
-                    const img=document.createElement('img');img.src=src;img.alt=item.label+' preview';img.loading='lazy';
-                    img.addEventListener('error',()=>{tile.replaceWith(emptyPreview());},{once:true});
-                    tile.append(img);images.append(tile);
-                }
-                group.append(images);
+    function setupPackageGallery(root, imagesForCard, clearPackage) {
+        const modal = root.closest('.modal-overlay');
+        const box = root.closest('.booking-modal-box');
+        const gallery = document.createElement('section');
+        gallery.className = 'package-gallery';
+        gallery.hidden = true;
+        gallery.id = root.id + '-gallery';
+        gallery.setAttribute('aria-label', 'Sample setups');
+        gallery.innerHTML = `
+            <div class="package-gallery-header">
+                <button type="button" class="package-gallery-back">${icon('left')}Back to packages</button>
+                <span>Sample setups</span>
+            </div>
+            <div class="package-gallery-layout">
+                <div class="package-gallery-visual">
+                    <div class="package-gallery-stage"></div>
+                    <div class="package-gallery-controls">
+                        <button type="button" data-image-direction="-1" aria-label="Previous image">${icon('left')}</button>
+                        <span class="package-gallery-count" aria-live="polite"></span>
+                        <button type="button" data-image-direction="1" aria-label="Next image">${icon('right')}</button>
+                    </div>
+                </div>
+                <div class="package-gallery-details">
+                    <h3 tabindex="-1"></h3>
+                    <div class="package-gallery-price"></div>
+                    <p class="package-gallery-label">What's included</p>
+                    <ul class="package-gallery-inclusions"></ul>
+                    <p class="preview-note">Sample setup. Actual styling may vary with your theme and venue.</p>
+                </div>
+            </div>
+            <div class="modal-actions"><button type="button" class="btn-submit package-gallery-select">Select this package</button></div>`;
+        root.after(gallery);
+        const heading = gallery.querySelector('h3');
+        const stage = gallery.querySelector('.package-gallery-stage');
+        const controls = gallery.querySelector('.package-gallery-controls');
+        const count = gallery.querySelector('.package-gallery-count');
+        const select = gallery.querySelector('.package-gallery-select');
+        let active = null, pendingSelection = null, images = [], imageIndex = 0, scrollTop = 0;
+
+        function close(restoreFocus = true) {
+            if (gallery.hidden) return;
+            gallery.hidden = true;
+            root.hidden = false;
+            box.scrollTop = scrollTop;
+            if (restoreFocus) active?.view.focus({preventScroll: true});
+            active = null;
+            pendingSelection = null;
+        }
+        function renderImage() {
+            stage.replaceChildren();
+            controls.hidden = images.length < 2;
+            count.textContent = images.length ? `${imageIndex + 1} of ${images.length}` : '';
+            if (!images.length) {
+                stage.append(emptyPreview());
+                return;
             }
-            grid.append(group);
+            const image = document.createElement('img');
+            image.className = 'package-gallery-image';
+            image.alt = `${active.label} sample setup ${imageIndex + 1}`;
+            image.addEventListener('error', () => {
+                if (image.parentNode === stage) stage.replaceChildren(emptyPreview());
+            }, {once: true});
+            image.src = images[imageIndex];
+            stage.append(image);
         }
-        grid.style.display=items.length?'flex':'none';
-        if(emptyMessage) {
-            emptyMessage.innerHTML=icon('image')+'<span><strong>Your preview will appear here</strong><span>Choose a package or add-on to see its preview.</span></span>';
-            emptyMessage.style.display=items.length?'none':'flex';
+        function moveImage(direction) {
+            if (images.length < 2) return;
+            imageIndex = (imageIndex + direction + images.length) % images.length;
+            renderImage();
         }
+        function open(entry) {
+            active = entry;
+            scrollTop = box.scrollTop;
+            images = imagesForCard(entry.card).filter(Boolean).slice(0, 2);
+            imageIndex = 0;
+            heading.textContent = entry.label;
+            gallery.querySelector('.package-gallery-price').textContent = entry.card.querySelector('.price').textContent.trim();
+            gallery.querySelector('.package-gallery-inclusions').replaceChildren(
+                ...Array.from(entry.card.querySelectorAll('.features li'), item => item.cloneNode(true))
+            );
+            select.textContent = entry.card.dataset.package ? 'Select this package' : 'Select this item';
+            select.disabled = entry.card.classList.contains('disabled');
+            root.hidden = true;
+            gallery.hidden = false;
+            renderImage();
+            box.scrollTop = 0;
+            heading.focus({preventScroll: true});
+        }
+        gallery.querySelector('.package-gallery-back').addEventListener('click', () => close());
+        gallery.querySelectorAll('[data-image-direction]').forEach(button => {
+            button.addEventListener('click', () => moveImage(Number(button.dataset.imageDirection)));
+        });
+        select.addEventListener('click', () => {
+            if (!active || select.disabled) return;
+            if (active.card.classList.contains('selected')) { close(); return; }
+            // The existing edit handler may await a price warning before committing selection.
+            pendingSelection = active;
+            select.disabled = true;
+            active.card.click();
+        });
+        AccountPages.listen(document, 'keydown', event => {
+            if (gallery.hidden || !modal.classList.contains('show') || document.querySelector('.client-feedback-dialog[open]')) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                close();
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                event.preventDefault();
+                moveImage(event.key === 'ArrowLeft' ? -1 : 1);
+            }
+        }, true);
+        const entries = [...root.querySelectorAll('.package-card')].map(card => {
+            const label = card.dataset.package || card.dataset.name;
+            const control = card.querySelector('.package-info');
+            control.tabIndex = 0;
+            control.setAttribute('role', 'button');
+            control.setAttribute('aria-label', 'Select ' + label);
+            control.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    card.click();
+                }
+            });
+            const actions = document.createElement('div');
+            actions.className = 'package-card-actions';
+            const view = document.createElement('button');
+            view.type = 'button';
+            view.className = 'package-preview-toggle';
+            view.innerHTML = icon('image') + '<span>View sample setups</span>' + icon('chevron');
+            view.setAttribute('aria-label', 'Sample setups for ' + label);
+            view.setAttribute('aria-controls', gallery.id);
+            const entry = {card, control, view, label};
+            view.addEventListener('click', event => { event.stopPropagation(); open(entry); });
+            actions.append(view);
+            if (card.dataset.package) {
+                entry.remove = document.createElement('button');
+                entry.remove.type = 'button';
+                entry.remove.className = 'package-remove-control';
+                entry.remove.textContent = 'Remove package';
+                entry.remove.hidden = true;
+                entry.remove.addEventListener('click', event => { event.stopPropagation(); clearPackage(); });
+                actions.append(entry.remove);
+            }
+            card.append(actions);
+            return entry;
+        });
+        return {
+            close,
+            sync() {
+                for (const entry of entries) {
+                    const selected = entry.card.classList.contains('selected');
+                    entry.control.setAttribute('aria-pressed', String(selected));
+                    entry.control.setAttribute('aria-disabled', String(entry.card.classList.contains('disabled')));
+                    if (entry.remove) entry.remove.hidden = !selected;
+                }
+                if (pendingSelection) {
+                    if (pendingSelection.card.classList.contains('selected')) close();
+                    else {
+                        select.disabled = false;
+                        select.focus({preventScroll: true});
+                    }
+                    pendingSelection = null;
+                }
+            }
+        };
     }
     function setupUpload(zone) {
         if(zone.dataset.ready)return;zone.dataset.ready='1';
@@ -126,6 +267,6 @@ AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
             scope.cleanup(() => observer.disconnect());
         }
     });
-    window.BookingFormUI={icon,renderPreview};
+    window.BookingFormUI={icon,setupPackageGallery};
 
 }, -10);

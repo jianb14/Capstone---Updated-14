@@ -6,16 +6,16 @@
 {% block account_content %}
 <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20261102a">
 <link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
-<script defer src="{% static 'js/booking_changes.js' %}?v=20261031feedback"></script>
+<script defer src="{% static 'js/booking_changes.js' %}?v=20261110feedback"></script>
 <script defer src="{% static 'js/customer_booking_details.js' %}?v=20261102sk1"></script>
 <link rel="stylesheet" href="{% static 'css/booking_event_design.css' %}?v=20261021a">
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <!-- Shared components ng Step 3 map card + Step 4 Design Preferences -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031upload3">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261110compact2">
 <link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261023checkbox">
 <link rel="stylesheet" href="{% static 'css/booking_form_workspace.css' %}?v=20261102a">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261102a"></script>
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261110galleryrow1"></script>
 <!-- Leaflet (edit modal Step 2 location map) — free OSM tiles, no API key.
      Graceful degradation: text location stays required if this fails. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -199,25 +199,21 @@
             <div class="stepper-wrapper">
                 <div class="stepper-progress-line" id="editStepperLine"></div>
                 <div class="stepper-step-icon active" id="edit-step-1-indicator">
-                    <div class="step-circle"></div>
-                    <div class="step-label">Select Package</div>
-                </div>
-                <div class="stepper-step-icon" id="edit-step-2-indicator">
-                    <div class="step-circle"></div>
-                    <div class="step-label">Preview</div>
-                </div>
-                <div class="stepper-step-icon" id="edit-step-3-indicator">
-                    <div class="step-circle"></div>
-                    <div class="step-label">Event Details</div>
-                </div>
-                <div class="stepper-step-icon" id="edit-step-4-indicator">
-                    <div class="step-circle"></div>
-                    <div class="step-label">Design Preferences</div>
-                </div>
-                <div class="stepper-step-icon" id="edit-step-5-indicator">
-                    <div class="step-circle"></div>
-                    <div class="step-label">Review &amp; Confirm</div>
-                </div>
+                        <div class="step-circle"></div>
+                        <div class="step-label">Event Details</div>
+                    </div>
+                    <div class="stepper-step-icon" id="edit-step-2-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Select Package</div>
+                    </div>
+                    <div class="stepper-step-icon" id="edit-step-3-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Design Preferences</div>
+                    </div>
+                    <div class="stepper-step-icon" id="edit-step-4-indicator">
+                        <div class="step-circle"></div>
+                        <div class="step-label">Review &amp; Confirm</div>
+                    </div>
             </div>
             <button type="button" class="close-btn" onclick="closeEditModal()" aria-label="Close edit booking form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
@@ -227,110 +223,10 @@
             <input type="hidden" id="change_reason" name="change_reason" disabled>
             <div id="changeRequestBanner" class="change-form-banner" hidden><strong>Request changes to Booking <span id="changeRequestBookingId"></span></strong><br>Your original booking and payments stay in place. Our team will review these changes and send a final quote for you to accept.<p><strong>Reason for request:</strong> <span id="changeRequestReasonText"></span></p></div>
 
-            <!-- STEP 1: PACKAGE SELECTION -->
+            <!-- STEP 1: BOOKING DETAILS -->
             <div class="stepper-step active-step" id="edit-step-1">
-                <h3>Available Packages</h3>
-                <p class="step-desc">Please choose a package for your booking.</p>
-
-                <div class="package-cards-grid">
-                    {% for package in packages %}
-                    <div class="package-card edit-package-card" data-package="{{ package.name }}" data-price="{{ package.price }}">
-                        <div class="package-info">
-                            {% include 'components/booking_popular_badge.html' %}
-                            <h4>{{ package.name }}</h4>
-                            <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
-                            <p class="feature-label">Package Inclusions</p>
-                            <ul class="features">
-                                {% for feature in package.feature_list %}
-                                <li>{{ feature }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <p>No packages available.</p>
-                    {% endfor %}
-                </div>
-
-                <!-- Add-ons Section -->
-                <h3>Entrance Arch</h3>
-                <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without a package.</p>
-                <div class="package-cards-grid addons-selection-grid">
-                    {% for addon in active_addons %}
-                    <div class="package-card edit-addon-selector" data-name="{{ addon.name }}"
-                        data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
-                        <div class="package-info">
-                            <span class="card-top-label">FOR ADD-ONS</span>
-                            <h4>{{ addon.name }}</h4>
-                            <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span></div>
-                            <p class="feature-label">What&apos;s Included</p>
-                            <ul class="features">
-                                {% for feature in addon.feature_list %}
-                                <li>{{ feature }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <p class="empty-message">No add-ons available.</p>
-                    {% endfor %}
-                </div>
-
-                <!-- Additionals Section -->
-                <h3>Welcome Stand</h3>
-                <p class="step-desc">Individual items to customize your event.</p>
-                <div class="package-cards-grid additionals-selection-grid">
-                    {% for additional in active_additionals %}
-                    <div class="package-card edit-additional-selector" data-name="{{ additional.name }}"
-                        data-price="{{ additional.price }}">
-                        <div class="package-info">
-                            <span class="card-top-label">ADDITIONAL ONLY</span>
-                            <h4>{{ additional.name }}</h4>
-                            <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
-                            {% if additional.features %}
-                            <p class="feature-label">What&apos;s Included</p>
-                            <ul class="features">
-                                {% for feature in additional.features.splitlines %}
-                                <li>{{ feature }}</li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-                            {% if additional.notes %}
-                            <p class="additional-notes">{{ additional.notes }}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% empty %}
-                    <p class="empty-message">No additionals available.</p>
-                    {% endfor %}
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="btn-submit" id="btnNextEditStep" disabled>Next Step</button>
-                </div>
-            </div>
-
-            <!-- STEP 2: PACKAGE PREVIEW (mirror ng booking page Step 2) -->
-            <div class="stepper-step" id="edit-step-2" style="display: none;">
-                <h3>Your Package Preview</h3>
-                <p class="step-desc">Here's a glimpse of what your selected package and add-ons could look like.</p>
-
-                <div class="preview-images-grid" id="editPreviewImagesGrid"></div>
-                <p class="preview-empty-message" id="editPreviewEmptyMessage" style="display: none;">
-                    <i class="fa-solid fa-circle-info"></i> No preview images yet for your selection.
-                </p>
-                <p class="preview-note"><i class="fa-solid fa-circle-info"></i> Actual setup may vary depending on your event details and venue.</p>
-
-                <div class="modal-actions split-actions">
-                    <button type="button" class="booking-back-btn" id="btnPrevEditPreview"><i class="fa-solid fa-arrow-left"></i> Back</button>
-                    <button type="button" class="btn-submit" id="btnNextEditPreview">Next Step</button>
-                </div>
-            </div>
-
-            <!-- STEP 3: BOOKING DETAILS -->
-            <div class="stepper-step" id="edit-step-3" style="display: none;">
                 <h3>Event Details</h3>
-                <p class="step-desc">Great choice! Now fill in the details for your event.</p>
+                <p class="step-desc">Start with your event schedule and venue, then choose your package.</p>
 
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -426,15 +322,96 @@
                 </div>
 
                 <div class="modal-actions split-actions">
-                    <button type="button" class="booking-back-btn" id="btnPrevEditStep"><i class="fa-solid fa-arrow-left"></i> Back</button>
                     <button type="button" class="btn-submit" id="btnNextEditToSummary">Next Step</button>
                 </div>
             </div>
 
-            <!-- STEP 4: DESIGN PREFERENCES (Tier 1: theme + palette + motto,
-                 kasama ang moved Special Requests + Reference Pictures.
-                 Theme + palette REQUIRED (max 3 colors); motto optional.) -->
-            <div class="stepper-step" id="edit-step-4" style="display: none;">
+            <!-- STEP 2: PACKAGE SELECTION -->
+            <div class="stepper-step" id="edit-step-2" style="display: none;">
+                <h3>Available Packages</h3>
+                <p class="step-desc">Please choose a package for your booking.</p>
+
+                <div class="package-cards-grid">
+                    {% for package in packages %}
+                    <div class="package-card edit-package-card" data-package="{{ package.name }}" data-price="{{ package.price }}">
+                        <div class="package-info">
+                            {% include 'components/booking_popular_badge.html' %}
+                            <h4>{{ package.name }}</h4>
+                            <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
+                            <p class="feature-label">Package Inclusions</p>
+                            <ul class="features">
+                                {% for feature in package.feature_list %}
+                                <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p>No packages available.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Add-ons Section -->
+                <h3>Entrance Arch</h3>
+                <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without a package.</p>
+                <div class="package-cards-grid addons-selection-grid">
+                    {% for addon in active_addons %}
+                    <div class="package-card edit-addon-selector" data-name="{{ addon.name }}"
+                        data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
+                        <div class="package-info">
+                            <span class="card-top-label">FOR ADD-ONS</span>
+                            <h4>{{ addon.name }}</h4>
+                            <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span></div>
+                            <p class="feature-label">What&apos;s Included</p>
+                            <ul class="features">
+                                {% for feature in addon.feature_list %}
+                                <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="empty-message">No add-ons available.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Additionals Section -->
+                <h3>Welcome Stand</h3>
+                <p class="step-desc">Individual items to customize your event.</p>
+                <div class="package-cards-grid additionals-selection-grid">
+                    {% for additional in active_additionals %}
+                    <div class="package-card edit-additional-selector" data-name="{{ additional.name }}"
+                        data-price="{{ additional.price }}">
+                        <div class="package-info">
+                            <span class="card-top-label">ADDITIONAL ONLY</span>
+                            <h4>{{ additional.name }}</h4>
+                            <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
+                            {% if additional.features %}
+                            <p class="feature-label">What&apos;s Included</p>
+                            <ul class="features">
+                                {% for feature in additional.features.splitlines %}
+                                <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                            {% if additional.notes %}
+                            <p class="additional-notes">{{ additional.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="empty-message">No additionals available.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="modal-actions split-actions">
+                    <button type="button" class="booking-back-btn" id="btnEditPackagesBack"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                    <button type="button" class="btn-submit" id="btnNextEditStep" disabled>Next Step</button>
+                </div>
+            </div>
+
+            <!-- STEP 3: DESIGN PREFERENCES -->
+            <div class="stepper-step" id="edit-step-3" style="display: none;">
                 <h3>Design Preferences</h3>
                 <p class="step-desc">Two fields are required — pick a theme and up to 3 colors so our team can match your look.</p>
 
@@ -532,8 +509,8 @@
                 </div>
             </div>
 
-            <!-- STEP 5: REVIEW & CONFIRM -->
-            <div class="stepper-step" id="edit-step-5" style="display: none;">
+            <!-- STEP 4: REVIEW -->
+            <div class="stepper-step" id="edit-step-4" style="display: none;">
                 <h3>Review &amp; Confirm</h3>
                 <p id="changeRequestError" class="change-form-error" role="alert" tabindex="-1"></p>
                 <p class="step-desc">Review your selected package and event details before submitting.</p>
@@ -738,7 +715,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
             const firstInvalidField = validateEditBookingForm({notify:true});
             if (!firstInvalidField) return;
             event.preventDefault();
-            showEditStep(3);
+            showEditStep(1);
             const target = firstInvalidField === 'event_type'
                 ? editEventTypeCustomSelect?.querySelector('.custom-select-trigger')
                 : document.getElementById('edit_' + firstInvalidField);
@@ -867,21 +844,20 @@ AccountPages.register('customer_profile', "template", function(scope) {
     let editSelectedAdditionalName = null;
     let editSelectedAdditionalPrice = 0;
 
-    const editStep1Content = document.getElementById('edit-step-1');
-    const editStep2Content = document.getElementById('edit-step-2');
-    const editStep3Content = document.getElementById('edit-step-3');
-    const editStep4Content = document.getElementById('edit-step-4');
-    const editStep5Content = document.getElementById('edit-step-5');
-    const editStep1Indicator = document.getElementById('edit-step-1-indicator');
-    const editStep2Indicator = document.getElementById('edit-step-2-indicator');
-    const editStep3Indicator = document.getElementById('edit-step-3-indicator');
-    const editStep4Indicator = document.getElementById('edit-step-4-indicator');
-    const editStep5Indicator = document.getElementById('edit-step-5-indicator');
+    const editPackageStepContent = document.getElementById('edit-step-2');
+
+    const editEventStepContent = document.getElementById('edit-step-1');
+    const editDesignStepContent = document.getElementById('edit-step-3');
+    const editReviewStepContent = document.getElementById('edit-step-4');
+    const editPackageStepIndicator = document.getElementById('edit-step-2-indicator');
+
+    const editEventStepIndicator = document.getElementById('edit-step-1-indicator');
+    const editDesignStepIndicator = document.getElementById('edit-step-3-indicator');
+    const editReviewStepIndicator = document.getElementById('edit-step-4-indicator');
     const editStepperLine = document.getElementById('editStepperLine');
     const btnNextEditStep = document.getElementById('btnNextEditStep');
-    const btnPrevEditPreview = document.getElementById('btnPrevEditPreview');
-    const btnNextEditPreview = document.getElementById('btnNextEditPreview');
-    const btnPrevEditStep = document.getElementById('btnPrevEditStep');
+
+    const btnPrevEditStep = document.getElementById('btnEditPackagesBack');
     const btnNextEditToSummary = document.getElementById('btnNextEditToSummary');
     const btnPrevFromEditDesign = document.getElementById('btnPrevFromEditDesign');
     const btnNextEditDesignToReview = document.getElementById('btnNextEditDesignToReview');
@@ -1201,11 +1177,11 @@ AccountPages.register('customer_profile', "template", function(scope) {
         return `${hour12}:${minute} ${suffix}`;
     }
 
-    /* 5-step edit stepper: Package → Preview → Details → Design Preferences → Review.
+    /* Four-step edit flow: Event Details → Package → Design Preferences → Review.
        Loop-based (kagaya ng booking_page) para hindi na magkalat ng if/else. */
-    const EDIT_STEP_PROGRESS = ['0%', '20%', '40%', '60%', '80%'];
-    const editStepContents = [editStep1Content, editStep2Content, editStep3Content, editStep4Content, editStep5Content];
-    const editStepIndicators = [editStep1Indicator, editStep2Indicator, editStep3Indicator, editStep4Indicator, editStep5Indicator];
+    const EDIT_STEP_PROGRESS = ['0%', '25%', '50%', '75%'];
+    const editStepContents = [editEventStepContent, editPackageStepContent, editDesignStepContent, editReviewStepContent];
+    const editStepIndicators = [editEventStepIndicator, editPackageStepIndicator, editDesignStepIndicator, editReviewStepIndicator];
     let editMapInstance = null;
     let editMapInitialized = false;
 
@@ -1271,10 +1247,8 @@ AccountPages.register('customer_profile', "template", function(scope) {
     }
 
     function showEditStep(stepNumber) {
-        if (stepNumber === 2) {
-            renderEditPackagePreview();
-        }
-        if (stepNumber === 3) {
+            editPackageGallery.close(false);
+        if (stepNumber === 1) {
             ensureEditMap();
             refreshEditPinStatusText();
             populateEditSummary();
@@ -1303,43 +1277,28 @@ AccountPages.register('customer_profile', "template", function(scope) {
     }
 
     // =============================================
-    // EDIT STEP 2: PACKAGE PREVIEW (mirror ng booking page Step 2 —
-    // kung ano ang pinili sa Step 1, ipinapakita ang preview images).
-    // Name-keyed JSON mula sa edit_preview_data context (profiles.py).
+    // The sample gallery uses the name-keyed edit_preview_data payload.
     // =============================================
-    const EDIT_MAX_PREVIEW_IMAGES_PER_ITEM = 2;
     let editPreviewData = {};
     try {
         const editPreviewDataEl = document.getElementById('edit-preview-data');
         editPreviewData = JSON.parse(editPreviewDataEl ? editPreviewDataEl.textContent : '{}') || {};
     } catch (err) { /* invalid payload -> walang preview images */ }
 
-    function renderEditPackagePreview() {
-        const grid = document.getElementById('editPreviewImagesGrid');
-        const emptyMsg = document.getElementById('editPreviewEmptyMessage');
-        if (!grid) return;
-
-        const selected = [];
-        if (editSelectedPackageName) {
-            selected.push({ key: editSelectedPackageName, label: editSelectedPackageName });
-        } else if (editSoloModeAddon) {
-            selected.push({ key: editSoloModeAddon, label: editSoloModeAddon + ' (Solo)' });
+    const editPackageGallery = window.BookingFormUI.setupPackageGallery(
+        document.getElementById('edit-step-2'),
+        card => editPreviewData[card.dataset.package || card.dataset.name] || [],
+        () => {
+            editSelectedPackageName = null;
+            editSelectedPackagePrice = 0;
+            editSelectedAddonName = null;
+            editSelectedAddonPrice = 0;
+            updateEditUIStates();
         }
-        if (editSelectedPackageName && editSelectedAddonName) {
-            selected.push({ key: editSelectedAddonName, label: editSelectedAddonName });
-        }
-        if (editSelectedAdditionalName) {
-            selected.push({ key: editSelectedAdditionalName, label: editSelectedAdditionalName });
-        }
-
-        window.BookingFormUI.renderPreview(grid, selected.map(item => ({
-            label: item.label,
-            images: ((editPreviewData || {})[item.key] || []).slice(0, EDIT_MAX_PREVIEW_IMAGES_PER_ITEM)
-        })), emptyMsg);
-    }
+    );
 
     // =============================================
-    // EDIT STEP 4: DESIGN PREFERENCES (chips + palette)
+    // EDIT STEP 3: DESIGN PREFERENCES (chips + palette)
     // =============================================
     const editDesignThemeInput = document.getElementById('edit_design_theme_input');
     const editDesignThemeOther = document.getElementById('edit_design_theme_other');
@@ -1737,6 +1696,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         });
 
         btnNextEditStep.disabled = !hasBaseSelection;
+        editPackageGallery.sync();
         
         const total = calculateEditTotalPrice();
         editPriceDisplay.textContent = formatEditPrice(total);
@@ -1744,7 +1704,11 @@ AccountPages.register('customer_profile', "template", function(scope) {
     }
 
     // Initialize Event Listeners for Edit Cards safely using event delegation
-    AccountPages.listen(document, 'click', function(e) {
+    AccountPages.listen(document, 'click', async function(e) {
+        if (!e.target.closest('.edit-package-card, .edit-addon-selector, .edit-additional-selector')) return;
+        const previous = [editSelectedPackageName, editSelectedPackagePrice,
+            editSelectedAddonName, editSelectedAddonPrice, editSoloModeAddon, editSoloModePrice,
+            editSelectedAdditionalName, editSelectedAdditionalPrice];
         const packageCard = e.target.closest('.edit-package-card');
         if (packageCard) {
             if (editSoloModeAddon) return;
@@ -1752,15 +1716,11 @@ AccountPages.register('customer_profile', "template", function(scope) {
             const pkgPrice = parseFloat(packageCard.dataset.price);
 
             if (editSelectedPackageName === pkgName) {
-                editSelectedPackageName = null;
-                editSelectedPackagePrice = 0;
-                editSelectedAddonName = null;
-                editSelectedAddonPrice = 0;
+                return;
             } else {
                 editSelectedPackageName = pkgName;
                 editSelectedPackagePrice = pkgPrice;
             }
-            updateEditUIStates();
         }
 
         const addonCard = e.target.closest('.edit-addon-selector');
@@ -1792,7 +1752,6 @@ AccountPages.register('customer_profile', "template", function(scope) {
                     }
                 }
             }
-            updateEditUIStates();
         }
 
         const additionalCard = e.target.closest('.edit-additional-selector');
@@ -1810,42 +1769,33 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 editSelectedAdditionalName = name;
                 editSelectedAdditionalPrice = price;
             }
-            updateEditUIStates();
         }
+        const hasBase = editSelectedPackageName !== null || editSoloModeAddon !== null;
+        if (hasBase && !await window.confirmBookingChangePrice(calculateEditTotalPrice())) {
+            [editSelectedPackageName, editSelectedPackagePrice,
+                editSelectedAddonName, editSelectedAddonPrice, editSoloModeAddon, editSoloModePrice,
+                editSelectedAdditionalName, editSelectedAdditionalPrice] = previous;
+        }
+        if (scope.active) updateEditUIStates();
     });
 
     if (btnNextEditStep) {
-        btnNextEditStep.addEventListener('click', function () {
+        btnNextEditStep.addEventListener('click', async function () {
             if (!editSelectedPackageName && !editSoloModeAddon) return;
 
             editPackageInput.value = buildEditPackageTypeString();
             const total = calculateEditTotalPrice();
+            if (!await window.confirmBookingChangePrice(total) || !scope.active) return;
             editPriceInput.value = total.toFixed(2);
 
-            showEditStep(2);
-        });
-    }
-
-    /* Preview (2) → balik sa Package (1). */
-    if (btnPrevEditPreview) {
-        btnPrevEditPreview.addEventListener('click', function () {
-            showEditStep(1);
-        });
-    }
-
-    /* Preview (2) → Event Details (3). */
-    if (btnNextEditPreview) {
-        btnNextEditPreview.addEventListener('click', function () {
-            editPackageInput.value = buildEditPackageTypeString();
-            editPriceInput.value = calculateEditTotalPrice().toFixed(2);
             showEditStep(3);
         });
     }
 
     if (btnPrevEditStep) {
         btnPrevEditStep.addEventListener('click', function () {
-            /* Details (3) → Preview (2). */
-            showEditStep(2);
+            // Package selection returns to event details.
+            showEditStep(1);
         });
     }
 
@@ -1907,20 +1857,20 @@ AccountPages.register('customer_profile', "template", function(scope) {
             editPriceInput.value = calculateEditTotalPrice().toFixed(2);
             /* Details (3) → Design Preferences (4): ang populateEditSummary ay
                ginagawa na lang sa Design → Review para fresh ang data. */
-            showEditStep(4);
+            showEditStep(isEditCustomDesign ? 3 : 2);
         });
     }
 
-    /* Design Preferences (4) → balik sa Details (3). */
+    // Fixed saved designs return to event details; other bookings return to package selection.
     if (btnPrevFromEditDesign) {
         btnPrevFromEditDesign.addEventListener('click', function () {
-            showEditStep(3);
+            showEditStep(isEditCustomDesign ? 1 : 2);
         });
     }
 
-    /* Design Preferences (4) → Review (5). Theme + palette required. */
+    // Theme and palette are required before review.
     if (btnNextEditDesignToReview) {
-        btnNextEditDesignToReview.addEventListener('click', function () {
+        btnNextEditDesignToReview.addEventListener('click', async function () {
             const firstInvalidField = validateEditDesignPreferences();
             if (firstInvalidField) {
                 const target = firstInvalidField === 'design_theme'
@@ -1932,17 +1882,19 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 }
                 return;
             }
+            const total = calculateEditTotalPrice();
+            if (!await window.confirmBookingChangePrice(total) || !scope.active) return;
             editPackageInput.value = buildEditPackageTypeString();
-            editPriceInput.value = calculateEditTotalPrice().toFixed(2);
+            editPriceInput.value = total.toFixed(2);
             populateEditSummary();
-            showEditStep(5);
+            showEditStep(4);
         });
     }
 
     if (btnPrevEditToDetails) {
         btnPrevEditToDetails.addEventListener('click', function () {
             /* Review (5) → Design Preferences (4), hindi na direct sa details. */
-            showEditStep(4);
+            showEditStep(3);
         });
     }
 
@@ -1984,7 +1936,10 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
         const changeMode = dataDiv.querySelector('.raw-change-mode')?.textContent.trim() === '1';
         let requestReason = '';
+        let paymentState = null;
         if (changeMode) {
+            paymentState = await window.checkBookingChangeEligibility(dataDiv.querySelector('.raw-edit-url').textContent.trim());
+            if (!paymentState || !scope.active || !dataDiv.isConnected) return;
             requestReason = await window.promptBookingChangeReason?.(id);
             if (!requestReason || !dataDiv.isConnected) return;
         }
@@ -2022,7 +1977,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         endTime = dataDiv.querySelector('.raw-end-time')?.textContent?.trim() || endTime;
 
         document.getElementById('editBookingForm').action = editUrl;
-        window.configureBookingChangeForm?.(changeMode, id, requestReason);
+        window.configureBookingChangeForm?.(changeMode, id, requestReason, paymentState);
 
         const selectEl = document.getElementById('edit_event_type_select');
         const otherEl = document.getElementById('edit_event_type_other');
@@ -2312,7 +2267,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         }
 
         if (isEditCustomDesign) {
-            showEditStep(2);
+            showEditStep(1);
             if (btnPrevEditStep) btnPrevEditStep.style.display = 'none';
             // Hide file input elements but keep the grid for the design image
             const imagesSection = document.getElementById('edit_images_section');
@@ -2688,7 +2643,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         updateStars(null);
     });
 
-    scope.expose({getEditLogisticsQuote, getEditOvertimeInfo, updateEditFeeNotices, formatEditPrice, setEditBookingFieldError, clearEditBookingValidationErrors, getEditTodayIso, updateEditTimeConstraints, getEditMinutesFromTimeValue, getEditDurationMinutes, validateEditTimesInstant, refreshEditStepTwoNextState, validateEditBookingForm, calculateEditTotalPrice, buildEditPackageTypeString, getSelectedEditEventTypeDisplay, formatTimeWithMeridiem, refreshEditPinStatusText, ensureEditMap, showEditStep, renderEditPackagePreview, setEditDesignFieldError, getEditDesignThemeValue, getEditColorPaletteValue, validateEditDesignPreferences, syncEditDesignThemeInput, refreshEditThemeChipUI, syncEditPaletteUI, toggleEditPaletteColor, applyEditDesignPrefill, resetEditDesignPreferences, populateEditSummary, updateEditUIStates, resetEditModalSteps, openEditModal, clearEditReviewObjectUrls, getEditReviewImageSources, renderEditImagePreviews, closeEditModal, toggleEditOtherEventType, openDeleteModal, closeDeleteModal, openReviewModal, closeReviewModal});
+    scope.expose({getEditLogisticsQuote, getEditOvertimeInfo, updateEditFeeNotices, formatEditPrice, setEditBookingFieldError, clearEditBookingValidationErrors, getEditTodayIso, updateEditTimeConstraints, getEditMinutesFromTimeValue, getEditDurationMinutes, validateEditTimesInstant, refreshEditStepTwoNextState, validateEditBookingForm, calculateEditTotalPrice, buildEditPackageTypeString, getSelectedEditEventTypeDisplay, formatTimeWithMeridiem, refreshEditPinStatusText, ensureEditMap, showEditStep, setEditDesignFieldError, getEditDesignThemeValue, getEditColorPaletteValue, validateEditDesignPreferences, syncEditDesignThemeInput, refreshEditThemeChipUI, syncEditPaletteUI, toggleEditPaletteColor, applyEditDesignPrefill, resetEditDesignPreferences, populateEditSummary, updateEditUIStates, resetEditModalSteps, openEditModal, clearEditReviewObjectUrls, getEditReviewImageSources, renderEditImagePreviews, closeEditModal, toggleEditOtherEventType, openDeleteModal, closeDeleteModal, openReviewModal, closeReviewModal});
 
 });
 </script>

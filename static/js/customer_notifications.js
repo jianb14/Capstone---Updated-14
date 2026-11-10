@@ -20,6 +20,18 @@
     const canPopover=typeof panel.showPopover==='function';
     let nextCursor=null, loading=false, count=0, mutation=Promise.resolve(), revision=0, checkingCount=false;
     const reading=new Set();
+    let updateBar=null, updatesCursor=root.dataset.updatesCursor || '';
+    const updatesStorageKey='balloorina.customer-updates.'+root.dataset.userId+'.'+root.dataset.updatesSession;
+    const deliveryStorageKey='balloorina.customer-updates-delivery.'+root.dataset.userId;
+    let pendingDelivery='';
+    if (!isAdmin && updatesCursor && window.CustomerUpdateBar) {
+        try {
+            updatesCursor=sessionStorage.getItem(updatesStorageKey) || updatesCursor;
+            pendingDelivery=sessionStorage.getItem(deliveryStorageKey) || '';
+        } catch (_) { /* In-memory position still works. */ }
+        updateBar=window.CustomerUpdateBar.create({bell,storageKey:updatesStorageKey+'.bar',onGroup:()=>open(true),onItem:data=>followItem(makeItem(data))});
+        updateBar.restore();
+    }
     if (canPopover) { panel.setAttribute('popover','manual'); panel.classList.add('notification-popover'); }
     function place() {
         const box=bell.getBoundingClientRect(), right=Math.max(12,innerWidth-box.right);
@@ -51,15 +63,39 @@
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest',...options.headers}});
             if (response.redirected) throw new Error('Please sign in again to load notifications.');
             const data=await response.json().catch(()=>({}));
-            if (!response.ok) throw new Error(data.message || 'We could not update notifications.');
+            if (!response.ok) {
+                const error=new Error(data.message || 'We could not update notifications.');
+                error.status=response.status; error.code=data.code; throw error;
+            }
             return data;
         } finally { clearTimeout(timer); }
     }
-    function post(url) {
+    function post(url,options={}) {
         const token=panel.querySelector('[name="csrfmiddlewaretoken"]')?.value;
-        return jsonRequest(url,{method:'POST',keepalive:true,headers:{'X-CSRFToken':token || ''}}).then(data=>{
+        return jsonRequest(url,{...options,method:'POST',keepalive:true,headers:{...options.headers,'X-CSRFToken':token || ''}}).then(data=>{
             if (data.status!=='success') throw new Error('We could not update notifications.'); return data;
         });
+    }
+    async function acknowledgeUpdates() {
+        if (!pendingDelivery) return;
+        const receipt=pendingDelivery;
+        try {
+            await post(root.dataset.updatesShownUrl,{body:JSON.stringify({delivery_token:receipt}),headers:{'Content-Type':'application/json'}});
+        } catch (error) {
+            if (error.status===403) {
+                // A cached page can hold a CSRF token from an earlier sign-in.
+                const probe=new URL(root.dataset.feedUrl,location.href);
+                probe.searchParams.set('updates','1');
+                probe.searchParams.set('session',root.dataset.updatesSession);
+                await jsonRequest(probe); // A changed session triggers the existing 409 recovery.
+            }
+            if (error.status!==400) throw error;
+            // Discard an invalid local receipt so live polling can recover.
+        }
+        if (pendingDelivery===receipt) pendingDelivery='';
+        try {
+            if (sessionStorage.getItem(deliveryStorageKey)===receipt) sessionStorage.removeItem(deliveryStorageKey);
+        } catch (_) { /* The current page still remembers the acknowledgement. */ }
     }
     function day(date) {
         return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
@@ -138,19 +174,67 @@
         panel.classList.remove('show'); panel.hidden=true; bell.setAttribute('aria-expanded','false');
         if (restore) bell.focus();
     }
+    const modalOpen=()=>!!document.querySelector('dialog[open],.modal-overlay.show');
+    let modalWatcher=null;
+    function waitForModal() {
+        if (modalWatcher) return;
+        // Removed dialogs do not bubble their queued close event to document.
+        modalWatcher=new MutationObserver(()=>{
+            if (!modalOpen()) {
+                modalWatcher.disconnect();modalWatcher=null;syncCount();
+            }
+        });
+        modalWatcher.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open','class']});
+    }
     async function syncCount() {
-        if (checkingCount || loading || !panel.hidden || document.hidden || reading.size || markAll.dataset.busy==='true') return;
+        if (checkingCount || loading || (isAdmin && !panel.hidden) || document.hidden || reading.size || markAll.dataset.busy==='true') return;
+        if (updateBar && modalOpen()) {waitForModal();return;}
+        if (modalWatcher) {modalWatcher.disconnect();modalWatcher=null;}
+        updateBar?.restore();
         checkingCount=true;
         const requestedRevision=revision;
         try {
+            // Retry a displayed batch before asking for another one, including after login.
+            await acknowledgeUpdates();
             const url=new URL(root.dataset.feedUrl,location.href);
-            url.searchParams.set('summary','1');
+            url.searchParams.set(updateBar?'updates':'summary','1');
+            if (updateBar && updatesCursor) url.searchParams.set('after',updatesCursor);
+            if (updateBar) url.searchParams.set('session',root.dataset.updatesSession);
             const data=await jsonRequest(url);
-            if (requestedRevision===revision) { updateCount(data.unread_count); syncConcerns(data); }
-        } catch (_) { /* Retain the last confirmed count until the next check. */ }
+            if (requestedRevision===revision) {
+                // Keep the old position if a form/confirmation opened while fetching.
+                if (updateBar && modalOpen()) {waitForModal();return;}
+                if (updateBar && document.hidden) return;
+                if (updateBar) {
+                    if (!Array.isArray(data.updates) || !Number.isInteger(data.update_count) || data.update_count<0
+                            || typeof data.updates_cursor!=='string' || (data.update_count>0 && (!data.updates.length
+                                || typeof data.delivery_token!=='string' || !data.delivery_token))) throw new Error('Invalid update payload.');
+                    updatesCursor=data.updates_cursor;
+                    try {sessionStorage.setItem(updatesStorageKey,updatesCursor);} catch (_) { /* Current page retains its position. */ }
+                    updateBar.show(data);
+                    if (data.update_count>0) {
+                        pendingDelivery=data.delivery_token;
+                        try {sessionStorage.setItem(deliveryStorageKey,pendingDelivery);} catch (_) { /* Retry in memory if necessary. */ }
+                    }
+                }
+                updateCount(data.unread_count); syncConcerns(data);
+                await acknowledgeUpdates();
+            }
+        } catch (error) {
+            // Another tab may have signed out/in since this navbar was rendered.
+            if (updateBar && error.status===409 && error.code==='session_changed') {
+                location.reload(); return;
+            }
+            // A stale/tampered stored position must not permanently stop polling.
+            if (updateBar && error.status===400) {
+                updatesCursor=root.dataset.updatesCursor || '';
+                try {sessionStorage.removeItem(updatesStorageKey);} catch (_) { /* Keep the server-rendered baseline. */ }
+            }
+        }
         finally { checkingCount=false; }
     }
     function open(focus=false) {
+        updateBar?.dismiss();
         window.closeClientAccountMenu?.(); panel.hidden=false; place(); panel.classList.add('show');
         if (canPopover && !panel.matches(':popover-open')) panel.showPopover();
         bell.setAttribute('aria-expanded','true');
@@ -178,15 +262,18 @@
         }).catch(()=>status('Your notifications are still unread. Please try again.',()=>markAll.click()))
             .finally(()=>{delete markAll.dataset.busy; updateCount(count);});
     });
-    list.addEventListener('click',event=>{
-        const item=event.target.closest('.notif-item'); if (!item || event.defaultPrevented) return;
-        const target=safeTarget(item.href); if (!target) {event.preventDefault();return;}
+    function followItem(item,event) {
+        const target=safeTarget(item.href); if (!target) {event?.preventDefault();return;}
         queueRead(item);
-        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button!==0) return;
-        event.preventDefault(); close();
+        if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button!==0)) return;
+        event?.preventDefault(); close();
         if (isAdmin && window.AdminConcerns && new URL(target).pathname===location.pathname && new URL(target).searchParams.has('concern_id')) window.AdminConcerns.openTicket(target);
         else if (document.getElementById('accountContent') && window.AccountNavigation) AccountNavigation.navigate(target,{force:true});
         else location.assign(target);
+    }
+    list.addEventListener('click',event=>{
+        const item=event.target.closest('.notif-item'); if (!item || event.defaultPrevented) return;
+        followItem(item,event);
     });
     list.addEventListener('auxclick',event=>{const item=event.target.closest('.notif-item');if(item && event.button===1)queueRead(item);});
     document.addEventListener('click',event=>{if(!panel.hidden && !event.composedPath().includes(root))close();});
@@ -195,8 +282,18 @@
     window.addEventListener('resize',()=>{if(!panel.hidden)place();});
     window.addEventListener('scroll',()=>{if(!panel.hidden)place();},{passive:true});
     window.addEventListener('focus',syncCount);
+    window.addEventListener('pageshow',event=>{
+        if (!event.persisted || !updateBar) return;
+        try {
+            updatesCursor=sessionStorage.getItem(updatesStorageKey) || updatesCursor;
+            pendingDelivery=sessionStorage.getItem(deliveryStorageKey) || '';
+        } catch (_) { /* Retain this page's position. */ }
+        syncCount();
+    });
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncCount();});
-    setInterval(syncCount,30000);
+    document.addEventListener('close',syncCount,true);
+    setInterval(syncCount,updateBar?15000:30000);
+    if (updateBar) setTimeout(syncCount,0);
     updateCount(bell.dataset.unreadCount); groupDates();
     window.CustomerNotifications={close,refresh:()=>refresh()};
     if (isAdmin) window.AdminNotifications={close,syncCount};

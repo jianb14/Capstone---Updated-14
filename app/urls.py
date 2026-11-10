@@ -169,6 +169,7 @@ from .views import (
     like_review,
     mark_customer_notification_read,
     customer_notification_feed,
+    ack_customer_update_bar,
     admin_notification_feed,
     mark_admin_notification_read,
     mark_notifications_read,
@@ -605,6 +606,7 @@ urlpatterns = [
     ),
     # Customer Notifications
     path('notifications/', customer_notification_feed, name='customer_notification_feed'),
+    path('notifications/updates/shown/', ack_customer_update_bar, name='ack_customer_update_bar'),
     path(
         "notifications/<int:id>/read/",
         mark_customer_notification_read,

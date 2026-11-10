@@ -1,0 +1,124 @@
+@font-face {
+    font-family: Montserrat;
+    src: url('{{ static_prefix }}fonts/canvas/montserrat/normal.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+}
+:root {
+    color-scheme: dark;
+    --error-bg: #080808;
+    --error-ink: #f5f5f5;
+    --error-muted: #adadad;
+    --error-line: #303030;
+    --error-hover: #d8d8d8;
+}
+html[data-theme="light"] {
+    color-scheme: light;
+    --error-bg: #faf9f6;
+    --error-ink: #191919;
+    --error-muted: #5e5e5e;
+    --error-line: #d4d3d0;
+    --error-hover: #333;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 clamp(24px, 6vw, 96px);
+    background: var(--error-bg);
+    color: var(--error-ink);
+    font: 400 16px/1.7 Montserrat, Arial, sans-serif;
+}
+a { color: inherit; }
+a:focus-visible { outline: 3px solid var(--error-ink); outline-offset: 6px; }
+.error-header, .error-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 1320px;
+    margin-inline: auto;
+}
+.error-header { padding-block: 32px; }
+.error-brand { display: inline-flex; align-items: center; min-height: 48px; }
+.error-brand img { display: block; width: 190px; height: auto; }
+html[data-theme="light"] .error-brand img { filter: invert(1); }
+.error-header-note { color: var(--error-muted); font-size: 12px; }
+.error-main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: clamp(32px, 7vw, 112px);
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+    padding-block: 48px 72px;
+}
+.error-art { position: relative; padding-bottom: 100px; text-align: center; }
+.error-number {
+    display: block;
+    font-size: clamp(120px, 20vw, 280px);
+    font-weight: 600;
+    letter-spacing: -.065em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.error-string {
+    position: absolute;
+    top: calc(100% - 110px);
+    left: 50%;
+    width: 130px;
+    height: 130px;
+    transform: translateX(-50%);
+    stroke: var(--error-muted);
+    stroke-width: 1.5;
+}
+.error-copy { max-width: 500px; min-width: 0; }
+.error-status { margin: 0 0 18px; color: var(--error-muted); font-size: 13px; letter-spacing: .12em; }
+h1 { margin: 0; font-size: clamp(30px, 3.7vw, 50px); font-weight: 500; letter-spacing: -.045em; line-height: 1.14; text-wrap: balance; }
+.error-message { max-width: 44ch; margin: 24px 0 32px; color: var(--error-muted); font-size: 15px; }
+.error-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.error-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    min-height: 48px;
+    padding: 12px 20px;
+    border: 1px solid var(--error-line);
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+    text-decoration: none;
+}
+.error-button-primary { background: var(--error-ink); color: var(--error-bg); border-color: var(--error-ink); }
+.error-button-icon { display: block; flex-shrink: 0; }
+.error-button-primary:hover { background: var(--error-hover); border-color: var(--error-hover); }
+.error-button-secondary:hover { border-color: var(--error-ink); }
+.error-footer { margin-top: auto; padding-block: 22px; border-top: 1px solid var(--error-line); color: var(--error-muted); font-size: 12px; }
+@media (max-width: 760px) {
+    .error-header { padding-block: 24px; }
+    .error-brand img { width: 156px; }
+    .error-header-note { display: none; }
+    .error-main { grid-template-columns: 1fr; gap: 20px; padding-block: 24px 52px; }
+    .error-art { padding-bottom: 50px; }
+    .error-number { font-size: clamp(130px, 30vw, 210px); }
+    .error-string { top: calc(100% - 60px); width: 75px; height: 75px; }
+    .error-copy { max-width: 520px; margin-inline: auto; width: 100%; }
+    h1 { font-size: clamp(30px, 7vw, 40px); }
+    .error-status { margin-bottom: 12px; }
+    .error-message { margin-block: 20px 26px; }
+}
+@media (max-width: 380px) {
+    .error-actions { align-items: stretch; flex-direction: column; }
+    .error-footer { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
+@media (forced-colors: active) {
+    .error-brand img { background: #000; filter: none; forced-color-adjust: none; }
+}

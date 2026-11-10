@@ -5,6 +5,8 @@ from ..models import BookingChangeImage, BookingChangeRequest
 from ..booking_changes import (apply_change, audit, change_payment_summary, check_current, eligibility,
     expire_change, issue_quote, notify, pending_proof, prepare_proposal, proposed_booking, schedule_atomic, snapshot)
 from ..booking_lifecycle import process_booking, payment_was_received
+from ..booking_changes import verified_paid
+from django.views.decorators.cache import never_cache
 
 
 def _locked_change(request, booking_id, change_id, as_admin=False):
@@ -18,6 +20,7 @@ def _locked_change(request, booking_id, change_id, as_admin=False):
 
 
 @login_required
+@never_cache
 @deduplicate_submission
 @schedule_atomic
 def request_booking_change(request, booking_id):
@@ -27,7 +30,12 @@ def request_booking_change(request, booking_id):
     process_booking(booking.pk)
     booking.refresh_from_db()
     allowed, reason = eligibility(booking)
+    if allowed and pending_proof(booking):
+        allowed, reason = False, 'Your payment is still being verified. You can request booking changes once verification is complete.'
     if request.method == 'GET':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'can_request_changes': allowed, 'message': reason,
+                'verified_paid': str(verified_paid(booking)), 'original_total': str(booking.total_price)})
         if not allowed:
             messages.error(request, reason)
             return redirect('customer_profile')
@@ -40,8 +48,6 @@ def request_booking_change(request, booking_id):
         reason = request.POST.get('change_reason', '').strip()
         if not 10 <= len(reason) <= 2000:
             raise ValidationError('Explain your requested changes in 10–2,000 characters.')
-        if pending_proof(booking):
-            raise ValidationError('Your payment is being verified. Please wait for verification before requesting a new price.')
         proposed = prepare_proposal(booking, request.POST)
         uploads = request.FILES.getlist('reference_images')
         if request.FILES.get('reference_image'):

@@ -23,7 +23,7 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
         user = User.objects.create_user(username='edit-feedback-browser', role='customer', email_verified=True)
         booking = Booking.objects.create(user=user, event_type='Birthday', event_date=date(2099, 7, 15),
             event_time=time(7), event_end_time=time(10), event_location='Bacoor venue',
-            package_type='Package 1-B', total_price=9500, status='pending')
+            package_type='Package 1-B', total_price=9500, status='pending', event_lat='14.414', event_lng='120.982')
         self.client.force_login(user)
         artifacts = Path(settings.BASE_DIR) / '.booking-followup-check'
         artifacts.mkdir(exist_ok=True)
@@ -46,6 +46,7 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
                             window.editNotices=[]; AppToast.fire=options=>{editNotices.push(options);return Promise.resolve({});};
                             BookingLocationMap.isMapReady=()=>true;
                         }''', theme)
+                        page.locator('#btnNextEditToSummary').click()
                         card = modal.locator('.package-card[data-package="Package 1-A"]')
                         card.hover()
                         expect(card).to_have_css('border-color','rgb(212, 212, 212)' if theme=='light' else 'rgb(66, 66, 66)')
@@ -53,7 +54,7 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
                         card.click()
                         expect(card).to_have_css('border-color','rgb(189, 189, 189)' if theme=='light' else 'rgb(85, 85, 85)')
                         expect(card).to_have_css('background-color','rgb(243, 243, 243)' if theme=='light' else 'rgb(32, 32, 32)')
-                        page.locator('#btnNextEditStep').click(); page.locator('#btnNextEditPreview').click()
+                        page.locator('#btnEditPackagesBack').click()
                         page.evaluate('''()=>{
                             for(const id of ['edit_event_type_select','edit_start_time','edit_end_time','edit_event_lat_input','edit_event_lng_input']){
                                 const el=document.getElementById(id);el.value='';el.dispatchEvent(new Event('change',{bubbles:true}));
@@ -104,7 +105,8 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
                             document.getElementById('edit_event_lng_input').value='120.982';
                         }''')
                         page.locator('#btnNextEditToSummary').click()
-                        expect(page.locator('#edit-step-4')).to_be_visible()
+                        page.locator('#btnNextEditStep').click()
+                        expect(page.locator('#edit-step-3')).to_be_visible()
                         modal.locator('#editDesignThemeChips [data-value="Other"]').click()
                         for selector in ('#edit_design_theme_other','#edit_motto_text','#edit_special_requests'):
                             control = page.locator(selector); control.focus()
@@ -151,24 +153,16 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
                             window.bookingClock=Date.now(); Date.now=()=>bookingClock;
                         }''', theme)
                         modal = page.locator('#bookingModalOverlay')
-                        card = modal.locator('.package-card[data-package="Package 1-A"]')
-                        card.hover()
-                        expect(card).to_have_css('border-color','rgb(212, 212, 212)' if theme=='light' else 'rgb(66, 66, 66)')
-                        expect(card).to_have_css('background-color','rgb(250, 250, 250)' if theme=='light' else 'rgb(27, 27, 27)')
-                        card.click()
-                        expect(card).to_have_css('border-color','rgb(189, 189, 189)' if theme=='light' else 'rgb(85, 85, 85)')
-                        expect(card).to_have_css('background-color','rgb(243, 243, 243)' if theme=='light' else 'rgb(32, 32, 32)')
                         stepper = modal.locator('.stepper-wrapper')
                         geometry = stepper.evaluate('''el => {
                             const rect=el.getBoundingClientRect();
                             return [...el.querySelectorAll('.step-circle')].map((circle,index)=>{
                                 const box=circle.getBoundingClientRect();
-                                return {offset:Math.abs(box.x+box.width/2-(rect.x+rect.width*(index+.5)/5)),
+                                return {offset:Math.abs(box.x+box.width/2-(rect.x+rect.width*(index+.5)/4)),
                                     border:getComputedStyle(circle).borderWidth};
                             });
                         }''')
                         self.assertTrue(all(item['offset']<1 and item['border']=='0px' for item in geometry),geometry)
-                        page.locator('#btnNextStep').click(); page.locator('#btnNextToDetails').click()
                         page.locator('#btnNextToSummary').click()
                         red = 'rgb(184, 53, 60)' if theme=='light' else 'rgb(241, 145, 145)'
                         red_ring = 'rgba(184, 53, 60, 0.4)' if theme=='light' else 'rgba(241, 145, 145, 0.4)'
@@ -223,7 +217,15 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
                             document.getElementById('event_lng_input').value='120.982';
                         }''')
                         page.locator('#btnNextToSummary').click()
-                        expect(page.locator('#step-4')).to_be_visible()
+                        card = modal.locator('.package-card[data-package="Package 1-A"]')
+                        card.hover()
+                        expect(card).to_have_css('border-color','rgb(212, 212, 212)' if theme=='light' else 'rgb(66, 66, 66)')
+                        expect(card).to_have_css('background-color','rgb(250, 250, 250)' if theme=='light' else 'rgb(27, 27, 27)')
+                        card.click()
+                        expect(card).to_have_css('border-color','rgb(189, 189, 189)' if theme=='light' else 'rgb(85, 85, 85)')
+                        expect(card).to_have_css('background-color','rgb(243, 243, 243)' if theme=='light' else 'rgb(32, 32, 32)')
+                        page.locator('#btnNextStep').click()
+                        expect(page.locator('#step-3')).to_be_visible()
                         page.locator('#designThemeChips [data-value="Other"]').click()
                         for selector in ('#design_theme_other','#motto_text','#booking_special_requests'):
                             control = page.locator(selector); control.focus()
@@ -266,7 +268,7 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
         user = User.objects.create_user(username='booking-package-browser', role='customer')
         self.client.force_login(user)
         booking = Booking.objects.create(user=user, event_type='Birthday', event_date=date(2099, 7, 15),
-            event_time=time(8), event_location='Bacoor venue', package_type='Package 1-B',
+            event_time=time(8), event_end_time=time(11), event_location='Bacoor venue', package_type='Package 1-B',
             total_price=9500, status='pending')
         cookie = {'name': settings.SESSION_COOKIE_NAME,
                   'value': self.client.cookies[settings.SESSION_COOKIE_NAME].value, 'url': self.live_server_url}
@@ -289,13 +291,23 @@ class BookingPackageCatalogBrowserTests(StaticLiveServerTestCase):
                     try:
                         for route, params, modal_id, step_id, input_id, next_id, back_id in (
                             ('booking_page', '?from=packages&event_date=2099-06-15',
-                             'bookingModalOverlay', 'step-1', 'package_type_input', 'btnNextStep', 'btnBackToPackages'),
+                             'bookingModalOverlay', 'step-2', 'package_type_input', 'btnNextStep', 'btnPrevFromDesign'),
                             ('customer_profile', f'?open_edit={booking.pk}',
-                             'editBookingModal', 'edit-step-1', 'edit_package_type_input', 'btnNextEditStep', 'btnPrevEditPreview'),
+                             'editBookingModal', 'edit-step-2', 'edit_package_type_input', 'btnNextEditStep', 'btnPrevFromEditDesign'),
                         ):
                             page.goto(self.live_server_url + reverse(route) + params, wait_until='domcontentloaded')
                             modal = page.locator(f'#{modal_id}')
                             expect(modal).to_be_visible()
+                            if route == 'booking_page':
+                                page.locator('#eventTypeCustomSelect .custom-select-trigger').click()
+                                page.locator('#eventTypeCustomSelect [data-value="Birthday"]').click()
+                                page.evaluate("""() => {
+                                    for (const [id,value] of Object.entries({start_time:'07:00',end_time:'10:00'})) {
+                                        const el=document.getElementById(id);el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));
+                                    }
+                                }""")
+                                page.locator('#event_location').fill('Molino Bacoor Cavite venue')
+                            page.locator('#btnNextToSummary' if route == 'booking_page' else '#btnNextEditToSummary').click()
                             cards = page.locator(f'#{step_id} .package-card[data-package]')
                             self.assertEqual(cards.evaluate_all('(cards) => cards.map(card => card.dataset.package)'), expected)
                             expect(cards.locator('.booking-popular-badge')).to_have_count(2)

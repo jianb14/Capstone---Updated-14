@@ -5,10 +5,10 @@
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261031a">
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261031upload3">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261110compact2">
 <link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261102a">
 <link rel="stylesheet" href="{% static 'css/booking_form_workspace.css' %}?v=20261102a">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261102a"></script>
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261110galleryrow1"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
      booking_location_map.js at mananatiling required ang text location. -->
@@ -97,21 +97,17 @@
                     <div class="stepper-progress-line" id="stepperLine"></div>
                     <div class="stepper-step-icon active" id="step-1-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Select Package</div>
+                        <div class="step-label">Event Details</div>
                     </div>
                     <div class="stepper-step-icon" id="step-2-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Preview</div>
+                        <div class="step-label">Select Package</div>
                     </div>
                     <div class="stepper-step-icon" id="step-3-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Event Details</div>
-                    </div>
-                    <div class="stepper-step-icon" id="step-4-indicator">
-                        <div class="step-circle"></div>
                         <div class="step-label">Design Preferences</div>
                     </div>
-                    <div class="stepper-step-icon" id="step-5-indicator">
+                    <div class="stepper-step-icon" id="step-4-indicator">
                         <div class="step-circle"></div>
                         <div class="step-label">Review &amp; Confirm</div>
                     </div>
@@ -136,115 +132,10 @@
 
 
 
-                <!-- STEP 1: PACKAGE SELECTION -->
+                <!-- STEP 1: BOOKING DETAILS -->
                 <div class="stepper-step active-step" id="step-1">
-                    <h3>Available Packages</h3>
-                    <p class="step-desc">Please choose a package for your booking.</p>
-                    <p class="step-desc" id="catalogSelectionHint" role="status" hidden></p>
-
-                    <div class="package-cards-grid">
-                        {% for package in packages %}
-                        <div class="package-card" data-id="{{ package.id }}" data-package="{{ package.name }}" data-price="{{ package.price }}">
-                            <div class="package-info">
-                                {% include 'components/booking_popular_badge.html' %}
-                                <h4>{{ package.name }}</h4>
-                                <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
-                                <p class="feature-label">Package Inclusions</p>
-                                <ul class="features">
-                                    {% for feature in package.feature_list %}
-                                    <li>{{ feature }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                        {% empty %}
-                        <p>No packages available at the moment.</p>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Add-ons Section -->
-                    <h3>Entrance Arch</h3>
-                    <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without
-                        a package.</p>
-                    <div class="package-cards-grid addons-selection-grid">
-                        {% for addon in active_addons %}
-                        <div class="package-card addon-selector" data-id="{{ addon.id }}" data-name="{{ addon.name }}"
-                            data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
-                            <div class="package-info">
-                                <span class="card-top-label">FOR ADD-ONS</span>
-                                <h4>{{ addon.name }}</h4>
-                                <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span>
-                                </div>
-                                <p class="feature-label">What&apos;s Included</p>
-                                <ul class="features">
-                                    {% for feature in addon.feature_list %}
-                                    <li>{{ feature }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                        {% empty %}
-                        <p class="empty-message">No add-ons available at the moment.</p>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Additionals Section -->
-                    <h3>Welcome Stand</h3>
-                    <p class="step-desc">Individual items to customize your event.</p>
-                    <div class="package-cards-grid additionals-selection-grid">
-                        {% for additional in active_additionals %}
-                        <div class="package-card additional-selector" data-id="{{ additional.id }}" data-name="{{ additional.name }}"
-                            data-price="{{ additional.price }}">
-                            <div class="package-info">
-                                <span class="card-top-label">ADDITIONAL ONLY</span>
-                                <h4>{{ additional.name }}</h4>
-                                <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
-                                {% if additional.features %}
-                                <p class="feature-label">What&apos;s Included</p>
-                                <ul class="features">
-                                    {% for feature in additional.features.splitlines %}
-                                    <li>{{ feature }}</li>
-                                    {% endfor %}
-                                </ul>
-                                {% endif %}
-                                {% if additional.notes %}
-                                <p class="additional-notes">
-                                    {{ additional.notes }}
-                                </p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% empty %}
-                        <p class="empty-message">No additionals available at the moment.</p>
-                        {% endfor %}
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn-submit" id="btnNextStep" disabled>Next Step</button>
-                    </div>
-                </div>
-
-                <!-- STEP 2: PACKAGE PREVIEW -->
-                <div class="stepper-step" id="step-2" style="display: none;">
-                    <h3>Your Package Preview</h3>
-                    <p class="step-desc">Here's a glimpse of what your selected package and add-ons could look like.</p>
-
-                    <div class="preview-images-grid" id="previewImagesGrid"></div>
-                    <p class="preview-empty-message" id="previewEmptyMessage" style="display: none;">
-                        <i class="fa-solid fa-circle-info"></i> No preview images yet for your selection.
-                    </p>
-                    <p class="preview-note"><i class="fa-solid fa-circle-info"></i> Actual setup may vary depending on your event details and venue.</p>
-
-                    <div class="modal-actions split-actions">
-                        <button type="button" class="booking-back-btn" id="btnBackToPackages"><i class="fa-solid fa-arrow-left"></i>Back</button>
-                        <button type="button" class="btn-submit" id="btnNextToDetails">Next Step</button>
-                    </div>
-                </div>
-
-                <!-- STEP 3: BOOKING DETAILS -->
-                <div class="stepper-step" id="step-3" style="display: none;">
                     <h3>Event Details</h3>
-                    <p class="step-desc">Great choice! Now fill in the details for your event.</p>
+                    <p class="step-desc">Start with your event schedule and venue, then choose your package.</p>
 
                     <div class="form-grid">
 
@@ -368,15 +259,101 @@
                     </div>
 
                     <div class="modal-actions split-actions">
-                        <button type="button" class="booking-back-btn" id="btnPrevStep"><i class="fa-solid fa-arrow-left"></i>Back</button>
                         <button type="button" class="btn-submit" id="btnNextToSummary">Next Step</button>
                     </div>
                 </div>
 
-                <!-- STEP 4: DESIGN PREFERENCES (Tier 1: theme + palette + motto,
-                     kasama ang moved Special Requests + Reference Pictures).
-                     Theme + palette REQUIRED (max 3 colors); motto optional. -->
-                <div class="stepper-step" id="step-4" style="display: none;">
+                <!-- STEP 2: PACKAGE SELECTION -->
+                <div class="stepper-step" id="step-2" style="display: none;">
+                    <h3>Available Packages</h3>
+                    <p class="step-desc">Please choose a package for your booking.</p>
+                    <p class="step-desc" id="catalogSelectionHint" role="status" hidden></p>
+
+                    <div class="package-cards-grid">
+                        {% for package in packages %}
+                        <div class="package-card" data-id="{{ package.id }}" data-package="{{ package.name }}" data-price="{{ package.price }}">
+                            <div class="package-info">
+                                {% include 'components/booking_popular_badge.html' %}
+                                <h4>{{ package.name }}</h4>
+                                <div class="price">₱{{ package.price|floatformat:"-2"|intcomma }}</div>
+                                <p class="feature-label">Package Inclusions</p>
+                                <ul class="features">
+                                    {% for feature in package.feature_list %}
+                                    <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p>No packages available at the moment.</p>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Add-ons Section -->
+                    <h3>Entrance Arch</h3>
+                    <p class="step-desc">Enhance your package with these extras, or choose a solo price to book without
+                        a package.</p>
+                    <div class="package-cards-grid addons-selection-grid">
+                        {% for addon in active_addons %}
+                        <div class="package-card addon-selector" data-id="{{ addon.id }}" data-name="{{ addon.name }}"
+                            data-price="{{ addon.price }}" data-solo-price="{{ addon.solo_price|default:'0' }}">
+                            <div class="package-info">
+                                <span class="card-top-label">FOR ADD-ONS</span>
+                                <h4>{{ addon.name }}</h4>
+                                <div class="price">₱{{ addon.price|floatformat:"-2"|intcomma }} <span class="w-package">w/ Package</span>
+                                </div>
+                                <p class="feature-label">What&apos;s Included</p>
+                                <ul class="features">
+                                    {% for feature in addon.feature_list %}
+                                    <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="empty-message">No add-ons available at the moment.</p>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Additionals Section -->
+                    <h3>Welcome Stand</h3>
+                    <p class="step-desc">Individual items to customize your event.</p>
+                    <div class="package-cards-grid additionals-selection-grid">
+                        {% for additional in active_additionals %}
+                        <div class="package-card additional-selector" data-id="{{ additional.id }}" data-name="{{ additional.name }}"
+                            data-price="{{ additional.price }}">
+                            <div class="package-info">
+                                <span class="card-top-label">ADDITIONAL ONLY</span>
+                                <h4>{{ additional.name }}</h4>
+                                <div class="price">₱{{ additional.price|floatformat:"-2"|intcomma }}</div>
+                                {% if additional.features %}
+                                <p class="feature-label">What&apos;s Included</p>
+                                <ul class="features">
+                                    {% for feature in additional.features.splitlines %}
+                                    <li>{{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if additional.notes %}
+                                <p class="additional-notes">
+                                    {{ additional.notes }}
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="empty-message">No additionals available at the moment.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="modal-actions split-actions">
+                        <button type="button" class="booking-back-btn" id="btnPackagesBack"><i class="fa-solid fa-arrow-left"></i>Back</button>
+                        <button type="button" class="btn-submit" id="btnNextStep" disabled>Next Step</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: DESIGN PREFERENCES -->
+                <div class="stepper-step" id="step-3" style="display: none;">
                     <h3>Design Preferences</h3>
                     <p class="step-desc">Two fields are required — pick a theme and up to 3 colors so our team can match your look.</p>
 
@@ -479,8 +456,8 @@
                     </div>
                 </div>
 
-                <!-- STEP 5: BOOKING SUMMARY -->
-                <div class="stepper-step" id="step-5" style="display: none;">
+                <!-- STEP 4: REVIEW -->
+                <div class="stepper-step" id="step-4" style="display: none;">
                     <h3>Review &amp; Confirm</h3>
                     <p class="step-desc">Review your selected package and event details before submitting.</p>
 
@@ -591,26 +568,25 @@
         // today + leadDays kapag loaded na ang availability payload.
         try { dateInput.setAttribute('min', moduleMinBookableDate()); } catch (e) { /* keep today min */ }
 
-        // --- Stepper Logic Variables (5 steps) ---
-        const step1Indicator = document.getElementById('step-1-indicator');
-        const step2Indicator = document.getElementById('step-2-indicator');
-        const step3Indicator = document.getElementById('step-3-indicator');
-        const step4Indicator = document.getElementById('step-4-indicator');
-        const step5Indicator = document.getElementById('step-5-indicator');
+        // Four-step booking flow.
+        const packageStepIndicator = document.getElementById('step-2-indicator');
+
+        const eventStepIndicator = document.getElementById('step-1-indicator');
+        const designStepIndicator = document.getElementById('step-3-indicator');
+        const reviewStepIndicator = document.getElementById('step-4-indicator');
         const stepperLine = document.getElementById('stepperLine');
-        const step1Content = document.getElementById('step-1');
-        const step2Content = document.getElementById('step-2');
-        const step3Content = document.getElementById('step-3');
-        const step4Content = document.getElementById('step-4');
-        const step5Content = document.getElementById('step-5');
+        const packageStepContent = document.getElementById('step-2');
+
+        const eventStepContent = document.getElementById('step-1');
+        const designStepContent = document.getElementById('step-3');
+        const reviewStepContent = document.getElementById('step-4');
         const btnNextStep = document.getElementById('btnNextStep');
-        const btnPrevStep = document.getElementById('btnPrevStep');
+        const btnPrevStep = document.getElementById('btnPackagesBack');
         const btnNextToSummary = document.getElementById('btnNextToSummary');
         const btnPrevFromDesign = document.getElementById('btnPrevFromDesign');
         const btnNextDesignToReview = document.getElementById('btnNextDesignToReview');
         const btnBackToDetails = document.getElementById('btnBackToDetails');
-        const btnNextToDetails = document.getElementById('btnNextToDetails');
-        const btnBackToPackages = document.getElementById('btnBackToPackages');
+
         const packageInput = document.getElementById('package_type_input');
         const priceInput = document.getElementById('total_price_input');
         const priceDisplay = document.getElementById('total_price_display');
@@ -1403,7 +1379,7 @@
         }
 
         // =============================================
-        // STEP 2: PACKAGE PREVIEW (kung ano ang pinili sa Step 1)
+        // Sample setups open in a gallery within the existing booking modal.
         // =============================================
         const previewDataEl = document.getElementById('booking-preview-data');
         let bookingPreviewData = { packages: {}, addons: {}, additionals: {} };
@@ -1411,44 +1387,26 @@
             bookingPreviewData = JSON.parse(previewDataEl ? previewDataEl.textContent : '{}') || bookingPreviewData;
         } catch (err) { /* invalid payload -> walang preview images */ }
 
-        const previewImagesGrid = document.getElementById('previewImagesGrid');
-        const previewEmptyMessage = document.getElementById('previewEmptyMessage');
-        const MAX_PREVIEW_IMAGES_PER_ITEM = 2;
-
-        function renderPackagePreview() {
-            const selected = [];
-
-            if (selectedPackageName) {
-                const pkgCard = Array.from(packageOnlyCards).find(c => c.dataset.package === selectedPackageName);
-                if (pkgCard) selected.push({ bucket: 'packages', id: pkgCard.dataset.id, label: selectedPackageName });
-            } else if (soloModeAddon) {
-                const soloCard = Array.from(addonCards).find(c => c.dataset.name === soloModeAddon);
-                if (soloCard) selected.push({ bucket: 'addons', id: soloCard.dataset.id, label: soloModeAddon + ' (Solo)' });
+        const packageGallery = window.BookingFormUI.setupPackageGallery(
+            document.getElementById('step-2'),
+            card => {
+                const bucket = card.dataset.package ? 'packages'
+                    : card.classList.contains('addon-selector') ? 'addons' : 'additionals';
+                return (bookingPreviewData[bucket] || {})[card.dataset.id] || [];
+            },
+            () => {
+                selectedPackageName = null;
+                selectedPackagePrice = 0;
+                selectedAddonName = null;
+                selectedAddonPrice = 0;
+                updateUIStates();
             }
+        );
 
-            if (selectedPackageName && selectedAddonName) {
-                const addonCard = Array.from(addonCards).find(c => c.dataset.name === selectedAddonName);
-                if (addonCard) selected.push({ bucket: 'addons', id: addonCard.dataset.id, label: selectedAddonName });
-            }
-
-            if (selectedAdditionalName) {
-                const additionalCard = Array.from(additionalCards).find(c => c.dataset.name === selectedAdditionalName);
-                if (additionalCard) selected.push({ bucket: 'additionals', id: additionalCard.dataset.id, label: selectedAdditionalName });
-            }
-
-            window.BookingFormUI.renderPreview(previewImagesGrid, selected.map(item => ({
-                label: item.label,
-                images: ((bookingPreviewData[item.bucket] || {})[item.id] || []).slice(0, MAX_PREVIEW_IMAGES_PER_ITEM)
-            })), previewEmptyMessage);
-        }
-
-        /* Loop-based stepper (5 steps): hindi na paulit-ulit ang if/else —
-           0% / 25% / 50% / 75% / 100% ang progress line (12px offset per step,
-           kagaya ng dating 33.333%/66.666% pattern). */
-        const STEPPER_TOTAL_STEPS = 5;
-        const STEPPER_PROGRESS = ['0%', '20%', '40%', '60%', '80%'];
-        const stepContents = [step1Content, step2Content, step3Content, step4Content, step5Content];
-        const stepIndicators = [step1Indicator, step2Indicator, step3Indicator, step4Indicator, step5Indicator];
+        // Four evenly spaced circles have centers from 12.5% to 87.5%.
+        const STEPPER_PROGRESS = ['0%', '25%', '50%', '75%'];
+        const stepContents = [eventStepContent, packageStepContent, designStepContent, reviewStepContent];
+        const stepIndicators = [eventStepIndicator, packageStepIndicator, designStepIndicator, reviewStepIndicator];
         let bookingMapInstance = null;
 
         /* 📍 Pin-status chip (Step 3): laging updated ang estado ng pin —
@@ -1512,8 +1470,8 @@
         }
 
         function showStep(stepNumber) {
-            if (stepNumber === 2) { renderPackagePreview(); }
-            if (stepNumber === 3) {
+            packageGallery.close(false);
+            if (stepNumber === 1) {
                 ensureBookingMap();
                 refreshBookingPinStatusText();
                 // Leaflet needs an explicit re-layout kapag unang lumitaw sa view
@@ -1657,6 +1615,7 @@
             // --- Next button: enabled if package selected OR solo mode active ---
             // const hasBaseSelection is already defined above
             btnNextStep.disabled = !hasBaseSelection;
+            packageGallery.sync();
 
             updatePriceDisplay();
         }
@@ -1691,10 +1650,10 @@
 
             {% if prefilled_design %}
             // If we have a pre-filled design, go to Step 3
-            showStep(3);
+            showStep(1);
 
             // Hide the back button in Step 3 for pre-filled designs
-            const btnPrevStep = document.getElementById('btnPrevStep');
+            const btnPrevStep = document.getElementById('btnPackagesBack');
             if (btnPrevStep) btnPrevStep.style.display = 'none';
 
             selectedPackageName = "{{ prefilled_offer.booking_label|escapejs }}";
@@ -1796,12 +1755,7 @@
                 const pkgPrice = parseFloat(this.dataset.price);
 
                 if (selectedPackageName === pkgName) {
-                    // Deselect
-                    selectedPackageName = null;
-                    selectedPackagePrice = 0;
-                    // Also clear regular addon selection to prevent price bugs
-                    selectedAddonName = null;
-                    selectedAddonPrice = 0;
+                    return;
                 } else {
                     // Select new package (single select)
                     selectedPackageName = pkgName;
@@ -2901,7 +2855,7 @@
 
         // --- Build Order Summary Breakdown ---
         updateOrderSummary();
-        showStep(2);
+        showStep(3);
 
         // Auto-attach ang AI-generated design (galing sa chat 'Book This Design')
         attachAiBookingImage();
@@ -3069,28 +3023,18 @@
         }
     }
 
-    btnBackToPackages.addEventListener('click', function () {
+    btnPrevStep.addEventListener('click', function () {
         showStep(1);
     });
 
-    btnNextToDetails.addEventListener('click', function () {
-        showStep(3);
-    });
-
-    btnPrevStep.addEventListener('click', function () {
-        showStep(2);
-    });
-
-    /* Step 3 (details) → Step 4 (design prefs) — validation ng details muna;
-       ang Step 4 fields ay optional kaya walang error dito. */
+    // Design preferences returns to the selected package (or a fixed saved design's event details).
     if (btnPrevFromDesign) {
         btnPrevFromDesign.addEventListener('click', function () {
-            showStep(3);
+            showStep({% if prefilled_design %}1{% else %}2{% endif %});
         });
     }
 
-    /* Step 4 (design prefs) → Step 5 (review): theme + palette required bago
-       buuin ang summaries. */
+    // Theme and palette are required before review.
     if (btnNextDesignToReview) {
         btnNextDesignToReview.addEventListener('click', function () {
             const firstInvalidField = validateDesignPreferences();
@@ -3109,13 +3053,13 @@
             updateOrderSummary();
             updateBookingDetailsSummary();
             updateBookingImageSummary();
-            showStep(5);
+            showStep(4);
         });
     }
 
-    /* Step 5 (review) → Back sa Step 4 (design prefs), hindi na sa details. */
+    // Review returns to design preferences.
     btnBackToDetails.addEventListener('click', function () {
-        showStep(4);
+        showStep(3);
     });
 
         btnNextToSummary.addEventListener('click', function () {
@@ -3194,7 +3138,7 @@
             updateOrderSummary();
             updateBookingDetailsSummary();
         updateBookingImageSummary();
-        showStep(4);
+        showStep({% if prefilled_design %}3{% else %}2{% endif %});
     });
 
     dateInput.addEventListener('change', function () {
@@ -3336,7 +3280,7 @@
         bookingSubmitAttempted = true;
         const firstInvalidField = validateBookingStepTwoFields({notify:true});
         if (firstInvalidField) {
-            showStep(3);
+            showStep(1);
             focusBookingField(firstInvalidField);
             return;
         }
@@ -3352,13 +3296,13 @@
 
             const diffMins = (endNode - startNode) / 60000;
             if (diffMins < DURATION_POLICY.minHours * 60) {
-                showStep(3);
+                showStep(1);
                 setBookingFieldError('end_time', `Event duration must be at least ${DURATION_POLICY.minHours} hour(s).`);
                 endTimeInput.focus();
                 return; // Stay on Step 2
             }
             if (diffMins > DURATION_POLICY.maxHours * 60) {
-                showStep(3);
+                showStep(1);
                 setBookingFieldError('end_time', `Maximum booking duration is ${DURATION_POLICY.maxHours} hours only.`);
                 endTimeInput.focus();
                 return;
@@ -3371,7 +3315,7 @@
                 const startHour = parseInt(startTimeStr.split(':')[0], 10);
 
             if (startHour < 7 || startHour >= 18) {
-                showStep(3);
+                showStep(1);
                 setBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.');
                 startTimeInput.focus();
                 return;
@@ -3380,14 +3324,14 @@
 
             const blockedScheduleMessage = getBlockedScheduleMessage();
             if (blockedScheduleMessage) {
-                showStep(3);
+                showStep(1);
                 setBookingFieldError('end_time', blockedScheduleMessage);
                 endTimeInput.focus();
                 return;
             }
 
         const applyServerBookingError = (message) => {
-            showStep(3);
+            showStep(1);
             const safeMessage = (message || 'Please review the highlighted booking fields.').trim();
             const normalized = safeMessage.toLowerCase();
 
@@ -3507,11 +3451,11 @@
                 });
         };
 
-        const reminderMessage = 'Once this booking is confirmed, it can no longer be edited or canceled. Continue submitting?';
+        const reminderMessage = 'Please review your booking details before submitting. Changes after confirmation must be requested through My Bookings and are subject to approval, availability, and the change-request deadline.';
         AppToast.confirm({
             title: 'Submit booking now?',
             text: reminderMessage,
-            confirmText: 'Yes, Submit',
+            confirmText: 'Submit Booking',
             cancelText: 'Review Again'
         }).then((result) => {
             if (result.isConfirmed) {
@@ -3583,7 +3527,7 @@
                 }
             }
         }
-        // Keep Step 1 visible so the customer can review current catalog prices.
+        // Preserve catalog selections while starting with event details.
         showStep(1);
         modalOverlay.querySelector('.booking-modal-box').scrollTop = 0;
         const hasServiceDate = !!serviceDate && dateInput.value === serviceDate;

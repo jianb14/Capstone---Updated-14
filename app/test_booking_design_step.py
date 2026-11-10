@@ -332,14 +332,14 @@ class BookingDesignStepTemplateTests(TestCase):
     def setUp(self):
         self.page = BOOKING_PAGE.read_text(encoding="utf-8")
 
-    def test_booking_page_stepper_has_five_steps(self):
-        for step_no in range(1, 6):
+    def test_booking_page_stepper_has_four_steps(self):
+        for step_no in range(1, 5):
             self.assertIn(f'id="step-{step_no}-indicator"', self.page)
         self.assertIn('id="step-4"', self.page)
-        self.assertIn('id="step-5"', self.page)
+        self.assertNotIn('id="step-5"', self.page)
         self.assertIn("Design Preferences", self.page)
         self.assertIn("STEPPER_PROGRESS", self.page)
-        self.assertIn("['0%', '20%', '40%', '60%', '80%']", self.page)
+        self.assertIn("['0%', '25%', '50%', '75%']", self.page)
 
     def test_booking_page_location_card_wiring(self):
         self.assertIn('id="booking_location_map"', self.page)
@@ -378,19 +378,15 @@ class BookingDesignStepTemplateTests(TestCase):
         self.assertIn('name="reference_images"', self.page)
         # Review step ay Step 5 na
         self.assertIn('id="btnSubmitBooking"', self.page)
-        self.assertIn("showStep(5)", self.page)
+        self.assertIn("showStep(4)", self.page)
 
-    def test_edit_modal_has_five_steps_with_design_step(self):
+    def test_edit_modal_has_four_steps_with_sample_gallery(self):
         profile = read_profile_source()
-        for step_no in range(1, 6):
+        for step_no in range(1, 5):
             self.assertIn(f'id="edit-step-{step_no}-indicator"', profile)
-        self.assertIn('id="edit-step-5"', profile)
-        # Bagong Preview step (mirror ng booking page Step 2)
-        self.assertIn('id="editPreviewImagesGrid"', profile)
-        self.assertIn('id="editPreviewEmptyMessage"', profile)
-        self.assertIn('id="btnPrevEditPreview"', profile)
-        self.assertIn('id="btnNextEditPreview"', profile)
-        self.assertIn('renderEditPackagePreview', profile)
+        self.assertNotIn('id="edit-step-5"', profile)
+        self.assertIn('id="btnEditPackagesBack"', profile)
+        self.assertIn('window.BookingFormUI.setupPackageGallery', profile)
         self.assertIn('edit-preview-data', profile)
         self.assertIn('id="editDesignThemeChips"', profile)
         self.assertIn('id="editDesignPaletteSwatches"', profile)
@@ -402,8 +398,8 @@ class BookingDesignStepTemplateTests(TestCase):
         self.assertIn('name="venue_landmark"', profile)
         self.assertIn('id="btnNextEditDesignToReview"', profile)
         self.assertIn("EDIT_STEP_PROGRESS", profile)
-        self.assertIn("['0%', '20%', '40%', '60%', '80%']", profile)
-        self.assertIn("showEditStep(5)", profile)
+        self.assertIn("['0%', '25%', '50%', '75%']", profile)
+        self.assertIn("showEditStep(4)", profile)
         # Step 4 required wiring
         self.assertIn('id="edit_design_theme_error"', profile)
         self.assertIn('id="edit_color_palette_error"', profile)

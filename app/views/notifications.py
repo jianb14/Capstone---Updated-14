@@ -117,6 +117,19 @@ def customer_notification_feed(request):
     from ..context_processors import _customer_notif_target_url
     if request.user.role != 'customer':
         return JsonResponse({'message': 'Not allowed'}, status=403)
+    if request.GET.get('updates') == '1':
+        from ..customer_updates import customer_update_payload, update_session
+        if 'session' in request.GET and request.GET['session'] != update_session(request):
+            response = JsonResponse({'message': 'Your sign-in session changed.', 'code': 'session_changed'}, status=409)
+            response['Cache-Control'] = 'private, no-store'
+            return response
+        try:
+            data = customer_update_payload(request.user, request.GET.get('after'))
+        except ValueError as exc:
+            return JsonResponse({'message': str(exc)}, status=400)
+        response = JsonResponse(data)
+        response['Cache-Control'] = 'private, no-store'
+        return response
     if request.GET.get('summary') == '1':
         response = JsonResponse({'unread_count': Notification.objects.filter(user=request.user, is_read=False).count()})
         response['Cache-Control'] = 'private, no-store'
@@ -140,5 +153,24 @@ def customer_notification_feed(request):
         'read_url': reverse('mark_customer_notification_read', args=[row.id])} for row in rows]
     response = JsonResponse({'items': items, 'unread_count': Notification.objects.filter(user=request.user, is_read=False).count(),
         'next_cursor': signing.dumps([rows[-1].created_at.isoformat(), rows[-1].pk], salt='customer-notifications') if more else None})
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@login_required
+@require_POST
+def ack_customer_update_bar(request):
+    import json
+    from ..customer_updates import acknowledge_customer_updates
+    if request.user.role != 'customer':
+        return JsonResponse({'message': 'Not allowed'}, status=403)
+    try:
+        body = json.loads(request.body)
+        if not isinstance(body, dict) or not isinstance(body.get('delivery_token'), str):
+            raise ValueError('Invalid notification delivery receipt.')
+        acknowledge_customer_updates(request.user, body['delivery_token'])
+    except (ValueError, UnicodeDecodeError) as exc:
+        return JsonResponse({'message': str(exc)}, status=400)
+    response = JsonResponse({'status': 'success'})
     response['Cache-Control'] = 'private, no-store'
     return response

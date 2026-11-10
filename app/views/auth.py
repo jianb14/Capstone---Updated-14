@@ -1,7 +1,7 @@
 """Authentication: register, verify, login, password reset, logout. (split from app/views.py)"""
 
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.utils.crypto import constant_time_compare
+from django.utils.crypto import constant_time_compare, get_random_string
 from django.utils.http import base36_to_int, url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
@@ -306,6 +306,7 @@ def user_login(request):
                 request.session.set_expiry(0)  # browser close
 
             if user.role == "customer":
+                request.session['customer_updates_login'] = get_random_string(24)
                 messages.success(request, "Login successful! Welcome.")
                 destination = request.session.pop('login_return_to', '')
                 if destination and url_has_allowed_host_and_scheme(

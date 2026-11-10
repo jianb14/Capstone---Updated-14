@@ -239,6 +239,7 @@ def chat_notifications(request):
 def customer_notifications(request):
     """Inject notifications for the logged-in customer."""
     if request.user.is_authenticated and request.user.role == 'customer':
+        from .customer_updates import update_cursor, update_session
         notifications = (Notification.objects.filter(user=request.user).select_related('booking', 'concern')
             .prefetch_related('booking__payments').order_by('-created_at', '-id')[:20])
         unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
@@ -249,5 +250,7 @@ def customer_notifications(request):
         return {
             'customer_notifications': notifications,
             'unread_notifications_count': unread_count,
+            'customer_updates_cursor': update_cursor(request.user.pk, notifications[0].pk if notifications else 0),
+            'customer_updates_session': update_session(request),
         }
     return {}

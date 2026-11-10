@@ -75,6 +75,7 @@ class ServicesBrowserTests(StaticLiveServerTestCase):
                         expect(page.locator('#booking-calendar-mount')).to_be_visible()
 
             def choose_booking_date(date):
+                expect(page.locator('.fc-daygrid-day').first).to_be_visible()
                 cell = page.locator(f'.fc-daygrid-day[data-date="{date.isoformat()}"]')
                 for _ in range(3):
                     if cell.count() and cell.is_visible():
@@ -84,6 +85,22 @@ class ServicesBrowserTests(StaticLiveServerTestCase):
                 expect(page.locator('#bookingModalOverlay')).to_be_visible()
                 expect(page.locator('#event_date')).to_have_value(date.isoformat())
                 expect(page.locator('#step-1')).to_be_visible()
+
+                # Complete event details before comparing packages.
+                page.locator('#eventTypeCustomSelect .custom-select-trigger').click()
+                page.locator('#eventTypeCustomSelect [data-value="Birthday"]').click()
+                page.evaluate('''() => {
+                    for (const [id,value] of Object.entries({start_time:'07:00',end_time:'10:00'})) {
+                        const el=document.getElementById(id);el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));
+                    }
+                }''')
+                page.locator('#event_location').fill('Molino Bacoor Cavite venue')
+                page.evaluate('''() => {
+                    document.getElementById('event_lat_input').value='14.414';
+                    document.getElementById('event_lng_input').value='120.982';
+                }''')
+                page.locator('#btnNextToSummary').click()
+                expect(page.locator('#step-2')).to_be_visible()
 
             def shot(name, target):
                 for theme in ('light', 'dark'):
@@ -148,23 +165,24 @@ class ServicesBrowserTests(StaticLiveServerTestCase):
                 expect(page.locator('#btnNextStep')).to_be_disabled()
                 expect(page.locator('#catalogSelectionHint')).to_contain_text('Stand A will be added after you choose a package or solo entrance arch.')
                 shot('stand-request', '#catalogSelectionHint')
-                arch_card.click()
+                arch_card.locator('.package-info').click()
                 expect(stand_card).to_have_class('package-card additional-selector selected')
                 expect(page.locator('#catalogSelectionHint')).to_be_hidden()
                 expect(page.locator('#btnNextStep')).to_be_enabled()
-                page.locator('#btnNextStep').click()
                 expect(page.locator('#step-2')).to_be_visible()
-                expect(page.locator('#previewImagesGrid')).to_contain_text('Stand A')
+                stand_card.get_by_role('button', name='Sample setups for Stand A').click()
+                expect(page.locator('.package-gallery')).to_be_visible()
+                page.locator('.package-gallery-back').click()
 
                 # A package also completes the stand request and the stand can be removed normally.
                 go(reverse('package'))
                 page.locator(f'.additionals-track .package-cta[href$="additional_id={stand.pk}"]').click()
                 choose_booking_date(day)
                 expect(stand_card).to_have_class('package-card additional-selector disabled')
-                package_card.click()
+                package_card.locator('.package-info').click()
                 expect(stand_card).to_have_class('package-card additional-selector selected')
                 expect(page.locator('#btnNextStep')).to_be_enabled()
-                stand_card.click()
+                stand_card.locator('.package-info').click()
                 expect(stand_card).to_have_class('package-card additional-selector')
                 context.clear_cookies()
 

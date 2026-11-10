@@ -103,7 +103,7 @@
                     </svg>
                 </button>
 
-                <div class="notification-wrapper" data-feed-url="{% url 'customer_notification_feed' %}" data-read-all-url="{% url 'clear_all_notifications' %}">
+                <div class="notification-wrapper" data-feed-url="{% url 'customer_notification_feed' %}" data-read-all-url="{% url 'clear_all_notifications' %}" data-updates-shown-url="{% url 'ack_customer_update_bar' %}" data-user-id="{{ request.user.pk }}" data-updates-session="{{ customer_updates_session }}" data-updates-cursor="{{ customer_updates_cursor }}">
                     <button type="button" class="notification-bell-btn" id="notif-bell" data-unread-count="{{ unread_notifications_count|default:0 }}" aria-label="Notifications" aria-controls="notif-dropdown" aria-expanded="false">
                         <svg class="bell-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
