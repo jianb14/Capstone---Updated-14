@@ -67,6 +67,7 @@
                 <button id="saveDesignBtn" class="ctrl-btn ctrl-btn-primary">
                     {% include 'components/canvas_inventory_icon.html' with name='save' %} Save
                 </button>
+                <span class="site-guide-canvas-desktop">{% include 'components/site_guide_button.html' %}</span>
             </div>
 
             <aside class="canvas-tool-rail" aria-label="Canvas tool rail">
@@ -520,7 +521,7 @@
         </div>
     </dialog>
     <dialog class="mobile-editor-sheet" id="mobileCanvasToolsDialog" aria-labelledby="mobileCanvasToolsTitle">
-        <header><div><h2 id="mobileCanvasToolsTitle">Canvas tools</h2><p>Adjust your view and canvas.</p></div><button type="button" data-mobile-close>Done</button></header>
+        <header class="site-guide-dialog-head"><div><h2 id="mobileCanvasToolsTitle">Canvas tools</h2><p>Adjust your view and canvas.</p></div>{% include 'components/site_guide_button.html' %}<button type="button" data-mobile-close>Done</button></header>
         <div class="mobile-editor-sheet-body">
             <h3>Zoom</h3><div id="mobileZoomTools"></div>
             <h3>Design actions</h3><div class="mobile-editor-action-grid" id="mobileCanvasActions"></div>
@@ -574,7 +575,7 @@
 <!-- Save Design Name Modal (same pattern as My Designs rename modal) -->
 <div id="saveDesignModal" class="canvas-modal-overlay" aria-hidden="true">
     <div class="canvas-modal-content" role="dialog" aria-modal="true" aria-labelledby="saveDesignModalTitle">
-        <h3 id="saveDesignModalTitle">Save Design</h3>
+        <header class="site-guide-dialog-head"><h3 id="saveDesignModalTitle">Save Design</h3></header>
         <p class="canvas-modal-sub">Give your design a name to save it to My Designs.</p>
         <input type="text" id="saveDesignNameInput" class="canvas-modal-input" maxlength="120" placeholder="Enter design name..." autocomplete="off">
         <div class="canvas-modal-actions">

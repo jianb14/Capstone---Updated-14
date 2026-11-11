@@ -1,0 +1,12 @@
+<dialog id="siteGuide" class="site-guide" data-guide-page="{% if guide_page %}{{ guide_page }}{% else %}{{ request.resolver_match.url_name }}{% endif %}" aria-labelledby="siteGuideTitle" aria-describedby="siteGuideText">
+    <svg class="site-guide-shade" data-guide-shade aria-hidden="true" focusable="false">
+        <defs><mask id="siteGuideMask" maskUnits="userSpaceOnUse"><rect width="100%" height="100%" fill="white"/><rect data-guide-hole x="0" y="0" width="0" height="0" rx="9" fill="black"/></mask></defs>
+        <rect width="100%" height="100%" fill="rgba(0,0,0,.68)" mask="url(#siteGuideMask)"/>
+    </svg>
+    <div class="site-guide-outline" data-guide-outline aria-hidden="true"></div>
+    <section class="site-guide-panel" data-guide-panel hidden>
+        <div class="site-guide-heading"><span data-guide-label>Feature guide</span><button type="button" class="site-guide-close" data-guide-close aria-label="Close guide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <div class="site-guide-copy" aria-live="polite" aria-atomic="true"><h2 id="siteGuideTitle" data-guide-title></h2><p id="siteGuideText" data-guide-text></p></div>
+        <div class="site-guide-footer"><span data-guide-progress></span><div class="site-guide-actions"><button type="button" data-guide-back>Back</button><button type="button" class="site-guide-next" data-guide-next>Next</button></div></div>
+    </section>
+</dialog>
