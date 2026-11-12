@@ -223,6 +223,11 @@ def booking_change_payment(request, booking_id, change_id):
     except PermissionError:
         return HttpResponseForbidden('Not allowed')
     booking = change.booking
+    from ..payment_forms import GCashProofForm
+    from .payments import _unresolved_legacy_checkout
+    config = GCashConfig.objects.first()
+    proof_form = GCashProofForm(request.POST if request.method == 'POST' else None, request.FILES or None, config=config)
+    legacy_checkout = _unresolved_legacy_checkout(change.payments.all())
     pending = next((p for p in change.payments.all() if p.payment_status == 'pending' and payment_was_received(p)), None)
     error = ''
     eligible = False
@@ -239,63 +244,33 @@ def booking_change_payment(request, booking_id, change_id):
             if not change.expires_at or timezone.now() >= change.expires_at:
                 raise ValidationError('The payment deadline has passed.')
             if request.POST.get('method') == 'paymongo':
-                if not settings.PAYMONGO_SECRET_KEY:
-                    raise ValidationError('Online payment is unavailable. Please contact our team for assistance.')
-                from .payments import _is_abandoned_paymongo_payment, _is_incomplete_paymongo_payment
-                resumable = next((payment for payment in change.payments.filter(payment_status='pending', received_at__isnull=True).exclude(paymongo_checkout_url='')
-                    if _is_incomplete_paymongo_payment(payment) and not _is_abandoned_paymongo_payment(payment)), None)
-                if resumable:
-                    request._submission_succeeded = True
-                    return redirect(resumable.paymongo_checkout_url)
-                checkout = create_paymongo_checkout_session(amount=int(change.additional_due*100), booking_id=booking.pk,
-                    success_url=request.build_absolute_uri(reverse('paymongo_success', kwargs={'booking_id':booking.pk})+f'?change_request={change.pk}'),
-                    cancel_url=request.build_absolute_uri(reverse('booking_change_payment', kwargs={'booking_id':booking.pk, 'change_id':change.pk})),
-                    payment_type='gcash', description=f'Booking #{booking.pk} change request #{change.pk}')
-                try:
-                    session_id, checkout_url = checkout['data']['id'], checkout['data']['attributes']['checkout_url']
-                except (KeyError, TypeError):
-                    raise ValidationError('Unable to start online payment. Please try again or contact our team.')
-                Payment.objects.create(booking=booking, change_request=change, applied_to_booking=False,
-                    amount=change.additional_due, payment_type='change_balance', payment_method='paymongo_gcash',
-                    transaction_ref=uuid.uuid4().hex[:16].upper(), paymongo_checkout_session_id=session_id, paymongo_checkout_url=checkout_url)
-                request._submission_succeeded = True
-                return redirect(checkout_url)
-            reference, sender = request.POST.get('gcash_reference_number','').strip(), request.POST.get('gcash_sender_name','').strip()
-            receipt = request.FILES.get('receipt_image')
-            if not reference or len(reference) > 100 or not sender or len(sender) > 255 or not receipt:
-                raise ValidationError('Provide the GCash reference, sender name, and receipt image.')
-            from .bookings import _validate_design_delivery_image
-            error = _validate_design_delivery_image(receipt)
-            if error:
-                raise ValidationError(error)
-            if Payment.objects.filter(gcash_reference_number=reference).exclude(payment_status='rejected').exists():
-                raise ValidationError('This GCash reference has already been submitted.')
-            payment = Payment.objects.create(booking=booking, change_request=change, applied_to_booking=False,
-                amount=change.additional_due, payment_type='change_balance', payment_method='gcash',
-                transaction_ref=uuid.uuid4().hex[:16].upper(), received_at=timezone.now(),
-                gcash_reference_number=reference, gcash_sender_name=sender, receipt_image=receipt)
+                raise ValidationError('Payments now use GCash QR. Refresh this page before paying.')
+            if not config or not config.is_ready:
+                raise ValidationError('GCash QR payments are not configured. Contact our team before paying.')
+            if legacy_checkout:
+                raise ValidationError('Your previous checkout needs review before another payment. Contact our team.')
+            if not proof_form.is_valid():
+                raise ValidationError(' '.join(str(error) for errors in proof_form.errors.values() for error in errors))
+            payment = proof_form.save(booking=booking, amount=change.additional_due,
+                payment_type='change_balance', change_request=change)
             notify(change, f'Additional payment #{payment.pk} submitted. Verify it to finalize the accepted changes.', admin=True)
             messages.success(request, 'Additional payment submitted. Your original booking remains until verification is complete.')
             request._submission_succeeded = True
             return redirect(f'{reverse("customer_profile")}?booking_id={booking_id}&modal=details')
     except ValidationError as exc:
         error = ' '.join(exc.messages)
-    # Initial, balance and change payments share one customer checkout template.
-    # The amendment endpoint still owns validation and charges the saved quote.
-    from .payments import _is_abandoned_paymongo_payment, _is_incomplete_paymongo_payment
     history = list(change.payments.order_by('-created_at', '-pk'))
-    unfinished = next((p for p in history if _is_incomplete_paymongo_payment(p)
-        and not _is_abandoned_paymongo_payment(p)), None)
-    online = bool(settings.PAYMONGO_SECRET_KEY)
     displayed_booking = proposed_booking(change)
     displayed_booking.time_range_display = get_booking_time_range(displayed_booking)
     return render(request, 'client/payment_upload.html', {
         'booking':booking, 'payment_booking':displayed_booking, 'change':change,
         'is_change_payment':True, 'is_initial_payment':False, 'is_fully_paid':False,
         'pending_payment':pending, 'payment_error':error, 'payment_history':history,
-        'payment_unavailable':not eligible or (not online and not pending),
+        'payment_unavailable':not eligible or (not pending and (not config or not config.is_ready or not proof_form.payment_recipient or bool(legacy_checkout))),
+        'config':config, 'payment_form':proof_form, 'legacy_checkout_pending':legacy_checkout,
+        'payment_recipient':proof_form.payment_recipient, 'payment_qr_url':proof_form.payment_qr_url,
         'checkout_action':reverse('booking_change_payment', args=[booking.pk, change.pk]),
-        'pending_checkout_url':unfinished.paymongo_checkout_url if unfinished else None,
+        'pending_checkout_url':None,
         'rejected_payment':next((p for p in history if p.payment_status == 'rejected'), None),
         'remaining_balance':change.additional_due, 'total_price':booking.total_price,
         **change_payment_summary(change),
@@ -314,7 +289,8 @@ def verify_change_payment(request, payment, action, *, rejection_reason=None):
             messages.error(request, 'A rejection reason is required.')
             return
         payment.payment_status, payment.notes = 'rejected', notes
-        payment.save(update_fields=['payment_status','notes','updated_at'])
+        payment.gcash_reference_key = None
+        payment.save(update_fields=['payment_status','notes','gcash_reference_key','updated_at'])
         notify(change, f'Your additional payment was rejected: {notes}. Resubmit before the quote deadline or contact our team.')
         expire_change(change)
         messages.warning(request, 'Change payment rejected. Original booking unchanged.')

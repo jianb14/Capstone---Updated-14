@@ -18,3 +18,5 @@ AI_SMART_ROUTING_ENABLED = False
 AI_RELEVANCE_CHECK_ENABLED = False
 _test_media = TemporaryDirectory(prefix='balloorina-tests-')
 MEDIA_ROOT = _test_media.name
+PAYMENT_PROOF_ROOT = _test_media.name + '/private-proofs'
+PAYMENT_PROOF_USE_CLOUDINARY = False

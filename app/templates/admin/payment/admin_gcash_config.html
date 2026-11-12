@@ -2,13 +2,14 @@
 {% load static %}
 {% block title %}Payment Settings{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/payment_uploads.css' %}?v=20261113uploadhover1">
 <link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261102sk3">
-<link rel="stylesheet" href="{% static 'css/admin_payment_workspace.css' %}?v=20261030d">
+<link rel="stylesheet" href="{% static 'css/admin_payment_workspace.css' %}?v=20261113checkbox3">
 <link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
 {% endblock %}
 {% block content %}
 <div class="ac-workspace pm-workspace" data-payment-workspace>
-    <header class="page-header ac-header pm-header"><div><h1>Payment Settings</h1><p class="page-subtitle">Manage the required initial payment.</p></div><a href="{% url 'admin_payment_list' %}" class="ac-button">Back to payments</a></header>
+    <header class="page-header ac-header pm-header"><div><h1>Payment Settings</h1><p class="page-subtitle">Manage your booking deposit and GCash QR details.</p></div><a href="{% url 'admin_payment_list' %}" class="ac-button">Back to payments</a></header>
     <div id="pmCsrf" hidden>{% csrf_token %}</div>
     <div id="pmMessages" hidden>{% for message in messages %}<p data-kind="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>
     <p id="pmFeedback" class="ac-feedback" role="status" aria-live="polite"></p>
@@ -19,4 +20,4 @@
     {% include 'admin/payment/_dialogs.html' with settings_standalone=True %}
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/admin_selects.js' %}?v=20261030d"></script><script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script><script src="{% static 'js/admin_payment_workspace.js' %}?v=20261102sk1"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/payment_uploads.js' %}?v=20261113uploadhover1"></script><script src="{% static 'js/admin_selects.js' %}?v=20261030d"></script><script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script><script src="{% static 'js/admin_payment_workspace.js' %}?v=20261113checkbox3"></script>{% endblock %}

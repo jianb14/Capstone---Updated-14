@@ -85,7 +85,7 @@ class ChangeRequestActionTests(TestCase):
         change = self.upgrade()
         self.proof(change)
         self.client.force_login(self.admin)
-        self.client.post(reverse('admin_payment_action', args=[change.payments.get().pk, 'verify']))
+        self.client.post(reverse('admin_payment_action', args=[change.payments.get().pk, 'verify']), {'merchant_confirmed':'on'})
         self.client.force_login(self.user)
         response = self.details()
         self.assertNotContains(response, 'Pay Additional')

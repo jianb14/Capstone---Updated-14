@@ -91,7 +91,11 @@ def purge_account_media(*, limit=100):
                     continue
                 AccountMediaRemoval.objects.filter(pk=key).update(attempted_at=timezone.now(),attempts=F('attempts')+1)
                 try:
-                    default_storage.delete(task.name)
+                    if task.name.startswith(('private/local/', 'private/cloudinary/')):
+                        from .payment_storage import payment_proof_storage
+                        payment_proof_storage().delete(task.name)
+                    else:
+                        default_storage.delete(task.name)
                 except Exception:
                     logger.warning('Account media removal deferred for task %s',key)
                     continue

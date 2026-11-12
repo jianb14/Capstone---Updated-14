@@ -90,6 +90,13 @@ def limit_response(request, error, status=429):
 
 def submission_fingerprint(request):
     fields = sorted((key, values) for key, values in request.POST.lists() if key != 'csrfmiddlewaretoken')
+    match = request.resolver_match
+    if match and match.url_name in ('submit_payment', 'booking_change_payment'):
+        from .models import Payment
+        payments = Payment.objects.filter(booking_id=match.kwargs['booking_id'], booking__user=request.user,
+            payment_status='rejected', change_request_id=match.kwargs.get('change_id'))
+        # A rejection starts a new submission attempt, even when the corrected proof is identical.
+        fields.append(('_rejected_payment_count', [str(payments.count())]))
     files = []
     for field, uploads in sorted(request.FILES.lists()):
         for upload in uploads:

@@ -83,6 +83,7 @@ class RequestLimitsTests(TestCase):
     def request(self, name, method='post', args=None, user=None, data=None, **extra):
         request = getattr(self.factory, method)(reverse(name, args=args), data or {}, **extra)
         request.user = user or self.user
+        request.session = {}
         request.resolver_match = resolve(request.path)
         return request
 
@@ -233,10 +234,16 @@ class SubmissionTests(TestCase):
 
     def test_repeated_manual_payment_replays_redirect_and_creates_one_payment(self):
         booking = self.booking()
-        payload = {'gcash_ref_number': '1234567890123', 'sender_name': 'Customer', 'amount': '5000',
+        from .models import GCashConfig
+        from .payment_forms import recipient_token
+        from .test_gcash_qr import png
+        config = GCashConfig.objects.create(gcash_name='Test merchant', qr_code_image='test-qr.png')
+        payload = {'recipient_token':recipient_token(config), 'gcash_paid_at':timezone.localtime().strftime('%Y-%m-%dT%H:%M'), 'receipt_image':png(), 'gcash_ref_number': '1234567890123', 'sender_name': 'Customer', 'amount': '5000',
                    'payment_option': 'full', 'refund_ack': '1'}
         url = reverse('submit_payment', args=[booking.pk])
-        first, second = self.client.post(url, payload), self.client.post(url, payload)
+        first = self.client.post(url, payload)
+        payload['receipt_image'].seek(0)
+        second = self.client.post(url, payload)
         self.assertEqual(first.url, reverse('my_payments') + '?tab=payment_history')
         self.assertEqual(second.url, first.url)
         self.assertEqual(second['Idempotent-Replayed'], 'true')
@@ -244,17 +251,16 @@ class SubmissionTests(TestCase):
 
     @override_settings(PAYMONGO_SECRET_KEY='sk_test_limit')
     @patch('app.views.payments.create_paymongo_checkout_session')
-    def test_repeated_checkout_creates_one_provider_session(self, checkout):
+    def test_repeated_legacy_checkout_requests_never_create_provider_session(self, checkout):
         booking = self.booking()
         checkout.return_value = {'data': {'id': 'cs_repeat', 'attributes': {'checkout_url': 'https://checkout.paymongo.com/repeat'}}}
         payload = {'payment_method': 'gcash', 'amount': '5000', 'payment_option': 'full', 'refund_ack': '1'}
         url = reverse('create_paymongo_checkout', args=[booking.pk])
         first, second = self.client.post(url, payload), self.client.post(url, payload)
-        self.assertEqual(first.url, 'https://checkout.paymongo.com/repeat')
+        self.assertEqual(first.url, reverse('payment_page', args=[booking.pk]))
         self.assertEqual(second.url, first.url)
-        self.assertEqual(second['Idempotent-Replayed'], 'true')
-        self.assertEqual(Payment.objects.count(), 1)
-        checkout.assert_called_once()
+        self.assertEqual(Payment.objects.count(), 0)
+        checkout.assert_not_called()
 
     def test_receipt_expires_and_files_are_rewound_for_the_view(self):
         calls = []
@@ -340,7 +346,7 @@ class ConcurrentBudgetTests(TransactionTestCase):
     @skipUnlessDBFeature('has_select_for_update')
     @override_settings(PAYMONGO_SECRET_KEY='sk_test_parallel')
     @patch('app.views.payments.create_paymongo_checkout_session')
-    def test_different_checkout_payloads_share_booking_lock_and_reuse_one_session(self, checkout):
+    def test_concurrent_legacy_checkout_requests_cannot_start_new_provider_sessions(self, checkout):
         from .views.payments import create_paymongo_checkout
 
         user = User.objects.create_user(username='parallel-checkout', role='customer')
@@ -366,6 +372,6 @@ class ConcurrentBudgetTests(TransactionTestCase):
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             responses = list(executor.map(submit, range(2)))
-        self.assertEqual(responses, ['https://checkout.paymongo.com/parallel'] * 2)
-        self.assertEqual(Payment.objects.count(), 1)
-        checkout.assert_called_once()
+        self.assertEqual(responses, [reverse('payment_page', args=[booking.pk])] * 2)
+        self.assertEqual(Payment.objects.count(), 0)
+        checkout.assert_not_called()

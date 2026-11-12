@@ -52,9 +52,10 @@ def focused_support_facts(question, actions):
         from django.conf import settings
         from .models import GCashConfig
         config = GCashConfig.objects.first()
-        sections.append('Payment help. GCash through online checkout is the enabled payment method. '
-            +('Online checkout is currently configured. ' if settings.PAYMONGO_SECRET_KEY else 'Online checkout is currently unavailable. ')
-            +'Open My Payments, select the booking and follow its checkout instructions. Initial payment options are '
+        sections.append('Payment help. GCash QR with manual verification is the enabled payment method. '
+            +('The merchant QR is currently configured. ' if config and config.is_ready else 'GCash QR payment is currently unavailable; contact the team before paying. ')
+            +'Open My Payments, select the booking, scan or download its official merchant QR, check the recipient and amount, '
+            'then submit the transaction reference, sender name, transaction date/time and proof screenshot through the website. Initial payment options are '
             'downpayment or full payment; balance payment follows an initial verified payment. '
             +(f'The configured downpayment is {config.downpayment_percent}%. ' if config else '')
             +'A payment marked pending is not verified. The booking status pending_payment is a DIFFERENT field, '
@@ -62,7 +63,8 @@ def focused_support_facts(question, actions):
             'A pending payment alone does not prove that funds were received. Check My Payments and the GCash transaction '
             'before retrying; if funds were already received and await review, do not pay again. '
             'Do not guarantee that another charge cannot happen, a fixed verification deadline, or that no balance remains. '
-            'No manual personal-number GCash transfer or social-media receipt submission is documented as the enabled checkout flow. '
+            'The team must match the successful incoming transaction in the merchant account before verifying. '
+            'Do not invent a recipient, personal GCash number, or social-media proof submission. Never ask for an OTP or MPIN. '
             'The assistant cannot verify a payment or change a booking. Use only supplied account records to report account status.')
         compatible.update({'payment_help', 'payment_status', 'booking_status'})
     if re.search(r'\b(my designs|canvas|draft|missing items|missing assets|continue editing)\b', text):
@@ -122,8 +124,9 @@ def runtime_policy_facts():
         f'Initial payment window after approval: {current("booking_payment_window_hours")} hour(s), capped at event start. '
         'Submitted/received payments awaiting review must not be treated as unsubmitted payments or automatically charged again. '
         'A pending payment is not verified. Do not invent why a particular payment failed or guarantee a verification time. '
-        'The enabled online flow is GCash through checkout, tracked in My Payments. Do not instruct customers '
-        'to transfer money to a personal GCash number or send receipts through social media as an invented payment workflow. '
+        'The enabled payment flow is the configured merchant GCash QR and website proof submission, tracked in My Payments. '
+        'Customers submit the reference, sender, transaction time and screenshot; the team verifies the actual incoming merchant transaction. '
+        'Never invent account details, request OTP/MPIN, or tell customers to send receipts through social media. '
         'Customers can directly edit a pending booking. Approved (pending_payment) or confirmed bookings '
         'can use a separate Request changes flow, subject to eligibility, team review, a quote and any required additional payment. '
         f'Change requests within {current("booking_change_cutoff_hours")} hours of the event need direct team assistance. '

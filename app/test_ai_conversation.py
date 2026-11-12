@@ -179,7 +179,7 @@ class ConversationTests(TestCase):
         self.assertEqual(job.result['response'], self.answer)
         judge = json.loads([call for call in self.calls if call['messages'][0]['content'].startswith('Check whether')][-1]['messages'][1]['content'])
         self.assertIn('Booking Form Field Guide', judge['facts'])
-        self.assertIn('GCash through online checkout', judge['facts'])
+        self.assertIn('GCash QR', judge['facts'])
 
     def test_generic_overview_for_a_specific_form_question_is_repaired_before_saving(self):
         self.plan = {'actions': ['booking_help'], 'args': {}}

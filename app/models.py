@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
+from .payment_storage import payment_proof_storage
 
 
 # -----------------------------
@@ -523,7 +524,11 @@ class Payment(models.Model):
     notes = models.TextField(blank=True, null=True)
     gcash_reference_number = models.CharField(max_length=100, blank=True, default='')
     gcash_sender_name = models.CharField(max_length=255, blank=True, default='')
-    receipt_image = models.ImageField(upload_to='payment_receipts/', blank=True, null=True)
+    gcash_reference_key = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    gcash_paid_at = models.DateTimeField(blank=True, null=True)
+    gcash_recipient_name = models.CharField(max_length=255, blank=True, default='')
+    gcash_recipient_number = models.CharField(max_length=100, blank=True, default='')
+    receipt_image = models.ImageField(upload_to='payment_receipts/', storage=payment_proof_storage, blank=True, null=True)
     verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name='verified_payments')
     admin_notified = models.BooleanField(default=False)
     
@@ -1505,6 +1510,10 @@ class GCashConfig(models.Model):
     instructions = models.TextField(blank=True, default='')
     qr_code_image = models.ImageField(upload_to='gcash_config/', blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_ready(self):
+        return bool(self.gcash_name.strip() and self.qr_code_image)
 
     class Meta:
         verbose_name = 'GCash Configuration'

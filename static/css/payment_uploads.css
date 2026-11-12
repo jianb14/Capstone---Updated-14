@@ -1,0 +1,32 @@
+/* Match the Admin Gallery image uploader without importing its form scripts. */
+.payment-upload { min-width:0; color:var(--upload-ink); }
+.payment-upload [hidden] { display:none !important; }
+.payment-upload-label { display:block; margin:0 0 9px; font-size:13px; font-weight:500; line-height:1.6; }
+.payment-upload-zone { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; min-width:0; padding:30px 16px; border:1px dashed var(--upload-line); border-radius:14px; background:var(--upload-soft); text-align:center; transition:border-color 120ms,background-color 120ms; }
+.payment-upload-zone > svg { width:30px; height:30px; margin-bottom:3px; color:var(--upload-muted); fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.payment-upload-zone strong { font-size:13px; font-weight:500; line-height:1.6; }
+.payment-upload-zone > span { font-size:11px; color:var(--upload-muted); line-height:1.6; }
+.payment-upload-zone:is(:focus-within,.is-dragging) { border-color:var(--upload-focus); outline:2px solid var(--upload-ring); outline-offset:2px; }
+.payment-upload-zone:has([aria-invalid="true"]) { border-color:var(--upload-error); }
+.payment-upload-zone:has([aria-invalid="true"]) { outline:2px solid color-mix(in srgb,var(--upload-error) 40%,transparent); outline-offset:2px; }
+.payment-upload .payment-upload-input { position:absolute; width:1px; min-width:0; height:1px; min-height:0; margin:-1px; padding:0; border:0; clip-path:inset(50%); overflow:hidden; }
+.payment-upload-browse,.payment-upload-remove { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex:none; min-height:44px; padding:10px 16px; border:1px solid var(--upload-line); border-radius:10px; color:var(--upload-ink); background:var(--upload-bg); font:inherit; font-size:12px; line-height:1.5; cursor:pointer; }
+.payment-upload-browse:hover { border-color:var(--upload-muted); background:var(--upload-soft); }
+.payment-upload .payment-upload-remove:hover { border-color:var(--upload-line); background:color-mix(in srgb,var(--upload-ink) 4%,var(--upload-bg)); color:var(--upload-ink); }
+.payment-upload :is(button,input):focus-visible { outline:2px solid var(--upload-ring); outline-offset:3px; }
+.payment-upload-preview { display:flex; align-items:center; gap:14px; min-width:0; padding:12px; margin-top:12px; border:1px solid var(--upload-line); border-radius:12px; background:var(--upload-bg); }
+.payment-upload-preview img { width:68px; height:68px; object-fit:contain; border-radius:7px; background:#fff; }
+.payment-upload-file { flex:1; min-width:0; display:grid; gap:6px; }
+.payment-upload-file strong { font-size:12px; font-weight:500; overflow-wrap:anywhere; line-height:1.6; }
+.payment-upload-file span { color:var(--upload-muted); font-size:11px; }
+.payment-upload-remove { width:44px; padding:10px; }
+.payment-upload-remove svg { width:18px; height:18px; }
+.payment-upload-feedback,.payment-upload-error { margin:9px 0 0; color:var(--upload-error); font-size:12px; line-height:1.7; }
+.payment-upload-feedback:empty { display:none; }
+.payment-upload-reset { margin-top:10px; }
+.payment-upload-label > span { color:var(--upload-error) !important; }
+.payment-upload-zone .payment-upload-browse { margin-top:4px; min-height:42px; padding:10px 15px; font-size:12px; font-weight:400; }
+.payment-upload-error ul { padding-left:18px; margin:0; }
+@media(max-width:600px) { .payment-upload-zone { padding:25px 12px; }.payment-upload-zone strong { font-size:12px; } }
+@media(max-width:480px) { .payment-upload-preview { gap:10px; }.payment-upload-preview img { width:54px; height:54px; } }
+@media(prefers-reduced-motion:reduce) { .payment-upload-zone { transition:none; } }

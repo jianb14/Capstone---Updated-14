@@ -1,4 +1,19 @@
 /* Payment details share the account palette and keep the header within reach. */
+.payment-proof-dialog { width:min(820px,calc(100% - 32px)); max-height:calc(100dvh - 32px); box-sizing:border-box; margin:auto; padding:22px; overflow:auto; border:1px solid var(--account-line); border-radius:16px; background:var(--account-bg); color:var(--account-text); }
+.payment-proof-dialog::backdrop { background:rgba(0,0,0,.65); backdrop-filter:blur(4px); }
+.payment-proof-dialog header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.payment-proof-dialog h2 { margin:0; font-size:18px; font-weight:600; }
+.payment-proof-dialog button { display:grid; place-items:center; flex:none; width:40px; height:40px; padding:10px; border:0; border-radius:8px; background:transparent; color:var(--account-muted); cursor:pointer; }
+.payment-proof-dialog button:hover { background:var(--account-hover); }
+.payment-proof-dialog button svg { width:20px; height:20px; }
+.payment-proof-dialog img { display:block; max-width:100%; max-height:calc(100dvh - 140px); width:auto; height:auto; object-fit:contain; margin:auto; }
+.payment-proof-dialog [hidden] { display:none; }
+.payment-proof-dialog p { font-size:13px; color:var(--account-muted); }
+#bookingModal[data-payment-details] .payment-proof-button { display:inline-flex; align-items:center; justify-content:center; align-self:flex-start; gap:9px; min-height:44px; margin-top:18px; padding:10px 15px; border:1px solid var(--account-line); border-radius:10px; background:transparent; color:var(--account-text); font:inherit; font-size:13px; text-decoration:none; box-sizing:border-box; }
+#bookingModal[data-payment-details] .payment-proof-button[hidden] { display:none; }
+#bookingModal[data-payment-details] .payment-proof-button:hover { background:var(--account-hover); }
+.payment-proof-button svg { width:18px; height:18px; }
+.payment-proof-dialog button:focus-visible,.payment-proof-button:focus-visible { outline:2px solid var(--account-focus-ring); outline-offset:2px; }
 #bookingModal[data-payment-details] {
     display:none; padding:20px; z-index:11000; opacity:1; visibility:visible;
     background:rgba(0,0,0,.6); backdrop-filter:blur(6px); transition:none;

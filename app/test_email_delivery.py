@@ -172,10 +172,16 @@ class BrevoEmailDeliveryTests(TestCase):
             self.assertFalse(send_admin_alert_email("Booking", "Body"))
 
     def test_payment_proof_submission_sends_admin_alert(self):
+        from .models import GCashConfig
+        from .payment_forms import recipient_token
+        from .test_gcash_qr import png
+        config = GCashConfig.objects.create(gcash_name='Test merchant', qr_code_image='test-qr.png')
         booking = self.booking()
         self.client.force_login(self.user)
         response = self.client.post(reverse("submit_payment", args=[booking.pk]), {
             "gcash_ref_number": "1234567890123", "sender_name": "Customer",
+            "gcash_paid_at":timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
+            "recipient_token":recipient_token(config), "receipt_image":png(),
             "amount": "5000", "payment_option": "full", "refund_ack": "on",
         })
         self.assertEqual(response.status_code, 302)

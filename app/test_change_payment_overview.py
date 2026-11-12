@@ -86,7 +86,7 @@ class ChangePaymentOverviewTests(TestCase):
         self.proof(change)
         payment = change.payments.get()
         self.client.force_login(self.admin)
-        self.client.post(reverse('admin_payment_action', args=[payment.pk, 'verify']))
+        self.client.post(reverse('admin_payment_action', args=[payment.pk, 'verify']), {'merchant_confirmed':'on'})
         response = self.overview()
         self.assertEqual(response.context['action_required_total_count'], 0)
         self.assertEqual(response.context['partial_total_count'], 0)

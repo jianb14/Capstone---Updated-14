@@ -112,6 +112,6 @@ def scope_issue(question, reply):
             return 'The customer did not ask for a price estimate. Remove currency amounts and keep the requested explanation.'
     if re.search(r'\b(white|gold|silver)\b.{0,90}(?:do not count|does not count|don.t count|doesn.t count|without counting|not counted|free accent)', reply, re.I | re.S):
         return 'Every distinct balloon color counts toward the package limit, including white, gold and silver. No accent-color exemption is supported.'
-    if re.search(r'\b(?:send|upload|submit|i-send|isend)\b.{0,100}\b(?:screenshot|proof|receipt)\b.{0,80}\b(?:messenger|instagram|facebook|gcash)\b', reply, re.I | re.S):
-        return 'Do not invent a manual receipt/GCash-transfer process. Explain the enabled checkout and My Payments workflow.'
+    if re.search(r'\b(?:send|upload|submit|i-send|isend)\b.{0,100}\b(?:screenshot|proof|receipt)\b.{0,80}\b(?:messenger|instagram|facebook)\b', reply, re.I | re.S):
+        return 'Payment proof is submitted through the website in My Payments. Do not direct customers to social-media proof submission.'
     return ''

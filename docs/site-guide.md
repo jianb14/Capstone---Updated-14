@@ -36,6 +36,8 @@ While the tour is open, only its controls are interactive. Application clicks an
 
 The tour describes the visible interface only. Hidden or unavailable regions are skipped. Offscreen targets scroll into view, and spotlight bounds follow viewport and scroll-container clipping. Leaving an account page, removing the current target or changing its modal context closes the tour safely.
 
+In create/edit booking forms, the schedule spotlight groups Start and End together. The venue spotlight covers the complete location section, including the address, map and location controls. Design Preferences has separate explanations for Theme / Decor Style, Color palette, Motto / Backdrop text, Special requests and Reference pictures; each highlights its full field group, including labels and related controls. These steps appear when that form section is visible. Large sections remain clipped to the visible modal/viewport area on small screens.
+
 Public/authentication/profile/reviews/concerns pages have no guide. The AI assistant retains its existing design guide. The previous task-aware coaching, hover settings and canvas evaluation/save hooks were removed.
 
 ## Implementation

@@ -1,11 +1,33 @@
-<form id="pmSettingsForm" class="pm-settings-form" method="post" action="{% url 'admin_gcash_config' %}" novalidate>
+<form id="pmSettingsForm" class="pm-settings-form" method="post" enctype="multipart/form-data" action="{% url 'admin_gcash_config' %}" novalidate>
     {% csrf_token %}
-    <h3>Required Initial Payment</h3>
-    <p class="pm-settings-intro">Set the percentage customers must pay first before they can settle the remaining balance.</p>
-    <label for="pmDownpayment">Downpayment percent (%) <span class="pm-required" aria-hidden="true">*</span></label>
-    <input id="pmDownpayment" name="downpayment_percent" type="number" min="1" max="100" step="1" required value="{{ form.downpayment_percent.value|default_if_none:'' }}" aria-describedby="pmPercentError pmPercentHelp"{% if form.downpayment_percent.errors %} aria-invalid="true"{% endif %}>
-    <p id="pmPercentError" class="pm-field-error" role="alert"{% if not form.downpayment_percent.errors %} hidden{% endif %}>{{ form.downpayment_percent.errors.0 }}</p>
-    <p class="pm-field-help" id="pmPercentHelp">For example, 20 means the customer pays 20% of the total booking price first.</p>
-    <p class="pm-settings-note">This changes the required initial payment percentage. It does not edit recorded payments or their verification status.</p>
+    <section class="pm-settings-section" aria-labelledby="pmInitialTitle">
+        <div class="pm-settings-heading"><h3 id="pmInitialTitle">Required Initial Payment</h3><p>Set the deposit needed to confirm a booking.</p></div>
+        <div class="pm-deposit-row">
+            <div class="pm-settings-field">
+                <label for="pmDownpayment">Downpayment percent (%) <span class="pm-required" aria-hidden="true">*</span></label>
+                <div class="pm-percent-control"><input id="pmDownpayment" name="downpayment_percent" type="number" min="1" max="100" step="1" required value="{{ form.downpayment_percent.value|default_if_none:'' }}" aria-describedby="pmPercentError pmPercentHelp"{% if form.downpayment_percent.errors %} aria-invalid="true"{% endif %}><span aria-hidden="true">%</span></div>
+                <p id="pmPercentError" class="pm-field-error" role="alert"{% if not form.downpayment_percent.errors %} hidden{% endif %}>{{ form.downpayment_percent.errors.0 }}</p>
+            </div>
+            <p class="pm-field-help" id="pmPercentHelp">For example, 20 means the customer pays 20% first and settles the balance later.</p>
+        </div>
+    </section>
+    <div class="pm-merchant-layout">
+    <section class="pm-settings-section" aria-labelledby="pmRecipientTitle">
+        <div class="pm-settings-heading"><h3 id="pmRecipientTitle">GCash QR recipient</h3><p>Use your official merchant details so customers can check who they are paying.</p></div>
+        <div class="pm-settings-grid">
+            <div class="pm-settings-field"><label for="{{ form.gcash_name.id_for_label }}">Recipient / merchant name</label>{{ form.gcash_name }}{% if form.gcash_name.errors %}<p class="pm-field-error" id="pmNameError" role="alert">{{ form.gcash_name.errors.0 }}</p>{% endif %}</div>
+            <div class="pm-settings-field"><label for="{{ form.gcash_number.id_for_label }}">Account number <span class="pm-optional">(if applicable)</span></label>{{ form.gcash_number }}{% if form.gcash_number.errors %}<p class="pm-field-error" id="pmAccountError" role="alert">{{ form.gcash_number.errors.0 }}</p>{% endif %}</div>
+            <div class="pm-settings-field pm-settings-wide"><label for="{{ form.instructions.id_for_label }}">Payment instructions <span class="pm-optional">(optional)</span></label>{{ form.instructions }}{% if form.instructions.errors %}<p class="pm-field-error" id="pmInstructionsError" role="alert">{{ form.instructions.errors.0 }}</p>{% endif %}</div>
+        </div>
+    </section>
+    <section class="pm-settings-section" aria-labelledby="pmQRTitle">
+        <div class="pm-settings-heading"><h3 id="pmQRTitle">Merchant QR image</h3><p>Customers scan or download this image to pay.</p></div>
+        {% include 'components/payment_image_upload.html' with field=form.qr_code_image label='Official merchant QR' %}
+        {% if config.qr_code_image %}
+        <div class="pm-current-qr"><img class="pm-qr-preview" src="{{ config.qr_code_image.url }}" alt="Current merchant QR" width="80" height="80"><div><strong>Current QR image</strong><p>Upload a new image to replace it when you save.</p></div></div>
+        {% endif %}
+    </section>
+    </div>
+    <p class="pm-settings-note">Verify the QR recipient in GCash before accepting payments. Customers can pay once a recipient name and QR are saved. Existing payment records stay unchanged.</p>
     <p id="pmSettingsError" class="pm-field-error" role="alert" hidden></p>
 </form>

@@ -34,10 +34,14 @@ window.SiteGuideContent = (() => {
                 item('.stepper-wrapper','Booking sections','The section indicator organizes the booking information into event details, offer, design preferences and review.'),
                 item('.stepper-step h3','Current section','This heading identifies the section currently displayed in the form.'),
                 item('#eventTypeCustomSelect, #editEventTypeCustomSelect','Event information','This area describes the occasion associated with the booking.'),
-                item('#start_time_display, #edit_start_time_display, #start_time, #edit_start_time','Event schedule','The schedule controls display the event start and end times.'),
-                item('#event_location, #edit_event_location','Venue information','The venue section contains the event location and any available map information.'),
+                item('.time-row','Event schedule','Start and End together show the event schedule and duration.'),
+                item('.location-card-group','Venue information','This section combines the venue address, map pin, location controls and arrival information.'),
                 item('.stepper-step[style*="block"] .package-cards-grid','Available offers','The offer cards display current package information, inclusions and prices.'),
-                item('#designThemeChips, #editDesignThemeChips','Design preferences','The theme and color controls describe the preferred appearance of the event setup.'),
+                item('.form-group:has(#designThemeChips), .form-group:has(#editDesignThemeChips)','Theme / Decor Style','The theme describes the preferred style of the event setup, including any custom theme.'),
+                item('.form-group:has(#designPaletteSwatches), .form-group:has(#editDesignPaletteSwatches)','Color palette','This area contains the preset colors, custom color picker and selected colors for the design.'),
+                item('.form-group:has(#motto_text), .form-group:has(#edit_motto_text)','Motto / Backdrop text','This optional text is the wording requested for the backdrop or signage.'),
+                item('.form-group:has(#booking_special_requests), .form-group:has(#edit_special_requests)','Special requests','These optional design notes describe additional preferences for the event setup.'),
+                item('.form-group:has(#booking_reference_images_ui), #edit_images_section','Reference pictures','Reference pictures and their previews communicate the preferred appearance of the design.'),
                 item('.booking-summary-container, #edit-booking-details-list','Booking summary','The review area brings together the booking information and displayed totals.')
             ];
             if (kind==='booking' && scope.matches('#bookingModal,#eventDesignModal')) return [
@@ -81,9 +85,12 @@ window.SiteGuideContent = (() => {
             item('.pu-head-text','Payment information','This page brings together the payment information for the selected booking.'),
             item('.booking-deadline-note, .pu-change-deadline','Payment status and deadline','This notice displays the applicable deadline or the payment’s current review state.'),
             item('.cp-option-grid, .pu-fixed-option','Payment options','This area displays the payment options and amounts currently available for this booking.'),
+            item('.pu-qr-section','Pay with GCash QR','Scan or download the merchant QR. Check the recipient and send the exact selected amount in GCash.'),
             item('.pu-side','Booking and amount summary','The summary contains the related booking details and displayed amounts.'),
+            item('.pu-proof-grid','Submit payment proof','Enter the GCash transaction reference, sender name, and transaction date and time from your successful payment.'),
+            item('.pu-proof-fields [data-payment-upload]','Upload payment screenshot','Choose or drag in your successful payment screenshot. Use a PNG or JPEG image up to 5 MB. You can preview or remove the selected image before submitting.'),
             item('.pu-terms-box','Payment acknowledgement','The acknowledgement presents the conditions associated with the payment.'),
-            item('#js-checkout-btn','Secure checkout','This control leads to the payment provider when the payment requirements are satisfied.'),
+            item('#js-checkout-btn','Submit for verification','After paying the merchant QR, submit the transaction details and screenshot here. Wait for admin verification before paying again.'),
             item('.ps-hero, .pu-paid','Payment progress','This area displays the recorded payment state, including verification or completion.')
         ];
     }

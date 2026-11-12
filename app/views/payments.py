@@ -1,4 +1,7 @@
-"""Payments: PayMongo checkout/webhooks, GCash config, receipts. (split from app/views.py)"""
+"""GCash QR payments, manual verification, and legacy provider reconciliation."""
+from django.http import FileResponse, Http404
+from django.views.decorators.cache import never_cache
+from ..payment_forms import GCashProofForm, active_reference_payments
 
 from .common import *  # noqa: F401,F403
 from ..request_protection import deduplicate_submission
@@ -399,6 +402,10 @@ def my_payments(request):
                 b.latest_pay_ref = latest_payment.transaction_ref
                 b.latest_pay_payment_id = latest_payment.paymongo_payment_id or ""
                 b.latest_pay_sender = latest_payment.gcash_sender_name or ""
+                b.latest_pay_gcash_reference = latest_payment.gcash_reference_number
+                b.latest_pay_recipient = latest_payment.gcash_recipient_name
+                b.latest_pay_transaction_time = latest_payment.gcash_paid_at
+                b.latest_pay_proof_url = reverse('payment_proof', args=[latest_payment.pk]) if latest_payment.receipt_image else ''
                 b.latest_pay_checkout_session_id = latest_payment.paymongo_checkout_session_id or ""
                 b.latest_pay_verified = latest_payment.paid_at
                 b.latest_pay_notes = latest_payment.notes or ""
@@ -419,9 +426,7 @@ def my_payments(request):
             if latest_payment and latest_payment.payment_status == "pending":
                 if _is_incomplete_paymongo_payment(latest_payment):
                     is_partial = verified_paid > Decimal("0.00")
-                    b.payment_action_display = (
-                        "Continue Payment" if not is_partial else "Pay Balance"
-                    )
+                    b.payment_action_display = 'Review previous checkout'
                     b.payment_action_disabled = False
                     if is_partial:
                         partial_bookings.append(b)
@@ -659,8 +664,61 @@ def _repair_legacy_auto_verified_paymongo():
             _refresh_booking_payment_status(booking)
 
 
+def _unresolved_legacy_checkout(payments):
+    return next((p for p in payments if p.payment_method.startswith('paymongo_')
+        and p.paymongo_checkout_session_id and not payment_was_received(p)
+        and not p.received_at and not p.paymongo_payment_id and 'paid via paymongo' not in (p.notes or '').lower()
+        and 'provider confirmed terminal:' not in (p.notes or '').lower()), None)
+
+
 @login_required
-def payment_page(request, booking_id):
+@never_cache
+def gcash_qr_download(request):
+    from django.core import signing
+    from PIL import Image
+    config = GCashConfig.objects.first()
+    try:
+        recipient = signing.loads(request.GET.get('recipient', ''), salt='gcash-recipient', max_age=48*60*60)
+        if not config or recipient.get('id') != config.pk or not recipient.get('qr'):
+            raise Http404('The payment QR is unavailable.')
+        qr = config.qr_code_image.storage.open(recipient['qr'], 'rb')
+        image = Image.open(qr)
+        if image.format not in ('PNG', 'JPEG'):
+            qr.close()
+            raise Http404('The payment QR is unavailable.')
+        extension = 'png' if image.format == 'PNG' else 'jpg'
+        qr.seek(0)
+    except (signing.BadSignature, OSError, ValueError):
+        raise Http404('The payment QR is unavailable. Refresh the payment page.')
+    return FileResponse(qr, as_attachment=True, filename=f'merchant-gcash-qr.{extension}',
+        content_type='image/png' if extension == 'png' else 'image/jpeg')
+
+
+@login_required
+@never_cache
+def payment_proof(request, payment_id):
+    payments = Payment.objects.select_related('booking')
+    if request.user.role != 'admin':
+        payments = payments.filter(booking__user=request.user)
+    payment = get_object_or_404(payments, pk=payment_id)
+    if not payment.receipt_image:
+        raise Http404('No proof image is available.')
+    try:
+        proof = payment.receipt_image.open('rb')
+    except (OSError, ValueError):
+        raise Http404('The proof image is currently unavailable.')
+    name = payment.receipt_image.name.lower()
+    content_type = 'image/png' if name.endswith('.png') else 'image/jpeg' if name.endswith(('.jpg', '.jpeg')) else 'application/octet-stream'
+    response = FileResponse(proof, content_type=content_type, as_attachment=content_type == 'application/octet-stream', filename=f'payment-{payment.pk}-proof'+('.png' if content_type == 'image/png' else '.jpg' if content_type == 'image/jpeg' else '.bin'))
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Content-Security-Policy'] = "default-src 'none'; sandbox"
+    return response
+
+
+@login_required
+@never_cache
+def payment_page(request, booking_id, payment_form=None):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
@@ -715,7 +773,9 @@ def payment_page(request, booking_id):
         (pay for pay in payment_history if pay.payment_status == "rejected"),
         None,
     )
-    paymongo_method_types = ["gcash"] if settings.PAYMONGO_SECRET_KEY else []
+    legacy_checkout = _unresolved_legacy_checkout(payment_history)
+    proof_form = payment_form if payment_form is not None else GCashProofForm(config=config)
+    payment_unavailable = not bool(config and config.is_ready and proof_form.payment_recipient) or bool(legacy_checkout)
     booking.time_range_display = get_booking_time_range(booking)
     is_initial_payment = total_paid <= Decimal("0.00")
     downpayment_due = dp_amount if is_initial_payment else Decimal("0.00")
@@ -729,11 +789,12 @@ def payment_page(request, booking_id):
             "is_fully_paid": is_fully_paid,
             "pending_payment": pending_payment,
             "lifecycle": lifecycle_display(booking),
-            "pending_checkout_url": (
-                incomplete_paymongo_payment.paymongo_checkout_url
-                if incomplete_paymongo_payment
-                else None
-            ),
+            "pending_checkout_url": None,
+            "legacy_checkout_pending": legacy_checkout,
+            "payment_unavailable": payment_unavailable and not pending_payment and not is_fully_paid,
+            "payment_form": proof_form,
+            "payment_recipient": proof_form.payment_recipient,
+            "payment_qr_url": proof_form.payment_qr_url,
             "rejected_payment": rejected_payment,
             "failed_payment": None,
             "has_downpayment": has_downpayment,
@@ -743,7 +804,6 @@ def payment_page(request, booking_id):
             "total_price": total_price,
             "total_paid": total_paid,
             "remaining_balance": remaining_balance,
-            "paymongo_method_types": paymongo_method_types,
             "payment_history": payment_history,
             "config": config,
             "is_initial_payment": is_initial_payment,
@@ -771,33 +831,35 @@ def submit_payment(request, booking_id):
     if request.method != "POST":
         return redirect("payment_page", booking_id=booking_id)
 
-    gcash_ref_number = request.POST.get("gcash_ref_number", "").strip()
-    sender_name = request.POST.get("sender_name", "").strip()
+    config = GCashConfig.objects.first()
+    if not config or not config.is_ready:
+        messages.error(request, 'GCash QR payments are not configured. Contact our team before paying.')
+        return redirect('payment_page', booking_id=booking_id)
+    if _unresolved_legacy_checkout(booking.payments.all()):
+        messages.error(request, 'Your previous checkout needs review before another payment. Contact our team.')
+        return redirect('payment_page', booking_id=booking_id)
+    data = request.POST.copy()
+    # Keep old internal field names compatible while using one customer proof form.
+    data.setdefault('gcash_reference_number', data.get('gcash_ref_number', ''))
+    data.setdefault('gcash_sender_name', data.get('sender_name', ''))
+    form = GCashProofForm(data, request.FILES, config=config)
+    if not form.is_valid():
+        messages.error(request, ' '.join(str(error) for errors in form.errors.values() for error in errors))
+        return payment_page(request, booking_id, payment_form=form)
+    gcash_ref_number = form.cleaned_data['gcash_reference_number']
     amount_str = request.POST.get("amount", "").strip()
     payment_option = request.POST.get("payment_option", "").strip().lower()
-    refund_ack = request.POST.get("refund_ack")
-    receipt_image = request.FILES.get("receipt_image")
-
-    if not gcash_ref_number or not sender_name or not amount_str:
-        messages.error(request, "Please fill in all required payment fields.")
-        return redirect("payment_page", booking_id=booking_id)
-    if not refund_ack:
-        messages.error(
-            request,
-            "Please confirm the non-refundable payment reminder before submitting.",
-        )
-        return redirect("payment_page", booking_id=booking_id)
 
     try:
         amount = Decimal(amount_str)
-        if amount <= 0:
+        if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal('0.01')):
             raise ValueError("Amount must be positive.")
     except (InvalidOperation, ValueError):
         messages.error(request, "Invalid payment amount. Please enter a valid number.")
         return redirect("payment_page", booking_id=booking_id)
 
     # Block duplicate pending submissions
-    if booking.payments.filter(payment_status="pending").exists():
+    if any(p.payment_status == 'pending' and payment_was_received(p) for p in booking.payments.filter(applied_to_booking=True)):
         messages.warning(
             request,
             "You already have a payment pending review. Please wait for it to be processed.",
@@ -842,29 +904,14 @@ def submit_payment(request, booking_id):
         )
         return redirect("payment_page", booking_id=booking_id)
 
-    if payment_type == "downpayment" and amount >= total_price:
-        messages.error(
-            request,
-            "Downpayment amount cannot be the same as full payment amount.",
-        )
-        return redirect("payment_page", booking_id=booking_id)
-
-    transaction_ref = str(uuid.uuid4()).replace("-", "")[:16].upper()
-
-    payment = Payment(
-        booking=booking,
-        amount=amount,
-        payment_method="gcash",
-        payment_type=payment_type,
-        payment_status="pending",
-        transaction_ref=transaction_ref,
-        gcash_reference_number=gcash_ref_number,
-        gcash_sender_name=sender_name,
-        received_at=timezone.now(),
-    )
-    if receipt_image:
-        payment.receipt_image = receipt_image
-    payment.save()
+    if amount >= total_price:
+        payment_type = 'full'
+    try:
+        payment = form.save(booking=booking, amount=expected_amount, payment_type=payment_type)
+    except ValidationError as error:
+        messages.error(request, ' '.join(error.messages))
+        return redirect('payment_page', booking_id=booking_id)
+    transaction_ref = payment.transaction_ref
 
     # Notify admin of the new payment
     AdminNotification.objects.create(
@@ -946,11 +993,11 @@ def payment_success(request, booking_id):
         .order_by("-updated_at")
         .first()
     )
-    paymongo_method_types = ["gcash"] if settings.PAYMONGO_SECRET_KEY else []
     is_initial_payment = total_paid <= Decimal("0.00")
     downpayment_due = dp_amount if is_initial_payment else Decimal("0.00")
     full_amount_due = remaining_balance
 
+    proof_form = GCashProofForm(config=config)
     return render(
         request,
         "client/payment_upload.html",
@@ -968,7 +1015,11 @@ def payment_success(request, booking_id):
             "total_price": total_price,
             "total_paid": total_paid,
             "remaining_balance": remaining_balance,
-            "paymongo_method_types": paymongo_method_types,
+            "payment_form": proof_form,
+            "payment_recipient": proof_form.payment_recipient,
+            "payment_qr_url": proof_form.payment_qr_url,
+            "legacy_checkout_pending": _unresolved_legacy_checkout(payment_history),
+            "payment_unavailable": (not bool(config and config.is_ready) or bool(_unresolved_legacy_checkout(payment_history))) and not pending_payment and not is_fully_paid,
             "payment_history": payment_history,
             "config": config,
             "payment_submitted": True,
@@ -1230,6 +1281,7 @@ def admin_payment_detail(request, id):
     payment_is_actionable = (
         payment.payment_status == "pending"
         and not _is_abandoned_paymongo_payment(payment)
+        and not _unresolved_legacy_checkout([payment])
     )
 
     return render(
@@ -1283,6 +1335,18 @@ def admin_payment_action(request, id, action):
         if back_to_list:
             return redirect("admin_payment_list")
         return redirect("admin_payment_detail", id=id)
+
+    if action == 'verify' and payment.gcash_reference_key:
+        if request.POST.get('merchant_confirmed') != 'on':
+            messages.error(request, 'Confirm that the successful incoming transaction matches the recipient, reference, amount, and time in the merchant account.')
+            return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
+        if not payment.receipt_image or active_reference_payments(payment.gcash_reference_key).exclude(pk=payment.pk).exists():
+            messages.error(request, 'The proof is missing or this reference is already used. Resolve it before approval.')
+            return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
+
+    if _unresolved_legacy_checkout([payment]):
+        messages.error(request, 'The previous checkout is unresolved. Check its provider status before reviewing or accepting another payment.')
+        return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
 
     admin_notes = None
     if action == 'reject':
@@ -1365,8 +1429,9 @@ def admin_payment_action(request, id, action):
 
         with transaction.atomic():
             payment.payment_status = "rejected"
+            payment.gcash_reference_key = None
             payment.notes = admin_notes
-            payment.save(update_fields=["payment_status", "notes", "updated_at"])
+            payment.save(update_fields=["payment_status", "notes", "gcash_reference_key", "updated_at"])
 
             # Keep booking in pending payment state when payment is rejected,
             # unless there are other verified payments already recorded.
@@ -1443,13 +1508,20 @@ def admin_gcash_config(request):
     if config is None:
         config = GCashConfig.objects.create()
 
-    form = PaymentSettingsForm(request.POST if request.method == 'POST' else None,
-        initial={'downpayment_percent': config.downpayment_percent})
+    fields = ('downpayment_percent', 'gcash_name', 'gcash_number', 'instructions')
+    initial = {name:getattr(config, name) for name in fields}
+    data = request.POST.copy() if request.method == 'POST' else None
+    if data is not None:
+        for name in fields:
+            data.setdefault(name, initial[name])
+    form = PaymentSettingsForm(data, request.FILES or None, initial=initial)
     asynchronous = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if request.method == "POST" and form.is_valid():
-        # Only update the setting present in this form; retain existing GCash details.
-        config.downpayment_percent = form.cleaned_data['downpayment_percent']
-        config.save(update_fields=['downpayment_percent', 'updated_at'])
+        for name in fields:
+            setattr(config, name, form.cleaned_data[name])
+        if form.cleaned_data.get('qr_code_image'):
+            config.qr_code_image = form.cleaned_data['qr_code_image']
+        config.save()
         log_action(request.user, "Updated GCash configuration.")
         if asynchronous:
             return JsonResponse({'ok': True, 'message': 'Payment settings saved successfully.'})
@@ -1575,179 +1647,16 @@ def admin_send_payment_reminder(request, booking_id):
 @deduplicate_submission
 @transaction.atomic
 def create_paymongo_checkout(request, booking_id):
-    if request.user.role != "customer":
-        return HttpResponseForbidden("Not allowed")
+    booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+    if request.user.role != 'customer':
+        return HttpResponseForbidden('Not allowed')
+    messages.info(request, 'Payments now use GCash QR. Review the recipient and payment instructions below.')
+    return redirect('payment_page', booking_id=booking.pk)
 
-    booking = get_object_or_404(Booking.objects.select_for_update(), id=booking_id, user=request.user)
-    process_booking(booking.pk)
-    booking.refresh_from_db()
-
-    if booking.status not in ["pending_payment", "confirmed"]:
-        messages.warning(request, "This booking is not available for payment.")
-        return redirect("customer_profile")
-
-    if request.method != "POST":
-        return redirect("payment_page", booking_id=booking.id)
-
-    if not settings.PAYMONGO_SECRET_KEY:
-        messages.error(
-            request,
-            "PayMongo is not configured yet. Please contact support.",
-        )
-        return redirect("payment_page", booking_id=booking.id)
-
-    payment_method_type = request.POST.get("payment_method", "gcash").strip().lower()
-    amount_str = request.POST.get("amount", "").strip()
-    payment_option = request.POST.get("payment_option", "").strip().lower()
-    refund_ack = request.POST.get("refund_ack")
-    allowed_method_types = {"gcash"}
-
-    if payment_method_type not in allowed_method_types:
-        messages.error(request, "Invalid PayMongo payment method.")
-        return redirect("payment_page", booking_id=booking.id)
-
-    if not amount_str:
-        messages.error(request, "Please enter an amount.")
-        return redirect("payment_page", booking_id=booking.id)
-
-    try:
-        amount = Decimal(amount_str)
-        if amount <= 0:
-            raise ValueError()
-    except (ValueError, InvalidOperation):
-        messages.error(request, "Invalid amount.")
-        return redirect("payment_page", booking_id=booking.id)
-
-    if not refund_ack:
-        messages.error(
-            request,
-            "Please confirm the non-refundable payment reminder before continuing.",
-        )
-        return redirect("payment_page", booking_id=booking.id)
-
-    blocking_pending = next(
-        (
-            pay
-            for pay in booking.payments.filter(payment_status="pending").order_by("-created_at")
-            if not _is_incomplete_paymongo_payment(pay)
-            and not _is_abandoned_paymongo_payment(pay)
-        ),
-        None,
-    )
-    if blocking_pending:
-        messages.warning(
-            request,
-            "You already have a payment pending review. Please wait for it to be processed.",
-        )
-        return redirect("payment_page", booking_id=booking.id)
-
-    resumable_pending = next(
-        (
-            pay
-            for pay in booking.payments.filter(payment_status="pending").order_by("-created_at")
-            if _is_incomplete_paymongo_payment(pay)
-            and pay.paymongo_checkout_url
-        ),
-        None,
-    )
-    if resumable_pending:
-        request._submission_succeeded = True
-        return redirect(resumable_pending.paymongo_checkout_url)
-
-    (
-        _config,
-        _dp_percent,
-        total_price,
-        verified_paid,
-        remaining_balance,
-        dp_amount,
-    ) = _get_booking_payment_breakdown(booking)
-
-    if amount > remaining_balance:
-        messages.error(
-            request,
-            f"Amount exceeds remaining balance of PHP {remaining_balance:,.2f}.",
-        )
-        return redirect("payment_page", booking_id=booking.id)
-
-    if verified_paid > Decimal("0.00"):
-        payment_type = "balance"
-        expected_amount = remaining_balance.quantize(Decimal("0.01"))
-    else:
-        if payment_option not in {"downpayment", "full"}:
-            messages.error(request, "Please select Downpayment or Full Payment.")
-            return redirect("payment_page", booking_id=booking.id)
-        if payment_option == "downpayment":
-            payment_type = "downpayment"
-            expected_amount = dp_amount.quantize(Decimal("0.01"))
-        else:
-            payment_type = "full"
-            expected_amount = total_price.quantize(Decimal("0.01"))
-
-    if amount.quantize(Decimal("0.01")) != expected_amount:
-        messages.error(
-            request,
-            f"Invalid amount for selected option. Expected PHP {expected_amount:,.2f}.",
-        )
-        return redirect("payment_page", booking_id=booking.id)
-
-    if payment_type == "downpayment" and amount >= total_price:
-        messages.error(
-            request,
-            "Downpayment amount cannot be the same as full payment amount.",
-        )
-        return redirect("payment_page", booking_id=booking.id)
-
-    if payment_type == "full" and amount < total_price and verified_paid <= Decimal("0.00"):
-            messages.error(
-                request,
-                "Full payment must match the total booking amount.",
-            )
-            return redirect("payment_page", booking_id=booking.id)
-
-    amount_cents = int(amount * 100)
-    success_url = request.build_absolute_uri(reverse("paymongo_success", kwargs={"booking_id": booking.id}))
-    cancel_url = request.build_absolute_uri(reverse("paymongo_cancel", kwargs={"booking_id": booking.id}))
-
-    paymongo_type = "gcash"
-    checkout_session = create_paymongo_checkout_session(
-        amount=amount_cents,
-        booking_id=booking.id,
-        success_url=success_url,
-        cancel_url=cancel_url,
-        payment_type=paymongo_type,
-        description=f"Payment for Booking #{booking.id}",
-    )
-
-    if not checkout_session:
-        messages.error(request, "Failed to create payment session. Please try again.")
-        return redirect("payment_page", booking_id=booking.id)
-
-    try:
-        session_id = checkout_session["data"]["id"]
-        checkout_url = checkout_session["data"]["attributes"]["checkout_url"]
-    except (KeyError, TypeError):
-        messages.error(request, "Invalid response from payment provider.")
-        return redirect("payment_page", booking_id=booking.id)
-
-    transaction_ref = str(uuid.uuid4()).replace("-", "")[:16].upper()
-    Payment.objects.create(
-        booking=booking,
-        amount=amount,
-        payment_method=f"paymongo_{payment_method_type}",
-        payment_type=payment_type,
-        payment_status="pending",
-        transaction_ref=transaction_ref,
-        paymongo_checkout_session_id=session_id,
-        paymongo_checkout_url=checkout_url,
-    )
-
-    request._submission_succeeded = True
-    log_action(request.user, f"Created PayMongo checkout session for Booking #{booking.id}.")
-    return redirect(checkout_url)
 
 
 @login_required
+@transaction.atomic
 def paymongo_success(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     from ..models import BookingChangeRequest
@@ -1756,16 +1665,18 @@ def paymongo_success(request, booking_id):
         if not change_id.isdigit():
             raise Http404('Change request not found')
         get_object_or_404(BookingChangeRequest, pk=change_id, booking=booking)
-    pending_paymongo = (
-        booking.payments.filter(
-            payment_status="pending",
+    payment_id = request.GET.get('payment_id')
+    if payment_id and (not payment_id.isdigit() or len(payment_id) > 19 or int(payment_id) >= 2**63):
+        raise Http404('Payment not found')
+    candidates = booking.payments.select_for_update().filter(
+            Q(payment_status='pending') | Q(payment_status='rejected', received_at__isnull=True, paymongo_payment_id=''),
             payment_method__startswith="paymongo_",
             paymongo_checkout_session_id__gt="",
             change_request_id=change_id or None,
-        )
-        .order_by("-created_at")
-        .first()
-    )
+        ).exclude(notes__icontains='Provider confirmed terminal:')
+    if payment_id:
+        candidates = candidates.filter(pk=payment_id)
+    pending_paymongo = candidates.order_by('-created_at', '-pk').first()
 
     if not pending_paymongo:
         messages.info(
@@ -1824,6 +1735,7 @@ def paymongo_success(request, booking_id):
             payment_data=payment_data,
         )
         pending_paymongo.paymongo_payment_id = actual_payment_id or payment_intent_id
+        pending_paymongo.payment_status = 'pending'
         pending_paymongo.received_at = pending_paymongo.received_at or timezone.now()
         if payer_name:
             pending_paymongo.gcash_sender_name = payer_name
@@ -1836,6 +1748,7 @@ def paymongo_success(request, booking_id):
         pending_paymongo.save(
             update_fields=[
                 "paymongo_payment_id",
+                "payment_status",
                 "received_at",
                 "gcash_sender_name",
                 "paymongo_contact_number",
@@ -1860,7 +1773,7 @@ def paymongo_success(request, booking_id):
         ):
             pending_paymongo.notes = (
                 f"PayMongo checkout {checkout_status} — did not complete. "
-                "Customer may retry with a new checkout."
+                f"Provider confirmed terminal: {checkout_status}. Review the GCash QR instructions before paying."
             )
             pending_paymongo.save(update_fields=["notes", "updated_at"])
         messages.warning(
@@ -1892,19 +1805,19 @@ def paymongo_cancel(request, booking_id):
         .first()
     )
     if pending_paymongo and pending_paymongo.payment_status == "pending":
-        # Keep the record as an audit trail (marker notes exclude it from
-        # every action queue, so cancelling never blocks a future retry).
+        # A browser cancellation is not evidence that the provider can no longer charge.
         pending_paymongo.notes = (
             "PayMongo checkout cancelled — did not complete. "
-            "Customer may retry with a new checkout."
+            "Check the provider status before making another payment."
         )
         pending_paymongo.save(update_fields=["notes", "updated_at"])
-    messages.info(request, "Payment was cancelled. You can try again at any time.")
+    messages.info(request, "You left the previous checkout. Check its status before making another payment.")
     return redirect("payment_page", booking_id=booking_id)
 
 
 @csrf_exempt
 @require_POST
+@transaction.atomic
 def paymongo_webhook(request):
     payload = request.body.decode('utf-8')
     signature_header = request.headers.get('Paymongo-Signature', '')
@@ -1923,13 +1836,15 @@ def paymongo_webhook(request):
         if not checkout_session_id:
             return JsonResponse({"success": True})
 
-        payment = Payment.objects.filter(
+        payment = Payment.objects.select_for_update().filter(
             paymongo_checkout_session_id=checkout_session_id
         ).first()
         if not payment:
             return JsonResponse({"success": True})
 
-        if event_type == "checkout_session.payment.paid" and payment.payment_status == "pending":
+        if event_type == 'checkout_session.payment.paid' and (payment.payment_status == 'pending'
+                or (payment.payment_status == 'rejected' and not payment.received_at and not payment.paymongo_payment_id)):
+            payment.payment_status = 'pending'
             payment_ref = ""
             payments_arr = event_data_attrs.get("payments") or []
             if payments_arr and isinstance(payments_arr, list):
@@ -1950,6 +1865,7 @@ def paymongo_webhook(request):
             payment.save(
                 update_fields=[
                     "paymongo_payment_id",
+                    "payment_status",
                     "received_at",
                     "gcash_sender_name",
                     "paymongo_contact_number",
@@ -1968,7 +1884,8 @@ def paymongo_webhook(request):
                 )
                 payment.notes = (
                     f"PayMongo {failure_label} — did not complete. "
-                    "Customer may retry with a new checkout."
+                    +('Provider confirmed terminal: expired. ' if event_type == 'checkout_session.expired' else '')
+                    +'Review the GCash QR instructions before paying.'
                 )
                 payment.save(update_fields=["notes", "updated_at"])
 

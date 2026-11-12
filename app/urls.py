@@ -193,6 +193,8 @@ from .views import (
     save_user_design,
     select_design_type,
     submit_payment,
+    payment_proof,
+    gcash_qr_download,
     submit_review,
     theme_quiz_api,
     update_my_profile,
@@ -730,6 +732,8 @@ urlpatterns = [
         name="admin_send_payment_reminder",
     ),
     path("staff/gcash-config/", admin_gcash_config, name="admin_gcash_config"),
+    path("payments/<int:payment_id>/proof/", payment_proof, name="payment_proof"),
+    path("payments/gcash/qr/", gcash_qr_download, name="gcash_qr_download"),
     # PayMongo
     path("booking/<int:booking_id>/paymongo/checkout/", create_paymongo_checkout, name="create_paymongo_checkout"),
     path("booking/<int:booking_id>/paymongo/success/", paymongo_success, name="paymongo_success"),

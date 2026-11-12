@@ -2555,16 +2555,16 @@ def _build_catalog_chunks():
 
     service_charge = ServiceChargeConfig.objects.first()
     gcash = GCashConfig.objects.first()
-    paymongo_enabled = bool(getattr(settings, "PAYMONGO_SECRET_KEY", ""))
     payment_content_lines = [
-        "Customer checkout method currently enabled: GCash only.",
-        "Checkout form submits payment_method='gcash' and backend allowed methods are restricted to {'gcash'}.",
+        "Customer payment method: GCash QR with website proof submission and manual merchant verification.",
         (
-            "PayMongo integration is enabled in settings, so customers pay through GCash via PayMongo checkout."
-            if paymongo_enabled
-            else "PayMongo integration is not configured. Customer online checkout is currently unavailable until PAYMONGO_SECRET_KEY is set."
+            "The merchant QR is configured. Customers scan/download it, check recipient and amount, then submit their reference, sender, transaction date/time and screenshot through My Payments."
+            if gcash and gcash.is_ready
+            else "GCash QR is not configured. Customers must contact the team before paying."
         ),
         "Initial payment options: downpayment or full payment. After an initial verified payment, only balance payment is accepted.",
+        "A proof screenshot does not establish receipt of funds. Admins must check the successful incoming merchant transaction before approval. Do not pay again while proof or a previous provider checkout is under review.",
+        "PayMongo routes only reconcile older payments. Never ask customers for OTP/MPIN or invent a recipient account.",
         f"Payment verification states: {_status_line(Payment.PAYMENT_STATUS_CHOICES)}.",
         "Do not claim card, PayPal, or GrabPay as currently available customer checkout methods unless backend checkout config changes.",
     ]

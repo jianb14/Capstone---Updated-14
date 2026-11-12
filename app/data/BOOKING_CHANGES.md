@@ -72,14 +72,15 @@ server-side withdrawal and duplicate-payment checks remain authoritative.
 
 Initial, balance, and additional change payments render the same
 `client/payment_upload.html` checkout, using the existing three steps, consent,
-booking sidebar, order summary, and GCash via PayMongo flow. A change payment
+booking sidebar, order summary, and merchant GCash QR/manual-verification flow. A change payment
 has a fixed amount from the accepted quote; it never offers downpayment/full
 booking options or trusts a posted amount. Its summary shows original/revised
 totals, existing verified payments, the additional due, and any separate original
 balance. Submitted payments use the same verification screen. The change endpoint
-and owner checks remain in place, including provider success/cancel/processing
-returns and reuse of unfinished checkouts. Manual receipt POST compatibility is
-retained for existing records; the separate manual-proof checkout page is removed.
+and owner checks remain in place. Customers submit a reference, sender, transaction
+time and private proof screenshot. Existing provider return/webhook routes only
+reconcile historical payments; new checkouts and unfinished-checkout resumes are
+disabled. An unresolved older checkout must be checked before another payment.
 
 Change payments use existing Payment records, linked to BookingChangeRequest,
 with `applied_to_booking=False` until finalization. Such records remain in payment

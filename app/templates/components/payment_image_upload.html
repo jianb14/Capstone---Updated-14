@@ -1,0 +1,18 @@
+<div class="payment-upload" data-payment-upload>
+    <label class="payment-upload-label" id="{{ field.auto_id }}_label" for="{{ field.id_for_label }}">{{ label|default:field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+    <div class="payment-upload-zone" data-upload-zone role="group" aria-labelledby="{{ field.auto_id }}_label" aria-describedby="{{ field.auto_id }}_help">
+        {% include 'admin/catalog/_icon.html' with icon='upload' %}
+        <strong>Choose an image or drag &amp; drop it here</strong>
+        <span id="{{ field.auto_id }}_help">PNG or JPEG &middot; Up to 1 photo &middot; 5 MB</span>
+        <button type="button" class="payment-upload-browse" data-upload-browse aria-controls="{{ field.id_for_label }}">Browse Files</button>
+        <input class="payment-upload-input" type="file" name="{{ field.name }}" id="{{ field.id_for_label }}" accept="image/png,image/jpeg"{% if field.field.required %} required{% endif %} aria-labelledby="{{ field.auto_id }}_label" aria-describedby="{{ field.auto_id }}_help {{ field.auto_id }}_feedback{% if field.errors %} {{ field.auto_id }}_errors{% endif %}"{% if field.errors %} aria-invalid="true"{% endif %}>
+    </div>
+    <div class="payment-upload-preview" data-upload-preview hidden>
+        <img alt="Selected image preview">
+        <div class="payment-upload-file"><strong data-upload-filename></strong><span data-upload-size></span></div>
+        <button type="button" class="payment-upload-remove" data-upload-remove aria-label="Remove selected image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="payment-upload-feedback" id="{{ field.auto_id }}_feedback" data-upload-feedback role="status" aria-live="polite"></p>
+    <button type="button" class="payment-upload-browse payment-upload-reset" data-upload-remove data-upload-reset hidden>Clear selection</button>
+    {% if field.errors %}<div class="payment-upload-error" id="{{ field.auto_id }}_errors" role="alert">{{ field.errors }}</div>{% endif %}
+</div>

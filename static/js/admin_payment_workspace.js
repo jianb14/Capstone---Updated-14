@@ -13,6 +13,7 @@
     const confirmButton = root.querySelector('#pmConfirmSubmit'), receiptDialog = root.querySelector('#pmReceiptDialog');
     const settingsDialog = root.querySelector('#pmSettingsDialog'), settingsBody = root.querySelector('#pmSettingsBody');
     const settingsSave = root.querySelector('#pmSettingsSave'), reasonError = root.querySelector('#pmReasonError');
+    const merchantCheck = root.querySelector('#pmMerchantConfirmed');
     const selects = window.AdminSelects?.create(root);
     let listController, detailController, settingsController, listVersion = 0, timer, action, saving = false, detailURL, detailOrigin;
 
@@ -133,6 +134,8 @@
             const data = await settingsRequest(settingsDialog.dataset.settingsUrl, {signal: controller.signal});
             if (controller.signal.aborted) return;
             skeletonLoad?.finish(); settingsBody.innerHTML = data.html;
+            window.PaymentUploads?.cleanup();
+            settingsBody.scrollTop = 0;
             settingsSave.disabled = false;
             settingsBody.querySelector('input:not([type="hidden"])')?.focus({preventScroll: true});
         } catch (error) {
@@ -154,6 +157,10 @@
             fieldError.textContent = field.value ? 'Enter a whole number from 1 to 100.' : 'Enter the required downpayment percentage.';
             fieldError.hidden = false; field.setAttribute('aria-invalid', 'true'); field.focus(); return;
         }
+        const upload = form.querySelector('[data-payment-upload] input[type="file"]');
+        if (upload && !upload.checkValidity()) {
+            form.querySelector('[data-upload-browse]').focus(); return;
+        }
         const body = new FormData(form), scope = settingsDialog || root.querySelector('.pm-settings-standalone');
         saving = true; settingsSave.disabled = true; settingsSave.textContent = 'Saving…';
         scope.setAttribute('aria-busy', 'true');
@@ -165,6 +172,7 @@
                 if (queues) await loadQueue(location.href, false);
             } else {
                 settingsBody.innerHTML = data.html;
+                window.PaymentUploads?.cleanup();
                 settingsBody.querySelector('[aria-invalid="true"]')?.focus({preventScroll: true});
             }
         } catch (error) {
@@ -224,7 +232,9 @@
     function prepareAction(kind, url, text, origin) {
         if (saving) return;
         clearTimeout(timer);
-        action = {kind, url, origin};
+        action = {kind, url, origin, merchantConfirmation: kind === 'verify' && origin?.hasAttribute('data-merchant-confirmation')};
+        merchantCheck.checked = false;
+        root.querySelector('#pmMerchantField').hidden = !action.merchantConfirmation;
         feedback(actionNotice);
         reason.value = ''; reason.setCustomValidity(''); reason.required = false;
         reasonChoice.value = ''; reasonChoice.required = kind === 'reject'; reasonChoice.disabled = kind !== 'reject';
@@ -236,7 +246,7 @@
         root.querySelector('#pmConfirmTitle').textContent = titles[kind];
         root.querySelector('#pmConfirmText').textContent = text;
         confirmButton.textContent = kind === 'verify' ? 'Approve Payment' : kind === 'reject' ? 'Reject Payment' : 'Send Reminder';
-        confirmButton.disabled = false;
+        confirmButton.disabled = action.merchantConfirmation;
         openDialog(confirmDialog);
         // Keep accidental Enter presses from confirming a financial action.
         confirmDialog.querySelector('[data-close-dialog]').focus();
@@ -295,10 +305,17 @@
         prepareAction('reminder', reminder.action, `Send a payment reminder to ${reminder.dataset.customer} for booking #${reminder.dataset.booking}?`, reminder.querySelector('button'));
     });
     reason.addEventListener('input', () => { reason.setCustomValidity(''); reason.removeAttribute('aria-invalid'); detailsError.hidden = true; });
+    merchantCheck.addEventListener('change', () => {
+        if (action?.merchantConfirmation) confirmButton.disabled = !merchantCheck.checked;
+    });
     reasonChoice.addEventListener('change', () => { reasonChoice.setCustomValidity(''); reasonChoice.removeAttribute('aria-invalid'); reasonError.hidden = true; selects?.sync(reasonChoice); });
     confirmForm.addEventListener('submit', async event => {
         event.preventDefault();
         if (saving || !action) return;
+        if (action.merchantConfirmation && !merchantCheck.checked) {
+            feedback(actionNotice, 'Check the incoming transaction in the merchant account before approving.');
+            merchantCheck.focus(); return;
+        }
         if (action.kind === 'reject' && !reasonChoice.value) {
             const message = 'Choose a reason before continuing.';
             reasonChoice.setCustomValidity(message); reasonChoice.setAttribute('aria-invalid', 'true');
@@ -315,6 +332,7 @@
         url.searchParams.set('next', 'payments');
         const body = new FormData();
         body.set('csrfmiddlewaretoken', root.querySelector('#pmCsrf input').value);
+        if (selected.merchantConfirmation && merchantCheck.checked) body.set('merchant_confirmed', 'on');
         if (selected.kind === 'reject') {
             body.set('reject_reason_choice', reasonChoice.value);
             body.set('admin_notes', reason.value.trim());

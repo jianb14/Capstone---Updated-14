@@ -270,6 +270,10 @@ class SiteGuideBrowserTests(StaticLiveServerTestCase):
                 seen=[]
                 for number in range(12):
                     seen.append(page.locator('[data-guide-title]').inner_text())
+                    if seen[-1]=='Event schedule':
+                        self.assertTrue(page.locator('[data-site-guide-target]').evaluate("target=>Boolean(target.querySelector('#start_time,#edit_start_time') && target.querySelector('#end_time,#edit_end_time'))"))
+                    if seen[-1]=='Venue information':
+                        self.assertTrue(page.locator('[data-site-guide-target]').evaluate("target=>Boolean(target.querySelector('#event_location,#edit_event_location') && target.querySelector('.booking-location-map'))"))
                     box=panel.bounding_box();viewport=page.viewport_size
                     self.assertGreaterEqual(box['x'],0);self.assertGreaterEqual(box['y'],0)
                     self.assertLessEqual(box['x']+box['width'],viewport['width']);self.assertLessEqual(box['y']+box['height'],viewport['height'])
@@ -297,6 +301,9 @@ class SiteGuideBrowserTests(StaticLiveServerTestCase):
                     seen=check_tour(f'booking-form-{theme}-{width}',page.locator('#bookingModalOverlay [data-site-guide-start]'))
                     self.assertIn('Booking sections',seen)
             self.assertEqual(page.locator('#event_type_select').input_value(),'')
+            page.evaluate("document.querySelector('#step-1').style.display='none';document.querySelector('#step-3').style.display='block'")
+            design_titles=check_tour('booking-design-320',page.locator('#bookingModalOverlay [data-site-guide-start]'))
+            self.assertTrue({'Theme / Decor Style','Color palette','Motto / Backdrop text','Special requests','Reference pictures'}.issubset(design_titles))
             page.goto(self.live_server_url+reverse('customer_profile'),wait_until='networkidle')
             for width,height in ((1440,1000),(390,844),(320,568)):
                 page.set_viewport_size({'width':width,'height':height})
@@ -314,6 +321,10 @@ class SiteGuideBrowserTests(StaticLiveServerTestCase):
                     expect(page.locator(f'#{modal_id}')).to_be_hidden()
                 page.evaluate('window.CustomerBookingModals.activateExisting("editBookingModal")')
                 check_tour(f'edit-booking-{width}',page.locator('#editBookingModal [data-site-guide-start]'))
+                if width==320:
+                    page.evaluate("document.querySelector('#edit-step-1').style.display='none';document.querySelector('#edit-step-3').style.display='block'")
+                    edit_titles=check_tour('edit-booking-design-320',page.locator('#editBookingModal [data-site-guide-start]'))
+                    self.assertTrue({'Theme / Decor Style','Color palette','Motto / Backdrop text','Special requests','Reference pictures'}.issubset(edit_titles))
                 page.get_by_role('button',name='Close edit booking form',exact=True).click()
             page.goto(self.live_server_url+reverse('design_canvas')+'?custom=true',wait_until='networkidle')
             page.wait_for_function('Boolean(window.fabric)')

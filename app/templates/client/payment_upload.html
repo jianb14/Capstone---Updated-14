@@ -2,7 +2,9 @@
 {% load static %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261021checkout">
+<link rel="stylesheet" href="{% static 'css/payment_uploads.css' %}?v=20261113uploadhover1">
+<script src="{% static 'js/payment_uploads.js' %}?v=20261113uploadhover1" defer></script>
+<link rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261113uploadhover1">
 {% endblock %}
 
 {% block content %}
@@ -16,15 +18,10 @@
         <div class="pu-head-text">
             <span class="pu-eyebrow">Booking #{{ booking.id }}{% if is_change_payment %} &middot; Change Request #{{ change.id }}{% endif %}</span>
             <h1 class="pu-title">{% if pending_payment %}Payment Information{% elif is_fully_paid %}Payment Complete{% else %}Complete Your Payment{% endif %}</h1>
-            <p class="pu-sub">{% if pending_payment %}Your payment is in — here's where it stands.{% elif is_fully_paid %}This booking is fully settled.{% else %}Secure GCash checkout via PayMongo{% endif %}</p>
+            <p class="pu-sub">{% if pending_payment %}Your proof is submitted and awaiting verification.{% elif is_fully_paid %}This booking is fully settled.{% else %}Pay using the merchant GCash QR, then submit your proof{% endif %}</p>
         </div>
         {% include 'components/site_guide_button.html' %}
-        {% if not pending_payment and not is_fully_paid and not payment_unavailable %}
-        <div class="pu-secure-pill">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            <span>Secured</span>
-        </div>
-        {% endif %}
+
     </div>
 
     {% if is_change_payment %}
@@ -38,11 +35,22 @@
     {% endif %}
 
     {% if payment_unavailable %}
-    <div class="pu-card">
-        <div class="pu-card-head">Payment Unavailable</div>
-        <p class="pu-change-note">{% if pending_payment %}Your payment is recorded, but our team needs to review this request with you. Please do not submit another payment.{% else %}This request cannot accept an online payment right now. Review its current status or contact our team for assistance.{% endif %}</p>
-        <a href="{% url 'customer_profile' %}?booking_id={{ booking.id }}&amp;modal=details" class="pu-btn-ghost">View Booking Request</a>
-        <a href="{% url 'my_payments' %}" class="pu-btn-ghost">Back to My Payments</a>
+    <div class="pu-state-layout">
+        <section class="pu-unavailable pu-card" aria-labelledby="paymentUnavailableTitle">
+            <div class="pu-state-heading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M7 7V5a5 5 0 0 1 10 0v2M9 13h6"/></svg><h2 id="paymentUnavailableTitle">Payment Unavailable</h2></div>
+            <p class="pu-state-description">{% if pending_payment %}Your submitted proof is recorded. Our team needs to review this request with you before you make another payment.{% elif legacy_checkout_pending %}Your previous checkout needs review before another payment. Check its status or contact our team so we can confirm what happened.{% else %}GCash QR payment is temporarily unavailable. Please contact our team before sending money.{% endif %}</p>
+            <p class="pu-state-help">You can still review your booking and existing payment history below.</p>
+            <div class="pu-state-actions">
+                {% if legacy_checkout_pending %}<a class="pu-btn-ghost pu-state-primary" href="{% url 'paymongo_success' booking.id %}?payment_id={{ legacy_checkout_pending.pk }}{% if is_change_payment %}&amp;change_request={{ change.pk }}{% endif %}">Check previous checkout</a>{% endif %}
+                <a href="{% url 'customer_profile' %}?booking_id={{ booking.id }}&amp;modal=details" class="pu-btn-ghost{% if not legacy_checkout_pending %} pu-state-primary{% endif %}">View Booking Request</a>
+                <a href="{% url 'my_payments' %}" class="pu-state-link">Back to My Payments <span aria-hidden="true">&rarr;</span></a>
+            </div>
+        </section>
+        <aside class="pu-card pu-state-balance" aria-label="Payment summary">
+            <h3>{% if is_change_payment %}Additional payment{% else %}Remaining balance{% endif %}</h3>
+            <strong>&#8369;{{ remaining_balance|floatformat:2 }}</strong>
+            {% if is_change_payment %}<p>For your accepted booking changes.</p>{% else %}<dl><div><dt>Booking total</dt><dd>&#8369;{{ total_price|floatformat:2 }}</dd></div><div><dt>Verified payments</dt><dd>&#8369;{{ total_paid|floatformat:2 }}</dd></div></dl>{% endif %}
+        </aside>
     </div>
     {% elif is_fully_paid %}
     <!-- ============ Fully paid state ============ -->
@@ -65,7 +73,7 @@
         </div>
         <div class="ps-hero-text">
             <h2>Awaiting Verification</h2>
-            <p>Your payment has been received and is now being reviewed by our team. No further action is needed right now — we'll notify you once it's confirmed.</p>
+            <p>Your payment proof has been submitted. Our team will check the incoming transaction in the merchant account. No further action is needed right now — we'll notify you once it's confirmed.</p>
         </div>
         <span class="ps-hero-pill">Pending</span>
     </div>
@@ -75,7 +83,7 @@
             <div class="pu-card">
                 <div class="pu-card-head">Payment Details</div>
                 <div class="pu-detail-row">
-                    <span class="pu-detail-label">Reference No.</span>
+                    <span class="pu-detail-label">Internal Reference</span>
                     <span class="pu-detail-value ps-mono">{{ pending_payment.transaction_ref }}</span>
                 </div>
                 <div class="pu-detail-row">
@@ -96,14 +104,15 @@
                 </div>
             </div>
 
+            {% if pending_payment.gcash_reference_number %}<div class="pu-card"><div class="pu-card-head">GCash Transaction</div><p>Reference: {{ pending_payment.gcash_reference_number }}</p><p>Sender: {{ pending_payment.gcash_sender_name }}</p>{% if pending_payment.gcash_recipient_name %}<p>Recipient: {{ pending_payment.gcash_recipient_name }}</p>{% endif %}{% if pending_payment.receipt_image %}<a class="pu-btn-ghost" href="{% url 'payment_proof' pending_payment.pk %}" target="_blank" rel="noopener">View submitted proof</a>{% endif %}</div>{% endif %}
             <div class="pu-card">
                 <div class="pu-card-head">What Happens Next</div>
                 <ol class="ps-steps">
                     <li class="ps-step is-done">
                         <span class="ps-step-dot"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
                         <div class="ps-step-body">
-                            <h4>Payment received</h4>
-                            <p>Your GCash payment was recorded on {{ pending_payment.created_at|date:"M d, Y h:i A" }}.</p>
+                            <h4>Proof submitted</h4>
+                            <p>Your GCash payment proof was submitted on {{ pending_payment.created_at|date:"M d, Y h:i A" }}.</p>
                         </div>
                     </li>
                     <li class="ps-step is-current">
@@ -162,30 +171,20 @@
 
     {% else %}
 
-    {% if pending_checkout_url and not pending_payment %}
-    <div class="pu-notice">
-        <div class="pu-notice-text">
-            <span class="pu-notice-title">Unfinished checkout</span>
-            <span class="pu-notice-sub">You have an unfinished PayMongo checkout for this booking. You can continue where you left off.</span>
-        </div>
-        <a href="{% if is_change_payment %}#js-refund-ack{% else %}{{ pending_checkout_url }}{% endif %}" class="pu-notice-btn">{% if is_change_payment %}Review &amp; Continue{% else %}Continue Payment{% endif %}</a>
-    </div>
-    {% endif %}
-
     {% if rejected_payment %}
     <div class="pu-notice">
         <div class="pu-notice-text">
             <span class="pu-notice-title">Previous payment was rejected</span>
-            <span class="pu-notice-sub">You may send a new payment below. Please double-check your details this time.</span>
+            <span class="pu-notice-sub">Resubmit corrected proof below. If money was already transferred, contact our team before making another payment.</span>
         </div>
     </div>
     {% endif %}
 
     <div class="pu-layout">
         <!-- ============ Checkout form ============ -->
-        <form method="post" action="{% if is_change_payment %}{{ checkout_action }}{% else %}{% url 'create_paymongo_checkout' booking.id %}{% endif %}" class="pu-form">
+        <form method="post" action="{% if is_change_payment %}{{ checkout_action }}{% else %}{% url 'submit_payment' booking.id %}{% endif %}" enctype="multipart/form-data" class="pu-form">
             {% csrf_token %}
-            {% if is_change_payment %}<input type="hidden" name="method" value="paymongo">{% endif %}
+            {{ payment_form.recipient_token }}
             <input type="hidden" name="payment_method" value="gcash">
             <input type="hidden" id="js-hidden-amount" name="amount" value="{% if is_initial_payment %}{% if not pending_payment %}{{ total_price|floatformat:2 }}{% else %}{{ downpayment_due|floatformat:2 }}{% endif %}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}">
 
@@ -242,52 +241,43 @@
                 <input type="hidden" name="payment_option" value="balance">
                 {% endif %}
             </div>
-<!-- @@NEXT3@@ -->
-
-<!-- @@NEXT2@@ -->
-
-            <!-- Step 2 : Review -->
-            <div class="pu-step">
+            <section class="pu-step pu-qr-section" aria-labelledby="gcashQRTitle">
                 <div class="pu-step-head">
                     <span class="pu-step-num">2</span>
-                    <div class="pu-step-text">
-                        <h2>Review Your Payment</h2>
-                        <p>Double-check the details before you continue.</p>
+                    <div class="pu-step-text"><h2 id="gcashQRTitle">Pay with GCash QR</h2><p>Scan the QR, then check the recipient and amount in GCash.</p></div>
+                </div>
+                <div class="pu-qr-layout">
+                    <div class="pu-qr-visual"><div class="pu-qr-frame"><img class="pu-qr-image" src="{{ payment_qr_url }}" alt="Official payment QR for {{ payment_recipient.name }}" width="240" height="240"></div><a class="pu-btn-ghost pu-qr-download" href="{% url 'gcash_qr_download' %}?recipient={{ payment_form.recipient_token.value|urlencode }}" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/></svg>Download QR</a></div>
+                    <div class="pu-qr-details">
+                        <h3>Review Your Payment</h3>
+                        <div class="pu-qr-amount"><span>Amount to Pay</span><strong>&#8369;<span id="js-amount-to-pay-2" data-qr-amount>{% if is_initial_payment %}{{ total_price|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span></strong></div>
+                        <dl class="pu-qr-facts">
+                            <div><dt>Recipient</dt><dd>{{ payment_recipient.name }}</dd></div>
+                            {% if payment_recipient.number %}<div><dt>Account number</dt><dd>{{ payment_recipient.number }}</dd></div>{% endif %}
+                            <div><dt>Payment Type</dt><dd id="js-selected-type-label-2">{% if is_change_payment %}Booking Change &mdash; Additional Payment{% elif is_initial_payment %}Full Payment{% else %}Balance Payment{% endif %}</dd></div>
+                            <div><dt>Payment Method</dt><dd>GCash QR &middot; Manual verification</dd></div>
+                        </dl>
                     </div>
                 </div>
-                <div class="pu-review-box">
-                    <div class="pu-review-item">
-                        <div class="pu-review-label">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
-                            <span>Payment Method</span>
-                        </div>
-                        <div class="pu-review-value">GCash via PayMongo</div>
-                    </div>
-                    <div class="pu-review-item">
-                        <div class="pu-review-label">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            <span>Payment Type</span>
-                        </div>
-                        <div class="pu-review-value" id="js-selected-type-label-2">{% if is_change_payment %}Booking Change &mdash; Additional Payment{% elif is_initial_payment %}{% if not pending_payment %}Full Payment{% else %}Downpayment{% endif %}{% else %}Balance Payment{% endif %}</div>
-                    </div>
-                    <div class="pu-review-item pu-review-item--highlight">
-                        <div class="pu-review-label">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                            <span>Amount to Pay</span>
-                        </div>
-                        <div class="pu-review-amount">&#8369;<span id="js-amount-to-pay-2">{% if is_initial_payment %}{% if not pending_payment %}{{ total_price|floatformat:2 }}{% else %}{{ downpayment_due|floatformat:2 }}{% endif %}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span></div>
-                    </div>
-                </div>
-            </div>
-            <!-- Step 3 : Confirm -->
-            <div class="pu-step">
+                {% if payment_recipient.instructions %}<div class="pu-qr-instructions"><strong>Payment instructions</strong><p>{{ payment_recipient.instructions|linebreaksbr }}</p></div>{% endif %}
+                <p class="pu-qr-help">On the same phone? Download the QR and upload it in GCash. Never share your OTP or MPIN.</p>
+            </section>
+            <section class="pu-step pu-proof-fields" aria-labelledby="gcashProofTitle">
                 <div class="pu-step-head">
                     <span class="pu-step-num">3</span>
-                    <div class="pu-step-text">
-                        <h2>Confirm &amp; Proceed</h2>
-                        <p>One last check before secure checkout.</p>
-                    </div>
+                    <div class="pu-step-text"><h2 id="gcashProofTitle">Submit Payment Proof</h2><p>Add the details from your successful GCash transaction.</p></div>
                 </div>
+                <div class="pu-proof-grid">
+                    {% for field in payment_form %}{% if not field.is_hidden and field.name != 'refund_ack' and field.name != 'receipt_image' %}
+                    <div class="pu-proof-field{% if field.name == 'gcash_reference_number' %} pu-field-wide{% endif %}">
+                        <label for="{{ field.id_for_label }}">{{ field.label }} <span aria-hidden="true">*</span></label>
+                        {{ field }}
+                        {% if field.errors %}<div class="pu-field-error" id="{{ field.auto_id }}_errors" role="alert">{{ field.errors }}</div>{% endif %}
+                    </div>
+                    {% endif %}{% endfor %}
+                </div>
+                {% include 'components/payment_image_upload.html' with field=payment_form.receipt_image label='Payment screenshot' %}
+                <p class="pu-proof-help">Our team will match your proof with the incoming transaction. We aim to review it within 24 hours. Please wait for verification before paying again.</p>
                 <div class="pu-terms-box">
                     <div class="pu-terms-header">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -306,9 +296,9 @@
                 </div>
                 <button id="js-checkout-btn" type="submit" disabled class="pu-btn-checkout" translate="no">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
-                    Proceed to Secure Checkout
+                    Submit GCash payment proof
                 </button>
-            </div>
+            </section>
         </form>
         <!-- ============ Sidebar ============ -->
         <aside class="pu-side">
@@ -329,8 +319,8 @@
                 {% endif %}
                 <div class="pu-sum-divider"></div>
                 <div class="pu-sum-total">
-                    <span class="pu-sum-total-label">{% if is_initial_payment %}Downpayment Due{% else %}Balance Due{% endif %}</span>
-                    <span class="pu-sum-total-value">&#8369;{% if is_initial_payment %}{{ downpayment_due|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span>
+                    <span class="pu-sum-total-label">{% if is_initial_payment %}Selected payment{% else %}Balance Due{% endif %}</span>
+                    <span class="pu-sum-total-value">&#8369;<span id="js-summary-amount">{% if is_initial_payment %}{{ total_price|floatformat:2 }}{% else %}{{ remaining_balance|floatformat:2 }}{% endif %}</span></span>
                 </div>
                 <div class="pu-progress">
                     <div class="pu-progress-track">
@@ -351,42 +341,20 @@
         <div class="cp-panel-head">
             <h3>{% if is_change_payment %}Payments for This Change{% else %}Payment History{% endif %}</h3>
         </div>
-        <div class="cp-table-wrap">
-            <table class="cp-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pay in payment_history %}
-                    <tr>
-                        <td>{{ pay.created_at|date:"M d, Y h:i A" }}</td>
-                        <td>&#8369;{{ pay.amount|floatformat:2 }}</td>
-                        <td>{{ pay.get_payment_method_display }}</td>
-                        <td>{{ pay.get_payment_type_display }}</td>
-                        <td>
-                            {% if pay.payment_status == 'verified' %}
-                            <span class="cp-status-badge cp-status-verified">{{ pay.get_payment_status_display }}</span>
-                            {% elif pay.payment_status == 'rejected' or pay.payment_status == 'failed' %}
-                            <span class="cp-status-badge cp-status-rejected">{{ pay.get_payment_status_display }}</span>
-                            {% else %}
-                            <span class="cp-status-badge cp-status-pending">{{ pay.get_payment_status_display }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="cp-empty">{% if is_change_payment %}No payments recorded yet for this change request.{% else %}No payments recorded yet for this booking.{% endif %}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <ul class="pu-transactions" aria-label="Payment transactions">
+            {% for pay in payment_history %}
+            <li class="pu-transaction">
+                <div class="pu-transaction-main"><strong>{{ pay.get_payment_type_display }}</strong><span>{{ pay.created_at|date:"M d, Y h:i A" }}</span><span>{{ pay.get_payment_method_display }}</span></div>
+                <div class="pu-transaction-result"><strong>&#8369;{{ pay.amount|floatformat:2 }}</strong>
+                    {% if pay.payment_status == 'verified' %}<span class="mp-status mp-status--verified">{{ pay.get_payment_status_display }}</span>
+                    {% elif pay.payment_status == 'rejected' or pay.payment_status == 'failed' %}<span class="mp-status mp-status--rejected">{{ pay.get_payment_status_display }}</span>
+                    {% else %}<span class="mp-status mp-status--pending">{{ pay.get_payment_status_display }}</span>{% endif %}
+                </div>
+            </li>
+            {% empty %}
+            <li class="pu-history-empty"><strong>No payments yet</strong><p>{% if is_change_payment %}Payments for this change request will appear here once submitted.{% else %}Your payment submissions and verification status will appear here.{% endif %}</p></li>
+            {% endfor %}
+        </ul>
     </div>
 
 </section>
@@ -399,6 +367,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const hiddenAmount = document.getElementById('js-hidden-amount');
     const amountToPay2 = document.getElementById('js-amount-to-pay-2');
     const selectedTypeLabel2 = document.getElementById('js-selected-type-label-2');
+    const summaryAmount = document.getElementById('js-summary-amount');
 
     function syncSelectedPaymentOption() {
         const selected = document.querySelector('input[name="payment_option"]:checked');
@@ -416,12 +385,14 @@ document.addEventListener('DOMContentLoaded', function () {
             hiddenAmount.value = fullValue.toFixed(2);
             amountToPay2.textContent = fullValue.toFixed(2);
             selectedTypeLabel2.textContent = 'Full Payment';
+            if (summaryAmount) summaryAmount.textContent = fullValue.toFixed(2);
             return;
         }
 
         hiddenAmount.value = downpaymentValue.toFixed(2);
         amountToPay2.textContent = downpaymentValue.toFixed(2);
         selectedTypeLabel2.textContent = 'Downpayment';
+        if (summaryAmount) summaryAmount.textContent = downpaymentValue.toFixed(2);
     }
 
     optionInputs.forEach((input) => {

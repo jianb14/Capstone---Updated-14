@@ -258,6 +258,8 @@ LOGOUT_REDIRECT_URL = '/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+PAYMENT_PROOF_ROOT = os.getenv('PAYMENT_PROOF_ROOT', os.path.join(BASE_DIR, 'private_payment_proofs'))
+PAYMENT_PROOF_USE_CLOUDINARY = bool(os.getenv('CLOUDINARY_CLOUD_NAME'))
 
 # Cloudinary Config
 CLOUDINARY_STORAGE = {

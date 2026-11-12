@@ -453,15 +453,17 @@ def run_tools(plan, job, brief):
         elif action == 'payment_help':
             from .models import GCashConfig
             config = GCashConfig.objects.first()
-            if not settings.PAYMONGO_SECRET_KEY:
-                texts.append('Online checkout is unavailable right now. Please contact our team for payment assistance.')
+            if not config or not config.is_ready:
+                texts.append('GCash QR payment is unavailable right now. Please contact our team before paying.')
             else:
-                method = 'The currently enabled online payment method is GCash.'
+                method = 'The currently enabled payment method is GCash QR with manual verification.'
                 if plan.get('answer_mode') == 'fact':
                     texts.append(method)
                     continue
                 texts.append(method+' After admin approval, open My Payments and select your booking. Choose downpayment or full payment, '
-                    'then follow the GCash checkout instructions. After an initial verified payment, choose balance payment for the remainder.' +
+                    'then scan or download the merchant QR and check the recipient and amount in GCash. Submit your transaction reference, '
+                    'sender name, transaction date/time and proof screenshot through the website. Wait for our team to verify the incoming '
+                    'merchant transaction before paying again. After an initial verified payment, choose balance payment for the remainder.' +
                     (f' The configured downpayment is {config.downpayment_percent}%.' if config else ''))
         elif action in ('booking_status', 'payment_status'):
             selected = re.search(r'\bbooking\s*#?\s*(\d+)\b', job.input_text, re.I)

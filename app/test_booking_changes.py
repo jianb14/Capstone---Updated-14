@@ -14,7 +14,7 @@ from .booking_changes import (eligibility, issue_quote, prepare_proposal, proces
     snapshot, verified_paid)
 from .context_processors import _customer_notif_target_url, _admin_notif_target_url
 from .models import (AdminNotification, Booking, BookingChangeRequest, BookingImage, BookingDesignDelivery, Notification,
-    Package, Payment, ServiceChargeConfig, SiteSettings, User)
+    GCashConfig, Package, Payment, ServiceChargeConfig, SiteSettings, User)
 from .views.common import capture_booking_fee_policy, find_active_booking_conflicts, get_booking_form_availability
 
 
@@ -29,6 +29,7 @@ class BookingChangeTests(TestCase):
         self.user = User.objects.create_user(username='change-owner', role='customer')
         self.other = User.objects.create_user(username='change-other', role='customer')
         self.admin = User.objects.create_user(username='change-team', role='admin')
+        GCashConfig.objects.create(gcash_name='Test merchant', qr_code_image='test-merchant-qr.png')
         self.site = SiteSettings.load()
         ServiceChargeConfig.objects.create(pk=1, amount=1000, shop_lat=14.414, shop_lng=120.982, per_km_rate=30)
         self.package = Package.objects.create(name='Package A', price=5000)
@@ -77,7 +78,8 @@ class BookingChangeTests(TestCase):
 
     def proof(self, change, **updates):
         buffer=BytesIO(); Image.new('RGB',(3,3),'pink').save(buffer, format='PNG')
-        data={'gcash_sender_name':'Customer', 'gcash_reference_number':'1234567890123', 'refund_ack':'on',
+        from .payment_forms import recipient_token
+        data={'recipient_token':recipient_token(GCashConfig.objects.first()), 'gcash_paid_at':timezone.localtime(self.now).strftime('%Y-%m-%dT%H:%M'), 'gcash_sender_name':'Customer', 'gcash_reference_number':'1234567890123', 'refund_ack':'on',
             'receipt_image':SimpleUploadedFile('receipt.png',buffer.getvalue(),content_type='image/png')}
         data.update(updates)
         return self.client.post(reverse('booking_change_payment', args=[self.booking.pk, change.pk]), data)
@@ -110,7 +112,7 @@ class BookingChangeTests(TestCase):
         self.assertFalse(payment.applied_to_booking)
         self.booking.refresh_from_db();self.assertEqual(self.booking.package_type,'Package A')
         self.client.force_login(self.admin)
-        self.client.post(reverse('admin_payment_action',args=[payment.pk,'verify']))
+        self.client.post(reverse('admin_payment_action',args=[payment.pk,'verify']), {'merchant_confirmed':'on'})
         change.refresh_from_db();self.booking.refresh_from_db();payment.refresh_from_db()
         self.assertEqual(change.status,'applied')
         self.assertEqual(self.booking.total_price,8000)
@@ -125,7 +127,7 @@ class BookingChangeTests(TestCase):
         self.assertEqual(change.additional_due,2000)
         self.accept(change);self.proof(change)
         self.client.force_login(self.admin)
-        self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']))
+        self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']), {'merchant_confirmed':'on'})
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.total_price-verified_paid(self.booking),4800)
 
@@ -228,7 +230,7 @@ class BookingChangeTests(TestCase):
         change=self.submit(package_type='Package B');self.quote(change)
         notif=Notification.objects.filter(booking=self.booking).last()
         self.assertIn(f'booking_id={self.booking.pk}',_customer_notif_target_url(notif))
-        self.assertEqual(_admin_notif_target_url('notification','Booking change request needs review',self.booking),f"{reverse('admin_booking_list')}?tab=requests&booking_id={self.booking.pk}")
+        self.assertEqual(_admin_notif_target_url('notification','Booking change request needs review',self.booking),f"{reverse('admin_booking_list')}?tab=requests&open_change={change.pk}")
 
     def test_rejection_and_withdrawal_keep_original(self):
         change=self.submit(package_type='Package B');before=snapshot(self.booking)
@@ -249,13 +251,13 @@ class BookingChangeTests(TestCase):
 
     @override_settings(PAYMONGO_SECRET_KEY='test')
     @patch('app.views.changes.create_paymongo_checkout_session')
-    def test_online_change_checkout_uses_server_quote_not_posted_amount(self, checkout):
+    def test_stale_online_change_form_cannot_create_provider_checkout(self, checkout):
         change=self.submit(package_type='Package B');self.quote(change);self.accept(change)
         checkout.return_value={'data':{'id':'cs_change','attributes':{'checkout_url':'https://checkout.paymongo.com/change'}}}
         response=self.client.post(reverse('booking_change_payment',args=[self.booking.pk,change.pk]),{'method':'paymongo','refund_ack':'on','amount':'1'})
-        self.assertEqual(response.status_code,302)
-        self.assertEqual(checkout.call_args.kwargs['amount'],200000)
-        self.assertEqual(change.payments.get().amount,2000)
+        self.assertEqual(response.status_code,400)
+        checkout.assert_not_called()
+        self.assertFalse(change.payments.exists())
 
     def test_payment_rejection_does_not_modify_original_booking(self):
         change=self.submit(package_type='Package B');self.quote(change);self.accept(change);self.proof(change)
@@ -269,7 +271,7 @@ class BookingChangeTests(TestCase):
         change=self.submit(package_type='Package B');self.quote(change);self.accept(change);self.proof(change)
         payment=change.payments.get();payment.received_at=change.expires_at+timedelta(minutes=1);payment.save()
         self.client.force_login(self.admin)
-        self.client.post(reverse('admin_payment_action',args=[payment.pk,'verify']))
+        self.client.post(reverse('admin_payment_action',args=[payment.pk,'verify']), {'merchant_confirmed':'on'})
         self.booking.refresh_from_db();change.refresh_from_db();payment.refresh_from_db()
         self.assertEqual(change.status,'manual_review');self.assertEqual(payment.payment_status,'verified')
         self.assertFalse(payment.applied_to_booking);self.assertEqual(self.booking.total_price,6000)
@@ -277,7 +279,7 @@ class BookingChangeTests(TestCase):
     def test_duplicate_verification_does_not_apply_or_charge_twice(self):
         change=self.submit(package_type='Package B');self.quote(change);self.accept(change);self.proof(change)
         self.client.force_login(self.admin)
-        for _ in range(2):self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']))
+        for _ in range(2):self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']), {'merchant_confirmed':'on'})
         self.booking.refresh_from_db();self.assertEqual(self.booking.total_price,8000)
         self.assertEqual(verified_paid(self.booking),8000)
         self.assertEqual(self.booking.status_logs.filter(notes__contains='Customer-accepted changes applied').count(),1)
@@ -361,7 +363,7 @@ class BookingChangeTests(TestCase):
     def test_manual_payment_resolution_closes_request_without_mutating_ledger(self):
         change=self.submit(package_type='Package B');self.quote(change);self.accept(change);self.proof(change)
         payment=change.payments.get();payment.received_at=change.expires_at+timedelta(minutes=1);payment.save()
-        self.client.force_login(self.admin);self.client.post(reverse('admin_payment_action',args=[payment.pk,'verify']))
+        self.client.force_login(self.admin);self.client.post(reverse('admin_payment_action',args=[payment.pk,'verify']), {'merchant_confirmed':'on'})
         self.client.post(reverse('admin_booking_change_action',args=[self.booking.pk,change.pk,'resolve']),{'admin_notes':'Customer contacted; separate funds resolved directly.','resolution_ack':'on'})
         change.refresh_from_db();payment.refresh_from_db();self.booking.refresh_from_db()
         self.assertEqual(change.status,'withdrawn');self.assertEqual(payment.payment_status,'verified')
@@ -426,7 +428,7 @@ class BookingChangeTests(TestCase):
         self.client.force_login(self.admin)
         response=self.client.get(reverse('admin_booking_change_detail',args=[change.pk]), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertIn('name="downgrade_ack" required', response.json()['html'])
-        self.assertContains(response,'Excess payment: ₱1,000.00')
+        self.assertIn('Excess payment: ₱1,000.00', response.json()['html'])
         self.assertContains(response,'Message to customer (Required)')
         self.assertContains(response,'I have explained the non-refundable excess')
         self.quote(change,admin_notes='Non-refundable excess explained.')
@@ -457,7 +459,7 @@ class BookingChangeTests(TestCase):
         self.assertEqual(change.original_total,6000);self.assertEqual(change.quoted_total,8000)
         self.accept(change);self.proof(change)
         self.client.force_login(self.admin)
-        self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']))
+        self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']), {'merchant_confirmed':'on'})
         self.booking.refresh_from_db();self.original_payment.refresh_from_db()
         self.assertEqual(self.original_payment.amount,6000)
         self.assertEqual(verified_paid(self.booking),8000)
@@ -501,21 +503,22 @@ class BookingChangeTests(TestCase):
         self.client.force_login(self.admin)
         from .booking_lifecycle import event_start_at
         with patch('django.utils.timezone.now',return_value=event_start_at(self.booking)+timedelta(minutes=1)):
-            self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']))
+            self.client.post(reverse('admin_payment_action',args=[change.payments.get().pk,'verify']), {'merchant_confirmed':'on'})
         change.refresh_from_db();self.booking.refresh_from_db()
         self.assertEqual(change.status,'manual_review');self.assertEqual(self.booking.package_type,'Package A')
 
     @override_settings(PAYMONGO_SECRET_KEY='test')
     @patch('app.views.changes.create_paymongo_checkout_session')
-    def test_failed_online_checkout_can_be_retried(self, checkout):
+    def test_locally_cancelled_checkout_requires_provider_review(self, checkout):
         change=self.submit(package_type='Package B');self.quote(change);self.accept(change)
         Payment.objects.create(booking=self.booking,change_request=change,applied_to_booking=False,payment_type='change_balance',amount=2000,
             payment_method='paymongo_gcash',payment_status='pending',transaction_ref='failed-checkout',paymongo_checkout_session_id='cs_failed',
             paymongo_checkout_url='https://checkout.paymongo.com/failed',notes='PayMongo checkout cancelled — did not complete. Customer may retry with a new checkout.')
         checkout.return_value={'data':{'id':'cs_retry','attributes':{'checkout_url':'https://checkout.paymongo.com/retry'}}}
         response=self.client.post(reverse('booking_change_payment',args=[self.booking.pk,change.pk]),{'method':'paymongo','refund_ack':'on'})
-        self.assertEqual(response.url,'https://checkout.paymongo.com/retry')
-        self.assertIn(f'change_request={change.pk}',checkout.call_args.kwargs['success_url'])
+        self.assertEqual(response.status_code,400)
+        checkout.assert_not_called()
+        self.assertEqual(change.payments.count(),1)
 
     @patch('app.views.payments.retrieve_paymongo_checkout_session')
     def test_normal_provider_return_does_not_refresh_an_unrelated_change_checkout(self, retrieve):

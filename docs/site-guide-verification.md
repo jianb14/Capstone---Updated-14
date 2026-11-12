@@ -4,6 +4,12 @@
 
 The user requested a read-only feature tour with Next/Back, a clear focus box, and dimmed surroundings. It replaces the earlier task-aware assistant. Tour steps do not depend on missing answers, validation or transaction progress.
 
+## Complete booking field groups
+
+The schedule target now includes both Start and End, and the venue target includes the address, map and location controls. Design Preferences has separate full-field targets for theme/decor, color palette, motto/backdrop text, special requests and reference pictures in both create and edit forms. Only visible form sections are toured; no form navigation or validation is triggered by the guide.
+
+All **11 guide browser tests passed in 128.472 seconds**. The real-page check verifies both schedule inputs and the map are descendants of their highlighted groups, and opens create/edit Design Preferences in test setup to verify all five explanations are present. Existing border, alignment, hover, keyboard, reduced-motion and cleanup checks also pass. Independent selector review and JavaScript syntax/whitespace checks passed. Log: `.booking-followup-check/site-guide/booking-groups.log`. The complete backend suite was not rerun for this guide-content change.
+
 ## Modal-only style correction
 
 The user's intended distinction is a bordered button with a neutral surface outside modals, and borderless ghost styling only inside modals. Restored the page/header/toolbar button treatment while preserving the fixed Guide/X alignment and working hover behavior. Real-page verification now checks the border in both resting and hovered states against the button's actual modal ancestry. This supersedes the page-level ghost treatment mentioned in the earlier alignment fix below.

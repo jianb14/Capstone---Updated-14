@@ -3,8 +3,8 @@
 {% block title %}My Payments | Balloorina.ph{% endblock %}
 
 {% block account_css %}
-<link data-account-style rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261023wrap">
-<link data-account-style rel="stylesheet" href="{% static 'css/payment_details.css' %}?v=20261026b">
+<link data-account-style rel="stylesheet" href="{% static 'css/client_payment.css' %}?v=20261112gcashqr">
+<link data-account-style rel="stylesheet" href="{% static 'css/payment_details.css' %}?v=20261113proof1">
 {% endblock %}
 
 {% block account_page %}my_payments{% endblock %}
@@ -113,13 +113,16 @@
                         <span class="mp-pill" id="modal-pay-status">-</span>
                     </div>
                     <div class="mp-mrow">
-                        <span class="mp-mrow-label">Date Paid</span>
+                        <span class="mp-mrow-label">Date submitted</span>
                         <span class="mp-mrow-value" id="modal-pay-date">-</span>
                     </div>
                 </div>
                 <div class="mp-mrefs">
+                    <div class="mp-mref" id="modal-gcash-ref-row" hidden><span class="mp-mref-label">GCash reference</span><span class="mp-mref-value" id="modal-gcash-reference"></span></div>
+                    <div class="mp-mref" id="modal-recipient-row" hidden><span class="mp-mref-label">Payment recipient</span><span class="mp-mref-value" id="modal-pay-recipient"></span></div>
+                    <div class="mp-mref" id="modal-transaction-time-row" hidden><span class="mp-mref-label">Customer-reported transaction time</span><span class="mp-mref-value" id="modal-transaction-time"></span></div>
                     <div class="mp-mref">
-                        <span class="mp-mref-label">Transaction reference</span>
+                        <span class="mp-mref-label">Internal reference</span>
                         <span class="mp-mref-value mp-mono" id="modal-pay-ref">-</span>
                     </div>
                     <div class="mp-mref">
@@ -143,11 +146,18 @@
                     <span class="mp-mrow-label">Admin Remarks / Rejection Reason</span>
                     <span class="mp-mcallout-value mp-modal-note" id="modal-pay-notes">-</span>
                 </div>
+                <a id="modal-pay-proof" class="payment-proof-button" aria-haspopup="dialog" aria-controls="paymentProofDialog" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-7 5 8"/></svg>View submitted proof</a>
             </div>
         </div>
         <footer class="payment-details-footer"><button type="button" class="payment-details-done" onclick="closeBookingModal()">Done</button></footer>
     </div>
 </div>
+
+<dialog id="paymentProofDialog" class="payment-proof-dialog" aria-labelledby="paymentProofTitle">
+    <header><h2 id="paymentProofTitle">Submitted payment proof</h2><button type="button" data-proof-close aria-label="Close submitted proof"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+    <p data-proof-status role="status">Loading payment proof…</p>
+    <img alt="Submitted payment screenshot" hidden>
+</dialog>
 
 <section class="cp-shell mp-shell" data-account-list data-results-id="payment-list-results">
     <div class="pu-head account-page-header site-guide-feature-head">
@@ -259,6 +269,10 @@
                                     data-pay-payment-id="{{ b.latest_pay_payment_id|default:'' }}"
                                     data-pay-checkout-session-id="{{ b.latest_pay_checkout_session_id|default:'' }}"
                                     data-pay-sender="{{ b.latest_pay_sender|default:'' }}"
+                                    data-pay-gcash-reference="{{ b.latest_pay_gcash_reference|default:'' }}"
+                                    data-pay-recipient="{{ b.latest_pay_recipient|default:'' }}"
+                                    data-pay-transaction-time="{{ b.latest_pay_transaction_time|date:'M d, Y h:i A' }}"
+                                    data-pay-proof-url="{{ b.latest_pay_proof_url|default:'' }}"
                                     data-pay-verified="{% if b.latest_pay_verified %}{{ b.latest_pay_verified|date:'M d, Y h:i A' }}{% endif %}"
                                     data-pay-notes="{{ b.latest_pay_notes|default:'' }}"
                                     onclick="openBookingModal(this)">
@@ -330,6 +344,10 @@
                                     data-pay-payment-id="{{ b.latest_pay_payment_id|default:'' }}"
                                     data-pay-checkout-session-id="{{ b.latest_pay_checkout_session_id|default:'' }}"
                                     data-pay-sender="{{ b.latest_pay_sender|default:'' }}"
+                                    data-pay-gcash-reference="{{ b.latest_pay_gcash_reference|default:'' }}"
+                                    data-pay-recipient="{{ b.latest_pay_recipient|default:'' }}"
+                                    data-pay-transaction-time="{{ b.latest_pay_transaction_time|date:'M d, Y h:i A' }}"
+                                    data-pay-proof-url="{{ b.latest_pay_proof_url|default:'' }}"
                                     data-pay-verified="{% if b.latest_pay_verified %}{{ b.latest_pay_verified|date:'M d, Y h:i A' }}{% endif %}"
                                     data-pay-notes="{{ b.latest_pay_notes|default:'' }}"
                                     onclick="openBookingModal(this)">
@@ -410,6 +428,10 @@
                                     data-pay-payment-id="{{ pay.paymongo_payment_id|default:'' }}"
                                     data-pay-checkout-session-id="{{ pay.paymongo_checkout_session_id|default:'' }}"
                                     data-pay-sender="{{ pay.gcash_sender_name|default:'' }}"
+                                    data-pay-gcash-reference="{{ pay.gcash_reference_number|default:'' }}"
+                                    data-pay-recipient="{{ pay.gcash_recipient_name|default:'' }}"
+                                    data-pay-transaction-time="{{ pay.gcash_paid_at|date:'M d, Y h:i A' }}"
+                                    data-pay-proof-url="{% if pay.receipt_image %}{% url 'payment_proof' pay.pk %}{% endif %}"
                                     data-pay-verified="{% if pay.paid_at %}{{ pay.paid_at|date:'M d, Y h:i A' }}{% endif %}"
                                     data-pay-notes="{{ pay.notes|default:'' }}"
                                     data-payments-json="{{ pay.booking.payments_json }}"
@@ -448,6 +470,20 @@
 <script>
 AccountPages.register('my_payments', "template", function(scope) {
 const paymentModal=document.getElementById('bookingModal');
+const proofDialog=document.getElementById('paymentProofDialog');
+const proofImage=proofDialog.querySelector('img'), proofStatus=proofDialog.querySelector('[data-proof-status]');
+document.getElementById('modal-pay-proof').addEventListener('click', function(event) {
+    event.preventDefault();
+    if (!this.hasAttribute('href')) return;
+    proofStatus.hidden=false;proofStatus.textContent='Loading payment proof…';proofImage.hidden=true;
+    proofImage.src=this.href;
+    proofDialog.showModal();
+});
+proofImage.addEventListener('load',()=>{proofStatus.hidden=true;proofImage.hidden=false;});
+proofImage.addEventListener('error',()=>{proofStatus.hidden=false;proofStatus.textContent='Unable to load the payment proof. Close this preview and try again.';});
+proofDialog.querySelector('[data-proof-close]').addEventListener('click',()=>proofDialog.close());
+proofDialog.addEventListener('click',event=>{if(event.target===proofDialog && (event.clientX<proofDialog.getBoundingClientRect().left || event.clientX>proofDialog.getBoundingClientRect().right || event.clientY<proofDialog.getBoundingClientRect().top || event.clientY>proofDialog.getBoundingClientRect().bottom)) proofDialog.close();});
+proofDialog.addEventListener('close',()=>{proofImage.removeAttribute('src');proofImage.hidden=true;});
 let paymentModalOpener=null, paymentPreviousOverflow=null;
 
 function activatePaymentsTab(tabName, syncUrl = true) {
@@ -608,6 +644,22 @@ function openBookingModal(btn) {
         document.getElementById('modal-pay-sender').textContent = d.paySender || '-';
         document.getElementById('modal-pay-checkout-session-id').textContent = d.payCheckoutSessionId || '-';
         document.getElementById('modal-pay-verified').textContent = d.payVerified || '-';
+        for (const [row, field, value] of [
+            ['modal-gcash-ref-row', 'modal-gcash-reference', d.payGcashReference],
+            ['modal-recipient-row', 'modal-pay-recipient', d.payRecipient],
+            ['modal-transaction-time-row', 'modal-transaction-time', d.payTransactionTime]
+        ]) {
+            document.getElementById(row).hidden = !value;
+            document.getElementById(field).textContent = value || '';
+        }
+        for (const id of ['modal-pay-payment-id', 'modal-pay-checkout-session-id']) {
+            const value = document.getElementById(id);
+            value.closest('.mp-mref').hidden = value.textContent === '-';
+        }
+        const proof = document.getElementById('modal-pay-proof');
+        proof.hidden = !d.payProofUrl;
+        if (d.payProofUrl) proof.href = d.payProofUrl;
+        else proof.removeAttribute('href');
 
         // Admin Notes / Rejection Reason: Show only if payment is rejected and notes exist
         const notesField = document.getElementById('modal-pay-notes-field');
@@ -726,6 +778,7 @@ function openBookingModal(btn) {
 }
 
 function closeBookingModal() {
+    if (proofDialog.open) proofDialog.close();
     if (!paymentModal.classList.contains('active')) return;
     paymentModal.classList.remove('active');
     paymentModal.setAttribute('aria-hidden','true');
@@ -740,6 +793,7 @@ document.getElementById('bookingModal').addEventListener('click', function(e) {
 });
 
 AccountPages.listen(document, 'keydown', function(e) {
+    if (proofDialog.open) return;
     if (!paymentModal.classList.contains('active')) return;
     if (e.key === 'Escape') { e.preventDefault(); closeBookingModal(); return; }
     if (e.key !== 'Tab') return;
