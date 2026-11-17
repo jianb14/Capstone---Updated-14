@@ -3,6 +3,7 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
+from django.views.generic import TemplateView
 import os
 
 handler403 = 'app.error_pages.permission_denied'
@@ -10,6 +11,11 @@ handler404 = 'app.error_pages.page_not_found'
 handler500 = 'app.error_pages.server_error'
 
 urlpatterns = [
+    path(
+        'googlecb47ddd3bccf6fab.html',
+        TemplateView.as_view(template_name='googlecb47ddd3bccf6fab.html'),
+        name='google-site-verification',
+    ),
     path('admin/', admin.site.urls),
     path('', include('app.urls'))
 ]
