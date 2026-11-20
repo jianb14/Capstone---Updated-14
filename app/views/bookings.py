@@ -241,7 +241,7 @@ def admin_calendar(request):
     status_colors = {
         "confirmed": "#3b82f6",  # Blue
         "pending": "#d97706",  # Yellow/Amber
-        "pending_payment": "#f59e0b",  # Amber
+        "pending_payment": "#c2410c",  # Orange
         "completed": "#22c55e",  # Green
         "expired": "#6b7280",  # Gray
         "cancelled": "#ef4444",  # Red
@@ -303,7 +303,7 @@ def admin_calendar(request):
     for hold in live_holds():
         start, end = timezone.localtime(hold.hold_start), timezone.localtime(hold.hold_end)
         calendar_events.append({'title':f'Change request #{hold.pk} · Temporarily reserved',
-            'start':start.isoformat(), 'end':end.isoformat(), 'color':'#b88742', 'booking_id':hold.booking_id,
+            'start':start.isoformat(), 'end':end.isoformat(), 'color':'#6d28d9', 'booking_id':hold.booking_id,
             'client_name':hold.booking.user.get_full_name() or hold.booking.user.username,
             'event_type':'Proposed booking change', 'event_location':hold.proposed.get('event_location',''),
             'package_type':hold.proposed.get('package_type',''), 'status':'Temporary hold', 'status_raw':'temporary_hold',

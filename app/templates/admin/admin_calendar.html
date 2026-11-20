@@ -4,7 +4,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/admin_concerns_workspace.css' %}?v=20261102sk3">
 <link rel="stylesheet" href="{% static 'css/admin_feedback.css' %}?v=20261028b">
-<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261030j">
+<link rel="stylesheet" href="{% static 'css/admin_calendar.css' %}?v=20261120legend1">
 {% endblock %}
 {% block content %}
 <div class="ac-workspace admin-calendar-page" data-calendar-url="{% url 'admin_calendar' %}" data-today="{{ today_iso }}" data-server-now="{{ server_now }}" data-next-day-at="{{ next_day_at }}">
@@ -36,11 +36,14 @@
             <div class="cal-status-filters" role="group" aria-label="Filter by booking status">
                 <button type="button" class="legend-item legend-filter" data-status="confirmed" aria-pressed="false"><span class="legend-color confirmed"></span><span>Confirmed</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
                 <button type="button" class="legend-item legend-filter" data-status="pending" aria-pressed="false"><span class="legend-color pending"></span><span>Pending</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+                <button type="button" class="legend-item legend-filter" data-status="pending_payment" aria-pressed="false"><span class="legend-color pending_payment"></span><span>Pending Payment</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
+                <button type="button" class="legend-item legend-filter" data-status="temporary_hold" aria-pressed="false" aria-describedby="cal-hold-note"><span class="legend-color temporary_hold"></span><span>Temporary Hold</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
                 <button type="button" class="legend-item legend-filter" data-status="completed" aria-pressed="false"><span class="legend-color completed"></span><span>Completed</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
                 <button type="button" class="legend-item legend-filter" data-status="expired" aria-pressed="false"><span class="legend-color expired"></span><span>Expired</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
                 <button type="button" class="legend-item legend-filter" data-status="cancelled" aria-pressed="false"><span class="legend-color cancelled"></span><span>Cancelled</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></button>
             </div>
             <p class="legend-note">Click a status to filter the calendar. Click the active one again to show all bookings.</p>
+            <p class="legend-note" id="cal-hold-note">Temporary Hold reserves a proposed booking-change slot while awaiting acceptance or payment verification.</p>
             <div class="cal-blocked-key"><span class="cal-blocked-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg></span><div><strong>Blocked dates</strong><p>Unavailable for new bookings. Existing bookings stay visible.</p></div></div>
         </aside>
     </div>
@@ -76,5 +79,5 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
 <script src="{% static 'js/admin_configuration_feedback.js' %}?v=20261028g"></script>
-<script src="{% static 'js/admin_calendar.js' %}?v=20261119errors1" defer></script>
+<script src="{% static 'js/admin_calendar.js' %}?v=20261120legend1" defer></script>
 {% endblock %}

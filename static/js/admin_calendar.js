@@ -35,7 +35,7 @@
         return event.status || event.status_raw.replaceAll('_',' ').replace(/^./, letter => letter.toUpperCase());
     }
     function eventColor(event) {
-        return ({confirmed:'var(--cal-blue)',pending:'var(--cal-amber)',pending_payment:'var(--cal-amber)',completed:'var(--cal-green)',cancelled:'var(--cal-red)',expired:'var(--ac-muted)',blocked:'var(--ac-muted)',temporary_hold:'var(--cal-amber)'})[event.status_raw] || 'var(--cal-blue)';
+        return ({confirmed:'var(--cal-blue)',pending:'var(--cal-amber)',pending_payment:'var(--cal-orange)',completed:'var(--cal-green)',cancelled:'var(--cal-red)',expired:'var(--ac-muted)',blocked:'var(--ac-muted)',temporary_hold:'var(--cal-purple)'})[event.status_raw] || 'var(--cal-blue)';
     }
     function closePopover() { popover.hidden = true; }
     function closePicker(restoreFocus = false) {

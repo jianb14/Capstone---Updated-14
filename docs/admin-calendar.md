@@ -8,6 +8,8 @@ The active blocked-date list contains today and future dates. A date remains blo
 
 Empty blocked calendar days center their blocked icon and label; days with bookings keep those bookings visible. The blocked-date key under Booking statuses is explanatory, not a checkbox or filter. The other status buttons remain interactive filters.
 
+The legend includes separate filters for Pending Payment (orange) and Temporary Hold (purple), distinct from Pending (amber), in both themes. Temporary Hold marks a proposed booking-change slot awaiting acceptance or payment verification; the original booking remains until the change is finalized. Clicking an active status again restores all bookings, and blocked indicators remain visible under every filter.
+
 In dark mode, the empty-day label uses the muted gray text color. Week view shows one clickable all-day blocked indicator per date, without repeating the month-view label underneath it. Its popover includes the saved reason as plain text. Blocked indicators remain visible when filtering booking statuses.
 
 In the compact month layout, booking indicators are thin status-colored bars that fill the day width. Bars on blocked dates retain a dashed border and subdued fill, as on desktop. Event details remain available on click and in the overflow popover. Empty blocked days stack the icon above the label in the space below the date number; mobile cells retain their 76px minimum height. Resizing, filtering and asynchronous refreshes preserve these indicators; week view and overflow popovers keep the full event text.

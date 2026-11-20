@@ -1,5 +1,6 @@
 """Real FullCalendar browser checks: asynchronous actions, unchanged scheduling and responsive themes."""
 import os
+import re
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from unittest import skipUnless
@@ -12,7 +13,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import BlockedDate, Booking, User
+from .models import BlockedDate, Booking, BookingChangeRequest, User
 
 
 @skipUnless(os.environ.get('RUN_DESIGN_BROWSER') == '1', 'Optional Playwright verification')
@@ -108,6 +109,51 @@ class AdminCalendarBrowserTests(StaticLiveServerTestCase):
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status,'confirmed')
         self.assertFalse(BlockedDate.objects.exists())
+
+    def test_payment_and_hold_legend_filters_match_event_colors(self):
+        from playwright.sync_api import sync_playwright, expect
+        Booking.objects.filter(status='pending').update(event_date=self.target)
+        Booking.objects.create(user=self.customer, event_date=self.target, event_time=time(13),
+            event_type='Birthday', package_type='Package A', total_price=5000, status='pending_payment')
+        start = timezone.make_aware(datetime.combine(self.target, time(15)))
+        BookingChangeRequest.objects.create(booking=self.booking, status='quoted', reason='Move the event',
+            original={}, proposed={}, original_total=5000, quoted_total=5000,
+            hold_start=start, hold_end=start+timedelta(hours=2), expires_at=timezone.now()+timedelta(hours=1))
+        BlockedDate.objects.create(date=self.target, reason='Existing bookings remain', created_by=self.admin)
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless=True)
+            for width,height in ((1440,1000),(390,844),(320,740)):
+                for theme in ('light','dark'):
+                    with self.subTest(width=width,theme=theme):
+                        context = self.context(browser,width,height,theme); page = context.new_page(); errors=[]
+                        page.on('pageerror', lambda error:errors.append(str(error)))
+                        page.goto(self.live_server_url+reverse('admin_calendar'),wait_until='domcontentloaded')
+                        self.open_target(page)
+                        colors = []
+                        for status,label in (('pending','Pending'),('pending_payment','Pending Payment'),('temporary_hold','Temporary Hold')):
+                            button = page.get_by_role('button',name=label,exact=True)
+                            expect(button).to_be_visible(timeout=3000)
+                            button.focus(); page.keyboard.press('Enter')
+                            expect(button).to_have_attribute('aria-pressed','true')
+                            events = page.locator('.fc-event:not(.blocked-flag-event)')
+                            expect(events).to_have_count(1)
+                            expect(events).to_have_attribute('aria-label',re.compile(label+'$' if status != 'temporary_hold' else 'Temporary hold$'))
+                            swatch = button.locator('.legend-color').evaluate('e=>getComputedStyle(e).backgroundColor')
+                            self.assertEqual(events.evaluate('e=>getComputedStyle(e).color'),swatch)
+                            colors.append(swatch)
+                            expect(page.locator('.booking-day-blocked-label')).to_be_visible()
+                            page.locator('#cal-refresh').click()
+                            expect(page.locator('#cal-refresh')).to_be_enabled()
+                            expect(button).to_have_attribute('aria-pressed','true')
+                            expect(events).to_have_count(1)
+                            button.click()
+                            expect(button).to_have_attribute('aria-pressed','false')
+                        self.assertEqual(len(set(colors)),3)
+                        self.assertLessEqual(page.locator('body').evaluate('e=>e.scrollWidth-innerWidth'),1)
+                        page.locator('.calendar-legend').screenshot(path=str(self.artifacts/f'admin-calendar-legend-{width}-{theme}.png'))
+                        self.assertEqual(errors,[])
+                        context.close()
+            browser.close()
 
     def test_light_dark_mobile_layout_focus_and_popover(self):
         from playwright.sync_api import sync_playwright, expect
