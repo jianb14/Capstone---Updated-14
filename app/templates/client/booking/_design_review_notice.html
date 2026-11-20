@@ -1,0 +1,8 @@
+{% if lifecycle.design_review_required %}
+<section class="booking-notice booking-notice-danger" aria-label="Design delivery issue" role="status"><strong>Event passed — design delivery needs review</strong><p>Your event ended {{ lifecycle.event_end_at|date:'M d, Y · g:i A' }}, but no current design was recorded as delivered by its end. Our team has been alerted to review what happened and contact you about the resolution.</p>{% if lifecycle.design_ready %}<p>The design is now available, but its late upload does not close the delivery issue.</p>{% endif %}</section>
+{% elif lifecycle.design_review_resolved %}
+{% with review=lifecycle.design_review %}
+<section class="booking-notice" aria-label="Design delivery resolution"><strong>Design delivery resolution</strong><p>{{ review.get_outcome_display }}</p><p>{{ review.notes|linebreaksbr }}</p>{% if review.delivered_at %}<p>Actual delivery: {{ review.delivered_at|date:'M d, Y · g:i A' }}{% if review.delivered_at > review.due_at %} · Late delivery{% endif %}.</p>{% endif %}<p>Resolution recorded {{ review.resolved_at|date:'M d, Y · g:i A' }}.</p>{% if not review.service_fulfilled %}<p>Event service fulfillment was not confirmed. This booking has not been marked completed.</p>{% endif %}</section>
+{% endwith %}
+{% endif %}
+{% include 'client/booking/_design_review_history.html' %}

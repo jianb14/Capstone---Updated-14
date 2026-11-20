@@ -4,7 +4,7 @@ from ..design_validation import evaluate_saved_design, evaluation_message, desig
 from .common import *  # noqa: F401,F403
 from zoneinfo import ZoneInfo
 from ..request_protection import deduplicate_submission
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponseNotAllowed
 from PIL import Image, UnidentifiedImageError
 from requests.exceptions import RequestException
 from .common import _booking_time_bounds, _cleanup_legacy_booking_request_states  # noqa: F401
@@ -1025,7 +1025,7 @@ def booking_modal_content(request, id):
     from .profiles import _sync_customer_booking_payment_states
     _sync_customer_booking_payment_states(request.user)
     check_booking_expirations()
-    booking = Booking.objects.prefetch_related("images", "designs", "design_deliveries", "payments", "change_requests__payments").get(pk=booking.pk)
+    booking = Booking.objects.prefetch_related("images", "designs", "design_deliveries", "design_reviews", "payments", "change_requests__payments").get(pk=booking.pk)
     booking.time_range_display = get_booking_time_range(booking)
     booking.schedule = get_booking_schedule(booking)
     booking.price_breakdown = get_booking_display_breakdown(booking)
@@ -1046,6 +1046,14 @@ def booking_modal_content(request, id):
         booking, has_verified_payment=total_verified_paid > 0
     )
     lifecycle = lifecycle_display(booking)
+    if lifecycle['design_review_required']:
+        tracker_message = 'Your event has ended. The missing design delivery needs review by our team.'
+        tracker_message_state = 'warn'
+    elif booking.status == 'confirmed' and lifecycle['event_ended']:
+        tracker_message = ('Your event has ended. Event service fulfillment was not confirmed; see the recorded resolution.'
+            if lifecycle['design_review_resolved'] and not lifecycle['design_review'].service_fulfilled else
+            'Your event has ended. The booking is awaiting the team\'s completion confirmation.')
+        tracker_message_state = 'info'
     if booking.status == 'pending_payment' and lifecycle['awaiting_verification']:
         tracker_message = 'Your payment has been submitted. Our team is verifying it.'
         tracker_message_state = 'info'
@@ -1624,20 +1632,26 @@ def admin_booking_design_upload(request, id):
             return fail('Keep the message to 255 characters or fewer.', 'caption')
         # A design must not silently be sent for a different version of the booking.
         version = request.POST.get('design_revision', '')
-        current = lifecycle_display(booking)['design_revision_at']
+        design_display = lifecycle_display(booking)
+        current = design_display['design_revision_at']
         if 'design_revision' in request.POST and version != (current.isoformat() if current else ''):
             return fail('The booking design requirements changed. Reopen this form and review the latest details.')
         # Snapshot the validated upload before storage can rename it or consume it.
         uploaded.seek(0)
         image_content = uploaded.read()
         uploaded.seek(0)
+        from ..design_delivery_review import ensure_design_review
+        ensure_design_review(booking, display=design_display)
         delivery = BookingDesignDelivery.objects.create(booking=booking, image=uploaded,
-            caption=caption, uploaded_by=request.user)
+            caption=caption, uploaded_by=request.user, due_at=design_display['design_due_at'])
         from ..design_delivery_chat import post_design_delivery
         post_design_delivery(delivery, revised=bool(current))
         log_action(request.user, f'Uploaded backdrop design for booking #{id} (design #{delivery.id}).')
         log_booking_status(booking, booking.status, booking.status, changed_by=request.user,
-            notes='Backdrop design uploaded and delivered to customer.')
+            notes=('Late backdrop design uploaded and delivered to customer.' if delivery.is_late else
+                'Backdrop design uploaded and delivered to customer.') +
+                f' Design due {timezone.localtime(delivery.due_at):%b %d, %Y %I:%M %p}; '
+                f'uploaded {timezone.localtime(delivery.uploaded_at):%b %d, %Y %I:%M %p}.')
         Notification.objects.create(user=booking.user, booking=booking,
             message=f'Your backdrop design for booking #{id} is ready! Open your booking details to view and download it.')
         if key:
@@ -1667,8 +1681,18 @@ def admin_booking_design_delete(request, id, design_id):
         return HttpResponseForbidden("Not allowed")
     booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
     delivery = get_object_or_404(BookingDesignDelivery, id=design_id, booking=booking)
+    lifecycle = lifecycle_display(booking)
+    review = lifecycle['design_review']
+    if booking.status == 'completed' and review and review.resolved_at and review.outcome == 'late_delivery':
+        revision = lifecycle['design_revision_at']
+        current = [item for item in booking.design_deliveries.all() if not revision or item.uploaded_at > revision]
+        if any(item.pk == delivery.pk for item in current) and len(current) == 1:
+            return mutation_response(request, False, 'Keep the last current design supporting this completed booking\'s recorded resolution.', id)
     image_name, storage = delivery.image.name, delivery.image.storage
     delivery.delete()
+    from ..design_delivery_review import ensure_design_review, reopen_deleted_delivery_review
+    reopen_deleted_delivery_review(booking, request.user)
+    ensure_design_review(booking)
     def remove_file():
         try:
             storage.delete(image_name)
@@ -1692,12 +1716,26 @@ def admin_booking_action(request, id, action):
         return HttpResponseForbidden("Not allowed")
 
     from .booking_workspace import booking_feedback, booking_action_response, is_async
+    if action == 'resolve-design' and request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
     if is_async(request) and request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Use POST for booking actions.'}, status=405)
 
     booking = get_object_or_404(Booking.objects.select_for_update(), id=id)
     process_booking(booking.pk)
     booking.refresh_from_db()
+
+    if action == 'resolve-design':
+        from ..design_delivery_review import resolve_design_review
+        review, errors = resolve_design_review(booking, request.user, request.POST)
+        if errors:
+            field, message = next(iter(errors.items()))
+            booking_feedback(request, 'error', message, field=field)
+        else:
+            booking_feedback(request, 'success', 'Design resolution recorded. ' +
+                ('The fulfilled booking can now be marked as completed.' if review.service_fulfilled else
+                 'Completion remains blocked because the event service was not fulfilled. Follow the agreed resolution.'))
+        return booking_action_response(request, booking.id)
 
     if action == "approve":
         if event_start_at(booking) <= timezone.now():
@@ -1895,6 +1933,13 @@ def admin_booking_action(request, id, action):
     elif action == "complete":
         if booking.status != 'confirmed':
             booking_feedback(request, 'error', 'Only confirmed bookings can be marked as completed.')
+            return booking_action_response(request, booking.id)
+        lifecycle = lifecycle_display(booking)
+        if not lifecycle['event_ended']:
+            booking_feedback(request, 'error', 'This event has not ended. Confirm fulfillment after the event ends.')
+            return booking_action_response(request, booking.id)
+        if not lifecycle['can_complete']:
+            booking_feedback(request, 'error', 'Resolve the missed-design issue and confirm the event service was fulfilled before marking this booking completed.')
             return booking_action_response(request, booking.id)
         old_status = booking.status
         booking.status = "completed"

@@ -348,7 +348,7 @@ def customer_profile(request):
     if sort_date not in ('id_desc', 'id_asc', 'newest', 'oldest'):
         sort_date = 'id_desc'
 
-    user_bookings = Booking.objects.filter(user=request.user).prefetch_related("design_deliveries", "images", "designs", "reviews", "payments", "change_requests__payments")
+    user_bookings = Booking.objects.filter(user=request.user).prefetch_related("design_deliveries", "design_reviews", "images", "designs", "reviews", "payments", "change_requests__payments")
 
     # Calculate Stats before filtering so overall stats remain correct
     total_bookings = user_bookings.count()

@@ -121,6 +121,12 @@
                                 <span class="status-badge {{ b.status }}">{{ b.get_status_display }}</span>
                                 {% if b.status == 'pending_payment' %}
                                     <span class="booking-row-update">{% if b.lifecycle.awaiting_verification %}Awaiting payment verification{% else %}Pay by {{ b.payment_due_at|date:"M d, g:i A" }}{% endif %}</span>
+                                {% elif b.lifecycle.design_review_required %}
+                                    <span class="booking-row-update">Event passed — design needs review</span>
+                                {% elif b.lifecycle.design_review_resolved %}
+                                    <span class="booking-row-update">Design resolution recorded</span>
+                                {% elif b.lifecycle.design_overdue %}
+                                    <span class="booking-row-update">Design overdue</span>
                                 {% elif b.lifecycle.design_revision_pending %}
                                     <span class="booking-row-update">Design revision requested</span>
                                 {% elif b.lifecycle.design_preparing %}

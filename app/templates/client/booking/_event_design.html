@@ -1,6 +1,7 @@
 {% with deliveries=booking.design_deliveries.all %}
 <section class="event-design-section" aria-label="Your Event Design" tabindex="-1">
-    {% if lifecycle.design_revision_pending %}<p class="booking-notice">Your booking preferences changed. The images below were delivered before your accepted changes. Our team is preparing your updated design.</p>{% endif %}
+    {% include 'client/booking/_design_review_notice.html' %}
+    {% if lifecycle.design_revision_pending %}<p class="booking-notice">Your booking preferences changed. The images below were delivered before your accepted changes.{% if not lifecycle.event_ended %} Our team is preparing your updated design.{% endif %}</p>{% endif %}
     {% if deliveries %}
     <p class="event-design-description">View and download the event design uploaded by our team for this booking.</p>
     <div class="event-design-grid">
@@ -11,6 +12,7 @@
             </a>
             {% if delivery.caption %}<p class="event-design-caption">{{ delivery.caption }}</p>{% endif %}
             <p class="event-design-date">Uploaded {{ delivery.uploaded_at|date:"M d, Y h:i A" }}</p>
+            {% if delivery.is_late %}<p class="event-design-date">Late delivery · Design due {{ delivery.due_at|date:"M d, Y h:i A" }}</p>{% endif %}
             {% if lifecycle.design_revision_at and delivery.uploaded_at <= lifecycle.design_revision_at %}<p class="event-design-date">Previous design — before your booking changes</p>{% endif %}
             <div class="event-design-actions">
                 <a href="{{ delivery.image.url }}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg>View full size</a>
@@ -20,8 +22,11 @@
         {% endfor %}
     </div>
     {% else %}
-    {% if lifecycle.design_preparing %}<p><strong>Design in preparation</strong></p>{% endif %}
-    <p class="event-design-description">Your event design will appear here once uploaded by our team.</p>
+    {% if lifecycle.design_preparing %}<p><strong>{% if lifecycle.design_overdue %}Design overdue{% else %}Design in preparation{% endif %}</strong></p><p class="event-design-description">Your event design will appear here once uploaded by our team.</p>
+    {% elif lifecycle.design_review_resolved %}<p class="event-design-description">No design image is stored here. See the recorded delivery resolution above.</p>
+    {% elif lifecycle.design_review_required %}<p class="event-design-description">No current design image is available. The delivery issue requires action from our team.</p>
+    {% elif not lifecycle.event_ended %}<p class="event-design-description">Your event design will appear here once uploaded by our team.</p>
+    {% else %}<p class="event-design-description">No event design has been uploaded for this booking.</p>{% endif %}
     {% endif %}
 </section>
 {% endwith %}

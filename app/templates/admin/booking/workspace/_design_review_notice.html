@@ -1,0 +1,9 @@
+{% if lifecycle.design_review_required %}
+<div class="ab-notice ab-alert" role="status"><strong>Needs admin action</strong><p>Event passed — no current design was recorded as delivered by the event end. Review what happened and record a resolution before marking this booking completed. A late upload does not close this issue.</p><p>Event ended {{ lifecycle.event_end_at|date:'M d, Y · g:i A' }}. Design due {{ lifecycle.design_due_at|date:'M d, Y · g:i A' }}.</p></div>
+{% elif lifecycle.design_review_resolved %}
+{% with review=lifecycle.design_review %}
+<section class="ab-notice" aria-label="Design delivery resolution"><strong>Design issue resolved · {{ review.get_outcome_display }}</strong><p class="ab-preserve">{{ review.notes }}</p>{% if review.delivered_at %}<p>Actual delivery: {{ review.delivered_at|date:'M d, Y · g:i A' }}{% if review.delivered_at > review.due_at %} · Late delivery{% endif %}</p>{% endif %}<p>Recorded {{ review.resolved_at|date:'M d, Y · g:i A' }} by {{ review.resolved_by.get_full_name|default:review.resolved_by.username|default:'Removed admin account' }}.</p>{% if not review.service_fulfilled %}<p class="ab-alert">Service fulfillment was not confirmed. Completion remains blocked; follow the agreed resolution.</p>{% endif %}</section>
+{% endwith %}
+{% elif lifecycle.design_overdue %}
+<p class="ab-notice ab-alert">Design overdue · {{ lifecycle.design_due_at|date:'M d, Y · g:i A' }}</p>
+{% endif %}

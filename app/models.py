@@ -319,12 +319,43 @@ class BookingDesignDelivery(models.Model):
         related_name='design_deliveries_uploaded',
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    due_at = models.DateTimeField(null=True, blank=True, help_text='Design deadline at delivery time; retained when the booking changes.')
+
+    @property
+    def is_late(self):
+        return bool(self.due_at and self.uploaded_at > self.due_at)
 
     class Meta:
         ordering = ['-uploaded_at']
 
     def __str__(self):
         return f"Design delivery for Booking {self.booking.id}"
+
+
+class BookingDesignReview(models.Model):
+    OUTCOME_CHOICES = (
+        ('external_delivery', 'Delivered outside the system'),
+        ('late_delivery', 'Late design delivered in the system'),
+        ('customer_resolution', 'Agreed resolution with the customer'),
+    )
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='design_reviews')
+    cycle = models.CharField(max_length=40, default='initial')
+    due_at = models.DateTimeField()
+    event_ended_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='resolved_design_reviews')
+    outcome = models.CharField(max_length=24, choices=OUTCOME_CHOICES, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, max_length=2000)
+    service_fulfilled = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+    history = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['booking', 'cycle'], name='unique_booking_design_review')]
+        ordering = ['-created_at', '-pk']
 
 
 # -----------------------------

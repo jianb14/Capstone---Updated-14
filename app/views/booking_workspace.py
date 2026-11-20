@@ -3,15 +3,15 @@ from datetime import date
 
 
 from django.core.paginator import Paginator
-from django.db.models import Count, Exists, OuterRef, Q, Subquery, Value
-from django.db.models.functions import Concat
+from django.db.models import Case, CharField, Count, Exists, OuterRef, Q, Subquery, Value, When
+from django.db.models.functions import Cast, Concat
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.urls import reverse
 
 from ..booking_lifecycle import lifecycle_display
-from ..models import Booking, BookingChangeRequest, BookingDesignDelivery, Payment
+from ..models import Booking, BookingChangeRequest, BookingDesignDelivery, BookingDesignReview, Payment
 
 
 def is_async(request):
@@ -57,14 +57,20 @@ def design_query():
     latest = BookingDesignDelivery.objects.filter(booking_id=OuterRef('pk')).order_by('-uploaded_at', '-pk')
     paid = Payment.objects.filter(booking_id=OuterRef('pk'), payment_status='verified',
         applied_to_booking=True, amount__gt=0)
-    return Booking.objects.annotate(verified_payment=Exists(paid),
+    reviews = BookingDesignReview.objects.filter(booking_id=OuterRef('pk'), cycle=OuterRef('design_cycle'), resolved_at__isnull=True)
+    return Booking.objects.annotate(verified_payment=Exists(paid), revision_pk=Subquery(revision.values('pk')[:1]),
         revision_at=Subquery(revision.values('applied_at')[:1]),
-        delivered_at=Subquery(latest.values('uploaded_at')[:1]))
+        delivered_at=Subquery(latest.values('uploaded_at')[:1])).annotate(design_cycle=Case(
+            When(revision_pk__isnull=True, then=Value('initial')),
+            default=Concat(Value('revision-'), Cast('revision_pk', CharField())), output_field=CharField())
+        ).annotate(needs_design_review=Exists(reviews))
 
 
 def design_state_filter(state):
     from django.db.models import F
     ready = Q(delivered_at__isnull=False) & (Q(revision_at__isnull=True) | Q(delivered_at__gt=F('revision_at')))
+    if state == 'review':
+        return Q(needs_design_review=True)
     if state == 'sent':
         return ready
     if state == 'revision':
@@ -124,18 +130,20 @@ def workspace_context(request):
         tab = 'bookings'
     per_page = 4 if request.GET.get('per_page') == '4' else 8
     context = {'active_tab': tab, 'booking_summary': summary, 'change_summary': changes,
-        'design_summary': design_summary, 'per_page': per_page, 'status_options': Booking.STATUS_CHOICES}
+        'design_summary': design_summary,
+        'design_review_count': design_query().filter(status='confirmed', needs_design_review=True).count(),
+        'per_page': per_page, 'status_options': Booking.STATUS_CHOICES}
     if tab == 'requests':
         context.update(request_list_context(request, changes))
         context['page'] = context['change_requests']
         context['page_key'] = 'request_page'
         context['has_filters'] = bool(context['request_search'] or context['request_status'] or context['request_booking_id'])
         return context
-    queryset = design_query().select_related('user').prefetch_related('payments', 'design_deliveries', 'change_requests')
+    queryset = design_query().select_related('user').prefetch_related('payments', 'design_deliveries', 'change_requests', 'design_reviews')
     if tab == 'designs':
-        queryset = queryset.filter(status='confirmed', verified_payment=True)
+        queryset = queryset.filter(status='confirmed').filter(Q(verified_payment=True) | Q(needs_design_review=True))
         state = request.GET.get('design_status', '')
-        if state not in ('needed', 'revision', 'sent'):
+        if state not in ('needed', 'revision', 'sent', 'review'):
             state = ''
         queryset = queryset.filter(design_state_filter(state))
         context['design_status'] = state
@@ -152,7 +160,11 @@ def workspace_context(request):
         booking.time_range_display = get_booking_time_range(booking)
         booking.lifecycle = lifecycle_display(booking)
         booking.can_send_design = booking.status in ('confirmed', 'completed') and booking.verified_payment
-        booking.design_label = ('Design sent' if booking.lifecycle['design_ready'] else
+        booking.design_label = ('Needs admin review' if booking.lifecycle['design_review_required'] else
+            'Delivered outside system' if booking.lifecycle['design_review_resolved'] and booking.lifecycle['design_review'].outcome == 'external_delivery' else
+            'Design delivered late' if booking.lifecycle['design_late'] and booking.lifecycle['design_ready'] else
+            'Design sent' if booking.lifecycle['design_ready'] else
+            'Design issue resolved' if booking.lifecycle['design_review_resolved'] else
             'Needs revision' if booking.lifecycle['design_revision_pending'] else 'Needs design')
         booking.has_conflict = bool(find_active_booking_conflicts(booking))
     context.update({'bookings': page, 'page': page, 'page_key': 'page',

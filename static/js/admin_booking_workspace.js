@@ -188,7 +188,7 @@
     }
     function busy(form, state) {
         form.dataset.busy = state ? 'true' : '';
-        form.querySelectorAll('button[type=submit]').forEach(button => { button.disabled = state; });
+        Array.from(form.elements).filter(input => input.matches('button[type=submit]')).forEach(button => { button.disabled = state; });
         form.setAttribute('aria-busy', String(state));
         if (form === confirmForm) {
             const disabled = state || actionTarget?.dataset.action !== 'deny';
@@ -297,6 +297,11 @@
         }
     });
     root.addEventListener('change', event => {
+        if (event.target.matches('[data-design-review-form] select')) {
+            const node = event.target.form.querySelector(`[data-error-for="${event.target.name}"]`);
+            if (node) showError(node, '');
+            event.target.removeAttribute('aria-invalid'); selects.sync(event.target);
+        }
         if (event.target.name === 'deny_reason_choice') { clearErrors(confirmForm); selects.sync(event.target); }
         if (event.target.matches('[data-list-size]')) { content.querySelector('[name=per_page]').value = event.target.value; applyFilters(); }
         else if (event.target.closest('[data-booking-filters]') && event.target.matches('select')) applyFilters();

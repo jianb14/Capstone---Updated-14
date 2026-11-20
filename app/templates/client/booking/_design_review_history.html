@@ -1,0 +1,5 @@
+{% if lifecycle.design_resolution_history %}
+<section class="booking-notice" aria-label="Design resolution history"><strong>Design resolution history</strong>
+{% for entry in lifecycle.design_resolution_history %}<article><p>{{ entry.outcome }} · Recorded {{ entry.resolved_at|date:'M d, Y · g:i A' }}</p><p>{{ entry.notes|linebreaksbr }}</p>{% if entry.delivered_at %}<p>Actual delivery: {{ entry.delivered_at|date:'M d, Y · g:i A' }}{% if entry.delivered_at > entry.due_at %} · Late delivery{% endif %}.</p>{% endif %}{% if entry.reopened_at %}<p>Review reopened {{ entry.reopened_at|date:'M d, Y · g:i A' }} because the last current design image was removed.</p>{% endif %}</article>{% endfor %}
+</section>
+{% endif %}

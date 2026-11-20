@@ -20,6 +20,14 @@ def event_start_at(booking):
     return timezone.make_aware(datetime.combine(booking.event_date, booking.event_time or time.max), timezone.get_default_timezone())
 
 
+def event_end_at(booking):
+    from .views.common import _booking_time_bounds
+    _, end = _booking_time_bounds(booking)
+    if end is None:
+        end = datetime.combine(booking.event_end_date or booking.event_date, booking.event_end_time or time.max)
+    return timezone.make_aware(end, timezone.get_default_timezone())
+
+
 def payment_was_received(payment):
     if payment.payment_status == 'verified':
         return payment.amount > 0
@@ -42,7 +50,7 @@ def set_approval_deadlines(booking, now=None):
     booking.design_due_at = event_start_at(booking) - timedelta(hours=lead)
 
 
-def deadline_notice(booking, key, message):
+def deadline_notice(booking, key, message, customer_message=None):
     # Called under the booking row lock; the unique constraint also protects workers.
     notice, created = BookingDeadlineNotice.objects.get_or_create(booking=booking, key=key)
     if created:
@@ -51,6 +59,10 @@ def deadline_notice(booking, key, message):
             from .views.common import send_admin_alert_email
             send_admin_alert_email(f'Booking #{booking.pk} - deadline alert', message)
         transaction.on_commit(email_admin)
+    if customer_message:
+        _, customer_created = BookingDeadlineNotice.objects.get_or_create(booking=booking, key=f'{key}-customer')
+        if customer_created:
+            Notification.objects.create(booking=booking, user=booking.user, message=customer_message)
     return created
 
 
@@ -62,12 +74,29 @@ def lifecycle_display(booking, now=None):
     revisions = [change for change in booking.change_requests.all() if change.status == 'applied' and change.proposed.get('_design_changed')]
     revision = max(revisions, key=lambda change:(change.applied_at, change.pk)) if revisions else None
     revision_at = revision.applied_at if revision else None
-    has_design = any(not revision_at or image.uploaded_at > revision_at for image in deliveries)
+    current_deliveries = [image for image in deliveries if not revision_at or image.uploaded_at > revision_at]
+    has_design = bool(current_deliveries)
     due = booking.design_due_at or event_start_at(booking) - timedelta(hours=deadline_policy()[1])
     active = booking.status == 'confirmed'
+    end = event_end_at(booking)
+    ended = now >= end
+    cycle = f'revision-{revision.pk}' if revision else 'initial'
+    reviews = list(booking.design_reviews.all())
+    review = next((item for item in reviews if item.cycle == cycle), None)
+    delivered_by_end = any(image.uploaded_at <= end for image in current_deliveries)
+    resolved = bool(review and review.resolved_at)
+    needs_review = active and ended and (bool(review) or not delivered_by_end) and not resolved
+    from .design_delivery_review import resolution_history
+    first_delivery = min(current_deliveries, key=lambda image: image.uploaded_at) if current_deliveries else None
     return {'payment_due_at': booking.payment_due_at, 'awaiting_verification': bool(awaiting),
-        'design_due_at': due, 'design_preparing': active and not has_design,
-        'design_overdue': active and not has_design and now >= due, 'design_ready': has_design,
+        'design_due_at': due, 'design_preparing': active and not has_design and not ended,
+        'design_overdue': active and not has_design and now >= due and not resolved, 'design_ready': has_design,
+        'event_ended': ended, 'event_end_at': end, 'design_cycle': cycle,
+        'design_review': review, 'design_review_required': needs_review, 'design_review_resolved': resolved,
+        # Legacy uploads without a deadline snapshot have unknown timeliness.
+        'design_late': bool(first_delivery and first_delivery.is_late),
+        'design_resolution_history': resolution_history(reviews, review),
+        'can_complete': active and ended and not needs_review and (not review or review.service_fulfilled),
         'design_revision_pending': bool(revision_at and not has_design), 'design_revision_at':revision_at}
 
 
@@ -105,10 +134,14 @@ def process_booking(booking_id, now=None):
                 deadline_notice(booking, f'payment-review-{payment.pk}',
                     f'Urgent payment verification: Booking #{booking.id} has submitted payment #{payment.pk} awaiting review. Do not expire a customer payment while it is being checked.')
         design = lifecycle_display(booking, now) if booking.status == 'confirmed' else {}
-        if booking.status == 'confirmed' and now >= booking.design_due_at and not design['design_ready']:
+        if design.get('design_review_required'):
+            from .design_delivery_review import ensure_design_review
+            ensure_design_review(booking, now, design)
+        elif booking.status == 'confirmed' and design['design_overdue']:
             key = f"design-revision-{design['design_revision_at'].isoformat()}" if design['design_revision_at'] else 'design-overdue'
             deadline_notice(booking, key,
-                f'Urgent: Booking #{booking.id} event on {timezone.localtime(start):%b %d, %Y %I:%M %p} needs a current event design. Upload the customer design or its required revision now.')
+                f'Urgent: Booking #{booking.id} event on {timezone.localtime(start):%b %d, %Y %I:%M %p} needs a current event design. Upload the customer design or its required revision now.',
+                f'Your event design is delayed for booking #{booking.pk}. Our team has been alerted to deliver it.')
         return False
 
 
