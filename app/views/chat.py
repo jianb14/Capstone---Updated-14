@@ -28,9 +28,10 @@ def _chat_reply_snippet(message):
         return None
     return {
         "id": reply.id,
-        "text": "" if reply.is_deleted else (reply.message or ""),
+        "text": "" if reply.is_deleted else (
+            "This design was removed" if reply.design_booking_id and not reply.design_delivery_id else reply.message or ""),
         "is_deleted": reply.is_deleted,
-        "has_image": bool(reply.image),
+        "has_image": bool(reply.attachment_image),
         "sender_name": reply.sender.get_full_name() or reply.sender.username,
     }
 
@@ -89,11 +90,22 @@ def _chat_message_json(message, current_user):
             seen_at = admin_read
 
     reactions, my_reactions = _chat_object_reactions_json(message, current_user)
+    design = None
+    removed = bool(message.design_booking_id and not message.design_delivery_id)
+    if message.design_booking_id and not message.is_deleted:
+        booking_route = ('admin_booking_detail' if current_user.role == 'admin' else
+            'view_booking' if current_user.pk == message.receiver_id else None)
+        design = {'booking_id': message.design_booking_id,
+            'booking_url': reverse(booking_route, args=[message.design_booking_id]) if booking_route else '',
+            'title': 'Updated design ready' if message.design_is_revision else 'Design ready',
+            'removed': removed}
+    image = message.attachment_image
 
     return {
         "id": message.id,
         "role": role,
-        "content": "" if message.is_deleted else message.message,
+        "content": "" if message.is_deleted else "This design was removed" if removed else message.message,
+        "design_delivery": design,
         "sender_name": message.sender.get_full_name() or message.sender.username,
         "is_from_admin": message.is_from_admin,
         "is_edited": message.is_edited,
@@ -107,8 +119,8 @@ def _chat_message_json(message, current_user):
         "reactions": reactions,
         "my_reactions": my_reactions,
         "reply_to": _chat_reply_snippet(message),
-        "image_url": message.image.url if message.image else "",
-        "image_name": message.image_original_name if message.image else "",
+        "image_url": image.url if image else "",
+        "image_name": message.attachment_name if image else "",
         "is_pinned": bool(message.is_pinned),
         "sent_at": message.sent_at.strftime("%b %d, %I:%M %p"),
     }
@@ -136,7 +148,7 @@ def _pinned_messages_json(session):
     MAX_PINNED = 3
     pinned = list(
         session.messages.filter(is_pinned=True, is_deleted=False)
-        .select_related("sender", "pinned_by")
+        .select_related("sender", "pinned_by", "design_delivery")
         .order_by("-pinned_at")
     )
     if len(pinned) > MAX_PINNED:
@@ -149,9 +161,9 @@ def _pinned_messages_json(session):
     return [
         {
             "id": msg.id,
-            "snippet": (msg.message or "").strip()[:80],
-            "has_image": bool(msg.image),
-            "image_url": msg.image.url if msg.image else "",
+            "snippet": ("This design was removed" if msg.design_booking_id and not msg.design_delivery_id else msg.message or "").strip()[:80],
+            "has_image": bool(msg.attachment_image),
+            "image_url": msg.attachment_image.url if msg.attachment_image else "",
             "sender_name": msg.sender.get_full_name() or msg.sender.username,
             "is_from_admin": msg.is_from_admin,
             "pinned_by": (
@@ -177,20 +189,19 @@ def _media_files_json(session):
     """All image attachments in the session — newest first — for the info drawer gallery."""
     media = (
         session.messages.filter(is_deleted=False)
-        .exclude(image="")
-        .exclude(image__isnull=True)
-        .select_related("sender")
+        .filter((Q(image__isnull=False) & ~Q(image="")) | Q(design_delivery__isnull=False))
+        .select_related("sender", "design_delivery")
         .order_by("-sent_at")
     )
     return [
         {
             "id": msg.id,
-            "url": msg.image.url,
-            "name": msg.image_original_name or "Chat image",
+            "url": msg.attachment_image.url,
+            "name": msg.attachment_name or "Chat image",
             "sender_name": msg.sender.get_full_name() or msg.sender.username,
             "sent_at": msg.sent_at.strftime("%b %d, %I:%M %p"),
         }
-        for msg in media
+        for msg in media if msg.attachment_image
     ]
 
 
@@ -681,6 +692,8 @@ def chat_edit_message(request):
         if not new_text:
             return JsonResponse({"error": "Message cannot be empty"}, status=400)
         message = get_object_or_404(ChatMessage, id=message_id, sender=request.user)
+        if message.design_booking_id:
+            return JsonResponse({'error': 'Send a new chat message or deliver an updated design instead of editing this delivery.'}, status=400)
         message.message = new_text
         message.is_edited = True
         message.edited_at = timezone.now()
@@ -776,6 +789,8 @@ def chat_delete_message(request):
         )
         if not allowed:
             return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
+        if message.design_booking_id or message.design_delivery_id:
+            return JsonResponse({'error': 'Design delivery messages cannot be deleted.'}, status=400)
         if not message.is_deleted:
             message.is_deleted = True
             message.deleted_at = timezone.now()

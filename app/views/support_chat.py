@@ -117,12 +117,16 @@ def support_inbox(request):
     latest = ChatMessage.objects.filter(session_id=OuterRef('pk')).order_by('-pk')
     base = base.select_related('user').annotate(last_text=Subquery(latest.values('message')[:1]),
         last_image=Subquery(latest.values('image')[:1]), last_deleted=Subquery(latest.values('is_deleted')[:1]),
+        last_design_booking=Subquery(latest.values('design_booking_id')[:1]),
+        last_design_delivery=Subquery(latest.values('design_delivery_id')[:1]),
         last_time=Subquery(latest.values('sent_at')[:1])).order_by('-updated_at', '-pk')
     offset = (page - 1) * 30
     rows = list(base[offset:offset + 31])
     return JsonResponse({'sessions': [dict(id=s.pk, name=s.user.get_full_name() or s.user.username,
         email=s.user.email, status=s.status, unread=s.unread, url=reverse('admin_chat_thread', args=[s.pk]),
-        preview=('Message deleted' if s.last_deleted else s.last_text or ('Photo attachment' if s.last_image else 'No messages yet'))[:130],
+        preview=('Message deleted' if s.last_deleted else 'This design was removed'
+            if s.last_design_booking and not s.last_design_delivery else
+            s.last_text or ('Photo attachment' if s.last_image else 'No messages yet'))[:130],
         time=timezone.localtime(s.last_time).strftime('%b %d · %I:%M %p') if s.last_time else '') for s in rows[:30]],
         'stats': stats, 'has_more': len(rows) > 30, 'page': page})
 
@@ -142,7 +146,8 @@ def support_state(request):
         return JsonResponse({'session': None, 'messages': [], 'unread': unread})
     if request.GET.get('summary') == '1':
         return JsonResponse({'session': session_data(session, request.user), 'unread': unread})
-    qs = session.messages.select_related('sender', 'session', 'reply_to', 'reply_to__sender').prefetch_related('reactions')
+    qs = session.messages.select_related('sender', 'session', 'design_delivery', 'reply_to',
+        'reply_to__sender', 'reply_to__design_delivery').prefetch_related('reactions')
     query = request.GET.get('q', '').strip()[:150]
     if query:
         qs = qs.filter(is_deleted=False, message__icontains=query)
@@ -163,8 +168,11 @@ def support_state(request):
               'has_more': len(rows) > 50, 'more_new': bool(after and len(rows) > 50), 'oldest_id': page[0].pk if page else None,
               'pinned': _pinned_messages_json(session), 'unread': unread}
     if request.GET.get('media') == '1':
-        result['media'] = [{'id': m.pk, 'url': m.image.url, 'name': m.image_original_name or 'Photo'} for m in
-                           session.messages.filter(is_deleted=False).exclude(image='').exclude(image__isnull=True).order_by('-pk')[:100]]
+        media = session.messages.filter(is_deleted=False).filter(
+            (Q(image__isnull=False) & ~Q(image='')) | Q(design_delivery__isnull=False)
+        ).select_related('design_delivery').order_by('-pk')[:100]
+        result['media'] = [{'id': m.pk, 'url': m.attachment_image.url, 'name': m.attachment_name or 'Photo'}
+            for m in media if m.attachment_image]
     if request.GET.get('watch'):
         try:
             watched = [int(value) for value in request.GET['watch'].split(',')]
@@ -173,7 +181,8 @@ def support_state(request):
         except ValueError:
             return failure("We couldn't update this conversation. Reopen the chat and try again.")
         result['updates'] = [message_data(m, request.user) for m in
-            session.messages.filter(pk__in=watched).select_related('sender', 'session', 'reply_to', 'reply_to__sender').prefetch_related('reactions')]
+            session.messages.filter(pk__in=watched).select_related('sender', 'session', 'design_delivery',
+                'reply_to', 'reply_to__sender', 'reply_to__design_delivery').prefetch_related('reactions')]
     return JsonResponse(result)
 
 
@@ -241,7 +250,7 @@ def support_send(request):
     created = False
     with transaction.atomic():
         # Serializes first-chat creation and retries from the same sender.
-        User.objects.select_for_update().get(pk=request.user.pk)
+        User.objects.select_for_update(no_key=True).get(pk=request.user.pk)
         receipt = SubmissionReceipt.objects.filter(pk=key).first()
         if receipt:
             if receipt.headers.get('fingerprint') != fingerprint:
@@ -361,6 +370,8 @@ def support_action(request):
         if action in ('edit', 'delete'):
             if message.sender_id != request.user.pk:
                 return failure('You can only change your own messages.', 403)
+            if message.design_booking_id or message.design_delivery_id:
+                return failure('Design delivery messages cannot be edited or deleted.')
             if action == 'edit':
                 text = data.get('message')
                 if not isinstance(text, str) or not text.strip() or len(text.strip()) > MAX_TEXT:

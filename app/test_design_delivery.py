@@ -10,9 +10,10 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection, transaction
 from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
-from .models import AuditLog, Booking, BookingDesignDelivery, Notification, Payment, User
+from .models import AuditLog, Booking, BookingDesignDelivery, BookingChangeRequest, ChatMessage, ChatSession, ChatNotification, Notification, Payment, User
 
 # Offline storage: para hindi humawak ng Cloudinary/network sa tests.
 _OFFLINE_STORAGES = {
@@ -366,6 +367,176 @@ class DesignDeliveryEmailTests(TempMediaMixin, TransactionTestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(self.booking.design_deliveries.count(), 1)
         self.assertEqual(Notification.objects.filter(booking=self.booking).count(), 1)
+
+    def test_delivery_posts_one_linked_card_with_standard_and_admin_message(self):
+        self.assertEqual(self.post_design(caption='Please check the spelling.').status_code, 200)
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        message = ChatMessage.objects.get()
+        self.assertEqual(message.sender, self.admin)
+        self.assertEqual(message.receiver, self.customer)
+        self.assertEqual(message.design_delivery, self.booking.design_deliveries.get())
+        self.assertEqual(message.design_booking, self.booking)
+        self.assertFalse(message.image, 'The design must not be copied into chat storage.')
+        self.assertFalse(message.is_read)
+        self.assertIn('Hi Juan!', message.message)
+        self.assertIn('reply here', message.message)
+        self.assertIn('Message from admin:\nPlease check the spelling.', message.message)
+        self.assertTrue(message.session.is_admin_support)
+        self.assertEqual(len(mail.outbox), 1, 'Delivery must not send an extra offline chat email.')
+        self.assertFalse(ChatNotification.objects.exists())
+        self.client.force_login(self.customer)
+        data = self.client.get(reverse('support_state')).json()
+        card = data['messages'][0]
+        self.assertEqual(data['unread'], 1)
+        self.assertEqual(card['image_url'], message.design_delivery.image.url)
+        self.assertEqual(card['design_delivery']['title'], 'Design ready')
+        self.assertEqual(card['design_delivery']['booking_id'], self.booking.pk)
+        self.assertEqual(card['design_delivery']['booking_url'], reverse('view_booking', args=[self.booking.pk]))
+        self.assertFalse(card['design_delivery']['removed'])
+        self.assertEqual(self.client.get(card['design_delivery']['booking_url']).status_code, 302)
+
+    def test_blank_caption_still_posts_standard_message_with_username_fallback(self):
+        self.customer.first_name = ''
+        self.customer.save(update_fields=['first_name'])
+        self.post_design(caption='   ')
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        message = ChatMessage.objects.get()
+        self.assertIn('Hi design-customer!', message.message)
+        self.assertIn('Your design for booking #', message.message)
+        self.assertNotIn('Message from admin:', message.message)
+
+    def test_reuses_latest_customer_support_session_and_reopens_it_without_touching_ai(self):
+        old = ChatSession.objects.create(user=self.customer, is_admin_support=True, status='active_admin')
+        session = ChatSession.objects.create(user=self.customer, is_admin_support=True, status='closed')
+        ai = ChatSession.objects.create(user=self.customer, status='ai')
+        other = User.objects.create_user(username='other-design-customer', role='customer')
+        foreign = ChatSession.objects.create(user=other, is_admin_support=True, status='active_admin')
+        self.post_design()
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        message = ChatMessage.objects.get()
+        self.assertEqual(message.session_id, session.pk)
+        session.refresh_from_db()
+        self.assertEqual(session.status, 'active_admin')
+        self.assertEqual(session.assigned_admin, self.admin)
+        self.assertEqual(ChatSession.objects.count(), 4)
+        for unrelated in (old, ai, foreign):
+            self.assertFalse(unrelated.messages.exists())
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse('support_state'), {'session_id': session.pk}).status_code, 404)
+
+    def test_retry_does_not_duplicate_chat_or_email(self):
+        self.post_design(submission_id='chat-retry')
+        self.post_design(submission_id='chat-retry')
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        self.assertEqual(ChatSession.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_upload_rollback_also_removes_chat_and_new_conversation(self):
+        with self.assertRaisesMessage(RuntimeError, 'rollback'):
+            with transaction.atomic():
+                self.post_design()
+                self.assertEqual(ChatMessage.objects.count(), 1)
+                raise RuntimeError('rollback')
+        self.assertFalse(ChatMessage.objects.exists())
+        self.assertFalse(ChatSession.objects.exists())
+        self.assertFalse(self.booking.design_deliveries.exists())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_revision_card_is_labeled_and_admin_gets_admin_booking_link(self):
+        BookingChangeRequest.objects.create(booking=self.booking, reason='Change colors', original_total=5000,
+            quoted_total=5000, status='applied', proposed={'_design_changed': True}, applied_at=timezone.now())
+        self.post_design()
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        data = self.client.get(reverse('support_state'), {'session_id': ChatMessage.objects.get().session_id}).json()
+        card = data['messages'][0]['design_delivery']
+        self.assertEqual(card['title'], 'Updated design ready')
+        self.assertEqual(card['booking_url'], reverse('admin_booking_detail', args=[self.booking.pk]))
+
+    def test_delete_removes_chat_preview_media_pin_and_reply_image(self):
+        self.post_design()
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        message = ChatMessage.objects.get()
+        message.is_pinned = True
+        message.pinned_by = self.admin
+        message.pinned_at = timezone.now()
+        message.save()
+        reply = ChatMessage.objects.create(session=message.session, sender=self.customer, receiver=self.admin,
+            message='Checking now', reply_to=message)
+        self.client.force_login(self.customer)
+        before = self.client.get(reverse('support_state'), {'media': '1'}).json()
+        self.assertEqual(len(before['media']), 1)
+        self.assertTrue(before['pinned'][0]['has_image'])
+        self.assertTrue(before['messages'][1]['reply_to']['has_image'])
+        self.client.force_login(self.admin)
+        self.client.post(reverse('admin_booking_design_delete', args=[self.booking.pk, message.design_delivery_id]))
+        self.client.force_login(self.customer)
+        after = self.client.get(reverse('support_state'), {'media': '1', 'watch': str(message.pk)}).json()
+        self.assertEqual(len(after['messages']), 2)
+        self.assertEqual(after['media'], [])
+        self.assertFalse(after['pinned'][0]['has_image'])
+        self.assertEqual(after['pinned'][0]['image_url'], '')
+        self.assertFalse(after['messages'][1]['reply_to']['has_image'])
+        for card in (after['messages'][0], after['updates'][0]):
+            self.assertTrue(card['design_delivery']['removed'])
+            self.assertEqual(card['image_url'], '')
+            self.assertEqual(card['content'], 'This design was removed')
+
+    def test_delivery_card_cannot_be_edited_as_ordinary_chat_text(self):
+        import json
+        self.post_design()
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        message = ChatMessage.objects.get()
+        response = self.client.post(reverse('support_action'), json.dumps({'action': 'edit',
+            'session_id': message.session_id, 'message_id': message.pk, 'message': 'Changed'}), content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        message.refresh_from_db()
+        self.assertNotEqual(message.message, 'Changed')
+
+    def test_legacy_chat_edit_cannot_change_delivery_text(self):
+        import json
+        self.post_design()
+        message = ChatMessage.objects.get()
+        response = self.client.post(reverse('chat_edit_message'), json.dumps({
+            'message_id': message.pk, 'message': 'Changed'}), content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        message.refresh_from_db()
+        self.assertNotEqual(message.message, 'Changed')
+
+    def test_active_and_removed_design_cards_cannot_be_deleted_by_chat_endpoints(self):
+        import json
+        self.post_design()
+        message = ChatMessage.objects.get()
+        message.is_pinned = True
+        message.pinned_by = self.admin
+        message.pinned_at = timezone.now()
+        message.save()
+        for removed in (False, True):
+            if removed:
+                self.client.post(reverse('admin_booking_design_delete', args=[self.booking.pk, message.design_delivery_id]))
+            for route in ('support_action', 'chat_delete_message'):
+                with self.subTest(removed=removed, route=route):
+                    response = self.client.post(reverse(route), json.dumps({'action': 'delete',
+                        'session_id': message.session_id, 'message_id': message.pk}), content_type='application/json')
+                    self.assertEqual(response.status_code, 400)
+                    message.refresh_from_db()
+                    self.assertFalse(message.is_deleted)
+                    self.assertTrue(message.is_pinned)
+                    self.assertEqual(message.design_booking_id, self.booking.pk)
+
+    def test_support_superuser_gets_no_booking_link_to_an_unauthorized_admin_route(self):
+        self.post_design()
+        message = ChatMessage.objects.get()
+        supervisor = User.objects.create_user(username='support-supervisor', role='customer', is_superuser=True)
+        self.client.force_login(supervisor)
+        data = self.client.get(reverse('support_state'), {'session_id': message.session_id}).json()
+        self.assertEqual(data['messages'][0]['design_delivery']['booking_url'], '')
+
+    def test_inbox_does_not_advertise_a_removed_delivery_as_ready(self):
+        self.post_design()
+        delivery = self.booking.design_deliveries.get()
+        self.client.post(reverse('admin_booking_design_delete', args=[self.booking.pk, delivery.pk]))
+        data = self.client.get(reverse('support_inbox')).json()
+        self.assertEqual(data['sessions'][0]['preview'], 'This design was removed')
 
     def test_rollback_never_sends_email(self):
         with patch('app.design_delivery_email.send_design_delivery_email') as send:

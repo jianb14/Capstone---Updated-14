@@ -638,6 +638,15 @@ class ChatMessage(models.Model):
     message = models.TextField(blank=True, default='')
     image = models.ImageField(upload_to='chat_attachments/%Y/%m/', null=True, blank=True)
     image_original_name = models.CharField(max_length=255, blank=True, default='')
+    design_delivery = models.OneToOneField(
+        BookingDesignDelivery, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='chat_message',
+    )
+    design_booking = models.ForeignKey(
+        Booking, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='design_chat_messages',
+    )
+    design_is_revision = models.BooleanField(default=False)
     is_flagged = models.BooleanField(default=False)
     sent_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
@@ -673,6 +682,18 @@ class ChatMessage(models.Model):
             getattr(self.sender, 'role', None) == 'admin'
             or getattr(self.sender, 'is_superuser', False)
         )
+
+    @property
+    def attachment_image(self):
+        if self.is_deleted:
+            return None
+        return self.design_delivery.image if self.design_delivery_id else self.image
+
+    @property
+    def attachment_name(self):
+        if self.design_delivery_id:
+            return f'Booking {self.design_booking_id} design'
+        return self.image_original_name
 
     def __str__(self):
         return f"Message {self.id} from {self.sender.username} to {self.receiver.username}"

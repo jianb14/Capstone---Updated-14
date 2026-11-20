@@ -1633,6 +1633,8 @@ def admin_booking_design_upload(request, id):
         uploaded.seek(0)
         delivery = BookingDesignDelivery.objects.create(booking=booking, image=uploaded,
             caption=caption, uploaded_by=request.user)
+        from ..design_delivery_chat import post_design_delivery
+        post_design_delivery(delivery, revised=bool(current))
         log_action(request.user, f'Uploaded backdrop design for booking #{id} (design #{delivery.id}).')
         log_booking_status(booking, booking.status, booking.status, changed_by=request.user,
             notes='Backdrop design uploaded and delivered to customer.')

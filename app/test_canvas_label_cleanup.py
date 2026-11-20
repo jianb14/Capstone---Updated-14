@@ -9,6 +9,7 @@ class CanvasLabelCleanupMigrationTests(TransactionTestCase):
         old = [('app','0115_secure_admin_invitations')]
         target = [('app','0116_remove_canvas_labels')]
         executor = MigrationExecutor(connection)
+        restore_targets = executor.loader.graph.leaf_nodes()
         try:
             executor.migrate(old)
             state = executor.loader.project_state(old).apps
@@ -30,4 +31,4 @@ class CanvasLabelCleanupMigrationTests(TransactionTestCase):
             self.assertNotIn('app_canvaslabel',connection.introspection.table_names())
             with self.assertRaises(LookupError):state.get_model('app','CanvasLabel')
         finally:
-            MigrationExecutor(connection).migrate(target)
+            MigrationExecutor(connection).migrate(restore_targets)

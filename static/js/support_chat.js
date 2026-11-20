@@ -115,6 +115,7 @@
             this.dialog.addEventListener('close', () => {
                 this.$('[data-dialog-body]').replaceChildren(); this.$('[data-dialog-footer]').replaceChildren();
                 this.dialog.classList.remove('sc-image-dialog');
+                this.dialogMode = null; this.previewMessageId = null;
             });
             this.$('[data-toggle-search]').addEventListener('click', () => {
                 const panel = this.$('[data-thread-search]'); panel.hidden = !panel.hidden;
@@ -335,6 +336,7 @@
             const skeletonLoad = initial || older || before ? window.SiteLoading?.start(this.list, {variant: 'chat', mode: older ? 'append' : 'replace'}) : null;
             const url = new URL(this.root.dataset.stateUrl, location.origin);
             if (this.sessionId) url.searchParams.set('session_id', this.sessionId);
+            if (this.dialog.open && this.dialogMode === 'info') url.searchParams.set('media', '1');
             if (this.threadQuery) url.searchParams.set('q', this.threadQuery);
             if (!initial && !older && !before && !this.threadQuery) {
                 if (this.cursor) url.searchParams.set('after', this.cursor);
@@ -342,7 +344,8 @@
                 const visible = Array.from(this.list.querySelectorAll('[data-message]')).filter(row => {
                     const rect = row.getBoundingClientRect(); return rect.bottom >= viewport.top && rect.top <= viewport.bottom;
                 }).slice(0, 50).map(row => row.dataset.message);
-                if (visible.length) url.searchParams.set('watch', visible.join(','));
+                const watched = Array.from(new Set([this.previewMessageId, ...visible].filter(Boolean))).slice(0, 50);
+                if (watched.length) url.searchParams.set('watch', watched.join(','));
             }
             if (older && this.messages.size) url.searchParams.set('before', Math.min(...this.messages.keys()));
             if (before) url.searchParams.set('before', before);
@@ -355,10 +358,11 @@
                 if (initial || older) this.hasMore = data.has_more;
                 const oldMax = Math.max(0, ...this.messages.keys());
                 data.messages.forEach(message => this.messages.set(message.id, message));
-                (data.updates || []).forEach(message => this.messages.set(message.id, message));
+                (data.updates || []).forEach(message => { if (this.messages.has(message.id)) this.messages.set(message.id, message); });
                 if (!older && !before && data.messages.length) this.cursor = data.messages[data.messages.length - 1].id;
                 this.pins = data.pinned || []; this.updatePins();
                 this.renderMessages(); this.$('[data-older]').hidden = !this.hasMore;
+                this.refreshDialog(data);
                 if (initial || atBottom && !older && !before) this.bottom();
                 else if (older) this.history.scrollTop = scroll + this.history.scrollHeight - oldHeight;
                 else if (data.messages.some(message => message.id > oldMax)) this.$('[data-jump-bottom]').hidden = false;
@@ -401,7 +405,7 @@
                 }
                 const old = existing.get(message.id);
                 const signature = JSON.stringify([message.content, message.is_deleted, message.is_edited, message.is_pinned,
-                    message.image_url, message.image_name, message.reply_to, message.reactions, message.my_reactions,
+                    message.image_url, message.image_name, message.design_delivery, message.reply_to, message.reactions, message.my_reactions,
                     message.time, message.sent_iso, message.day, message.own, message.own && message.seen,
                     message.own && message.delivered]);
                 let element = old;
@@ -425,12 +429,23 @@
             row.dataset.message = message.id;
             if (message.reply_to) row.append(button((message.reply_to.is_deleted ? 'Message deleted' : message.reply_to.text || 'Photo attachment').slice(0, 100), 'sc-reply-snippet', () => this.jump(message.reply_to.id)));
             const bubble = node('div', 'sc-bubble');
+            if (message.design_delivery && !message.is_deleted) {
+                row.classList.add('sc-design-delivery');
+                const delivery = message.design_delivery;
+                bubble.append(node('h3', 'sc-design-title', delivery.removed ? 'Design removed' : delivery.title),
+                    node('p', 'sc-design-booking', 'Booking #' + delivery.booking_id));
+            }
             if (message.is_deleted || message.content) bubble.append(node('p', 'sc-message-text', message.is_deleted ? 'This message was deleted' : message.content));
             if (message.image_url && !message.is_deleted) {
-                const photo = button('View attachment', 'sc-message-photo', () => this.showImage(message.image_url, message.image_name));
+                const photo = button('View attachment', 'sc-message-photo', () => this.showImage(message.image_url, message.image_name, message.id));
                 const img = node('img'); img.src = message.image_url; img.alt = message.image_name || 'Chat attachment'; img.loading = 'lazy';
                 img.addEventListener('load', () => { if (this.atBottom()) this.bottom(); });
                 photo.replaceChildren(img); photo.setAttribute('aria-label', 'View attachment'); bubble.append(photo);
+            }
+            if (message.design_delivery?.booking_url && !message.is_deleted) {
+                const link = node('a', 'sc-design-link', 'View booking');
+                link.href = message.design_delivery.booking_url;
+                bubble.append(link);
             }
             const meta = node('div', 'sc-message-meta');
             if (this.admin && message.is_from_admin && !message.own) meta.append(node('span', '', message.sender_name + ' · Team'));
@@ -466,7 +481,7 @@
                     const b = button(label, 'sc-menu-item' + (danger ? ' sc-danger' : ''), () => {menu.remove(); handler();}); b.prepend(icon(symbol)); menu.append(b);
                 };
                 item(message.is_pinned ? 'Unpin message' : 'Pin message', 'pin', () => this.messageAction('pin', message));
-                if (message.own) {
+                if (message.own && !message.design_delivery) {
                     if (message.content) item('Edit message', 'edit', () => this.startEdit(message));
                     item('Delete message', 'trash', () => this.confirmDelete(message), true);
                 }
@@ -604,6 +619,7 @@
             } else this.setError('This message is no longer available.');
         }
         openDialog(title, image = false) {
+            this.dialogMode = null; this.previewMessageId = null;
             this.$('[data-dialog-body]').replaceChildren(); this.$('[data-dialog-footer]').replaceChildren();
             this.$('[data-dialog-title]').textContent = title; this.dialog.classList.toggle('sc-image-dialog', image);
             if (!this.dialog.open) this.dialog.showModal();
@@ -623,10 +639,10 @@
         }
         async showInfo() {
             const [body, footer] = this.openDialog('Conversation details');
+            this.dialogMode = 'info';
             body.append(node('p', '', this.admin ? this.session?.email || 'Customer support conversation.' : 'Your conversation with the Balloorina support team. Leave a message whenever you need help.'));
             body.append(node('h3', '', 'Pinned messages'));
-            if (!this.pins?.length) body.append(node('p', '', 'No pinned messages yet. Use a message’s options to pin it.'));
-            (this.pins || []).forEach(pin => body.append(button(pin.snippet || 'Photo attachment', 'sc-pin-item', () => {this.dialog.close(); this.jump(pin.id);})));
+            const pins = node('div', 'sc-dialog-pins'); body.append(pins); this.renderDialogPins(pins);
             body.append(node('h3', '', 'Shared photos'));
             const media = node('div', 'sc-media-grid'); body.append(media);
             if (this.admin && this.session) {
@@ -645,18 +661,49 @@
             const skeletonLoad = window.SiteLoading?.start(media, {variant: 'cards'});
             try {
                 const url = new URL(this.root.dataset.stateUrl, location.origin); url.searchParams.set('session_id', this.sessionId); url.searchParams.set('media', '1');
-                const data = await this.request(url); if (!this.dialog.open || epoch !== this.epoch) return;
-                for (const photo of data.media || []) {
-                    const b = button('View ' + photo.name, '', () => this.showImage(photo.url, photo.name));
-                    const img = node('img'); img.src = photo.url; img.alt = photo.name; img.loading = 'lazy'; b.replaceChildren(img); b.setAttribute('aria-label', 'View ' + photo.name); media.append(b);
-                }
-                if (!data.media?.length) media.append(node('p', '', 'No photos shared yet.'));
-                else if (data.media.length === 100) body.append(node('p', '', 'Showing the latest 100 photos. Earlier photos are available in the conversation.'));
+                const data = await this.request(url); if (!this.dialog.open || this.dialogMode !== 'info' || epoch !== this.epoch) return;
+                this.renderSharedPhotos(media, data.media || []);
             } catch (error) {media.append(node('p', 'sc-error', AppErrors.message(error, "We couldn't load this image. Close the preview and try again.")));}
             finally { skeletonLoad?.finish(); }
         }
-        showImage(url, name = 'Chat photo') {
+        renderDialogPins(container) {
+            const signature = JSON.stringify(this.pins || []);
+            if (container.pinSignature === signature) return;
+            container.pinSignature = signature; container.replaceChildren();
+            if (!this.pins?.length) container.append(node('p', '', 'No pinned messages yet. Use a message’s options to pin it.'));
+            (this.pins || []).forEach(pin => container.append(button(pin.snippet || 'Photo attachment', 'sc-pin-item', () => {this.dialog.close(); this.jump(pin.id);})));
+        }
+        renderSharedPhotos(container, photos) {
+            const signature = JSON.stringify(photos);
+            if (container.photoSignature === signature) return;
+            container.photoSignature = signature; container.replaceChildren();
+            for (const photo of photos) {
+                const b = button('View ' + photo.name, '', () => this.showImage(photo.url, photo.name, photo.id));
+                const img = node('img'); img.src = photo.url; img.alt = photo.name; img.loading = 'lazy';
+                b.replaceChildren(img); b.setAttribute('aria-label', 'View ' + photo.name); container.append(b);
+            }
+            if (!photos.length) container.append(node('p', '', 'No photos shared yet.'));
+            else if (photos.length === 100) container.append(node('p', '', 'Showing the latest 100 photos. Earlier photos are available in the conversation.'));
+        }
+        refreshDialog(data) {
+            if (!this.dialog.open) return;
+            if (this.dialogMode === 'info') {
+                this.renderDialogPins(this.$('.sc-dialog-pins'));
+                if (data.media) this.renderSharedPhotos(this.$('.sc-media-grid'), data.media);
+            } else if (this.dialogMode === 'image' && this.previewMessageId) {
+                const photo = [...(data.updates || []), ...data.messages].find(message => message.id === this.previewMessageId)
+                    || this.messages.get(this.previewMessageId);
+                if (photo && !photo.image_url) {
+                    const design = !!photo.design_delivery;
+                    const [body, footer] = this.openDialog(design ? 'Design removed' : 'Photo removed');
+                    body.append(node('p', '', design ? 'This design was removed' : 'This photo is no longer available.'));
+                    footer.append(button('Done', 'sc-button', () => this.dialog.close()));
+                }
+            }
+        }
+        showImage(url, name = 'Chat photo', messageId = null) {
             const [body, footer] = this.openDialog('Photo attachment', true);
+            this.dialogMode = 'image'; this.previewMessageId = messageId;
             const img = node('img', 'sc-preview-image'); img.src = url; img.alt = name;
             body.append(img);
             const link = node('a', 'sc-button', 'Download image'); link.href = url; link.download = name || 'chat-photo';
