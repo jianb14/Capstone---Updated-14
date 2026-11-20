@@ -347,6 +347,79 @@
 
 #ai-fab { padding: 0; cursor: pointer; font-family: inherit; }
 #ai-fab:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+
+/* A single invitation replaces the AI tooltip; the launcher stays still. */
+#ai-fab::before, #ai-fab::after { display: none; }
+#ai-fab:hover { transform: none; }
+#ai-fab .ai-fab-invite {
+    position: absolute;
+    right: calc(100% + 12px);
+    top: 50%;
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+    padding: 8px 12px;
+    border: 1px solid var(--chat-tip-line);
+    border-radius: 9px;
+    background: var(--chat-tip-bg);
+    color: var(--chat-tip-ink);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-50%);
+    transition: opacity .12s ease, visibility .12s ease;
+}
+#ai-fab .ai-fab-invite.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+/* Keep the bubble clickable while the pointer crosses from the icon. */
+#ai-fab .ai-fab-invite::before {
+    content: '';
+    position: absolute;
+    right: -13px;
+    top: 0;
+    width: 13px;
+    height: 100%;
+}
+#ai-fab .ai-fab-invite::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: calc(50% - 5px);
+    width: 8px;
+    height: 8px;
+    border-top: 1px solid var(--chat-tip-line);
+    border-right: 1px solid var(--chat-tip-line);
+    background: var(--chat-tip-bg);
+    transform: rotate(45deg);
+}
+/* Only the current letters determine the bubble width, with no sliding tween. */
+#ai-fab .ai-fab-invite-copy { display: inline-flex; }
+#ai-fab .ai-fab-invite-text { display: inline-block; white-space: pre; font-kerning: none; }
+#ai-fab .ai-fab-invite-text::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    margin-right: 3px;
+    background: currentColor;
+    vertical-align: -.12em;
+}
+#ai-fab .ai-fab-invite[data-phase="holding"] .ai-fab-invite-text::before { animation: ac-invite-caret 1s step-end infinite; }
+#ai-fab .ai-fab-invite[data-phase="static"] .ai-fab-invite-text::before { visibility: hidden; animation: none; }
+@keyframes ac-invite-caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+    #ai-fab .ai-fab-invite { transition: none; }
+    #ai-fab .ai-fab-invite-text::before { animation: none; visibility: hidden; }
+}
 @keyframes ac-message-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 768px) {
     #ai-widget { left: 12px; right: 12px; bottom: 80px; width: auto; height: min(720px, calc(100dvh - 106px)); max-height: calc(100dvh - 106px); border-radius: 18px; }

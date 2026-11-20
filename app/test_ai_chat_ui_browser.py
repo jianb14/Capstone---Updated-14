@@ -184,7 +184,7 @@ class AIChatUIBrowserTests(StaticLiveServerTestCase):
             finally:
                 browser.close()
 
-    def test_customer_chat_launcher_tooltips_and_hover_lift(self):
+    def test_customer_chat_launcher_labels_and_support_hover_lift(self):
         from playwright.sync_api import expect, sync_playwright
         from io import BytesIO
         from PIL import Image
@@ -201,6 +201,7 @@ class AIChatUIBrowserTests(StaticLiveServerTestCase):
             browser = playwright.chromium.launch(executable_path=str(executable), headless=True)
             try:
                 context = browser.new_context(viewport={'width': 1440, 'height': 1000})
+                context.add_init_script("sessionStorage.setItem('balloorina-welcome-seen', '1')")
                 context.add_cookies([cookie])
                 for domain in ('fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'):
                     context.route(f'https://{domain}/**', lambda route: route.abort())
@@ -216,7 +217,18 @@ class AIChatUIBrowserTests(StaticLiveServerTestCase):
                             ai = page.locator('#ai-fab').bounding_box()
                             support = page.locator('#adminChatToggle').bounding_box()
                             self.assertAlmostEqual(ai['y'] - support['y'] - support['height'], 8, delta=1)
-                        for selector in ('#ai-fab', '#adminChatToggle'):
+                        ai = page.locator('#ai-fab')
+                        ai.hover()
+                        expect(ai).to_have_css('transform', 'none')
+                        paused_text = ai.locator('.ai-fab-invite-text').inner_text()
+                        page.wait_for_timeout(100)
+                        expect(ai.locator('.ai-fab-invite-text')).to_have_text(paused_text)
+                        if paused_text:
+                            expect(ai.locator('.ai-fab-invite')).to_be_visible()
+                        ai.focus()
+                        expect(ai).to_be_focused()
+                        expect(ai.locator('.ai-fab-invite-text')).to_have_text(paused_text)
+                        for selector in ('#adminChatToggle',):
                             launcher = page.locator(selector)
                             page.mouse.move(0, 0)
                             page.locator('body').click(position={'x': 1, 'y': 1})

@@ -11,8 +11,25 @@ authoritative.
 
 Composer and guide fields use the same focus ring as Admin Concerns. The draft
 reflows when the composer width changes, with its controls anchored at the bottom
-and the same compact text size on mobile. Both customer chat launchers share a
-subtle hover lift and pointed light/dark tooltips, also shown on keyboard focus.
+and the same compact text size on mobile. Admin support keeps its hover lift
+and pointed light/dark tooltip. The AI launcher stays stationary and displays
+`Try AI for your event` in a matching clickable speech bubble. `static/js/ai_invite.js`
+types at 85ms per character, holds for 2 seconds, erases at 30ms per character,
+and waits 8 seconds between cycles. Every third cycle instead rests for 60 seconds.
+The bubble's right edge stays beside the launcher; its width follows only the
+currently typed letters, growing leftward and shrinking during deletion. There
+is no reserved full-sentence width or horizontal slide/width transition.
+Letters are inserted on the left, revealing the sentence from its right edge:
+`t`, `nt`, `ent`, and eventually the complete normally readable label. Existing
+letters stay in place instead of moving sideways on every keystroke. The cursor
+is steady while typing/erasing and blinks only during the completed-text hold.
+The bubble contains text only and uses the admin tooltip's 8px vertical / 12px
+horizontal padding and 9px corners, without a forced minimum height (36px at the
+current line height). Hover and keyboard focus pause the current
+character and remaining delay; leaving resumes that exact step without restarting
+the cycle or flashing the full label. The invitation
+hides while chat is open, the tab is hidden, or the homepage intro is active;
+reduced motion shows a static label. This invitation never submits an AI request.
 `static/js/ai_chat.js` opens generated
 images, including saved chat images, in a native dialog without submitting an
 AI request. Escape, backdrop and close-button dismissal restore focus to the
