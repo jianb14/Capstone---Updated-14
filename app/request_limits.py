@@ -65,7 +65,10 @@ class RequestLimitsMiddleware(MiddlewareMixin):
             if not authenticated and name not in PUBLIC_POSTS:
                 return None
             policy_subject = f'ip:{ip}' if name in PUBLIC_POSTS else subject
-            rules.extend(configured_rule(scope, policy_subject) for scope in POST_POLICIES.get(name, ()))
+            policies = POST_POLICIES.get(name, ())
+            if name == 'request_booking_change' and request.POST.get('review_only') == '1':
+                policies = ('booking_review',)
+            rules.extend(configured_rule(scope, policy_subject) for scope in policies)
             if request.content_type == 'multipart/form-data':
                 if request.FILES:
                     size = sum(upload.size for _, uploads in request.FILES.lists() for upload in uploads)
@@ -80,7 +83,7 @@ class RequestLimitsMiddleware(MiddlewareMixin):
             return limit_response(request, error)
         except OperationalError:
             # Do not silently allow unlimited requests when the shared store is unavailable.
-            error = RateLimited(5, message='Request protection is temporarily unavailable. Please try again in 5 seconds.')
+            error = RateLimited(5, message="We can't complete this action right now. Please try again in 5 seconds.")
             return limit_response(request, error, status=503)
         return None
 

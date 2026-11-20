@@ -180,7 +180,7 @@ def _email_request_limit(request, email, prefix, setting_prefix, label):
     except OperationalError:
         request._email_retry_after = 5
         request._email_limit_status = 503
-        return True, 'Request protection is temporarily unavailable. Please try again in 5 seconds.'
+        return True, "We can't complete this action right now. Please try again in 5 seconds."
     except RateLimited as exc:
         request._email_retry_after = exc.retry_after
         wait = _format_wait_time(exc.retry_after)
@@ -417,7 +417,7 @@ def compute_overtime(start_time, end_time, start_date=None, policy=None):
         st = datetime.strptime(str(start_time), "%H:%M").time()
         et = datetime.strptime(str(end_time), "%H:%M").time()
     except (ValueError, TypeError):
-        result["error"] = "Invalid time format."
+        result["error"] = 'Choose the start and end times using the time fields.'
         return result
 
     base_date = start_date or timezone.localdate()

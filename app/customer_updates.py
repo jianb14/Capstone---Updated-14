@@ -86,7 +86,7 @@ def customer_update_payload(user, cursor=None):
             if owner != user.pk or type(after) is not int or not 0 <= after <= 9223372036854775807:
                 raise ValueError
         except (signing.BadSignature, ValueError, TypeError, KeyError):
-            raise ValueError('Invalid notification update position.') from None
+            raise ValueError("We couldn't update your notifications. Refresh the list and try again.") from None
     items, delivery_ids = [], []
     # Persistent delivery state includes offline notices below the browser cursor.
     incoming = owned.filter(pk__lte=head, is_read=False, bar_shown_at__isnull=True, booking__user=user).select_related('booking').prefetch_related('booking__payments').order_by('-pk')
@@ -110,7 +110,7 @@ def acknowledge_customer_updates(user, token):
                 type(key) is not int or not 0 < key <= 9223372036854775807 for key in keys):
             raise ValueError
     except (signing.BadSignature, ValueError, TypeError, KeyError):
-        raise ValueError('Invalid notification delivery receipt.') from None
+        raise ValueError("We couldn't update your notifications. Refresh the list and try again.") from None
     shown_at = timezone.now()
     for start in range(0, len(keys), 500):
         Notification.objects.filter(user=user, pk__in=keys[start:start+500],

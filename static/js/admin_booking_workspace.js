@@ -24,22 +24,18 @@
         const response = await fetch(url, {...options, credentials: 'same-origin', headers: {...headers, ...options.headers}});
         const loginRedirect = response.redirected && new URL(response.url, location.origin).pathname === '/login/';
         if (response.status === 401 || loginRedirect) {
-            throw new Error('Your session has ended. Sign in again to continue.');
+            throw AppErrors.create('Your session has ended. Sign in again to continue.');
         }
         const responseError = response.status === 403 ? 'You do not have permission to complete this action.'
             : response.status === 404 ? 'This record could not be found. Refresh the list and try again.'
-            : response.status === 429 ? 'Too many requests. Please wait a moment and try again.'
-            : response.status >= 500 ? 'The server could not load this information. Please try again.'
-            : 'The server returned an unexpected response. Please try again.';
+            : response.status === 429 ? 'Please wait a moment before trying again.' : '';
         if (response.redirected || !response.headers.get('Content-Type')?.includes('application/json')) {
-            throw new Error(responseError);
+            throw AppErrors.create(responseError);
         }
-        let data;
-        try { data = await response.json(); }
-        catch (error) { if (error.name === 'AbortError') throw error; throw new Error(responseError); }
-        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(responseError);
+        const data = await response.json();
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw AppErrors.create(responseError);
         if (!response.ok || data.success === false) {
-            const error = new Error(data.message || responseError);
+            const error = AppErrors.create(data.message || responseError);
             error.fields = data.errors || {}; throw error;
         }
         return data;
@@ -54,6 +50,7 @@
         try {
             const data = await json(url, {signal: listController.signal});
             if (sequence !== listSequence) return;
+            if (typeof data.html !== 'string') throw new Error('Incomplete bookings response');
             const focused = content.contains(document.activeElement) ? document.activeElement : null,
                 name = focused?.name, selection = focused?.type === 'search' ? focused.selectionStart : null;
             selects.release(content); content.innerHTML = data.html; enhance();
@@ -63,7 +60,7 @@
                 input?.focus({preventScroll: true}); input?.setSelectionRange(selection, selection);
             }
         } catch (error) {
-            if (error.name !== 'AbortError') { showError(errorNode, `${error.message} Your last results are still shown.`); }
+            if (error.name !== 'AbortError') { showError(errorNode, `${AppErrors.message(error, "We couldn't load the bookings.")} Your last results are still shown.`); }
         } finally { skeletonLoad?.finish();if (sequence === listSequence) content.removeAttribute('aria-busy'); }
     }
     function filtersURL() {
@@ -128,7 +125,7 @@
             if (error.name !== 'AbortError' && sequence === modalSequence) {
                 modalContent.querySelector('#abModalTitle').textContent = 'Unable to load details';
                 const body = modalContent.querySelector('.ab-modal-body'), message = document.createElement('p');
-                body.classList.add('ab-modal-error'); message.setAttribute('role', 'alert'); message.textContent = error.message;
+                body.classList.add('ab-modal-error'); message.setAttribute('role', 'alert'); message.textContent = AppErrors.message(error, "We couldn't load this booking. Please try again.");
                 const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
                 retry.addEventListener('click', () => openModal(url.href, updateHistory)); body.replaceChildren(message, retry);
             }
@@ -212,7 +209,7 @@
         } catch (error) {
             let inline = false;
             for (const [name, message] of Object.entries(error.fields || {})) inline = fieldError(form, name, message) || inline;
-            if (!inline) formError(form, error.message);
+            if (!inline) formError(form, AppErrors.message(error, "We couldn't confirm the update. Check the booking's latest status before trying again."));
             focusError(form);
         } finally { posting = false; busy(form, false); }
     }

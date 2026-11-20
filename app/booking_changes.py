@@ -56,18 +56,26 @@ def verified_paid(booking):
     return booking.payments.filter(payment_status='verified', applied_to_booking=True).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
 
+def payment_amounts(original, revised, paid):
+    """One payment policy for draft review, quotes, and payment screens."""
+    extra = max(revised - original, Decimal('0')) if paid > 0 else Decimal('0')
+    return {'verified_paid': paid, 'current_balance': max(original - paid, Decimal('0')),
+        'remaining': max(revised - paid, Decimal('0')), 'additional': extra,
+        'balance_after_additional': max(revised - paid - extra, Decimal('0')),
+        'excess': max(paid - revised, Decimal('0')) if revised < original else Decimal('0')}
+
+
 def change_payment_summary(change):
     paid = verified_paid(change.booking)
     historical = change.status not in BookingChangeRequest.ACTIVE_STATUSES and 'verified_paid_at_review' in change.quote
     if historical:
         paid = Decimal(change.quote['verified_paid_at_review'])
-    extra = max(change.quoted_total - change.original_total, Decimal('0')) if paid > 0 else Decimal('0')
-    excess = max(paid - change.quoted_total, Decimal('0')) if change.quoted_total < change.original_total else Decimal('0')
-    return {'change_verified_paid':paid, 'change_extra_payment':extra,
+    amounts = payment_amounts(change.original_total, change.quoted_total, paid)
+    return {'change_verified_paid':paid, 'change_extra_payment':amounts['additional'],
         'change_verified_paid_label':'Verified payments when quoted' if historical else 'Verified payments already credited',
-        'change_existing_balance':max(change.original_total - paid, Decimal('0')),
-        'change_balance_after_extra':max(change.quoted_total - paid - extra, Decimal('0')),
-        'change_excess_payment':excess, 'change_requires_nonrefund_ack':excess > 0}
+        'change_existing_balance':amounts['current_balance'],
+        'change_balance_after_extra':amounts['balance_after_additional'],
+        'change_excess_payment':amounts['excess'], 'change_requires_nonrefund_ack':amounts['excess'] > 0}
 
 
 def pending_proof(booking, exclude_change=None):
@@ -282,7 +290,7 @@ def issue_quote(change, actor, notes='', downgrade_ack=False, now=None):
     zone = timezone.get_default_timezone()
     change.hold_start, change.hold_end = timezone.make_aware(start, zone), timezone.make_aware(end, zone)
     change.expires_at = min(now + timedelta(hours=SiteSettings.load().booking_payment_window_hours), event_start_at(proposed), event_start_at(change.booking))
-    change.additional_due = max(delta, Decimal('0')) if paid > 0 else Decimal('0')
+    change.additional_due = payment_amounts(change.booking.total_price, proposed.total_price, paid)['additional']
     change.quoted_total = proposed.total_price
     change.admin_notes, change.reviewed_by, change.downgrade_acknowledged = notes.strip(), actor, excess > 0 and downgrade_ack
     breakdown = get_booking_display_breakdown(proposed)

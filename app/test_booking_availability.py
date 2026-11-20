@@ -1100,7 +1100,7 @@ class SmartRequiredPinTemplateTests(TestCase):
                 "No pin yet — drop a pin or pick from search. Required to continue.",
                 tpl,
             )
-            self.assertIn("Map unavailable — pin optional", tpl)
+            self.assertIn("We couldn't load the map. Try again to pin your venue, or contact our team for help.", tpl)
 
 
 class OvertimeLabelTemplateTests(TestCase):

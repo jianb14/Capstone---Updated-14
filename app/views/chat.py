@@ -122,9 +122,9 @@ def _get_chat_session_for_user(request, session_id):
     try:
         session = ChatSession.objects.get(id=session_id)
     except (ChatSession.DoesNotExist, ValueError, TypeError):
-        return None, JsonResponse({"error": "Session not found"}, status=404)
+        return None, JsonResponse({"error": 'This conversation is no longer available. Reopen the chat or start a new conversation.'}, status=404)
     if session.user_id != request.user.id and not _is_admin_user(request.user):
-        return None, JsonResponse({"error": "Forbidden"}, status=403)
+        return None, JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
     return session, None
 
 
@@ -259,7 +259,7 @@ def chat_api(request):
             try:
                 data = json.loads(request.body)
             except json.JSONDecodeError:
-                return JsonResponse({"error": "Invalid JSON body"}, status=400)
+                return JsonResponse({"error": "We couldn't read your message. Check the conversation before sending it again."}, status=400)
 
         user_message = (data.get("message") or "").strip()
         session_id = data.get("session_id")
@@ -269,7 +269,7 @@ def chat_api(request):
 
         # Ensure user is authenticated to use sessions properly
         if not request.user.is_authenticated:
-            return JsonResponse({"error": "Authentication required"}, status=403)
+            return JsonResponse({"error": 'Please sign in again to send a message.'}, status=403)
 
         # Handle ChatSession
         session = None
@@ -292,7 +292,7 @@ def chat_api(request):
             receiver = _get_client_chat_receiver(session)
             if not receiver:
                 return JsonResponse(
-                    {"error": "System misconfiguration (no admin found)"}, status=500
+                    {"error": "We can't connect you to our team right now. Please try again later."}, status=500
                 )
 
             now = timezone.now()
@@ -354,7 +354,7 @@ def chat_api(request):
         return legacy_ai_response(request)
     except Exception:
         logger.exception("Chat API Error")
-        return JsonResponse({"error": "Something went wrong on our end. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm whether your message was sent. Check the conversation before sending again."}, status=500)
 
 
 @login_required
@@ -536,9 +536,9 @@ def chat_clear(request):
                 is_admin_support=False,
             ).delete()
             return JsonResponse({"success": True})
-        return JsonResponse({"error": "session_id required"}, status=400)
+        return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm whether this chat was deleted. Check your recent chats before trying again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -636,7 +636,7 @@ def chat_request_admin(request):
             "message": "Existing admin support chat restored."
         })
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm your request to chat with our team. Check the conversation before trying again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -650,7 +650,7 @@ def chat_mark_read(request):
         data = json.loads(request.body)
         session_id = data.get("session_id")
         if not session_id:
-            return JsonResponse({"error": "session_id required"}, status=400)
+            return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
         session = get_object_or_404(ChatSession, id=session_id, user=request.user)
         ChatMessage.objects.filter(
             session=session, is_read=False,
@@ -662,7 +662,7 @@ def chat_mark_read(request):
         )
         return JsonResponse({"success": True})
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't update this conversation. Reopen the chat and try again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -677,7 +677,7 @@ def chat_edit_message(request):
         message_id = data.get("message_id")
         new_text = (data.get("message") or "").strip()
         if not message_id:
-            return JsonResponse({"error": "message_id required"}, status=400)
+            return JsonResponse({"error": "We couldn't find the selected message. Reopen the conversation and try again."}, status=400)
         if not new_text:
             return JsonResponse({"error": "Message cannot be empty"}, status=400)
         message = get_object_or_404(ChatMessage, id=message_id, sender=request.user)
@@ -692,7 +692,7 @@ def chat_edit_message(request):
     except Http404:
         raise
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm whether your message was updated. Check the conversation before editing again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -706,12 +706,12 @@ def chat_typing(request):
         data = json.loads(request.body)
         session_id = data.get("session_id")
         if not session_id:
-            return JsonResponse({"error": "session_id required"}, status=400)
+            return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
         session = get_object_or_404(ChatSession, id=session_id)
         is_admin = _is_admin_user(request.user)
         is_client = session.user_id == request.user.id
         if not (is_admin or is_client):
-            return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
         session.client_last_active_at = timezone.now()
         if is_admin:
             session.admin_typing_until = timezone.now() + timedelta(seconds=CHAT_TYPING_SECONDS)
@@ -726,7 +726,7 @@ def chat_typing(request):
         )
         return JsonResponse({"success": True})
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't update this conversation. Reopen the chat and try again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -737,12 +737,12 @@ def chat_typing(request):
 def chat_presence(request):
     session_id = request.GET.get("session_id")
     if not session_id:
-        return JsonResponse({"error": "session_id required"}, status=400)
+        return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
     session = get_object_or_404(ChatSession, id=session_id)
     is_admin = _is_admin_user(request.user)
     is_client = session.user_id == request.user.id
     if not (is_admin or is_client):
-        return JsonResponse({"error": "Forbidden"}, status=403)
+        return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
     now = timezone.now()
     delta = timedelta(seconds=CHAT_PRESENCE_ONLINE_SECONDS)
     return JsonResponse(
@@ -775,7 +775,7 @@ def chat_delete_message(request):
             or (is_admin and session is not None and session.is_admin_support)
         )
         if not allowed:
-            return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
         if not message.is_deleted:
             message.is_deleted = True
             message.deleted_at = timezone.now()
@@ -784,7 +784,7 @@ def chat_delete_message(request):
             message.reactions.all().delete()
         return JsonResponse({"success": True})
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm whether your message was deleted. Check the conversation before trying again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -800,12 +800,12 @@ def chat_typing_ping(request):
         session_id = data.get("session_id")
         is_typing = data.get("is_typing", True)
         if not session_id:
-            return JsonResponse({"error": "session_id required"}, status=400)
+            return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
         session = get_object_or_404(ChatSession, id=session_id)
         is_admin = _is_admin_user(request.user)
         is_client = session.user_id == request.user.id
         if not (is_admin or is_client):
-            return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
         now = timezone.now()
         if is_client:
             if is_typing:
@@ -825,7 +825,7 @@ def chat_typing_ping(request):
             session.save(update_fields=update_fields)
         return JsonResponse({"success": True})
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't update this conversation. Reopen the chat and try again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -841,15 +841,15 @@ def chat_reaction(request):
         message_id = data.get("message_id")
         emoji = data.get("emoji")
         if not message_id or not emoji:
-            return JsonResponse({"error": "message_id and emoji required"}, status=400)
+            return JsonResponse({"error": "We couldn't find the selected message. Reopen the conversation and try again."}, status=400)
         if emoji not in CHAT_REACTION_EMOJIS:
-            return JsonResponse({"error": "Invalid emoji"}, status=400)
+            return JsonResponse({"error": 'Choose a reaction from the available options.'}, status=400)
         message = get_object_or_404(ChatMessage, id=message_id)
         session = message.session
         is_admin = _is_admin_user(request.user)
         is_client = session.user_id == request.user.id
         if not (is_admin or is_client):
-            return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
         # Only ONE reaction per user per message (Messenger-style):
         # reacting with a different emoji replaces the previous one,
         # reacting with the same emoji removes it.
@@ -868,7 +868,7 @@ def chat_reaction(request):
             "my_reactions": my,
         })
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't update your reaction. Please try again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -879,11 +879,11 @@ def chat_reaction(request):
 def admin_chat_poll(request):
     """Return new messages and presence data for the admin thread."""
     if not _is_admin_user(request.user):
-        return JsonResponse({"error": "Forbidden"}, status=403)
+        return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
     session_id = request.GET.get("session_id")
     after_id = request.GET.get("after_id", 0)
     if not session_id:
-        return JsonResponse({"error": "session_id required"}, status=400)
+        return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
     session = get_object_or_404(ChatSession, id=session_id, is_admin_support=True)
     now = timezone.now()
     # Update admin presence
@@ -927,9 +927,9 @@ def chat_toggle_reaction(request):
         message_id = data.get("message_id")
         emoji = (data.get("emoji") or "").strip()
         if not message_id:
-            return JsonResponse({"error": "message_id required"}, status=400)
+            return JsonResponse({"error": "We couldn't find the selected message. Reopen the conversation and try again."}, status=400)
         if emoji not in CHAT_REACTION_EMOJIS:
-            return JsonResponse({"error": "Invalid emoji"}, status=400)
+            return JsonResponse({"error": 'Choose a reaction from the available options.'}, status=400)
         message = get_object_or_404(ChatMessage, id=message_id)
         # Only ONE reaction per user per message (Messenger-style):
         # reacting with a different emoji replaces the previous one,
@@ -947,7 +947,7 @@ def chat_toggle_reaction(request):
             {"success": True, "reactions": counts, "my_reactions": my}
         )
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't update your reaction. Please try again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -1116,7 +1116,7 @@ def admin_chat_thread(request, session_id):
 @require_POST
 def admin_chat_close(request, session_id):
     if not _is_admin_user(request.user):
-        return JsonResponse({"error": "Forbidden"}, status=403)
+        return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
     session = get_object_or_404(ChatSession, id=session_id, is_admin_support=True)
     session.status = 'closed'
     session.save(update_fields=['status', 'updated_at'])
@@ -1134,16 +1134,16 @@ def chat_pin_message(request):
         data = json.loads(request.body)
         message_id = data.get("message_id")
         if not message_id:
-            return JsonResponse({"error": "message_id required"}, status=400)
+            return JsonResponse({"error": "We couldn't find the selected message. Reopen the conversation and try again."}, status=400)
         message = get_object_or_404(
             ChatMessage.objects.select_related("session"), id=message_id
         )
         session = message.session
         if session is None:
-            return JsonResponse({"error": "Message has no session"}, status=400)
+            return JsonResponse({"error": 'This conversation is no longer available. Reopen the chat or start a new conversation.'}, status=400)
         # Either side of the support chat may pin/unpin, like Messenger.
         if session.user_id != request.user.id and not _is_admin_user(request.user):
-            return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
         if message.is_deleted:
             return JsonResponse({"error": "Deleted messages cannot be pinned"}, status=400)
 
@@ -1185,7 +1185,7 @@ def chat_pin_message(request):
             "pinned_messages": _pinned_messages_json(session),
         })
     except Exception as e:
-        return JsonResponse({"error": "Something went wrong. Please try again later."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm whether this message was pinned. Check the conversation before trying again."}, status=500)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -1197,7 +1197,7 @@ def chat_pin_message(request):
 def chat_pinned_messages(request):
     session_id = request.GET.get("session_id")
     if not session_id:
-        return JsonResponse({"error": "session_id required"}, status=400)
+        return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
     session, error = _get_chat_session_for_user(request, session_id)
     if error:
         return error
@@ -1216,7 +1216,7 @@ def chat_pinned_messages(request):
 def chat_media_files(request):
     session_id = request.GET.get("session_id")
     if not session_id:
-        return JsonResponse({"error": "session_id required"}, status=400)
+        return JsonResponse({"error": "We couldn't open this conversation. Reopen the chat and try again."}, status=400)
     session, error = _get_chat_session_for_user(request, session_id)
     if error:
         return error
@@ -1232,7 +1232,7 @@ def chat_media_files(request):
 @require_GET
 def admin_chat_unread_poll(request):
     if not _is_admin_user(request.user):
-        return JsonResponse({"error": "Forbidden"}, status=403)
+        return JsonResponse({"error": "You don't have permission to open or change this conversation."}, status=403)
     sessions = ChatSession.objects.filter(is_admin_support=True).exclude(status='ai')
     from django.db.models import F
     unread_count = sessions.filter(
@@ -1296,7 +1296,7 @@ def _escalate_to_admin_support(request, session, user_message):
     admin_user = _get_primary_admin_user()
     if not admin_user:
         return JsonResponse(
-            {"error": "System misconfiguration (no admin found)"}, status=500
+            {"error": "We can't connect you to our team right now. Please try again later."}, status=500
         )
 
     if not session:
@@ -1390,7 +1390,7 @@ def chat_image_feedback(request):
         return JsonResponse({"success": True})
     except Exception:
         logger.exception("Chat Image Feedback Error")
-        return JsonResponse({"error": "Something went wrong."}, status=500)
+        return JsonResponse({"error": "We couldn't save your feedback. Please try again."}, status=500)
 
 
 @login_required
@@ -1398,7 +1398,7 @@ def chat_image_feedback(request):
 def chat_save_design(request):
     """Save an AI-generated chat image into the user's My Designs page."""
     if request.user.role != "customer":
-        return JsonResponse({"error": "Not allowed"}, status=403)
+        return JsonResponse({"error": "You don't have permission to save this image. Sign in with a customer account."}, status=403)
     try:
         import uuid
 
@@ -1408,7 +1408,7 @@ def chat_save_design(request):
         image_url = (data.get("image_url") or "").strip()
         prompt = str(data.get("prompt") or "")[:1000]
         if not image_url:
-            return JsonResponse({"error": "Invalid image reference"}, status=400)
+            return JsonResponse({"error": "We couldn't find this image. Reopen it from your chat and try again."}, status=400)
         from ..ai_images import owned_image_name
         try:
             source_name = owned_image_name(request.user, image_url)
@@ -1443,7 +1443,7 @@ def chat_save_design(request):
         })
     except Exception:
         logger.exception("Chat Save Design Error")
-        return JsonResponse({"error": "Something went wrong."}, status=500)
+        return JsonResponse({"error": "We couldn't confirm whether this image was saved. Check My Designs before trying again."}, status=500)
 
 
 @login_required

@@ -185,15 +185,14 @@ AccountPages.register('report_concern', 'concern', function(scope) {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
             if (!response.headers.get('Content-Type')?.includes('application/json')) {
-                throw new Error(response.redirected ? 'Please sign in again in another tab, then retry. Your form is still here.' : 'We could not confirm the request. Please try again.');
+                if (response.redirected) throw AppErrors.create('Please sign in again in another tab, then retry. Your form is still here.');
+                throw new Error('Unreadable concern response');
             }
             return { response, data: await response.json() };
         } finally { clearTimeout(timeout); }
     }
-    function requestError(error) {
-        return error.name === 'AbortError' || error instanceof TypeError
-            ? 'We could not confirm the request. Check your connection and try again. Your details are still here.'
-            : error.message;
+    function requestError(error, fallback) {
+        return AppErrors.message(error, fallback);
     }
     form.addEventListener('submit', async event => {
         event.preventDefault();
@@ -209,7 +208,7 @@ AccountPages.register('report_concern', 'concern', function(scope) {
         try {
             const { response, data } = await post(form.action, new FormData(form));
             if (!scope.active) return;
-            if (!response.ok || !data.success) throw new Error(data.message || data.error || 'Please review your details and try again.');
+            if (!response.ok || !data.success) throw AppErrors.create(data.message || data.error || '');
             const notice = {icon: 'success', title: data.message || 'Concern submitted. Our team will review it soon.'};
             announce(feedback, notice.title);
             // Retain the submission key until the server confirms success, including after a lost response.
@@ -223,8 +222,9 @@ AccountPages.register('report_concern', 'concern', function(scope) {
             }
         } catch (error) {
             if (!scope.active) return;
-            announce(feedback, requestError(error), true);
-            AppToast.fire({icon: 'error', title: requestError(error)});
+            const message = requestError(error, "We couldn't confirm your submission. Check My Concerns before trying again.");
+            announce(feedback, message, true);
+            AppToast.fire({icon: 'error', title: message});
             submitting = false;
             submit.disabled = false;
             submit.textContent = 'Try again';
@@ -322,7 +322,7 @@ AccountPages.register('report_concern', 'concern', function(scope) {
             const { response, data } = await post(cancelForm.action, new FormData(cancelForm));
             if (!scope.active) return;
             if (data.ticket) updateTicket(data.ticket);
-            if (!response.ok || !data.success) throw new Error(data.message || 'We could not cancel this concern. Please try again.');
+            if (!response.ok || !data.success) throw AppErrors.create(data.message || '');
             confirm.close();
             announce(historyFeedback, data.message);
             AppToast.fire({icon: 'success', title: data.message});
@@ -330,8 +330,9 @@ AccountPages.register('report_concern', 'concern', function(scope) {
             else document.querySelector('[data-view-id="' + cancelTicket.id + '"]')?.focus();
         } catch (error) {
             if (!scope.active) return;
-            announce(cancelFeedback, requestError(error), true);
-            AppToast.fire({icon: 'error', title: requestError(error)});
+            const message = requestError(error, "We couldn't confirm the cancellation. Check your concern's status before trying again.");
+            announce(cancelFeedback, message, true);
+            AppToast.fire({icon: 'error', title: message});
         }
         finally {
             cancelling = false; cancelSubmit.disabled = false; cancelSubmit.textContent = 'Cancel concern';

@@ -120,10 +120,10 @@
         try{
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:current.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});
-            if(response.redirected)throw new Error('Your session ended. Please sign in again.');
-            const result=await response.json().catch(()=>({}));
-            if(!response.ok)throw new Error(result.error||'The dashboard could not be updated. Please try again.');
-            if(!result.html||!result.operations_html||!result.filters)throw new Error('The server returned an incomplete dashboard. Please try again.');
+            if(response.redirected)throw AppErrors.create('Your session ended. Please sign in again.');
+            const result=await response.json();
+            if(!response.ok)throw AppErrors.create(result.error||'The dashboard could not be updated. Please try again.');
+            if(!result.html||!result.operations_html||!result.filters)throw AppErrors.create("We couldn't update the dashboard. The previous figures are still shown. Please try again.");
             if(requestID!==version)return;
             sync(result.filters,atDraft!==draft);
             if(operations.contains(document.activeElement))refresh.focus({preventScroll:true});
@@ -132,7 +132,7 @@
             if(push&&actual.href!==location.href)history.pushState({},'',actual);else history.replaceState({},'',actual);
             status.textContent=`Updated ${result.updated} (PH time)`;
         }catch(error){
-            if(requestID===version){message(error.name==='AbortError'?'The request took too long. Your current dashboard is still here.':error.message);status.textContent='Showing the last applied report';}
+            if(requestID===version){message(error.name==='AbortError'?'The request took too long. Your current dashboard is still here.':AppErrors.message(error, "We couldn't update the dashboard. The previous figures are still shown. Please try again."));status.textContent='Showing the last applied report';}
         }finally{skeletonLoad?.finish();clearTimeout(timeout);if(requestID===version)results.setAttribute('aria-busy','false');}
     }
     form.addEventListener('input',event=>{if(event.target.matches('input[type="date"]')){draft++;field('filter_preset').value='';presets('');}});

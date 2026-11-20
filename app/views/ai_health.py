@@ -26,9 +26,9 @@ KINDS = {
     'photo_advice': 'Photo advice', 'photo_edit': 'Photo edit', 'photo_inspire': 'Photo inspiration',
 }
 ERROR_LABELS = {
-    'model_unavailable': 'Model unavailable', 'provider_auth': 'Provider authorization',
-    'provider_credits': 'Provider credits', 'provider_request': 'Provider request rejected',
-    'provider_config': 'Provider configuration', 'provider_timeout': 'Provider timeout',
+    'model_unavailable': 'AI service unavailable', 'provider_auth': 'AI account access problem',
+    'provider_credits': 'AI usage credits used up', 'provider_request': "AI service couldn't process the request",
+    'provider_config': 'AI service setup problem', 'provider_timeout': 'AI response took too long',
     'rate_limited': 'Rate limit', 'interrupted': 'Interrupted request',
 }
 

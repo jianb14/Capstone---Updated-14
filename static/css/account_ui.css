@@ -77,7 +77,7 @@
 .account-workspace .account-content .concern-history-panel .concern-row-actions :is(.concern-eye,.concern-row-cancel) { display:inline-flex; align-items:center; justify-content:center; flex:none; box-sizing:border-box; height:36px; min-height:36px; margin:0; padding:0 11px; border-radius:8px; font-size:11px; line-height:1; vertical-align:middle; white-space:nowrap; }
 .account-workspace .account-content .concern-history-panel .concern-row-actions .concern-eye { width:36px; padding:0; }
 .account-workspace .account-content .account-table .is-disabled { opacity:.6; cursor:default; }
-.account-workspace .account-content .account-table .action-icon-delete { color:var(--account-danger); }
+.account-workspace .account-content .account-table .action-icon-btn.action-icon-delete { color:var(--account-danger); }
 .account-workspace .account-content .account-table .status-badge { padding:4px 8px; border-radius:6px; font-size:10px; font-weight:500; }
 .account-workspace .account-content .booking-row-update { font-size:10px; max-width:180px; line-height:1.6; color:var(--account-muted); }
 .account-workspace .account-content .account-table.is-empty { min-width:0; }
@@ -219,11 +219,11 @@
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-select-options button { color: var(--account-text); }
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-select-options button:is(:hover,:focus-visible,[aria-selected="true"]) { background-color: var(--account-soft) !important; color: var(--account-text) !important; }
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.account-search input,.account-select-trigger):focus-visible { border-color: var(--account-focus-border); outline-color: var(--account-focus-ring); }
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge,.mp-status,.mp-pill) { border-color: transparent; color: var(--account-muted); background-color: var(--account-soft); }
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.pending,.status-badge.pending_payment,.mp-status--pending,.mp-pill--pending) { color: var(--account-kpi-amber); background-color: var(--account-status-amber-bg); }
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.confirmed,.mp-status--info,.mp-pill--info) { color: var(--account-kpi-blue); background-color: var(--account-status-blue-bg); }
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.completed,.mp-status--verified,.mp-pill--verified) { color: var(--account-kpi-green); background-color: var(--account-status-green-bg); }
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.cancelled,.status-badge.cancel_requested,.mp-status--rejected,.mp-pill--rejected) { color: var(--account-kpi-red); background-color: var(--account-status-red-bg); }
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge,.mp-status,.mp-pill,.booking-state) { border-color: transparent; color: var(--account-muted); background-color: var(--account-soft); }
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.pending,.status-badge.pending_payment,.booking-state-pending,.booking-state-pending_payment,.mp-status--pending,.mp-pill--pending) { color: var(--account-kpi-amber); background-color: var(--account-status-amber-bg); }
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.confirmed,.booking-state-confirmed,.mp-status--info,.mp-pill--info) { color: var(--account-kpi-blue); background-color: var(--account-status-blue-bg); }
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.completed,.booking-state-completed,.mp-status--verified,.mp-pill--verified) { color: var(--account-kpi-green); background-color: var(--account-status-green-bg); }
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) :is(.status-badge.cancelled,.status-badge.cancel_requested,.booking-state-cancelled,.booking-state-cancel_requested,.mp-status--rejected,.mp-pill--rejected) { color: var(--account-kpi-red); background-color: var(--account-status-red-bg); }
 
 /* Admin Concerns action hover, with compact chat-widget-style tooltips. */
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table :is(.action-icon-btn,.cp-btn-view-icon) {
@@ -231,10 +231,11 @@
 }
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table :is(.action-icon-btn,.cp-btn-view-icon,.booking-row-action,.mp-btn-pay,.cp-btn-pending-info):is(a,button):hover {
     border-color:var(--account-line) !important; background:var(--account-hover) !important;
-    color:var(--account-text); opacity:1; box-shadow:none; transform:none;
+    color:var(--account-text) !important; opacity:1; box-shadow:none; transform:none;
 }
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table .action-icon-delete,
-#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table .action-icon-delete:hover { color:var(--account-danger); }
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table .action-icon-btn.action-icon-delete,
+#accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table .action-icon-btn.action-icon-delete:is(:hover,:focus-visible,:active) { color:var(--account-danger) !important; }
+#accountContent[data-account-page="customer_profile"] .account-table .action-icon-btn.action-icon-delete:is(:hover,:focus-visible) { background:color-mix(in srgb,var(--account-danger) 10%,transparent) !important; border-color:color-mix(in srgb,var(--account-danger) 25%,var(--account-line)) !important; }
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table :is(.action-icon-btn,.cp-btn-view-icon)::before,
 #accountContent:is([data-account-page="customer_profile"],[data-account-page="my_payments"]) .account-table :is(.action-icon-btn,.cp-btn-view-icon)::after { content:none !important; display:none !important; }
 

@@ -159,7 +159,7 @@ def evaluate_design(canvas_json, offer, catalog=None):
         if not isinstance(state, dict) or not isinstance(state.get('objects'), list):
             raise ValueError
     except (ValueError, TypeError):
-        invalid.append('Canvas data is invalid.')
+        invalid.append("We couldn't read this design. Keep this page open and try again, or contact our team for help.")
         return result
     if not offer:
         invalid.append('Choose a Package, Entrance Arch, or Welcome Stand before booking.')
@@ -172,14 +172,14 @@ def evaluate_design(canvas_json, offer, catalog=None):
     balloon_colors = set()
     for obj in state['objects']:
         if not isinstance(obj, dict):
-            invalid.append('A canvas item is invalid.')
+            invalid.append("We couldn't read one of the items in your design. Remove and add that item again.")
             continue
         if obj.get('_isArtboard') or obj.get('_isBgImage') or obj.get('_designSource') == 'reference':
             continue
         asset = resolve_catalog_object(obj, assets)
         if asset is None:
             if obj.get('_assetId') or obj.get('_designSource') == 'catalog' or obj.get('_packageCategory', 'custom') not in ('custom', '', None):
-                invalid.append('Re-add an unrecognized catalog item from the asset list so it can be counted.')
+                invalid.append('Some items in this design are no longer recognized. Remove and add them again from the item list.')
             continue
         if asset.category_id not in rules_by_category:
             invalid.append(f'{asset.label} is not included in the selected offer.')

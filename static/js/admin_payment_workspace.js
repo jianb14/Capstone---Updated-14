@@ -35,12 +35,12 @@
         const timeout = setTimeout(abort, options.method === 'POST' ? 45000 : 20000);
         try {
             const response = await fetch(url, {...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'text/html', 'X-Requested-With': 'XMLHttpRequest'}});
-            if (!response.ok) throw new Error(`The request could not be completed (${response.status}). Please refresh and try again.`);
+            if (!response.ok) throw new Error(`Payment request returned HTTP ${response.status}`);
             const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
-            if (!doc.querySelector('[data-payment-workspace]')) throw new Error('Your session may have ended. Please refresh the page and sign in again.');
+            if (!doc.querySelector('[data-payment-workspace]')) throw AppErrors.create('Your session may have ended. Please refresh the page and sign in again.');
             return doc;
         } catch (error) {
-            if (error.name === 'AbortError' && !options.signal?.aborted) throw new Error('The request timed out. Please refresh to check the latest payment status.');
+            if (error.name === 'AbortError' && !options.signal?.aborted) throw AppErrors.create("This is taking longer than expected. Check the latest payment status before trying again.");
             throw error;
         } finally {
             clearTimeout(timeout);
@@ -69,7 +69,7 @@
             const doc = await request(url, {signal: controller.signal});
             if (controller.signal.aborted || version !== listVersion) return false;
             const nextQueues = doc.querySelector('#pmQueues'), nextSummary = doc.querySelector('#pmSummary');
-            if (!nextQueues || !nextSummary) throw new Error('Payments could not be loaded. Please refresh the page.');
+            if (!nextQueues || !nextSummary) throw AppErrors.create('Payments could not be loaded. Please refresh the page.');
             // Keep the live controls and their focus while replacing only server-rendered data.
             const focused = filters.contains(document.activeElement) ? document.activeElement : null;
             const selection = focused?.tagName === 'INPUT' ? [focused.selectionStart, focused.selectionEnd] : null;
@@ -88,7 +88,7 @@
             return true;
         } catch (error) {
             if (!controller.signal.aborted && version === listVersion) {
-                notice.classList.remove('pm-sr-only'); feedback(notice, error.message);
+                notice.classList.remove('pm-sr-only'); feedback(notice, AppErrors.message(error, "We couldn't load the payment information. Please try again."));
                 const retry = document.createElement('button');
                 retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
                 retry.addEventListener('click', () => { feedback(notice); loadQueue(url, push); }, {once: true});
@@ -114,12 +114,12 @@
         try {
             const response = await fetch(url, {...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store',
                 headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'}});
-            if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Settings could not be loaded. Refresh the page and check that you are signed in.');
+            if (!response.headers.get('content-type')?.includes('application/json')) throw AppErrors.create('Settings could not be loaded. Refresh the page and check that you are signed in.');
             const data = await response.json();
-            if (!response.ok && !(response.status === 400 && data.html)) throw new Error('Payment settings could not be saved. Please try again.');
+            if (!response.ok && !(response.status === 400 && data.html)) throw new Error('Payment settings response unavailable');
             return data;
         } catch (error) {
-            if (error.name === 'AbortError' && !parent?.aborted) throw new Error('The request timed out. Check the current settings before trying again.');
+            if (error.name === 'AbortError' && !parent?.aborted) throw AppErrors.create("This is taking longer than expected. Check the current settings before trying again.");
             throw error;
         } finally { clearTimeout(timeout); parent?.removeEventListener('abort', abort); }
     }
@@ -140,7 +140,7 @@
             settingsBody.querySelector('input:not([type="hidden"])')?.focus({preventScroll: true});
         } catch (error) {
             if (!controller.signal.aborted) {
-                feedback(settingsBody, error.message);
+                feedback(settingsBody, AppErrors.message(error, "We couldn't load the payment settings. Please try again."));
                 const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
                 retry.addEventListener('click', openSettings); settingsBody.append(retry);
             }
@@ -176,7 +176,7 @@
                 settingsBody.querySelector('[aria-invalid="true"]')?.focus({preventScroll: true});
             }
         } catch (error) {
-            formError.textContent = error.message; formError.hidden = false;
+            formError.textContent = AppErrors.message(error, "We couldn't confirm whether the payment settings were saved. Check the current settings before trying again."); formError.hidden = false;
         } finally {
             saving = false; settingsSave.disabled = false; settingsSave.textContent = 'Save settings'; scope.removeAttribute('aria-busy');
         }
@@ -213,13 +213,13 @@
             const doc = await request(url, {signal: controller.signal});
             if (controller.signal.aborted) return;
             const content = doc.querySelector('#pmPaymentDetail');
-            if (!content) throw new Error('Payment details could not be loaded.');
+            if (!content) throw AppErrors.create('Payment details could not be loaded.');
             detailBody.replaceChildren(content);
             detailBody.scrollTop = 0;
             root.querySelector('#pmDetailTitle').textContent = content.querySelector('h1')?.textContent || 'Payment details';
         } catch (error) {
             if (!controller.signal.aborted) {
-                feedback(detailBody, error.message);
+                feedback(detailBody, AppErrors.message(error, "We couldn't load this payment. Please try again."));
                 const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ac-button'; retry.textContent = 'Try again';
                 retry.addEventListener('click', () => openDetail(url, origin, false), {once: true});
                 detailBody.append(' ', retry);
@@ -348,7 +348,7 @@
         try {
             response = await request(url, {method: 'POST', body});
         } catch (error) {
-            feedback(actionNotice, `${error.message} Check the latest status before submitting again.`);
+            feedback(actionNotice, `${AppErrors.message(error, "We couldn't confirm the update.")} Check the latest status before submitting again.`);
             action = null;
         } finally {
             saving = false;
@@ -374,7 +374,7 @@
             try {
                 const doc = await request(location.href), content = doc.querySelector('#pmPaymentDetail');
                 if (content) root.querySelector('#pmPaymentDetail').replaceWith(content);
-            } catch (error) { feedback(notice, `${message} ${error.message}`, 'warning'); }
+            } catch (error) { feedback(notice, `${message} ${AppErrors.message(error, "We couldn't refresh the payment details. Reopen them to see the latest status.")}`, 'warning'); }
         }
     });
     root.querySelectorAll('dialog').forEach(dialog => {

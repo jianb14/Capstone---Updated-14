@@ -16,7 +16,7 @@ AccountPages.enhance('customer_profile', 'booking_changes.js', function(scope) {
             const state = await response.json();
             if (!scope.active) return null;
             if (state.can_request_changes !== true) {
-                window.AppToast.fire({icon: 'info', title: state.message || 'Booking changes are not available right now.', timer: 6500});
+                window.AppToast.fire({icon: 'info', title: AppErrors.text(state.message, 'Booking changes are not available right now.'), timer: 6500});
                 return null;
             }
             return state;
@@ -89,10 +89,15 @@ AccountPages.enhance('customer_profile', 'booking_changes.js', function(scope) {
         const form = document.getElementById('editBookingForm');
         if (!form) return;
         form.dataset.changeMode = enabled ? '1' : '0';
+        window.BookingChangeReview?.configure(paymentState?.review_original || null, !enabled);
+        document.querySelector('#edit-step-4 .review-note').innerHTML = '<i class="fa-solid fa-circle-info"></i> '
+            + (enabled ? 'Estimates only. Changes require approval; your current booking stays unchanged.'
+                : 'Our team will verify availability and confirm your booking after submission.');
         form.dataset.verifiedPaidCents = String(Math.round(Number(paymentState?.verified_paid || 0) * 100));
         form.dataset.originalTotalCents = String(Math.round(Number(paymentState?.original_total || 0) * 100));
         acknowledgedEstimate = '';
         document.getElementById('changeRequestBanner').hidden = !enabled;
+        document.getElementById('changeRequestBanner').classList.toggle('is-entering', enabled);
         document.getElementById('changeRequestBookingId').textContent = `#${bookingId}`;
         const reason = document.getElementById('change_reason');
         reason.value = enabled ? requestReason.trim() : '';

@@ -169,9 +169,9 @@ def theme_quiz_api(request):
     try:
         data = json.loads(request.body or "{}")
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return JsonResponse({"success": False, "error": "Invalid request body."}, status=400)
+        return JsonResponse({"success": False, "error": "We couldn't read your selections. Choose your event type and preferred style again."}, status=400)
     if not isinstance(data, dict):
-        return JsonResponse({"success": False, "error": "Invalid request body."}, status=400)
+        return JsonResponse({"success": False, "error": "We couldn't read your selections. Choose your event type and preferred style again."}, status=400)
 
     event_type = str(data.get("event_type") or "").strip()
     vibe = str(data.get("vibe") or "").strip()
@@ -218,11 +218,11 @@ def theme_quiz_api(request):
     payload = get_chatbot_response(prompt, user=request.user)
     text = (payload.get("text") or "").strip() if isinstance(payload, dict) else str(payload)
 
-    if not text:
+    if not text or (isinstance(payload, dict) and payload.get('service_error')):
         return JsonResponse(
             {
                 "success": False,
-                "error": "The AI stylist is unavailable right now. Please try again later.",
+                "error": "We couldn't create a theme suggestion right now. Please try again later or contact our team for help.",
             },
             status=502,
         )

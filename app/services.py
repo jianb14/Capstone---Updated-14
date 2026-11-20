@@ -1709,26 +1709,10 @@ def _image_success_reply(img_url, prompt, intro_text=""):
 
 
 def _image_unavailable_reply(prompt, intro_text="", error_message=""):
-    intro = (
-        intro_text
-        or "I've prepared the design prompt, but the image provider didn't return a usable image."
-    )
-    provider_hint = ""
-    if error_message:
-        error_lower = error_message.lower()
-        if "402" in error_lower or "quota" in error_lower or "credits" in error_lower:
-            provider_hint = (
-                " The monthly AI image credits for this app's Hugging Face account are"
-                " currently used up, so no image provider is available right now."
-                " Image generation should work again once the credits reset next month"
-                " (or if credits are added to the account)."
-            )
-        elif "401" in error_lower or "unauthorized" in error_lower:
-            provider_hint = " The Hugging Face API key may be invalid or expired."
-    return (
-        f"{intro}{provider_hint}\n\n"
-        "You can tap Try Again below, or pick a suggestion to continue."
-    )
+    error_lower = error_message.lower()
+    if any(value in error_lower for value in ('401', '402', 'unauthorized', 'quota', 'credits')):
+        return "We couldn't create the sample image right now. Please contact our team for help."
+    return "We couldn't create the sample image right now. Please try again later."
 
 
 STOP_WORDS = {
@@ -2229,12 +2213,9 @@ def analyze_inspiration_image(image_file, user_note="", *, generate=True, strict
         raise RuntimeError('Photo analysis is temporarily unavailable.')
     error_text = last_error_text.lower()
     if "402" in error_text or "credits" in error_text:
-        return (
-            "Photo analysis is temporarily unavailable because the AI provider's monthly "
-            "credits are used up. Please try again after the credits reset."
-        )
+        return "We couldn't analyze this photo right now. Please contact our team for help."
     if "401" in error_text or "unauthorized" in error_text:
-        return "AI authentication failed. Please verify the HUGGINGFACE_API_KEY in .env."
+        return "We couldn't analyze this photo right now. Please contact our team for help."
     return "I couldn't analyze that photo right now. Please try again later."
 
 
@@ -2937,13 +2918,17 @@ def get_chatbot_response(user_message, conversation_history=None, user=None, *, 
         if InferenceClient is None:
             print("Error: huggingface_hub library is not installed.")
             return _chat_response_payload(
-                "System Error: AI library missing. Please install huggingface_hub.",
+                "We couldn't create a theme suggestion right now. Please try again later or contact our team for help.",
+                service_error=True, should_save=False,
             )
 
         api_key = getattr(settings, "HUGGINGFACE_API_KEY", "")
         if not api_key:
             print("Error: HUGGINGFACE_API_KEY is not set in settings.py/.env")
-            return _chat_response_payload("Configuration Error: API key missing.")
+            return _chat_response_payload(
+                "We couldn't create a theme suggestion right now. Please try again later or contact our team for help.",
+                service_error=True, should_save=False,
+            )
 
         with _without_dead_local_proxy():
             try:

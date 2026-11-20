@@ -452,13 +452,12 @@ window.initOfferEditor = (scope = document) => {
                 return;
             }
             const hasValidation = Object.keys(result.errors || {}).length || Object.keys(result.row_errors || {}).length || result.image_errors?.length;
-            if (!hasValidation) throw new Error(result.message || result.error || 'The offer could not be saved. Your changes are still here. Please try again.');
+            if (!hasValidation) throw AppErrors.create(result.message || result.error || '');
             displayErrors(result); setSaveStatus('Review the marked fields to continue.');
         } catch (error) {
             validationShown = false;
-            const message = error instanceof SyntaxError || error instanceof TypeError ?
-                'The offer could not be saved. Your changes are still here. Please try again.' : error.message;
-            errorSummary.hidden = false; errorSummary.textContent = message; setSaveStatus('Not saved. Please try again.');
+            const message = AppErrors.message(error, "We couldn't confirm whether the offer was saved. Check the current offer before trying again. Your changes are still here.");
+            errorSummary.hidden = false; errorSummary.textContent = message; setSaveStatus('Save not confirmed. Check the current offer before trying again.');
             root.dispatchEvent(new CustomEvent('catalog:failed', {bubbles:true, detail:{message}}));
         } finally { save.disabled = false; save.textContent = saveLabel; root.dispatchEvent(new CustomEvent('catalog:busy', {bubbles:true, detail:false})); }
     });

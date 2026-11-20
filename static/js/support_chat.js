@@ -58,13 +58,14 @@
                         Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRFToken': this.root.dataset.csrf, ...options.headers}});
                 const json = response.headers.get('content-type')?.includes('application/json');
-                if (!json) throw new Error(response.status === 403 ? 'Your session has expired. Reload this page and sign in again.' : 'Support is unavailable right now. Please try again.');
+                if (!json) {
+                    if (response.status === 403) throw AppErrors.create('Your session has expired. Sign in again to continue.');
+                    throw new Error('Unreadable support response');
+                }
                 const data = await response.json();
-                if (!response.ok || data.error) throw new Error(data.error || 'The request could not be completed. Please try again.');
+                if (!response.ok || data.error) throw AppErrors.create(data.error || '');
                 return data;
             } catch (error) {
-                if (error.name === 'AbortError') throw new Error('The connection timed out. Your draft is kept. Try again.');
-                if (error instanceof TypeError) throw new Error('Could not connect. Check your connection and try again.');
                 throw error;
             } finally { clearTimeout(timer); }
         }
@@ -295,7 +296,7 @@
                 this.highlightInbox(); this.$('[data-sync]').textContent = 'Messages stay up to date';
             } catch (error) {
                 if (version !== this.inboxVersion) return;
-                const box = this.$('[data-inbox-error]'); box.hidden = false; box.textContent = error.message + ' Retrying automatically.';
+                const box = this.$('[data-inbox-error]'); box.hidden = false; box.textContent = AppErrors.message(error, "We couldn't load the conversations.") + ' Retrying automatically.';
                 this.$('[data-sync]').textContent = 'Reconnecting…';
             } finally {skeletonLoad?.finish();if (version === this.inboxVersion) this.$('[data-more-inbox]').disabled = false;}
         }
@@ -366,7 +367,7 @@
                 if (this.stateFailed) { this.stateFailed = false; this.setError(); }
             } catch (error) {
                 if (epoch !== this.epoch) return;
-                this.stateFailed = true; this.setError(error.message);
+                this.stateFailed = true; this.setError(AppErrors.message(error, "We couldn't load your messages. Please try again."));
                 if (!this.messages.size) {
                     const placeholder = empty('Could not load messages', 'Your conversation is safe. Check your connection and try again.');
                     placeholder.append(button('Try again', 'sc-button', () => this.loadState({initial: true}))); this.list.replaceChildren(placeholder);
@@ -484,7 +485,13 @@
                 if (action === 'delete') this.feedback('Message deleted.');
                 if (action === 'pin') this.feedback(data.updated.is_pinned ? 'Message pinned.' : 'Message unpinned.');
                 return true;
-            } catch (error) {if (epoch === this.epoch) this.setError(error.message); return false;}
+            } catch (error) {
+                const fallback = action === 'react' ? "We couldn't update your reaction. Please try again."
+                    : action === 'pin' ? "We couldn't update the pinned message. Please try again."
+                    : "We couldn't confirm whether the message was deleted. Check the conversation before trying again.";
+                if (epoch === this.epoch) this.setError(AppErrors.message(error, fallback));
+                return false;
+            }
             finally {this.messageBusy.delete(message.id);}
         }
         startReply(message) {
@@ -565,7 +572,7 @@
                 if (this.threadQuery) this.searchMessages('');
                 else this.loadState();
             } catch (error) {
-                this.setError(error.message); this.$('[data-send-status]').textContent = 'Not sent · Your draft is kept. Try again.';
+                this.setError(AppErrors.message(error, this.edit ? "We couldn't confirm the edit. Check your message before trying again." : "We couldn't confirm whether your message was sent. Check the conversation before sending again.")); this.$('[data-send-status]').textContent = 'Not confirmed · Your draft is kept. Check the conversation before trying again.';
                 this.saveDraft();
             } finally {
                 this.sending = false; this.input.disabled = false; this.$('[data-send]').disabled = false; this.$('[data-attach]').disabled = false; this.input.focus();
@@ -629,7 +636,7 @@
                     try {
                         const data = await this.action(closed ? 'reopen' : 'close'); this.session = data.session; this.updateHeader(data.session);
                         this.dialog.close(); this.feedback(closed ? 'Conversation reopened.' : 'Conversation closed.'); this.loadInbox(false, true);
-                    } catch (error) {body.append(node('p', 'sc-error', error.message)); event.currentTarget.disabled = false;}
+                    } catch (error) {body.append(node('p', 'sc-error', AppErrors.message(error, "We couldn't load the shared images. Please try again."))); event.currentTarget.disabled = false;}
                 }));
             }
             footer.append(button('Done', 'sc-button', () => this.dialog.close()));
@@ -645,7 +652,7 @@
                 }
                 if (!data.media?.length) media.append(node('p', '', 'No photos shared yet.'));
                 else if (data.media.length === 100) body.append(node('p', '', 'Showing the latest 100 photos. Earlier photos are available in the conversation.'));
-            } catch (error) {media.append(node('p', 'sc-error', error.message));}
+            } catch (error) {media.append(node('p', 'sc-error', AppErrors.message(error, "We couldn't load this image. Close the preview and try again.")));}
             finally { skeletonLoad?.finish(); }
         }
         showImage(url, name = 'Chat photo') {

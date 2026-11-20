@@ -435,7 +435,7 @@ document.addEventListener("DOMContentLoaded", function () {
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                if (data.error) { alert(data.error); return; }
+                if (data.error) { alert(AppErrors.text(data.error, "We couldn't complete this change. Check the conversation before trying again.")); return; }
                 renderReactionChips({
                     id: messageId,
                     reactions: data.reactions,
@@ -527,7 +527,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (data.error) { alert(data.error); return; }
+                    if (data.error) { alert(AppErrors.text(data.error, "We couldn't complete this change. Check the conversation before trying again.")); return; }
                     row.querySelectorAll(".chat-message-text").forEach(function (el) { el.remove(); });
                     const bubble = row.querySelector(".chat-bubble");
                     if (bubble) {
@@ -798,7 +798,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (data.error) { alert(data.error); return; }
+                    if (data.error) { alert(AppErrors.text(data.error, "We couldn't complete this change. Check the conversation before trying again.")); return; }
                     if (data.updated) upsertPolledMessage(data.updated);
                     cancelEdit();
                 })
@@ -1041,7 +1041,7 @@ document.addEventListener("DOMContentLoaded", function () {
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                if (data.error) { alert(data.error); return; }
+                if (data.error) { alert(AppErrors.text(data.error, "We couldn't complete this change. Check the conversation before trying again.")); return; }
                 if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
                 const row = threadMessages.querySelector('.admin-msg-row[data-message-id="' + id + '"]');
                 if (row && row.dataset.sig) {

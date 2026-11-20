@@ -317,7 +317,7 @@
             body: JSON.stringify({ message_id: messageId, emoji: emoji }),
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw AppErrors.create(data.error);
         // Update the pill in place — no reload, no scroll jump, no flicker.
         const row = messagesEl.querySelector(`.admin-chat-msg[data-id="${messageId}"]`);
         updateReactionChip(row, data.reactions, data.my_reactions);
@@ -366,7 +366,7 @@
             body: JSON.stringify({ message_id: messageId }),
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw AppErrors.create(data.error);
         lastMessageSignature = "";
         await loadHistory();
     }
@@ -521,7 +521,7 @@
             body: JSON.stringify(currentSessionId ? { session_id: currentSessionId } : {}),
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw AppErrors.create(data.error);
         if (data.session_id) {
             currentSessionId = String(data.session_id);
             setStatus(data.new_status || "active_admin");
@@ -531,7 +531,7 @@
 
     async function sendMessage(message, imageFiles) {
         await ensureAdminSession();
-        if (!currentSessionId) throw new Error("Unable to start admin chat.");
+        if (!currentSessionId) throw AppErrors.create("Unable to start admin chat.");
 
         const formData = new FormData();
         formData.append("session_id", currentSessionId);
@@ -547,7 +547,7 @@
             body: formData,
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw AppErrors.create(data.error);
         if (data.session_id) currentSessionId = String(data.session_id);
         if (data.new_status) setStatus(data.new_status);
     }
@@ -610,7 +610,7 @@
             body: JSON.stringify({ message_id: editingMessageId, message: new_text }),
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw AppErrors.create(data.error);
         cancelEdit();
         lastMessageSignature = "";
         await loadHistory();
@@ -629,7 +629,7 @@
             try {
                 await submitEdit();
             } catch (error) {
-                setError(error.message || "Could not update message. Please try again.");
+                setError(AppErrors.message(error, "We couldn't confirm the edit. Check your message before trying again."));
             } finally {
                 isSending = false;
                 sendBtn.disabled = false;
@@ -655,7 +655,7 @@
             cancelReply();
             await loadHistory();
         } catch (error) {
-            setError(error.message || "Could not send message. Please try again.");
+            setError(AppErrors.message(error, "We couldn't confirm whether your message was sent. Check the conversation before sending again."));
         } finally {
             isSending = false;
             sendBtn.disabled = false;
@@ -714,7 +714,7 @@
             try {
                 await toggleReaction(row.dataset.id, myEmoji);
             } catch (error) {
-                setError(error.message || "Could not update reaction.");
+                setError(AppErrors.message(error, "We couldn't update your reaction. Please try again."));
             }
             return;
         }
@@ -727,7 +727,7 @@
             try {
                 await toggleReaction(row.dataset.id, pick.dataset.emoji);
             } catch (error) {
-                setError(error.message || "Could not update reaction.");
+                setError(AppErrors.message(error, "We couldn't update your reaction. Please try again."));
             }
             return;
         }
@@ -751,7 +751,7 @@
                 await deleteMessage(row.dataset.id);
             }
         } catch (error) {
-            setError(error.message || "Action failed. Please try again.");
+            setError(AppErrors.message(error, "We couldn't confirm this change. Check the conversation before trying again."));
         }
     });
 
@@ -785,7 +785,7 @@
             if (tail) filename = tail;
         } catch (err) { /* panatilihin ang default na filename */ }
         fetch(url)
-            .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); })
+            .then(function (r) { if (!r.ok) throw AppErrors.create("HTTP " + r.status); return r.blob(); })
             .then(function (blob) {
                 const a = document.createElement("a");
                 const objUrl = URL.createObjectURL(blob);
@@ -1037,7 +1037,7 @@
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                if (data.error) { setError(data.error); return; }
+                if (data.error) { setError(AppErrors.text(data.error, "We couldn't update this conversation. Please try again.")); return; }
                 if (Array.isArray(data.pinned_messages)) setPinned(data.pinned_messages);
                 lastMessageSignature = ""; // let the next poll re-render pin states
                 return loadHistory(); // instant re-render with the new pin flag + event line

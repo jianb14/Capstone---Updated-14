@@ -53,6 +53,7 @@ No new package or database migration is required.
 | Logged-in password change | Current account email receives a 6-digit OTP before the new password is applied |
 | Admin account activation / deactivation | Selected account's email; confirmation required; status and audit entry roll back if email cannot be sent |
 | New booking | Admin addresses in Site Settings, when email notifications are enabled |
+| Customer booking submitted, approved/pending payment, confirmed, cancelled/denied, expired, completed | Booking customer's email after commit; history-only entries and repeated saves do not send mail |
 | Payment proof submitted | Admin addresses in Site Settings, when enabled |
 | Concern ticket submitted | Admin addresses in Site Settings, when enabled |
 | PayMongo payment received | Configured admin addresses; webhook and browser return share one notification flag, so retries do not duplicate alerts |
@@ -67,6 +68,30 @@ No new package or database migration is required.
 receive those alerts. Customer policy-update notices use the separate **Email active customers about this update** checkbox in the policy editor. They send only for actual content changes, one email per active customer address, and report delivery failures without losing the saved policy.
 
 ## Failures, quota, and verification
+
+### Customer booking status emails
+
+Customer lifecycle emails are independent of the admin-alert toggle. They include
+the booking number, event schedule, new status and an authenticated **View Booking**
+link. Approval includes the initial payment amount from the same calculation as the
+payment page and the saved deadline in the site timezone. Cancellation/denial and
+expiration include the recorded reason. Existing in-app notifications remain.
+
+Set `BOOKING_EMAIL_BASE_URL=https://your-public-domain` to select the public origin
+for these links. Railway's `RAILWAY_PUBLIC_DOMAIN` is used when this is unset;
+otherwise concrete CSRF trusted origins or public allowed hosts are used, skipping
+wildcards and localhost. If no public origin is available, the email is skipped and
+a safe warning is logged; the booking still updates. Local tests override the origin.
+
+New status-history entries trigger email only for actual supported transitions
+(including the initial blank-to-pending submission). Updating an existing entry,
+design uploads and change-request history with the same old/new status do not send
+status emails. Content is captured before commit, sends are discarded on rollback,
+and delivery errors do not undo status changes. There is no historical backfill or
+automatic retry. Provider acceptance does not guarantee inbox delivery.
+
+Isolated verification:
+`python manage.py test app.test_booking_status_email --settings=Project.test_settings`
 
 The free quota is shared by all emails and all recipients, including resends,
 reminders, and policy notices. Brevo currently documents 300 sends/day; after the

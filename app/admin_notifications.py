@@ -28,7 +28,7 @@ def notification_rows(cursor=None):
                 raise ValueError
             boundary = stamp, kind, key
         except (signing.BadSignature, ValueError, TypeError):
-            raise ValueError('Invalid notification cursor.') from None
+            raise ValueError("We couldn't update your notifications. Refresh the list and try again.") from None
     merged = []
     sources = [('b', Booking.objects.filter(admin_notif_hidden=False).select_related('user')),
                ('n', AdminNotification.objects.filter(is_hidden=False).select_related('user', 'booking', 'concern'))]

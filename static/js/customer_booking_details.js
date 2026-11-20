@@ -120,8 +120,8 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         try {
             const endpoint = document.getElementById('bookingModal').dataset.contentUrl.replace('/0/', '/' + id + '/');
             const response = await fetch(endpoint + '?section=' + mode, {signal: controller.signal, headers: {'X-Requested-With': 'XMLHttpRequest'}, cache: 'no-store'});
-            if (response.redirected) throw new Error('Your session may have expired. Please sign in again.');
-            if (!response.ok) throw new Error(response.status === 403 || response.status === 404 ? 'This booking is unavailable or you do not have access to it.' : 'Could not load this booking. Please try again.');
+            if (response.redirected) throw AppErrors.create('Your session may have expired. Please sign in again.');
+            if (!response.ok) throw AppErrors.create(response.status === 403 || response.status === 404 ? 'This booking is unavailable or you do not have access to it.' : 'Could not load this booking. Please try again.');
             const html = await response.text();
             if (active !== session || token !== sequence) return;
             const fragment = document.createElement('template'); fragment.innerHTML = html;
@@ -142,7 +142,7 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
             }, {once: true}));
         } catch (error) {
             if (active !== session || token !== sequence) return;
-            const message = error.name === 'AbortError' ? 'Loading took too long. Please try again.' : error.message;
+            const message = error.name === 'AbortError' ? 'Loading took too long. Please try again.' : AppErrors.message(error, "We couldn't load this booking. Please try again.");
             setMessage(content, message, () => open(id, mode));
         } finally {
             skeletonLoad?.finish();

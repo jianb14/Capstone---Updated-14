@@ -171,7 +171,7 @@ def support_state(request):
             if len(watched) > 50:
                 raise ValueError
         except ValueError:
-            return failure('Invalid message update request.')
+            return failure("We couldn't update this conversation. Reopen the chat and try again.")
         result['updates'] = [message_data(m, request.user) for m in
             session.messages.filter(pk__in=watched).select_related('sender', 'session', 'reply_to', 'reply_to__sender').prefetch_related('reactions')]
     return JsonResponse(result)
@@ -226,7 +226,7 @@ def support_send(request):
     try:
         token = str(uuid.UUID(request.POST.get('request_id', '')))
     except ValueError:
-        return failure('This send request is invalid. Please try again.')
+        return failure("We couldn't confirm whether your message was sent. Check the conversation before sending again.")
     key = bucket_key('support-send', f'{request.user.pk}:{token}')
     digest = hashlib.sha256()
     digest.update(json.dumps([text, request.POST.get('session_id'), request.POST.get('reply_to_id')]).encode())
@@ -312,7 +312,7 @@ def support_action(request):
         if not isinstance(data, dict):
             raise ValueError
     except (ValueError, TypeError):
-        return failure('Invalid request. Please try again.')
+        return failure("We couldn't update this conversation. Reopen the chat and try again.")
     with transaction.atomic():
         session = session_for(request, data.get('session_id'), lock=True)
         if not session:
@@ -331,7 +331,7 @@ def support_action(request):
                 try:
                     last_id = int(data.get('last_id', 0))
                 except (ValueError, TypeError):
-                    return failure('Invalid read position.')
+                    return failure("We couldn't update this conversation. Reopen the chat and try again.")
                 read_messages = incoming.filter(pk__lte=last_id)
                 last = read_messages.order_by('-sent_at', '-pk').first()
                 read_messages.filter(is_read=False).update(is_read=True, read_at=now, is_delivered=True, delivered_at=now)
@@ -341,7 +341,7 @@ def support_action(request):
             try:
                 delivered_id = int(data.get('last_id', 0))
             except (ValueError, TypeError):
-                return failure('Invalid delivery position.')
+                return failure("We couldn't update this conversation. Reopen the chat and try again.")
             incoming.filter(pk__lte=delivered_id, is_delivered=False).update(
                 is_delivered=True, delivered_at=now)
             session.save(update_fields=fields)
@@ -396,5 +396,5 @@ def support_action(request):
             if not remove:
                 MessageReaction.objects.create(message=message, user=request.user, emoji=emoji)
         else:
-            return failure('Choose a valid chat action.')
+            return failure("We couldn't update this conversation. Reopen the chat and try again.")
         return JsonResponse({'success': True, 'updated': message_data(message, request.user), 'pinned': _pinned_messages_json(session)})

@@ -72,10 +72,10 @@
         try{
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:controller.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});
-            if(response.redirected)throw new Error('Your session ended. Please sign in again.');
-            const data=await response.json().catch(()=>({}));
-            if(!response.ok){const error=new Error(data.error || data.message || 'Activity history could not be loaded.');error.status=response.status;throw error;}
-            if(typeof data.html!=='string' || !Number.isInteger(data.page) || ![4,8].includes(data.per_page))throw new Error('Activity history is unavailable. Please try again.');
+            if(response.redirected)throw AppErrors.create('Your session ended. Please sign in again.');
+            const data=await response.json();
+            if(!response.ok){const error=AppErrors.create(data.error || data.message || 'Activity history could not be loaded.');error.status=response.status;throw error;}
+            if(typeof data.html!=='string' || !Number.isInteger(data.page) || ![4,8].includes(data.per_page))throw AppErrors.create('Activity history is unavailable. Please try again.');
             if(requested!==version)return;
             const position=window.scrollY;
             if(results.contains(document.activeElement))search.focus({preventScroll:true});
@@ -87,7 +87,7 @@
             else history.replaceState({},'',actual);
         }catch(error){
             if(requested===version && (!controller.signal.aborted || timedOut)){
-                const message=timedOut?'The request took too long. Your current list is still here.':error.message;
+                const message=timedOut?'The request took too long. Your current list is still here.':AppErrors.message(error, "We couldn't load the activity history. Your current list is still shown. Please try again.");
                 announce(message,error.status===400?null:()=>load(url,push));
             }
         }finally{skeletonLoad?.finish();clearTimeout(clock);if(requested===version)results.removeAttribute('aria-busy');}

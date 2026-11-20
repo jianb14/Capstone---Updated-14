@@ -19,9 +19,9 @@
             if(options.signal?.aborted)abort();
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest',...options.headers}});
-            if(response.redirected)throw new Error('Your session ended. Please sign in again.');
-            const data=await response.json().catch(()=>({}));
-            if(!response.ok)throw new Error(data.message || (response.status===404?'This account is no longer available.':'We could not complete this request. Please try again.'));
+            if(response.redirected)throw AppErrors.create('Your session ended. Please sign in again.');
+            const data=await response.json();
+            if(!response.ok)throw AppErrors.create(data.message || (response.status===404?'This account is no longer available.':'We could not complete this request. Please try again.'));
             return data;
         } finally {clearTimeout(timeout);options.signal?.removeEventListener('abort',abort);}
     }
@@ -43,6 +43,7 @@
         const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: controller.signal});
         try {
             const data=await request(url,{signal:controller.signal});if(version!==listVersion)return false;
+            if (typeof data.html !== 'string' || !data.counts || !Number.isInteger(data.page)) throw new Error('Incomplete accounts response');
             skeletonLoad?.finish(); if(results.contains(document.activeElement))search.focus({preventScroll:true});
             selects.release(results);const scroll=window.scrollY;
             results.innerHTML=data.html;updateCounts(data.counts);selects.enhance();animateList();
@@ -53,7 +54,7 @@
             if(window.scrollY!==scroll)window.scrollTo({top:scroll,behavior:'instant'});
             return true;
         } catch(error) {
-            if(version===listVersion && !controller.signal.aborted)feedback(notice,error.name==='AbortError'?'The request took too long. Your current list is still here.':error.message,()=>load(url,{history}));
+            if(version===listVersion && !controller.signal.aborted)feedback(notice,error.name==='AbortError'?'The request took too long. Your current list is still here.':AppErrors.message(error, "We couldn't load the accounts. Please try again."),()=>load(url,{history}));
             return false;
         } finally {skeletonLoad?.finish();if(version===listVersion)results.removeAttribute('aria-busy');}
     }
@@ -69,7 +70,7 @@
             if(version!==detailVersion||!modal.open||String(detailId)!==String(id))return;
             content.innerHTML=data.html;content.hidden=false;feedback(detailNotice,'');
         } catch(error) {
-            if(version===detailVersion&&!controller.signal.aborted)feedback(detailNotice,error.name==='AbortError'?'Loading took too long. Please try again.':error.message,()=>fillDetails(id));
+            if(version===detailVersion&&!controller.signal.aborted)feedback(detailNotice,error.name==='AbortError'?'Loading took too long. Please try again.':AppErrors.message(error, "We couldn't load this account. Please try again."),()=>fillDetails(id));
         } finally { skeletonLoad?.finish(); }
     }
     function openDetails(id,origin) {
@@ -104,7 +105,7 @@
         try {
             completed=await request(action.url,{method:'POST',body,headers:{'X-CSRFToken':accessForm.querySelector('[name="csrfmiddlewaretoken"]').value}});
         } catch(error) {
-            feedback(accessNotice,error.name==='AbortError'?'The request took too long to confirm. Refresh this account before trying again.':error.message);
+            feedback(accessNotice,error.name==='AbortError'?'The request took too long to confirm. Refresh this account before trying again.':AppErrors.message(error, "We couldn't confirm the access change. Check the account's current access before trying again."));
             window.AdminConfigurationFeedback?.show(accessNotice.textContent,'error');
             accessNotice.focus({preventScroll:true});
         } finally {

@@ -23,15 +23,15 @@
         try {
         const response = await fetch(url, {credentials:'same-origin', cache:'no-store', ...options, signal:controller.signal,
             headers:{Accept:'application/json', 'X-Requested-With':'XMLHttpRequest', ...options.headers}});
-        if (response.redirected) throw new Error('Your session ended. Please sign in again.');
-        const data = await response.json().catch(() => ({}));
+        if (response.redirected) throw AppErrors.create('Your session ended. Please sign in again.');
+        const data = await response.json();
         if (!response.ok) {
-            const error = new Error(data.message || 'This action could not be completed. Please try again.');
+            const error = AppErrors.create(data.message || '');
             error.fields = data.errors; throw error;
         }
         return data;
         } catch (error) {
-            if (controller.signal.aborted && !options.signal?.aborted) throw new Error('The request took too long. Check the latest list before trying again.');
+            if (controller.signal.aborted && !options.signal?.aborted) throw AppErrors.create('The request took too long. Check the latest list before trying again.');
             throw error;
         } finally {clearTimeout(timeout); options.signal?.removeEventListener('abort', abort);}
     }
@@ -56,6 +56,7 @@
         try {
             const data = await request(url, {signal:controller.signal});
             if (version !== listVersion) return;
+            if (typeof data.html !== 'string' || !Number.isInteger(data.page)) throw new Error('Incomplete catalog response');
             skeletonLoad?.finish(); const focus = workspace.contains(document.activeElement) ? document.activeElement : null;
             const focusName = focus?.name, start = focus?.selectionStart, end = focus?.selectionEnd;
             const position = scrollY;
@@ -70,7 +71,7 @@
             }
             if (scrollY !== position) scrollTo({top:position, behavior:'instant'});
         } catch (error) {
-            if (!controller.signal.aborted && version === listVersion) feedback(notice, error.message);
+            if (!controller.signal.aborted && version === listVersion) feedback(notice, AppErrors.message(error, "We couldn't load these items. Please try again."));
         } finally {
             skeletonLoad?.finish();
             if (version === listVersion) {workspace.classList.remove('is-loading'); workspace.removeAttribute('aria-busy');}
@@ -119,7 +120,7 @@
         try {
             const data = await request(url, {signal:controller.signal});
             if (version !== modalVersion || !dialog.open) return;
-            if (!data.html) throw new Error('The server returned an incomplete response. Please try again.');
+            if (!data.html) throw AppErrors.create("We couldn't load these details. Please try again.");
             content.innerHTML = data.html; root.querySelector('#catalogDialogTitle').textContent = data.title;
             if (data.footer_html) {
                 dialogFooter.innerHTML = data.footer_html;
@@ -133,7 +134,7 @@
             else uploadCleanup = initializeUpload();
             root.querySelector('[data-catalog-body]').scrollTop = 0;
             content.querySelector('input:not([type=hidden],[type=checkbox],[type=file]),textarea')?.focus({preventScroll:true});
-        } catch (error) {if (!controller.signal.aborted) feedback(dialogFeedback, error.message);}
+        } catch (error) {if (!controller.signal.aborted) feedback(dialogFeedback, AppErrors.message(error, "We couldn't load these details. Please try again."));}
         finally {skeletonLoad?.finish();if (version === modalVersion) delete dialogFeedback.dataset.loading;}
     }
     function fieldError(form, name, message = '') {
@@ -204,7 +205,7 @@
         const body = new FormData(form); setBusy(true);
         try {
             const data = await request(form.action, {method:'POST', body});
-            if (!data.success) throw new Error(data.message || 'The changes could not be confirmed. Check the latest item before trying again.');
+            if (!data.success) throw AppErrors.create(data.message || '');
             setBusy(false); closeDialog(); toast(data.message || 'Changes saved.'); await load(filtersURL(true), false);
         } catch (error) {
             if (error.fields) {
@@ -214,8 +215,8 @@
                 }
                 focusError(form);
             } else {
-                feedback(form.querySelector('[data-form-feedback]'), error.message);
-                toast(error.message, 'error');
+                feedback(form.querySelector('[data-form-feedback]'), AppErrors.message(error, "We couldn't confirm the changes. Check the item before trying again."));
+                toast(AppErrors.message(error, "We couldn't confirm the changes. Check the item before trying again."), 'error');
             }
         } finally {setBusy(false);}
     }
@@ -281,9 +282,9 @@
             setBusy(true);
             try {
                 const data = await request(deleteState.url, {method:'POST', body});
-                if (!data.success) throw new Error(data.message || 'The deletion could not be confirmed. Check the latest list before trying again.');
+                if (!data.success) throw AppErrors.create(data.message || '');
                 confirmation.close(); toast(data.message); await load(filtersURL(true), false);
-            } catch (error) {feedback(root.querySelector('[data-delete-feedback]'), error.message); toast(error.message, 'error');}
+            } catch (error) {feedback(root.querySelector('[data-delete-feedback]'), AppErrors.message(error, "We couldn't confirm whether this item was deleted. Check the item list before trying again.")); toast(AppErrors.message(error, "We couldn't confirm whether this item was deleted. Check the item list before trying again."), 'error');}
             finally {setBusy(false);}
         }
     });

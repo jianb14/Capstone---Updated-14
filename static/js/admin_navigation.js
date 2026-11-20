@@ -80,13 +80,13 @@
             skeletonLoad = window.SiteLoading?.start(list, {variant: 'chat', signal: current.signal});
             const url=new URL(root.dataset.searchUrl,location.origin);url.searchParams.set('q',query);
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:current.signal,headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});
-            if(response.redirected)throw new Error('Your session ended. Sign in again to search.');
-            const data=await response.json().catch(()=>({}));
-            if(!response.ok)throw new Error(data.error||'Search is unavailable. Please try again.');
-            if(!Array.isArray(data.groups))throw new Error('Search is unavailable. Please try again.');
+            if(response.redirected)throw AppErrors.create('Your session ended. Sign in again to search.');
+            const data=await response.json();
+            if(!response.ok)throw AppErrors.create(data.error||'Search is unavailable. Please try again.');
+            if(!Array.isArray(data.groups))throw AppErrors.create('Search is unavailable. Please try again.');
             if(requestID!==version)return;
             loadedQuery=query;render(data);position();
-        }catch(error){if(requestID===version&&!panel.hidden)feedback(error.name==='AbortError'?'Search took too long. Please try again.':error.message,true,true);}
+        }catch(error){if(requestID===version&&!panel.hidden)feedback(error.name==='AbortError'?'Search took too long. Please try again.':AppErrors.message(error, "We couldn't search right now. Please try again."),true,true);}
         finally{skeletonLoad?.finish();clearTimeout(timeout);}
     }
     function schedule(){

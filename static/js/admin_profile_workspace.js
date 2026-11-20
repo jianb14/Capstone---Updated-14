@@ -14,7 +14,7 @@
     let expiresAt = 0, resendAt = 0, verifyAt = 0, timer = null, opener = null;
     const time = seconds => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     const remaining = at => Math.max(0, Math.ceil((at - Date.now()) / 1000));
-    const tell = text => { feedback.textContent = text; feedback.hidden = !text; };
+    const tell = text => { const safe = text ? AppErrors.text(text, "We couldn't confirm this password step. Check your email or account before trying again.") : ''; feedback.textContent = safe; feedback.hidden = !safe; };
     const fieldError = (name, text) => {
         const node = dialog.querySelector(`[data-error-for="${name}"]`);
         if (node) node.textContent = text;
@@ -67,7 +67,10 @@
     const request = async (url, data) => {
         const response = await fetch(url, {method:data ? 'POST' : 'GET', ...(data ? {body:data} : {}), credentials:'same-origin',
             headers:{'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest'}});
-        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Your session may have expired. Sign in again to continue.');
+        if (!response.headers.get('content-type')?.includes('application/json')) {
+            if (response.redirected || response.status === 401 || response.status === 403) throw AppErrors.create('Your session may have expired. Sign in again to continue.');
+            throw new Error('Unreadable password response');
+        }
         return response.json();
     };
     const resetPasswords = () => { passwordForm.reset(); window.PasswordVisibility?.reset(passwordForm); checklist(); };
@@ -84,7 +87,7 @@
             const result = await request(codeForm.action);
             if (result.restart || !result.success) { codePending = false; setStage('password'); tell(result.message || 'Start your password change again.'); }
             else { applyState(result); skeletonLoad?.finish(); digits[0].focus(); }
-        } catch (error) { tell(error.message); }
+        } catch (error) { tell(AppErrors.message(error, "We couldn't load password verification. Please try again.")); }
         finally { skeletonLoad?.finish(); busy = false; tick(); }
     };
     const close = () => {
@@ -122,7 +125,7 @@
             const state = await request(codeForm.action);
             if (state.restart || !state.success) { codePending = false; setStage('password'); tell(state.message); }
             else { applyState(state); if (dialog.open) digits[0].focus(); }
-        } catch (error) { tell(error.message); }
+        } catch (error) { tell(AppErrors.message(error, "We couldn't confirm whether the code was sent. Check your email before requesting another.")); }
         finally { busy = false; tick(); }
     });
     const submitCode = async action => {
@@ -145,7 +148,7 @@
                 if (action === 'verify' && !result.verify_wait && remaining(expiresAt)) fieldError('code', result.message || 'Check the code and try again.');
                 else tell(result.message || 'Unable to send a new code. Please try again.');
             } else if (action === 'resend') { clearDigits(); if (dialog.open) digits[0].focus(); }
-        } catch (error) { tell(error.message); }
+        } catch (error) { tell(AppErrors.message(error, "We couldn't confirm the password change. Try signing in with your new password before repeating this step.")); }
         finally { busy = false; tick(); }
     };
     codeForm.addEventListener('submit', event => { event.preventDefault(); submitCode('verify'); });

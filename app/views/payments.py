@@ -833,7 +833,7 @@ def submit_payment(request, booking_id):
 
     config = GCashConfig.objects.first()
     if not config or not config.is_ready:
-        messages.error(request, 'GCash QR payments are not configured. Contact our team before paying.')
+        messages.error(request, 'GCash payment is unavailable right now. Please contact our team before sending money.')
         return redirect('payment_page', booking_id=booking_id)
     if _unresolved_legacy_checkout(booking.payments.all()):
         messages.error(request, 'Your previous checkout needs review before another payment. Contact our team.')
@@ -900,7 +900,7 @@ def submit_payment(request, booking_id):
     if amount.quantize(Decimal("0.01")) != expected_amount:
         messages.error(
             request,
-            f"Invalid amount for selected option. Expected PHP {expected_amount:,.2f}.",
+            f"The amount for your selected payment option is PHP {expected_amount:,.2f}. Review your payment details before continuing.",
         )
         return redirect("payment_page", booking_id=booking_id)
 
@@ -1345,7 +1345,7 @@ def admin_payment_action(request, id, action):
             return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
 
     if _unresolved_legacy_checkout([payment]):
-        messages.error(request, 'The previous checkout is unresolved. Check its provider status before reviewing or accepting another payment.')
+        messages.error(request, 'The earlier payment attempt still needs review. Check its status with the payment service before approving another payment.')
         return redirect('admin_payment_list') if back_to_list else redirect('admin_payment_detail', id=id)
 
     admin_notes = None
@@ -1490,7 +1490,7 @@ def admin_payment_action(request, id, action):
 
     else:
         messages.error(
-            request, f"Unknown action: '{action}'. Expected 'verify' or 'reject'."
+            request, "We couldn't complete this payment action. Reopen the payment and check its latest status before trying again."
         )
 
     if back_to_list:
@@ -1807,8 +1807,8 @@ def paymongo_cancel(request, booking_id):
     if pending_paymongo and pending_paymongo.payment_status == "pending":
         # A browser cancellation is not evidence that the provider can no longer charge.
         pending_paymongo.notes = (
-            "PayMongo checkout cancelled — did not complete. "
-            "Check the provider status before making another payment."
+            "You left the PayMongo checkout. "
+            "We haven't confirmed the previous payment attempt yet. Check its payment status or contact our team before paying again."
         )
         pending_paymongo.save(update_fields=["notes", "updated_at"])
     messages.info(request, "You left the previous checkout. Check its status before making another payment.")

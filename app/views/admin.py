@@ -287,7 +287,7 @@ def admin_package_create(request):
         try:
             price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
-            messages.error(request, "Invalid price format.")
+            messages.error(request, 'Enter the price using numbers, for example 1500.00.')
             return render_offer_form(request, "admin/package/package_form.html")
 
         MAX_PRICE = Decimal("99999999.99")
@@ -331,7 +331,7 @@ def admin_package_edit(request, id):
         try:
             package.price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
-            messages.error(request, "Invalid price format.")
+            messages.error(request, 'Enter the price using numbers, for example 1500.00.')
             return render_offer_form(
                 request, "admin/package/package_form.html", {"package": package}
             )
@@ -441,7 +441,7 @@ def admin_addon_create(request):
             price = Decimal(request.POST.get("price", ""))
             solo_price = Decimal(solo_raw)
         except InvalidOperation:
-            messages.error(request, "Invalid price format.")
+            messages.error(request, 'Enter the price using numbers, for example 1500.00.')
             return render_offer_form(request, "admin/package/addon_form.html")
 
         MAX_PRICE = Decimal("99999999.99")
@@ -497,7 +497,7 @@ def admin_addon_edit(request, id):
             addon.price = Decimal(request.POST.get("price", ""))
             addon.solo_price = Decimal(solo_raw)
         except InvalidOperation:
-            messages.error(request, "Invalid price format.")
+            messages.error(request, 'Enter the price using numbers, for example 1500.00.')
             return render_offer_form(request, "admin/package/addon_form.html", {"addon": addon})
 
         MAX_PRICE = Decimal("99999999.99")
@@ -546,7 +546,7 @@ def admin_additional_create(request):
         try:
             price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
-            messages.error(request, "Invalid price format.")
+            messages.error(request, 'Enter the price using numbers, for example 1500.00.')
             return render_offer_form(request, "admin/package/additional_form.html")
 
         MAX_PRICE = Decimal("99999999.99")
@@ -590,7 +590,7 @@ def admin_additional_edit(request, id):
         try:
             additional.price = Decimal(request.POST.get("price", ""))
         except InvalidOperation:
-            messages.error(request, "Invalid price format.")
+            messages.error(request, 'Enter the price using numbers, for example 1500.00.')
             return render_offer_form(
                 request,
                 "admin/package/additional_form.html",
@@ -1989,8 +1989,8 @@ def admin_guidelines_content(request):
                 if failed_count:
                     messages.warning(
                         request,
-                        f"{failed_count} email(s) failed to send. "
-                        "Please check the email configuration.",
+                        f"{failed_count} emails could not be sent. "
+                        "Review the delivery details before sending again.",
                     )
 
         messages.success(request, "Policies content updated successfully.")

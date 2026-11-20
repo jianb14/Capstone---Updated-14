@@ -81,14 +81,14 @@
         try {
             const response = await fetch(url, {credentials:'same-origin', cache:'no-store', ...options,
                 headers:{'X-Requested-With':'XMLHttpRequest',...(options.method === 'POST' ? {'X-CSRFToken':csrf} : {})}, signal:controller.signal});
-            if (response.redirected || response.status === 401) throw new Error('Your session may have expired. Refresh the page and sign in again.');
-            if (response.status === 403) throw new Error('This action could not be authorized. Refresh the page before trying again.');
-            if (!response.headers.get('Content-Type')?.includes('application/json')) throw new Error('The calendar could not be updated. Please try again.');
+            if (response.redirected || response.status === 401) throw AppErrors.create('Your session may have expired. Refresh the page and sign in again.');
+            if (response.status === 403) throw AppErrors.create("We couldn't confirm permission for this change. Reopen the calendar and try again.");
+            if (!response.headers.get('Content-Type')?.includes('application/json')) throw AppErrors.create('The calendar could not be updated. Please try again.');
             const data = await response.json();
-            if (!response.ok && !data.message) throw new Error('The calendar could not be updated. Please try again.');
+            if (!response.ok && !data.message) throw AppErrors.create('The calendar could not be updated. Please try again.');
             return {...data, httpOK:response.ok};
         } catch (error) {
-            if (error.name === 'AbortError') throw new Error('The request timed out. Refresh the calendar to check its latest state before trying again.');
+            if (error.name === 'AbortError') throw AppErrors.create("This is taking longer than expected. Check the latest calendar before trying again.");
             throw error;
         } finally { clearTimeout(timer); }
     }
@@ -122,7 +122,7 @@
         const skeletonLoad = background ? null : window.SiteLoading?.start(mount, {variant: 'calendar'});
         try {
         const data = await request(root.dataset.calendarUrl);
-        if (!data.httpOK || !Array.isArray(data.events) || !Array.isArray(data.blocked_dates) || !Array.isArray(data.past_blocked_dates)) throw new Error('The calendar returned an incomplete update. Please refresh it.');
+        if (!data.httpOK || !Array.isArray(data.events) || !Array.isArray(data.blocked_dates) || !Array.isArray(data.past_blocked_dates)) throw AppErrors.create("We couldn't update the calendar. Refresh it to see the latest schedule.");
         allEvents = data.events; conflicts = data.conflict_counts; today = data.today_iso; dateInput.min = today;
         root.dataset.today = today;
         serverClockOffset = Date.parse(data.server_now) - Date.now(); nextDayAt = Date.parse(data.next_day_at);
@@ -156,9 +156,9 @@
         const result = await request(form.action, {method:'POST', body});
         if (result.ok) {
             if (form === blockForm) { blockForm.reset(); $('#blocked-reason-count').textContent = '0/255'; }
-            notify(result.message, result.kind || 'success');
+            notify(AppErrors.text(result.message, result.ok ? 'Calendar updated.' : "We couldn't confirm the calendar change. Check the calendar before trying again."), result.kind || 'success');
             try { await loadState(); }
-            catch (error) { feedback.hidden = false; feedback.dataset.kind = 'error'; feedback.textContent = `Your change was saved. ${error.message}`; }
+            catch (error) { feedback.hidden = false; feedback.dataset.kind = 'error'; feedback.textContent = `Your change was saved. ${AppErrors.message(error, "We couldn't refresh the calendar. Refresh it to see the latest schedule.")}`; }
         }
         return result;
     }
@@ -182,7 +182,7 @@
                 else fieldError(null,result.message);
                 blockForm.querySelector('[aria-invalid]')?.focus({preventScroll:true});
             }
-        } catch (error) { fieldError(null,error.message); notify(error.message,'error'); }
+        } catch (error) { fieldError(null,AppErrors.message(error, "We couldn't confirm whether the date was blocked. Check the calendar before trying again.")); notify(AppErrors.message(error, "We couldn't confirm whether the date was blocked. Check the calendar before trying again."),'error'); }
         finally { setBusy(false); }
     });
     $('#blockedDatesList').addEventListener('submit', async event => {
@@ -191,8 +191,8 @@
         try {
             if (!await ask('Unblock this date?', `${prettyDate(form.dataset.unblockDate)} will no longer be blocked. Existing bookings are not affected.`, 'Unblock')) return;
             const result = await postAction(form,new FormData(form));
-            if (!result.ok) notify(result.message,'error');
-        } catch (error) { notify(error.message,'error'); }
+            if (!result.ok) notify(AppErrors.text(result.message, "We couldn't confirm whether the date was unblocked. Check the calendar before trying again."),'error');
+        } catch (error) { notify(AppErrors.message(error, "We couldn't confirm whether the date was unblocked. Check the calendar before trying again."),'error'); }
         finally { setBusy(false); }
     });
     dateInput.addEventListener('input', () => { $('#blockDateConfirmConflicts').value = ''; clearErrors(); updateHint(); });
@@ -200,7 +200,7 @@
     $('#cal-refresh').addEventListener('click', async () => {
         if (busy) return; setBusy(true); feedback.hidden = true;
         try { await loadState(); notify('Calendar updated.'); }
-        catch (error) { notify(error.message,'error'); }
+        catch (error) { notify(AppErrors.message(error, "We couldn't refresh the calendar. Please try again."),'error'); }
         finally { setBusy(false); }
     });
 
@@ -278,7 +278,7 @@
         decorateDays(); applyEventMode();
     }
     try {
-        if (!window.FullCalendar) throw new Error('Calendar library unavailable');
+        if (!window.FullCalendar) throw AppErrors.create('Calendar library unavailable');
         calendar = new FullCalendar.Calendar(mount, {
             initialView:'dayGridMonth', now:today, showNonCurrentDates:false, fixedWeekCount:false,
             headerToolbar:false, eventDisplay:'block', displayEventTime:false, dayMaxEvents:usesCompactEvents() ? 3 : false,

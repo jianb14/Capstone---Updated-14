@@ -8,7 +8,7 @@
             if (obj._isArtboard || obj._isBgImage || obj._designSource === 'reference') continue;
             const asset = catalog[String(obj._assetId)];
             if (!asset || obj._assetToken !== asset.token) {
-                if (obj._assetId || obj._designSource === 'catalog' || !['custom', '', undefined, null].includes(obj._packageCategory)) invalid.push('Re-add unrecognized catalog items so they can be counted.');
+                if (obj._assetId || obj._designSource === 'catalog' || !['custom', '', undefined, null].includes(obj._packageCategory)) invalid.push("Some items in this design are no longer recognized. Remove and add them again from the item list.");
                 continue;
             }
             const rule = rules.get(Number(asset.category_id));

@@ -61,10 +61,10 @@
         try {
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest',...options.headers}});
-            if (response.redirected) throw new Error('Please sign in again to load notifications.');
-            const data=await response.json().catch(()=>({}));
+            if (response.redirected) throw AppErrors.create('Please sign in again to load notifications.');
+            const data=await response.json();
             if (!response.ok) {
-                const error=new Error(data.message || 'We could not update notifications.');
+                const error=AppErrors.create(data.message || 'We could not update notifications.');
                 error.status=response.status; error.code=data.code; throw error;
             }
             return data;
@@ -73,7 +73,7 @@
     function post(url,options={}) {
         const token=panel.querySelector('[name="csrfmiddlewaretoken"]')?.value;
         return jsonRequest(url,{...options,method:'POST',keepalive:true,headers:{...options.headers,'X-CSRFToken':token || ''}}).then(data=>{
-            if (data.status!=='success') throw new Error('We could not update notifications.'); return data;
+            if (data.status!=='success') throw AppErrors.create('We could not update notifications.'); return data;
         });
     }
     async function acknowledgeUpdates() {
@@ -121,7 +121,7 @@
         item.href=safeTarget(data.target_url) || (isAdmin?'/staff/concerns/':'/customer/');
         item.dataset.id=String(data.id); item.dataset.readUrl=data.read_url; item.dataset.createdAt=data.created_at;
         const content=document.createElement('div'); content.className='notif-content';
-        const message=document.createElement('p'); message.textContent=data.message;
+        const message=document.createElement('p'); message.textContent=AppErrors.text(data.message, "We couldn't update your notifications. Refresh the list and try again.");
         const meta=document.createElement('div'); meta.className='notif-meta';
         const time=document.createElement('small'), date=new Date(data.created_at);
         time.textContent=Number.isNaN(date.getTime())?'':date.toLocaleString('en-US',
@@ -145,7 +145,7 @@
             if (append && nextCursor) url.searchParams.set('cursor',nextCursor);
             const data=await jsonRequest(url);
             if (requestedRevision!==revision) { superseded=true; return; }
-            if (!Array.isArray(data.items)) throw new Error('Notifications are unavailable.');
+            if (!Array.isArray(data.items)) throw AppErrors.create('Notifications are unavailable.');
             if (!append) {
                 if (list.contains(document.activeElement)) bell.focus({preventScroll:true});
                 list.replaceChildren();
@@ -161,7 +161,7 @@
             }
             nextCursor=data.next_cursor; more.hidden=!nextCursor; updateCount(data.unread_count); syncConcerns(data); groupDates();
         } catch(error) {
-            status(error.name==='AbortError'?'Notifications took too long to load. Your current list is still here.':error.message,()=>refresh(append));
+            status(error.name==='AbortError'?'Notifications took too long to load. Your current list is still here.':AppErrors.message(error, "We couldn't load your notifications. Please try again."),()=>refresh(append));
         } finally {
             skeletonLoad?.finish();
             loading=false; list.removeAttribute('aria-busy'); more.disabled=false;
@@ -208,7 +208,7 @@
                 if (updateBar) {
                     if (!Array.isArray(data.updates) || !Number.isInteger(data.update_count) || data.update_count<0
                             || typeof data.updates_cursor!=='string' || (data.update_count>0 && (!data.updates.length
-                                || typeof data.delivery_token!=='string' || !data.delivery_token))) throw new Error('Invalid update payload.');
+                                || typeof data.delivery_token!=='string' || !data.delivery_token))) throw AppErrors.create('Invalid update payload.');
                     updatesCursor=data.updates_cursor;
                     try {sessionStorage.setItem(updatesStorageKey,updatesCursor);} catch (_) { /* Current page retains its position. */ }
                     updateBar.show(data);

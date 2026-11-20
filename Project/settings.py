@@ -57,6 +57,10 @@ DEBUG = env_bool("DEBUG", False)
 # Set ALLOWED_HOSTS in .env (comma-separated), e.g. your-app.vercel.app
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", ["https://*.vercel.app"])
+# Public origin for customer booking links, including emails sent by deadline workers.
+_railway_domain = (os.getenv('RAILWAY_PUBLIC_DOMAIN') or '').strip()
+BOOKING_EMAIL_BASE_URL = (os.getenv('BOOKING_EMAIL_BASE_URL') or
+                         (f'https://{_railway_domain}' if _railway_domain else '')).strip()
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # --- Production security hardening (applied only when DEBUG is off) ---
@@ -389,7 +393,7 @@ REQUEST_RATE_LIMITS = {
         'login_account': (10, 900), 'login_ip': (60, 900),
         'registration': (10, 3600), 'password_reset_submit': (10, 900),
         'password_change': (10, 900), 'booking_create': (5, 600), 'booking_daily': (20, 86400),
-        'booking_change': (10, 600), 'payment_submit': (5, 600),
+        'booking_change': (10, 600), 'booking_review': (30, 60), 'payment_submit': (5, 600),
         'chat_send': (30, 60), 'support_request': (5, 600),
         'concern': (5, 3600), 'review_submit': (5, 3600), 'review_edit': (20, 3600),
         'reaction': (30, 60), 'design_save': (30, 600),

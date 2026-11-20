@@ -82,9 +82,9 @@ AccountPages.register('my_profile','account-deletion',function(scope) {
             if (!active(opened) || request !== controller) return null;
             if (response.redirected || response.status === 401 || response.status === 403) {
                 window.location.assign(dialog.dataset.loginUrl);
-                throw new Error('Please sign in again.');
+                throw AppErrors.create('Please sign in again.');
             }
-            const data = await response.json().catch(() => ({}));
+            const data = await response.json();
             if (!active(opened) || request !== controller) return null;
             if (!response.ok || !data.success) {
                 if (data.blockers) { blockers(data.blockers); return null; }
@@ -93,7 +93,7 @@ AccountPages.register('my_profile','account-deletion',function(scope) {
                     if (action === 'verify') verifyUntil = Date.now()+data.retry_after*1000;
                     else resendUntil = Date.now()+data.retry_after*1000;
                 }
-                throw new Error(data.message || 'We could not confirm this request. Please try again.');
+                throw AppErrors.create(data.message || '');
             }
             return data;
         } finally { skeletonLoad?.finish(); clearTimeout(timeout); }
@@ -144,11 +144,11 @@ AccountPages.register('my_profile','account-deletion',function(scope) {
                 resendUntil = Date.now()+(data.resend_wait || 0)*1000;
             }
             if (data.step) step(data.step);
-            message(data.message || '');
+            message(AppErrors.text(data.message, data.step ? '' : "We couldn't confirm this step. Check your account before trying again."));
         } catch (error) {
             if (active(opened)) {
                 message(error.name === 'AbortError' || error instanceof TypeError
-                    ? finalizing ? 'We could not confirm the result. Try again, or sign in again to check your account.' : 'Connection interrupted. Please try again.' : error.message,true);
+                    ? finalizing ? 'We couldn\'t confirm the result. Sign in again to check your account before trying again.' : 'Connection interrupted. Please try again.' : AppErrors.message(error, "We couldn't confirm the result. Check your account before trying again."),true);
                 feedback.focus();
             }
         } finally { if (active(opened)) { busy=false; finalizing=false; buttons(); } }
@@ -159,8 +159,8 @@ AccountPages.register('my_profile','account-deletion',function(scope) {
         busy=true; message(''); buttons();
         try {
             const data = await api('resend',opened);
-            if (data) { code.value=''; resendUntil=Date.now()+data.resend_wait*1000; message(data.message); code.focus(); }
-        } catch (error) { if (active(opened)) message(error.message,true); }
+            if (data) { code.value=''; resendUntil=Date.now()+data.resend_wait*1000; message(AppErrors.text(data.message, "We couldn't confirm whether a new code was sent. Check your email before requesting another.")); code.focus(); }
+        } catch (error) { if (active(opened)) message(AppErrors.message(error, "We couldn't confirm whether a new code was sent. Check your email before requesting another."),true); }
         finally { if (active(opened)) { busy=false; buttons(); } }
     });
     dialog.querySelectorAll('[data-delete-close]').forEach(button => button.addEventListener('click',() => { if (!finalizing) dialog.close(); }));

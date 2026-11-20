@@ -80,6 +80,8 @@
         statusEl.textContent = message || '';
         statusEl.style.display = message ? 'block' : 'none';
         statusEl.classList.toggle('is-error', !!isError);
+        statusEl.dataset.state = isError ? 'error' : /finding|searching/i.test(message || '') ? 'loading'
+            : /pinned|pin saved/i.test(message || '') ? 'success' : 'neutral';
     }
 
     function escapeHtml(text) {

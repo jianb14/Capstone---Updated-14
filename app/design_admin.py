@@ -40,7 +40,7 @@ def parse_rules(request, kind):
             try:
                 cid = int(key.split('_')[1])
             except (ValueError, IndexError):
-                raise ValidationError('Invalid design category.')
+                raise ValidationError('Choose a category from the list.')
             if cid not in known_ids:
                 raise ValidationError('A selected category is unavailable for this design type.')
     for category in categories:
@@ -55,7 +55,7 @@ def parse_rules(request, kind):
         except ValueError:
             raise ValidationError(f'{category.name}: quantities must be whole numbers.')
         if minimum < 0 or maximum is not None and maximum < 1:
-            raise ValidationError(f'{category.name}: use non-negative minimums and positive maximums.')
+            raise ValidationError(f'{category.name}: the minimum must be 0 or higher. The maximum must be at least 1.')
         if required and minimum < 1 or not required and minimum != 0:
             raise ValidationError(f'{category.name}: required items need a minimum of 1; optional items need 0.')
         if maximum is not None and minimum > maximum:
@@ -65,9 +65,9 @@ def parse_rules(request, kind):
     try:
         colors = int(raw_colors) if raw_colors else None
     except ValueError:
-        raise ValidationError('Balloon color limit must be a positive whole number.')
+        raise ValidationError('Enter at least 1 balloon color, using a whole number.')
     if colors is not None and colors < 1:
-        raise ValidationError('Balloon color limit must be at least 1.')
+        raise ValidationError('Enter at least 1 balloon color, using a whole number.')
     enabled = 'design_enabled' in request.POST
     if enabled:
         if not any(r['required'] for r in rows):

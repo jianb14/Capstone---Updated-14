@@ -6,6 +6,7 @@ class AppConfig(AppConfig):
 
     def ready(self):
         from . import canvas_builtins  # noqa: F401 — register built-in identity guards
+        from . import booking_status_email  # noqa: F401 — register customer status emails
         import os
         import sys
         if 'runserver' in sys.argv and (os.environ.get('RUN_MAIN') == 'true' or '--noreload' in sys.argv):

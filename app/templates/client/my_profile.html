@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="{% static 'css/profile_dialogs.css' %}?v=20261025d">
 {% include 'components/password_visibility_assets.html' %}
 <link rel="stylesheet" href="{% static 'css/profile_workspace.css' %}?v=20261025b">
-<script src="{% static 'js/profile_deletion.js' %}?v=20261102sk1" defer></script>
-<script src="{% static 'js/profile_password_otp.js' %}?v=20261102sk1" defer></script>
+<script src="{% static 'js/profile_deletion.js' %}?v=20261119errors1" defer></script>
+<script src="{% static 'js/profile_password_otp.js' %}?v=20261119errors1" defer></script>
 
 {% include 'components/profile_overview.html' %}
 {% include 'components/account_deletion_dialog.html' %}
@@ -356,7 +356,7 @@ AccountPages.register('my_profile', "template", function(scope) {
                         window.AccountPasswordOTP.open();
                     } else {
                         // Gather the first error to display
-                        let errorMsg = data.message || data.error || 'Update failed. Please check your inputs.';
+                        let errorMsg = AppErrors.text(data.message || data.error, "We couldn't send a verification code. Check the highlighted fields and try again.");
                         if (data.errors) {
                             for (const [field, errors] of Object.entries(data.errors)) {
                                 errorMsg = errors[0]; // Show first error found

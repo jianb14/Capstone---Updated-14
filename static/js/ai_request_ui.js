@@ -329,7 +329,7 @@
                 const assistant = bubble(job, 'assistant');
                 assistant.replaceChildren();
                 const text = document.createElement('span');
-                text.textContent = data.error || 'Your request could not be sent. Please try again.';
+                text.textContent = AppErrors.text(data.error, "We couldn't send this message. Reopen the chat and check whether it was sent before trying again.");
                 assistant.appendChild(text);
                 assistant.setAttribute('aria-busy', 'false');
                 if (!data.active_request) addRetry(assistant, record, data.retry_after, record.retryAt ? record.retryAt/1000 : null);

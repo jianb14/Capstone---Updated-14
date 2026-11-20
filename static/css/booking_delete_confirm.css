@@ -1,0 +1,56 @@
+/* Match Request Changes feedback, with a solid destructive action. */
+#deleteBookingModal {
+    --bd-bg:#161616; --bd-ink:#f5f5f5; --bd-muted:#a3a3a3; --bd-line:#303030;
+    --bd-hover:rgba(255,255,255,.045);
+    align-items:center; z-index:10001;
+    background:rgba(0,0,0,.48); backdrop-filter:blur(5px);
+}
+[data-theme="light"] #deleteBookingModal {
+    --bd-bg:#fff; --bd-ink:#181818; --bd-muted:#737373; --bd-line:#e5e5e5;
+    --bd-hover:rgba(0,0,0,.035);
+}
+#deleteBookingModal .modal-card {
+    box-sizing:border-box; width:min(600px,calc(100vw - 32px)); max-width:600px;
+    max-height:calc(100dvh - 48px); padding:30px 32px; border:1px solid var(--bd-line);
+    border-radius:24px; background:var(--bd-bg); color:var(--bd-ink);
+    box-shadow:0 20px 80px rgba(0,0,0,.2); text-align:left; overflow:auto;
+    font:400 14px/1.65 'Montserrat',sans-serif;
+}
+#deleteBookingModal .booking-delete-header {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:0;
+}
+#deleteBookingModal h2 {
+    flex:1; margin:0; color:var(--bd-ink)!important; font-size:24px; line-height:1.3;
+    font-weight:650; letter-spacing:-.5px; text-align:left; overflow-wrap:anywhere;
+}
+#deleteBookingModal p {
+    margin:0!important; color:var(--bd-muted)!important; text-align:left; line-height:1.75;
+    font-size:14px; font-weight:400; overflow-wrap:anywhere;
+}
+#deleteBookingModal .booking-delete-body { padding:0; margin-top:14px; }
+#deleteBookingModal #deleteBookingDescription { color:var(--bd-muted)!important; }
+#deleteBookingModal .booking-delete-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:12px; padding:0; margin-top:28px; }
+#deleteBookingModal .booking-delete-button {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px;
+    width:auto; margin:0; padding:10px 18px; border:1px solid var(--bd-line); border-radius:12px;
+    background:transparent; color:var(--bd-ink); font:400 14px/1.5 'Montserrat',sans-serif; cursor:pointer;
+    box-shadow:none; text-transform:none; white-space:nowrap;
+}
+#deleteBookingModal .booking-delete-button:hover { background:var(--bd-hover); }
+#deleteBookingModal .booking-delete-danger { background:#ba3c45; border-color:#ba3c45; color:#fff; }
+#deleteBookingModal .booking-delete-danger:hover:not(:disabled) { background:#a8343d; border-color:#ba3c45; }
+#deleteBookingModal .booking-delete-close {
+    display:grid; place-items:center; flex:none; position:static; width:40px; height:40px;
+    margin:-7px -8px 0 0; padding:9px; border:0; border-radius:10px;
+    background:transparent; color:var(--bd-muted); cursor:pointer; box-shadow:none;
+}
+#deleteBookingModal .booking-delete-close:hover { color:var(--bd-ink); background:var(--bd-hover); }
+#deleteBookingModal .booking-delete-close svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; }
+#deleteBookingModal button:focus-visible { outline:2px solid var(--bd-muted); outline-offset:3px; }
+#deleteBookingModal button:disabled { opacity:.5; cursor:wait; }
+@media(max-width:540px) {
+    #deleteBookingModal .modal-card { padding:24px 22px; border-radius:20px; }
+    #deleteBookingModal h2 { font-size:21px; }
+    #deleteBookingModal .booking-delete-actions { gap:10px; margin-top:24px; }
+    #deleteBookingModal .booking-delete-button { flex:1; padding:10px 14px; }
+}

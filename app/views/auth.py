@@ -588,11 +588,11 @@ def _otp_page(request, purpose):
         return _otp_rate_response(request, str(error), 'auth/verify_otp.html', data)
     except OperationalError:
         if inline_change:
-            return JsonResponse({'success':False,'message':'Request protection is temporarily unavailable. Please try again in 5 seconds.',
+            return JsonResponse({'success':False,'message':"We can't verify your code right now. Please try again in 5 seconds.",
                 'retry_after':5},status=503)
         request._email_retry_after = 5
         request._email_limit_status = 503
-        return _otp_rate_response(request, 'Request protection is temporarily unavailable. Please try again in 5 seconds.',
+        return _otp_rate_response(request, "We can't verify your code right now. Please try again in 5 seconds.",
                                   'auth/verify_otp.html', _otp_template_context(context, purpose))
     if inline_change:
         return inline_response(success=True)
@@ -702,7 +702,7 @@ def reset_password_otp(request):
                     messages.error(request, ' '.join(error.messages))
                 else:
                     if not result:
-                        messages.error(request, 'Your reset authorization has expired or already been used.')
+                        messages.error(request, 'This password reset has expired or was already used. Request a new code to continue.')
                         return redirect('forgot_password')
                     request.session.pop(key, None)
                     request.session.cycle_key()

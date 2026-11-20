@@ -115,8 +115,10 @@ body.customer-booking-scroll-locked .ai-widget-container { visibility: hidden !i
 .booking-secondary-button { background: transparent; color: var(--booking-ink); border-color: var(--booking-border); }
 .booking-pricing-panel > .booking-primary-button { display: flex; width: 100%; }
 .booking-text-link { display: inline-block; font: inherit; font-size: .74rem; color: var(--booking-ink); text-underline-offset: 4px; background: transparent; border: 0; padding: 0; cursor: pointer; }
-.booking-pricing-panel > .booking-text-link { display: block; text-align: center; margin-top: 16px; }
-.booking-danger-link { color: #dd7373; }
+.booking-pricing-panel > .booking-text-link { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; margin-top: 16px; }
+.customer-booking-modal .booking-link-icon { display: block; width: 18px; height: 18px; flex-shrink: 0; }
+.booking-danger-button { color: var(--account-danger); }
+.customer-booking-modal .booking-danger-button:is(:hover,:focus-visible) { color: var(--account-danger); background: color-mix(in srgb, var(--account-danger) 10%, transparent); border-color: color-mix(in srgb, var(--account-danger) 25%, var(--account-line)); }
 .booking-detail-actions { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .booking-design-callout { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; border: 1px solid #10b98140; border-radius: 12px; padding: 18px; background: #10b98108; }
 .booking-design-callout h3 { color: var(--booking-ink); font-size: .86rem; margin: 10px 0 5px; }
@@ -167,13 +169,13 @@ body.customer-booking-scroll-locked .ai-widget-container { visibility: hidden !i
 .customer-booking-modal .tracker-node{width:42px;height:42px;box-sizing:border-box;border-width:1px;margin-bottom:12px;background:var(--booking-soft)}
 .customer-booking-modal .tracker-node>svg{width:20px;height:20px}
 .customer-booking-modal .tracker-step-done .tracker-node{background:var(--booking-ink);color:var(--booking-surface);border-color:var(--booking-ink)}
-.customer-booking-modal .tracker-step-current .tracker-node{background:var(--booking-surface);color:var(--booking-ink);border:1.5px solid var(--booking-ink);box-shadow:0 0 0 4px var(--booking-soft)}
+.customer-booking-modal .tracker-step-current .tracker-node{background:var(--booking-surface);color:var(--booking-ink);border:1.5px solid var(--booking-ink);box-shadow:none}
 .customer-booking-modal .tracker-step-current .tracker-label{font-weight:650}
 .customer-booking-modal .tracker-step:not(.tracker-step-current) .tracker-label{font-weight:500}
 .customer-booking-modal .tracker-step-upcoming .tracker-label{color:var(--booking-muted)}
 .customer-booking-modal .tracker-check{right:-3px;top:-3px;width:15px;height:15px;background:var(--booking-ink);color:var(--booking-surface);border-color:var(--booking-panel)}
 .customer-booking-modal .tracker-check svg{width:11px;height:11px}
-.customer-booking-modal .tracker-line{height:1px;top:21px;left:calc(50% + 32px);right:calc(-50% + 20px)}
+.customer-booking-modal .tracker-line{height:1px;top:20.5px;left:calc(50% + 21px);right:calc(-50% + 9px)}
 .customer-booking-modal .tracker-line-fill{background:var(--booking-ink)}
 .customer-booking-modal .tracker-label{font-size:.82rem}
 .customer-booking-modal .tracker-note{font-size:.72rem}
@@ -211,7 +213,7 @@ body.customer-booking-scroll-locked .ai-widget-container { visibility: hidden !i
 .action-buttons .booking-row-action:hover{background:rgba(255,255,255,.05);color:#fff}
 [data-theme="light"] .action-buttons :is(.btn-view.action-icon-btn,.booking-row-action){background:transparent!important;border-color:#d4d4d4!important;color:#737373!important}
 [data-theme="light"] .action-buttons .booking-row-action:hover{background:#f5f5f5!important;color:#222!important}
-@media(max-width:640px){.customer-booking-modal .tracker-line{top:50px;bottom:8px;left:20px;right:auto;width:1px;height:auto}.customer-booking-modal .tracker-node{margin:0}.customer-booking-modal .tracker-note{font-size:.73rem}.customer-booking-modal .change-comparison tbody th{width:auto}.customer-booking-modal .change-comparison td:last-child{border-radius:7px}.customer-booking-modal .change-money-row{gap:12px;font-size:.8rem}.customer-booking-modal .booking-facts{grid-template-columns:minmax(0,1fr)}.booking-fact-wide{grid-column:auto}.bookings-table .action-buttons{flex-wrap:wrap}}
+@media(max-width:640px){.customer-booking-modal .tracker-line{top:42px;bottom:0;left:20.5px;right:auto;width:1px;height:auto}.customer-booking-modal .tracker-node{margin:0}.customer-booking-modal .tracker-note{font-size:.73rem}.customer-booking-modal .change-comparison tbody th{width:auto}.customer-booking-modal .change-comparison td:last-child{border-radius:7px}.customer-booking-modal .change-money-row{gap:12px;font-size:.8rem}.customer-booking-modal .booking-facts{grid-template-columns:minmax(0,1fr)}.booking-fact-wide{grid-column:auto}.bookings-table .action-buttons{flex-wrap:wrap}}
 
 /* One booking badge and one supporting update keep list rows compact. */
 .bookings-table .booking-row-status { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }

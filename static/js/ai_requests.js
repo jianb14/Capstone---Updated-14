@@ -120,7 +120,8 @@
 
         reject(record, data) {
             record.phase = 'rejected';
-            record.error = data.error || 'Your request could not be sent. Please try again.';
+            record.error = AppErrors.text(data.error, "We couldn't send this message. Reopen the chat and check whether it was sent before trying again.");
+            data = {...data, error: record.error};
             record.retryAfter = Number(data.retry_after) || 0;
             record.retryAt = Date.now() + record.retryAfter * 1000;
             this.remember(record);

@@ -32,7 +32,7 @@ def booking_place_search(request):
 def booking_place_reverse(request):
     lat, lng = request.GET.get("lat"), request.GET.get("lng")
     if not valid_coordinates(lat, lng):
-        return JsonResponse({"error": "Invalid map coordinates."}, status=400)
+        return JsonResponse({"error": "We couldn't read the selected location. Place the pin on the map again."}, status=400)
     try:
         return JsonResponse({"results": reverse_place(float(lat), float(lng))})
     except GeocodingUnavailable:
@@ -407,7 +407,7 @@ def admin_blocked_date_create(request):
     try:
         blocked_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
     except ValueError:
-        return _calendar_action_result(request, 'Invalid date format.', kind='error', status=400, field='date')
+        return _calendar_action_result(request, 'Choose a date using the date picker.', kind='error', status=400, field='date')
 
     if blocked_date < timezone.localdate():
         return _calendar_action_result(request, 'Cannot block a date in the past.', kind='error', status=400, field='date')
@@ -602,7 +602,7 @@ def create_booking(request):
             try:
                 datetime.strptime(event_date, "%Y-%m-%d")
             except (ValueError, TypeError):
-                error_msg = "Invalid event date format."
+                error_msg = 'Choose your event date using the date picker.'
                 if is_ajax:
                     return JsonResponse({"success": False, "message": error_msg})
                 messages.error(request, error_msg)
@@ -613,7 +613,7 @@ def create_booking(request):
                 try:
                     datetime.strptime(time_value, "%H:%M")
                 except (ValueError, TypeError):
-                    error_msg = "Invalid time format."
+                    error_msg = 'Choose the start and end times using the time fields.'
                     if is_ajax:
                         return JsonResponse({"success": False, "message": error_msg})
                     messages.error(request, error_msg)
@@ -764,7 +764,7 @@ def create_booking(request):
         try:
             total_price_val = Decimal(request.POST.get("total_price", "0"))
         except InvalidOperation:
-            error_msg = "Invalid price format."
+            error_msg = "We couldn't confirm the booking total. Review your selected package and extras, then try again."
             if is_ajax:
                 return JsonResponse({"success": False, "message": error_msg})
             messages.error(request, error_msg)
@@ -1021,7 +1021,7 @@ def booking_modal_content(request, id):
         return HttpResponseForbidden("Not allowed")
     section = request.GET.get("section", "details")
     if section not in ("details", "design"):
-        return HttpResponse("Unknown booking section.", status=400)
+        return HttpResponse("We couldn't open this part of your booking. Reopen the booking details and try again.", status=400)
     from .profiles import _sync_customer_booking_payment_states
     _sync_customer_booking_payment_states(request.user)
     check_booking_expirations()
@@ -1126,6 +1126,14 @@ def edit_booking(request, id):
     if request.user != booking.user:
         return HttpResponseForbidden("Not allowed")
 
+    if request.method == 'GET' and request.GET.get('review_original') == '1':
+        if booking.status != 'pending':
+            return JsonResponse({'success': False, 'message': 'This booking is no longer pending. Please reopen it from My Bookings.'}, status=409)
+        from ..booking_change_review import review_baseline
+        response = JsonResponse({'success': True, 'review_original': review_baseline(booking)})
+        response['Cache-Control'] = 'no-store'
+        return response
+
     if booking.status in ('pending_payment', 'confirmed'):
         if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success':False,'message':'This booking now requires a change request. Reopen Request Changes from your booking list.'},status=409)
@@ -1155,7 +1163,7 @@ def edit_booking(request, id):
                 request.POST.get("event_date", ""), "%Y-%m-%d"
             ).date()
         except (ValueError, TypeError):
-            return _booking_edit_error(request, id, "Invalid event date format.")
+            return _booking_edit_error(request, id, 'Choose your event date using the date picker.')
 
         # Validate time formats (prevents 500 on malformed input)
         for time_value in (start_time, end_time):
@@ -1163,15 +1171,15 @@ def edit_booking(request, id):
                 try:
                     datetime.strptime(time_value, "%H:%M")
                 except (ValueError, TypeError):
-                    return _booking_edit_error(request, id, "Invalid time format.")
+                    return _booking_edit_error(request, id, 'Choose the start and end times using the time fields.')
 
         # Validate total price (same as create)
         try:
             total_price_val = Decimal(request.POST.get("total_price", "0"))
         except (InvalidOperation, TypeError, ValueError):
-            return _booking_edit_error(request, id, "Invalid price format.")
+            return _booking_edit_error(request, id, "We couldn't confirm the booking total. Review your selected package and extras, then try again.")
         if not total_price_val.is_finite():
-            return _booking_edit_error(request, id, "Invalid price format.")
+            return _booking_edit_error(request, id, "We couldn't confirm the booking total. Review your selected package and extras, then try again.")
         if total_price_val <= 0:
             return _booking_edit_error(request, id, "Total price must be greater than 0.")
         MAX_PRICE = Decimal("99999999.99")
@@ -1500,7 +1508,7 @@ def admin_booking_logistics_override(request, id):
         try:
             override = Decimal(raw)
         except (InvalidOperation, ValueError, TypeError):
-            booking_feedback(request, 'error', "Invalid logistics fee.", field='logistics_fee_override')
+            booking_feedback(request, 'error', 'Enter the delivery and setup fee using numbers, for example 1500.00.', field='logistics_fee_override')
             return booking_action_response(request, booking.id)
         if not override.is_finite() or override < 0 or override > Decimal("99999999.99") or override != override.quantize(Decimal("0.01")):
             booking_feedback(request, 'error', "Logistics fee must be between 0 and 99,999,999.99.", field='logistics_fee_override')

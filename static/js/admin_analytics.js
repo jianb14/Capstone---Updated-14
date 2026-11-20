@@ -225,9 +225,9 @@
     try {
       const url = new URL(root.dataset.reportUrl, location.origin); url.search = params.toString();
       const response = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}, signal: activeController.signal, cache: 'no-store'});
-      if (response.redirected || !(response.headers.get('Content-Type') || '').includes('application/json')) throw new Error('Your session may have expired. Sign in again or refresh this page.');
+      if (response.redirected || !(response.headers.get('Content-Type') || '').includes('application/json')) throw AppErrors.create('Your session may have expired. Sign in again or refresh this page.');
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'The report could not be updated. Try again.');
+      if (!response.ok) throw AppErrors.create(payload.error || 'The report could not be updated. Try again.');
       if (currentRequest !== requestNumber) return;
       const restoreTabFocus = document.activeElement?.matches('[data-report-tab]');
       replaceResults(payload.html); data = readData();
@@ -245,7 +245,7 @@
       if (currentRequest !== requestNumber) return;
       if (!activeController.signal.aborted || activeController.signal.reason === 'timeout') showError(activeController.signal.reason === 'timeout'
         ? 'The report took too long. Try again; the previous report is still displayed.'
-        : error instanceof TypeError ? 'Unable to update the report. Check your connection and try again.' : error.message);
+        : error instanceof TypeError ? 'Unable to update the report. Check your connection and try again.' : AppErrors.message(error, "We couldn't update the report. The previous report is still shown. Please try again."));
       loadStatus.textContent = 'Previous report displayed';
     } finally {
       clearTimeout(timeout);

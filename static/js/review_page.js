@@ -94,10 +94,10 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
         const skeletonLoad = window.SiteLoading?.start(region(), {variant: 'cards', signal: refreshing.signal});
         try {
             const response = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}, signal:refreshing.signal, cache:'no-store'});
-            if (!response.ok) throw new Error('Could not refresh reviews.');
+            if (!response.ok) throw AppErrors.create('Could not refresh reviews.');
             const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
             const content = doc.querySelector('[data-review-page-content]');
-            if (!page.isConnected || !content || id !== refreshId) throw new Error('Review list unavailable.');
+            if (!page.isConnected || !content || id !== refreshId) throw AppErrors.create('Review list unavailable.');
             region().replaceWith(content);
             page.querySelector('.review-refresh-error')?.remove();
             initFilters();
@@ -138,9 +138,9 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
             const response = await fetch(reviewId ? `/reviews/${reviewId}/edit/` : form.action, {
                 method:'POST', headers:{'X-CSRFToken':csrf(), 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json'}, body:new FormData(form)
             });
-            const data = await response.json().catch(() => ({}));
+            const data = await response.json();
             if (!scope.active) return;
-            if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Could not save your review. Please try again.');
+            if (!response.ok || data.status !== 'success') throw AppErrors.create(data.message || '');
             saved = true;
             if (reviewId) window.closeEditModal(); else window.closeReviewModal();
             // New reviews should appear on the first published page.
@@ -149,7 +149,7 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
             await refresh(url.href, url.href !== window.location.href);
             notify('success', data.message || 'Review saved.');
         } catch (error) {
-            if (!saved) formError(form, error.message || 'Could not save your review. Please try again.');
+            if (!saved) formError(form, AppErrors.message(error, "We couldn't confirm whether your review was saved. Check My Reviews before trying again."));
         } finally {
             delete form.dataset.saving;
             button.disabled = false;
@@ -166,12 +166,12 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
             if (!result.isConfirmed) return;
             if (!scope.active) return;
             const response = await fetch(`/reviews/${id}/delete/`, {method:'POST',headers:{'X-CSRFToken':csrf(), 'X-Requested-With':'XMLHttpRequest'}});
-            const data = await response.json().catch(() => ({}));
+            const data = await response.json();
             if (!scope.active) return;
-            if (!response.ok) throw new Error(data.message || 'Could not delete your review. Please try again.');
+            if (!response.ok || data.status !== 'success') throw AppErrors.create(data.message || '');
             await refresh();
             notify('success', data.message || 'Review deleted.');
-        } catch (error) { notify('error', error.message || 'Could not delete your review. Please try again.'); }
+        } catch (error) { notify('error', AppErrors.message(error, "We couldn't confirm whether your review was deleted. Check My Reviews before trying again.")); }
         finally { deleting.delete(id); }
     }
     window.ReviewPage = {save, deleteReview, refresh};
@@ -222,14 +222,15 @@ AccountPages.enhance('my_reviews', 'review_page.js', function(scope) {
             like.disabled = true;
             try {
                 const response = await fetch(`/reviews/${like.dataset.id}/like/`, {method:'POST',headers:{'X-CSRFToken':csrf(), 'X-Requested-With':'XMLHttpRequest'}});
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(data.error || 'Could not update your like.');
+                const data = await response.json();
+                if (!response.ok) throw AppErrors.create(data.error || '');
+                if (typeof data.liked !== 'boolean' || !Number.isInteger(data.total_likes) || data.total_likes < 0) throw new Error('Incomplete review reaction response');
                 like.classList.toggle('liked', data.liked);
                 like.querySelector('svg').setAttribute('fill', data.liked ? 'currentColor' : 'none');
                 like.querySelector('.like-count').textContent = data.total_likes;
                 like.closest('.review-card').dataset.likes = data.total_likes;
                 applyFilters();
-            } catch (error) { notify('error', error.message || 'Could not update your like.'); }
+            } catch (error) { notify('error', AppErrors.message(error, "We couldn't update your like. Please try again.")); }
             finally { like.disabled = false; }
         }
     });

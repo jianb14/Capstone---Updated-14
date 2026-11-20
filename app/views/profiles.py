@@ -109,7 +109,7 @@ def report_concern(request):
                     if not width or not height:
                         raise ValueError('Invalid image')
                 except (ValueError, OSError, TypeError):
-                    form_error_message = 'Please attach valid image files.'
+                    form_error_message = "Upload a JPG, PNG, or WebP image. If the photo won't open, try another file."
                     break
                 finally:
                     image.seek(0)

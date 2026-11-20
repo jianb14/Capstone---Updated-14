@@ -22,7 +22,7 @@ class RateLimited(Exception):
     def __init__(self, retry_after, scope='request', message=None):
         self.retry_after = max(1, math.ceil(retry_after))
         self.scope = scope
-        super().__init__(message or f'Too many requests. Please try again in {self.retry_after} seconds.')
+        super().__init__(message or f'Please wait {self.retry_after} seconds before trying again.')
 
 
 def bucket_key(scope, subject):

@@ -191,7 +191,7 @@
             const result = await response.json();
             if (version !== quizVersion) return;
             if (!response.ok || !result.success) {
-                message(quizResult, 'Unable to create your theme', result.error || 'The AI stylist is unavailable right now. Please try again.', 'error');
+                message(quizResult, 'Unable to create your theme', AppErrors.text(result.error, "We couldn't create a theme suggestion right now. Please try again later or contact our team for help."), 'error');
                 if (response.status === 403 && /log in/i.test(result.error || '')) {
                     const login = document.createElement('a'); login.className = 'btn btn-primary';
                     login.href = data.loginUrl + '?next=' + encodeURIComponent(location.pathname + '#style-quiz'); login.textContent = 'Log In and Continue'; quizResult.appendChild(login);
@@ -238,9 +238,9 @@
         try {
             const response = await fetch(data.availabilityUrl + '?date=' + encodeURIComponent(value)), result = await response.json();
             if (version !== requestVersion) return;
-            if (!response.ok || !result.success) { message(availability, 'Unable to check this date', result.error || 'Please try again.', 'error'); return; }
+            if (!response.ok || !result.success) { message(availability, 'Unable to check this date', AppErrors.text(result.error, "We couldn't check this date. Please try again."), 'error'); return; }
             const label = new Date(value + 'T00:00:00').toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
-            message(availability, result.available ? 'Time slots available' : 'Choose another date', `${label}. ${result.message}`, result.available ? 'success' : 'error');
+            message(availability, result.available ? 'Time slots available' : 'Choose another date', `${label}. ${AppErrors.text(result.message, 'Please check the booking calendar for available times.')}`, result.available ? 'success' : 'error');
             if (!result.available && result.suggestions?.length) {
                 const chips = document.createElement('div'); chips.className = 'availability-suggestions';
                 result.suggestions.forEach(date => {

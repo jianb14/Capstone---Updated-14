@@ -158,7 +158,7 @@ def workspace_context(request, workspace):
 @require_GET
 def catalog_workspace(request, workspace):
     if request.user.role != 'admin':
-        return HttpResponseForbidden('Not allowed')
+        return private_json({'message': "You don't have permission to make this change."}, 403) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else HttpResponseForbidden('Not allowed')
     context = workspace_context(request, workspace)
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return private_json({'html': render_to_string('admin/catalog/_workspace.html', context, request), 'page': context['page'].number})
@@ -197,7 +197,7 @@ def delete_items(request, resource, ids):
 def legacy_catalog_delete(request, resource, pk):
     """Keep bookmarked delete URLs safe: GET can never remove catalog records."""
     if request.user.role != 'admin':
-        return HttpResponseForbidden('Not allowed')
+        return private_json({'message': "You don't have permission to make this change."}, 403) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else HttpResponseForbidden('Not allowed')
     if request.method == 'GET' and resource in ('canvas-category', 'canvas-asset'):
         item = get_object_or_404(RESOURCES[resource][0], pk=pk)
         if item.builtin_key:
@@ -211,7 +211,7 @@ def legacy_catalog_delete(request, resource, pk):
 @require_http_methods(['GET', 'POST'])
 def catalog_action(request, resource, action, pk):
     if request.user.role != 'admin':
-        return HttpResponseForbidden('Not allowed')
+        return private_json({'message': "You don't have permission to make this change."}, 403) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else HttpResponseForbidden('Not allowed')
     if resource not in RESOURCES or action not in ('create', 'edit', 'detail', 'delete', 'bulk-delete'):
         raise Http404
     model, singular, _ = RESOURCES[resource]

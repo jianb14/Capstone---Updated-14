@@ -245,7 +245,10 @@
             const skeletonLoad = window.SiteLoading?.start(tableContainer, {variant: 'table', signal: controller.signal});
 
             fetch(urlObj.toString(), { signal: controller.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function (response) { return response.text(); })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Canvas assets refresh failed');
+                    return response.text();
+                })
                 .then(function (html) {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
@@ -309,15 +312,21 @@
             const skeletonLoad = window.SiteLoading?.start(tableContainer, {variant: 'table', signal: controller.signal});
 
             return fetch(urlObj.toString(), { signal: controller.signal, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function (response) { return response.text(); })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Canvas assets refresh failed');
+                    return response.text();
+                })
                 .then(function (html) {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
+                    if (!doc.getElementById('canvasAssetsTableBody')) throw new Error('Canvas assets unavailable');
                     syncSectionsFromDoc(doc);
                     if (tableContainer) tableContainer.style.opacity = '1';
+                    return true;
                 })
                 .catch(function () {
                     if (tableContainer) tableContainer.style.opacity = '1';
+                    return false;
                 }).finally(() => { skeletonLoad?.finish(); categoryLoad?.finish(); });
         }
 
@@ -400,12 +409,12 @@
             const runDelete = function () {
                 fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(async function (response) {
-                        if (!response.ok) { const data = await response.json(); throw new Error(data.message || 'Could not delete this item.'); }
+                        if (!response.ok) { const data = await response.json(); throw AppErrors.create(data.message || 'Could not delete this item.'); }
                         return refreshCanvasAssetsPage(new URL(window.location.href));
                     })
-                    .then(function () {
-                        showToast('Item deleted successfully.', 'success');
-                    }).catch(function (error) { showToast(error.message, 'error'); });
+                    .then(function (refreshed) {
+                        showToast(refreshed ? 'Item deleted successfully.' : "Item deleted, but we couldn't refresh the list. Refresh the page to see the latest items.", refreshed ? 'success' : 'warning');
+                    }).catch(function (error) { showToast(AppErrors.message(error, "We couldn't confirm whether this item was deleted. Check the item list before trying again."), 'error'); });
             };
 
             if (typeof Swal !== 'undefined') {

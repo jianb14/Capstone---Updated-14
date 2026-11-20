@@ -44,7 +44,7 @@ def booking_feedback(request, level, message, *, field=''):
 def booking_action_response(request, booking_id):
     from django.shortcuts import redirect
     if is_async(request):
-        success, message = getattr(request, '_booking_notice', (False, 'Unknown booking action.'))
+        success, message = getattr(request, '_booking_notice', (False, "We couldn't complete this booking action. Reopen the booking and check its latest status before trying again."))
         field = getattr(request, '_booking_error_field', '')
         return JsonResponse({'success': success, 'message': message,
             'errors': {field: message} if field else {}}, status=200 if success else 400)

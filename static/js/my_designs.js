@@ -32,10 +32,10 @@
             if (response.redirected && new URL(response.url).pathname !== location.pathname) {
                 location.assign(response.url); return;
             }
-            if (!response.ok) throw new Error('Search is unavailable. Please try again.');
+            if (!response.ok) throw AppErrors.create('Search is unavailable. Please try again.');
             const doc = new DOMParser().parseFromString(await response.text(),'text/html');
             const next = doc.getElementById('designLibraryResults');
-            if (!next) throw new Error('Search is unavailable. Please try again.');
+            if (!next) throw AppErrors.create('Search is unavailable. Please try again.');
             if (version !== searchVersion) return;
             closeMenus(); selects.release(results); results.replaceWith(next); results = next;
             prepareMenus(); selects.enhance();
@@ -196,8 +196,8 @@
             const response = await fetch('/my-designs/rename/' + id + '/', {
                 method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf()}, body:JSON.stringify({name:newName})
             });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Could not rename this design. Please try again.');
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') throw AppErrors.create(data.message || '');
             document.getElementById('title-' + id).textContent = data.name;
             root.querySelector('[aria-controls="menu-' + id + '"]').setAttribute('aria-label','Design options for ' + data.name);
             const download = document.getElementById('menu-' + id).querySelector('[download]');
@@ -205,7 +205,7 @@
             closeModal('renameModal', true);
             AppToast.fire({icon:'success',title:'Design renamed successfully.'});
         } catch (error) {
-            requestError.textContent = error.message || 'Could not rename this design. Please try again.';
+            requestError.textContent = AppErrors.message(error, "We couldn't confirm the new name. Check My Designs before trying again.");
             requestError.hidden = false; AppToast.fire({icon:'error',title:requestError.textContent});
         } finally {
             renaming = false; form.setAttribute('aria-busy','false'); save.textContent = 'Save Name';
@@ -221,10 +221,10 @@
             const result = await AppToast.confirm({title:'Delete this design?',text:'This action cannot be undone.',danger:true,confirmText:'Delete design'});
             if (!result.isConfirmed) return;
             const response = await fetch('/my-designs/delete/' + id + '/', {method:'POST',headers:{'X-CSRFToken':csrf()}});
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Could not delete this design. Please try again.');
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') throw AppErrors.create(data.message || '');
             AppToast.onNextPage({icon:'success',title:data.message || 'Design deleted successfully.'}); location.reload();
-        } catch (error) { AppToast.fire({icon:'error',title:error.message || 'Could not delete this design. Please try again.'}); }
+        } catch (error) { AppToast.fire({icon:'error',title:AppErrors.message(error, "We couldn't confirm whether this design was deleted. Check My Designs before trying again.")}); }
         finally { deleting.delete(id); }
     }
     Object.assign(window, {toggleMenu,openModal,closeModal,openRenameModal,submitRename,openDeleteModal});

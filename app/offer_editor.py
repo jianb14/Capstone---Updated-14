@@ -69,7 +69,7 @@ def validate_rows(raw, categories):
     for index, value in enumerate(raw):
         row_errors = {}
         if not isinstance(value, dict):
-            errors[str(index)] = {'name': ['This row is invalid.']}
+            errors[str(index)] = {'name': ["We couldn't read this inclusion. Remove it and add it again."]}
             continue
         name = str(value.get('name') or '').strip()
         row_type = value.get('row_type', 'item')
@@ -127,7 +127,7 @@ def validate_images(request, item):
     try:
         removed = {int(pk) for pk in request.POST.get('remove_preview_ids', '').split(',') if pk.strip()}
     except ValueError:
-        return [], set(), ['Invalid image selection.']
+        return [], set(), ["We couldn't read the selected images. Choose the images again."]
     if not removed.issubset(existing_ids):
         return [], set(), ['A selected image does not belong to this offer.']
     uploads = request.FILES.getlist('preview_images')

@@ -79,17 +79,20 @@
             try {
                 const response = await fetch(form.action, {method:'POST', body:new FormData(form), credentials:'same-origin',
                     headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRFToken':form.elements.csrfmiddlewaretoken.value, 'Accept':'application/json'}});
-                if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Your session could not be confirmed. Reopen the invitation from your email.');
+                if (!response.headers.get('content-type')?.includes('application/json')) {
+                    if (response.redirected || response.status === 401 || response.status === 403) throw AppErrors.create('Your session could not be confirmed. Reopen the invitation from your email.');
+                    throw new Error('Unreadable invitation response');
+                }
                 const result = await response.json();
                 if (response.ok && result.success) {
                     navigating = true; form.reset(); window.PasswordVisibility?.reset(form);
                     window.location.assign(result.redirect_url); return;
                 }
                 Object.entries(result.errors || {}).forEach(([name, messages]) => fieldError(name, messages.join(' ')));
-                feedback.textContent = result.message || (result.errors?.__all__ || []).join(' ');
-                if (!feedback.textContent && !form.querySelector('[aria-invalid="true"]')) feedback.textContent = 'Your account could not be created. Please try again.';
+                feedback.textContent = AppErrors.text(result.message || (result.errors?.__all__ || []).join(' '), '');
+                if (!feedback.textContent && !form.querySelector('[aria-invalid="true"]')) feedback.textContent = "We couldn't confirm whether your account was created. Try signing in before submitting again.";
                 form.querySelector('[aria-invalid="true"]')?.focus();
-            } catch (error) { feedback.textContent = error.message || 'Unable to connect. Please try again.'; }
+            } catch (error) { feedback.textContent = AppErrors.message(error, "We couldn't confirm whether your account was created. Try signing in before submitting again."); }
             finally { if (!navigating) setBusy(false); }
         });
     }

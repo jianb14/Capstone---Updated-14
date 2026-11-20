@@ -267,6 +267,46 @@ AccountPages.enhance('customer_profile', 'booking_form_ui.js', function(scope) {
             scope.cleanup(() => observer.disconnect());
         }
     });
-    window.BookingFormUI={icon,setupPackageGallery};
+    function updateReviewMap(options) {
+        const row = document.getElementById(options.rowId);
+        const map = document.getElementById(options.mapId);
+        if (!row || !map) return;
+        const badge = row.querySelector('[data-map-change]');
+        if (badge) { badge.textContent = options.change || ''; badge.hidden = !options.change; }
+        const lat = Number(options.lat), lng = Number(options.lng);
+        const valid = String(options.lat ?? '').trim() !== '' && String(options.lng ?? '').trim() !== ''
+            && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+        row.hidden = !valid;
+        if (!valid) {
+            map.__bookingMapCtx?.destroy();
+            map.replaceChildren();
+            return;
+        }
+        if (window.L && !map.__bookingMapCtx) {
+            map.classList.remove('booking-map-unavailable');
+            map.replaceChildren();
+        }
+        const context = window.BookingLocationMap.initReadOnly({...options, lat, lng, expandable:false});
+        const pin = context?.marker.getElement()?.querySelector('.map-pin-dot');
+        if (pin) pin.title = options.label || 'Event venue';
+    }
+    function showOvertimeFee(prefix, hours, rate, fee) {
+        const notice = document.getElementById(prefix + 'overtime_notice');
+        notice.hidden = hours <= 0;
+        const money = amount => new Intl.NumberFormat('en-PH', {style:'currency',currency:'PHP'}).format(amount);
+        document.getElementById(prefix + 'overtime_notice_text').textContent =
+            `Overtime · ${hours} started ${hours === 1 ? 'hour' : 'hours'} × ${money(rate)}`;
+        document.getElementById(prefix + 'overtime_notice_amount').textContent = '+' + money(fee);
+    }
+    function focusRequired(target) {
+        if (!target) return;
+        // Time pickers submit hidden values but expose a separate visible input.
+        target = document.getElementById(target.id + '_display') || target;
+        if (!target.matches('input,select,textarea,button,[tabindex]')) target.tabIndex = -1;
+        target.focus({preventScroll:true});
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        (target.closest('.time-field,.form-group') || target).scrollIntoView({behavior:reduced ? 'auto' : 'smooth',block:'center'});
+    }
+    window.BookingFormUI={icon,setupPackageGallery,updateReviewMap,showOvertimeFee,focusRequired};
 
 }, -10);

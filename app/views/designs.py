@@ -1,5 +1,7 @@
 """AI design canvas and user design management. (split from app/views.py)"""
 
+import logging
+
 from .common import *  # noqa: F401,F403
 from django.core.exceptions import RequestDataTooBig
 from ..design_admin import configure_canvas_availability, render_canvas_form
@@ -10,6 +12,8 @@ from ..design_limits import DesignLimitReached, create_saved_design, saved_desig
 from ..account_lists import account_page_size
 from ..canvas_builtins import STYRO_NAME, BUILTIN_MESSAGE
 from ..design_validation import (KINDS, selection_groups, design_offer, offer_is_ready, offer_payload, eligible_assets, asset_payload, evaluate_design, evaluate_saved_design, evaluation_message, restore_catalog_metadata)
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -138,12 +142,12 @@ def user_design_preview(request, id):
 @require_POST
 def save_user_design(request):
     if request.user.role != "customer":
-        return JsonResponse({"status": "error", "message": "Not allowed"}, status=403)
+        return JsonResponse({"status": "error", "message": "You don't have permission to change this design. Sign in with the account that owns it."}, status=403)
 
     try:
         data = json.loads(request.body)
         if not isinstance(data, dict):
-            return JsonResponse({"status": "error", "message": "Invalid design data."}, status=400)
+            return JsonResponse({"status": "error", "message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)
         design_id = data.get("id")
         name = data.get("name", "Untitled Design")
         canvas_json = data.get("canvas_json")
@@ -154,7 +158,7 @@ def save_user_design(request):
 
         if not canvas_json:
             return JsonResponse(
-                {"status": "error", "message": "Canvas data is required"}, status=400
+                {"status": "error", "message": 'Add items to your design before saving.'}, status=400
             )
 
         offer = None
@@ -166,8 +170,8 @@ def save_user_design(request):
             existing = get_object_or_404(UserDesign, id=design_id, user=request.user)
             offer = design_offer(existing)
         evaluation = evaluate_design(canvas_json, offer)
-        if evaluation["invalid_items"] == ["Canvas data is invalid."]:
-            return JsonResponse({"status": "error", "message": "Canvas data is invalid."}, status=400)
+        if evaluation["invalid_items"] == ["We couldn't read this design. Keep this page open and try again, or contact our team for help."]:
+            return JsonResponse({"status": "error", "message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)
 
         # Handle thumbnail image (Base64)
         import base64
@@ -236,9 +240,9 @@ def save_user_design(request):
         return JsonResponse({'status': 'error', 'code': 'design_limit_reached', 'message': str(exc),
                              'design_usage': exc.usage}, status=409)
     except Http404:
-        return JsonResponse({"status": "error", "message": "Design or offer not found."}, status=404)
+        return JsonResponse({"status": "error", "message": 'This design or package is no longer available. Open My Designs or choose another package.'}, status=404)
     except (ValueError, TypeError):
-        return JsonResponse({"status": "error", "message": "Invalid design data."}, status=400)
+        return JsonResponse({"status": "error", "message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)
     except RequestDataTooBig:
         return JsonResponse(
             {
@@ -250,15 +254,16 @@ def save_user_design(request):
             },
             status=413,
         )
-    except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    except Exception:
+        logger.exception("Saving user design failed")
+        return JsonResponse({"status": "error", "message": "We couldn't confirm whether your design was saved. Check My Designs before trying again."}, status=500)
 
 
 @login_required
 @require_POST
 def rename_user_design(request, id):
     if request.user.role != "customer":
-        return JsonResponse({"status": "error", "message": "Not allowed"}, status=403)
+        return JsonResponse({"status": "error", "message": "You don't have permission to change this design. Sign in with the account that owns it."}, status=403)
 
     try:
         design = get_object_or_404(UserDesign, id=id, user=request.user)
@@ -276,15 +281,16 @@ def rename_user_design(request, id):
             request.user, f"Renamed custom design #{design.id} to '{design.name}'."
         )
         return JsonResponse({"status": "success", "name": design.name})
-    except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    except Exception:
+        logger.exception("Renaming user design failed")
+        return JsonResponse({"status": "error", "message": "We couldn't confirm the new name. Check your designs before trying again."}, status=500)
 
 
 @login_required
 @require_POST
 def delete_user_design(request, id):
     if request.user.role != "customer":
-        return JsonResponse({"status": "error", "message": "Not allowed"}, status=403)
+        return JsonResponse({"status": "error", "message": "You don't have permission to change this design. Sign in with the account that owns it."}, status=403)
 
     try:
         design = get_object_or_404(UserDesign, id=id, user=request.user)
@@ -294,8 +300,9 @@ def delete_user_design(request, id):
         return JsonResponse(
             {"status": "success", "message": "Design deleted successfully"}
         )
-    except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    except Exception:
+        logger.exception("Deleting user design failed")
+        return JsonResponse({"status": "error", "message": "We couldn't confirm whether this design was deleted. Check My Designs before trying again."}, status=500)
 
 
 # =========================================
@@ -751,14 +758,14 @@ def admin_canvas_asset_delete(request, id):
 @require_POST
 def evaluate_user_design(request):
     if request.user.role != "customer":
-        return JsonResponse({"message": "Not allowed"}, status=403)
+        return JsonResponse({"message": "You don't have permission to open this design. Sign in with the account that owns it."}, status=403)
     try:
         data = json.loads(request.body)
         if not isinstance(data, dict):
-            return JsonResponse({"message": "Invalid design data."}, status=400)
+            return JsonResponse({"message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)
         offer = get_object_or_404(DesignOffer, pk=data.get("design_offer_id")) if data.get("design_offer_id") else None
         return JsonResponse(evaluate_design(data.get("canvas_json"), offer))
     except RequestDataTooBig:
         return JsonResponse({"message": "Design evaluation is too large."}, status=413)
     except (ValueError, TypeError):
-        return JsonResponse({"message": "Invalid design data."}, status=400)
+        return JsonResponse({"message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)

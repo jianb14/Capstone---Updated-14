@@ -27,13 +27,13 @@ AccountPages.register('my_profile','password-otp',scope=>{
             const response=await fetch(dialog.dataset.endpoint,{method:action?'POST':'GET',body:action?data:undefined,
                 credentials:'same-origin',cache:'no-store',signal:controller.signal,
                 headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}});
-            const result=await response.json().catch(()=>({}));
+            const result=await response.json();
             if (!active(id)) return;
             if (result.resend_wait!==undefined) resendUntil=Date.now()+result.resend_wait*1000;
             if (result.verify_wait!==undefined) verifyUntil=Date.now()+result.verify_wait*1000;
             if (!response.ok || !result.success) {
                 if (result.restart) { ready=false; scope.root.querySelector('.profile-dialog__resume').hidden=true; }
-                throw new Error(result.message || 'We could not confirm this request. Please try again.');
+                throw AppErrors.create(result.message || '');
             }
             if (result.verified) {
                 close();
@@ -43,9 +43,9 @@ AccountPages.register('my_profile','password-otp',scope=>{
             ready=true;
             dialog.querySelector('[data-profile-otp-email]').textContent=result.masked_email;
             if (action==='resend') code.value='';
-            skeletonLoad?.finish(); message(result.message || ''); code.focus();
+            skeletonLoad?.finish(); message(AppErrors.text(result.message, '')); code.focus();
         } catch(error) {
-            if (active(id)) { message(error.name==='AbortError'?'Connection interrupted. Please try again.':error.message); feedback.focus(); }
+            if (active(id)) { message(error.name==='AbortError'?'Connection interrupted. Please try again.':AppErrors.message(error, action === 'verify' ? "We couldn't confirm the password change. Try signing in with your new password before repeating this step." : action === 'resend' ? "We couldn't confirm whether a new code was sent. Check your email before requesting another." : "We couldn't load password verification. Please try again.")); feedback.focus(); }
         } finally { skeletonLoad?.finish(); clearTimeout(timeout); if (active(id)) { busy=false; finalizing=false; buttons(); } }
     }
     function open() {

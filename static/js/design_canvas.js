@@ -4160,10 +4160,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            showCanvasToast('error', `Error saving design: ${result.message || 'Unknown error'}`);
+            showCanvasToast('error', AppErrors.text(result.message, "We couldn't confirm whether your design was saved. Keep this page open and check My Designs before trying again."));
         } catch (error) {
             console.error('Save error:', error);
-            showCanvasToast('error', 'Network error. Could not save design.');
+            showCanvasToast('error', "We couldn't confirm whether your design was saved. Keep this page open and check My Designs before trying again.");
         } finally {
             saveDesignBtn.innerHTML = originalHtml;
             saveDesignBtn.removeAttribute('aria-busy');

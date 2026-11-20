@@ -20,9 +20,9 @@
             if (options.signal?.aborted) timeout.abort();
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,signal:timeout.signal,
                 headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest',...options.headers}});
-            if (response.redirected) throw new Error('Your session ended. Please sign in again.');
-            const data=await response.json().catch(()=>({}));
-            if (!response.ok) { const error=new Error(data.message || data.error || 'We could not complete this request. Please try again.');error.status=response.status;throw error; }
+            if (response.redirected) throw AppErrors.create('Your session ended. Please sign in again.');
+            const data=await response.json();
+            if (!response.ok) { const error=AppErrors.create(data.message || data.error || '');error.status=response.status;throw error; }
             return data;
         } finally { clearTimeout(clock); options.signal?.removeEventListener('abort',abort); }
     }
@@ -64,6 +64,7 @@
         const skeletonLoad = window.SiteLoading?.start(results, {variant: 'table', signal: controller.signal});
         try {
             const data=await request(url,{signal:controller.signal}); if(version!==listVersion)return;
+            if (typeof data.html !== 'string' || !data.counts || !Number.isInteger(data.page)) throw new Error('Incomplete concerns response');
             // Move focus out of a footer that is about to be replaced.
             if(results.contains(document.activeElement))search.focus({preventScroll:true});
             selects.release(results);
@@ -74,7 +75,7 @@
             pageSize=actual.searchParams.get('per_page')==='4'?'4':'8';
             if(history)window.history.pushState({},'',actual);
         } catch(error) {
-            if(version===listVersion && !controller.signal.aborted)showError(notice,error.name==='AbortError'?'The request took too long. Your current list is still here.':error.message,()=>load(url,history));
+            if(version===listVersion && !controller.signal.aborted)showError(notice,error.name==='AbortError'?'The request took too long. Your current list is still here.':AppErrors.message(error, "We couldn't load the concerns. Please try again."),()=>load(url,history));
         } finally { skeletonLoad?.finish();if(version===listVersion)results.removeAttribute('aria-busy'); }
     }
     function reset(all=true) {
@@ -127,7 +128,7 @@
         if(!modal.open){modal.showModal();document.body.classList.add('ac-modal-open');}
         const skeletonLoad = window.SiteLoading?.start(detail.parentElement, {variant: 'details', signal: detailRequest.signal});
         try { const data=await request(url,{signal:detailRequest.signal});if(version===detailVersion && modal.open)displayTicket(data); }
-        catch(error){if(version===detailVersion && modal.open && !detailRequest.signal.aborted){setText('concernModalTitle','Concern details');showError(detailNotice,error.message,()=>openDetails(url,origin));}}
+        catch(error){if(version===detailVersion && modal.open && !detailRequest.signal.aborted){setText('concernModalTitle','Concern details');showError(detailNotice,AppErrors.message(error, "We couldn't load this concern. Please try again."),()=>openDetails(url,origin));}}
         finally { skeletonLoad?.finish(); }
     }
     function closeDetails(cleanURL=true) { if(saving)return;removeTicketURL=cleanURL;selects.close();detailRequest?.abort();modal.close(); }
@@ -151,7 +152,7 @@
         const submitted=ticket.id;
         try {
             const data=await request(update.action,{method:'POST',body:payload});
-            if(!data.success)throw new Error(data.message || 'The update could not be saved.');
+            if(!data.success)throw AppErrors.create(data.message || '');
             window.AdminConfigurationFeedback?.show(data.message);
             if(ticket?.id===submitted){displayTicket({...data,can_update:true});showError(updateNotice,data.message);updateNotice.dataset.kind='success';}
             counts(data.counts);const url=new URL(location.href);url.searchParams.delete('concern_id');await load(url,false);window.AdminNotifications?.syncCount();
@@ -159,7 +160,7 @@
             if(error.status===409){
                 try { displayTicket(await request(root.dataset.detailsPattern.replace('/0/',`/${submitted}/`))); } catch(_) { /* Retain the draft and original conflict message. */ }
             }
-            const message=error.name==='AbortError'?'The response took too long. Check the latest concern before trying again.':error.message;
+            const message=error.name==='AbortError'?'The response took too long. Check the latest concern before trying again.':AppErrors.message(error, "We couldn't confirm the change. Check this concern's latest status before trying again.");
             showError(updateNotice,message);if(update.hidden)showError(detailNotice,message);else updateNotice.focus();
             window.AdminConfigurationFeedback?.show(message,'error');
         }

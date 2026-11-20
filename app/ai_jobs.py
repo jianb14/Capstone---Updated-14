@@ -108,7 +108,7 @@ def create_request(user, *, request_id=None, message='', session_id=None, intent
     try:
         request_id = uuid.UUID(str(request_id))
     except (ValueError, TypeError):
-        raise JobError('A valid request ID is required.')
+        raise JobError("We couldn't send this message. Reopen the chat, check whether it was sent, and try again if needed.")
     with transaction.atomic():
         # NO KEY UPDATE allows completion to insert message FKs while admission waits.
         users = User.objects.select_for_update(no_key=True) if connection.vendor == 'postgresql' else User.objects.select_for_update()
@@ -116,9 +116,9 @@ def create_request(user, *, request_id=None, message='', session_id=None, intent
         existing = AiRequest.objects.filter(pk=request_id).first()
         if existing:
             if existing.user_id != user.pk:
-                raise JobError('Request not found.', 404)
+                raise JobError("We couldn't find this message request. Reopen the chat and check its latest messages.", 404)
             if existing.fingerprint != fingerprint:
-                raise JobError('This request ID is already attached to a different message.', 409)
+                raise JobError("We couldn't send this message. Reopen the chat, check whether it was sent, and try again if needed.", 409)
             return existing, False
         active = AiRequest.objects.filter(user=user, state__in=ACTIVE).first()
         if active:

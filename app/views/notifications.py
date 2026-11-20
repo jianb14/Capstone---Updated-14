@@ -8,7 +8,7 @@ from .common import *  # noqa: F401,F403
 def admin_notification_feed(request):
     from ..admin_notifications import notification_rows, unread_count, concern_counts
     if request.user.role != 'admin':
-        return JsonResponse({'message': 'Not allowed'}, status=403)
+        return JsonResponse({'message': "You don't have permission to view or change these notifications."}, status=403)
     counts = concern_counts()
     data = {'unread_count': unread_count(), 'new_concerns_count': counts['new'], 'concern_counts': counts}
     if request.GET.get('summary') != '1':
@@ -30,10 +30,10 @@ def admin_notification_feed(request):
 def mark_admin_notification_read(request, id):
     from ..admin_notifications import unread_count
     if request.user.role != 'admin':
-        return JsonResponse({'message': 'Not allowed'}, status=403)
+        return JsonResponse({'message': "You don't have permission to view or change these notifications."}, status=403)
     match = re.fullmatch(r'(b|n)_([1-9]\d{0,18})', id)
     if not match or int(match.group(2)) > 9223372036854775807:
-        return JsonResponse({'message': 'Invalid notification.'}, status=400)
+        return JsonResponse({'message': 'This notification is no longer available. Refresh your notifications.'}, status=400)
     kind, key = match.groups()
     if kind == 'b':
         item = get_object_or_404(Booking, pk=int(key), admin_notif_hidden=False)
@@ -49,7 +49,7 @@ def mark_admin_notification_read(request, id):
 @login_required
 def mark_notifications_read(request):
     if request.user.role != 'admin':
-        return JsonResponse({"status": "error", "message": "Not allowed"}, status=403)
+        return JsonResponse({"status": "error", "message": "You don't have permission to view or change these notifications."}, status=403)
 
     if request.method == "POST":
         # Mark all legacy booking notifications as read
@@ -67,10 +67,10 @@ def mark_notifications_read(request):
 def hide_notification(request, id):
     from ..admin_notifications import unread_count
     if request.user.role != 'admin':
-        return JsonResponse({'status': 'error', 'message': 'Not allowed'}, status=403)
+        return JsonResponse({'status': 'error', 'message': "You don't have permission to view or change these notifications."}, status=403)
     match = re.fullmatch(r'(?:(b|n)_)?([1-9]\d{0,18})', str(id))
     if not match or int(match.group(2)) > 9223372036854775807:
-        return JsonResponse({'status': 'error', 'message': 'Invalid notification.'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'This notification is no longer available. Refresh your notifications.'}, status=400)
     kind, key = match.groups()
     if kind == 'n':
         notice = get_object_or_404(AdminNotification, pk=int(key))
@@ -92,7 +92,7 @@ def mark_customer_notification_read(request, id):
         return JsonResponse({"status": "success", 'unread_count': Notification.objects.filter(user=request.user, is_read=False).count()})
     except Notification.DoesNotExist:
         return JsonResponse(
-            {"status": "error", "message": "Notification not found"}, status=404
+            {"status": "error", "message": 'This notification is no longer available. Refresh your notifications.'}, status=404
         )
 
 
@@ -116,7 +116,7 @@ def customer_notification_feed(request):
     from django.utils.dateparse import parse_datetime
     from ..context_processors import _customer_notif_target_url
     if request.user.role != 'customer':
-        return JsonResponse({'message': 'Not allowed'}, status=403)
+        return JsonResponse({'message': "You don't have permission to view or change these notifications."}, status=403)
     if request.GET.get('updates') == '1':
         from ..customer_updates import customer_update_payload, update_session
         if 'session' in request.GET and request.GET['session'] != update_session(request):
@@ -143,7 +143,7 @@ def customer_notification_feed(request):
             if stamp is None or not isinstance(key, int):
                 raise ValueError
         except (signing.BadSignature, ValueError, TypeError):
-            return JsonResponse({'message': 'Invalid notification cursor.'}, status=400)
+            return JsonResponse({'message': "We couldn't update your notifications. Refresh the list and try again."}, status=400)
         notices = notices.filter(Q(created_at__lt=stamp) | Q(created_at=stamp, id__lt=key))
     rows = list(notices.order_by('-created_at', '-id')[:21])
     more = len(rows) > 20
@@ -163,14 +163,14 @@ def ack_customer_update_bar(request):
     import json
     from ..customer_updates import acknowledge_customer_updates
     if request.user.role != 'customer':
-        return JsonResponse({'message': 'Not allowed'}, status=403)
+        return JsonResponse({'message': "You don't have permission to view or change these notifications."}, status=403)
     try:
         body = json.loads(request.body)
         if not isinstance(body, dict) or not isinstance(body.get('delivery_token'), str):
-            raise ValueError('Invalid notification delivery receipt.')
+            raise ValueError("We couldn't update your notifications. Refresh the list and try again.")
         acknowledge_customer_updates(request.user, body['delivery_token'])
     except (ValueError, UnicodeDecodeError) as exc:
-        return JsonResponse({'message': str(exc)}, status=400)
+        return JsonResponse({'message': "We couldn't update your notifications. Refresh the list and try again."}, status=400)
     response = JsonResponse({'status': 'success'})
     response['Cache-Control'] = 'private, no-store'
     return response

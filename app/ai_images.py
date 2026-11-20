@@ -11,10 +11,13 @@ from .models import AiGeneratedImage, ChatMessage
 
 def owned_image_name(user, image_url):
     if not isinstance(image_url, str) or len(image_url) > 2000:
-        raise ValueError('Invalid image reference')
-    filename = PurePosixPath(urlparse(image_url).path).name
+        raise ValueError("We couldn't find this image. Reopen it from your chat and try again.")
+    try:
+        filename = PurePosixPath(urlparse(image_url).path).name
+    except ValueError:
+        raise ValueError("We couldn't find this image. Reopen it from your chat and try again.") from None
     if not filename:
-        raise ValueError('Invalid image reference')
+        raise ValueError("We couldn't find this image. Reopen it from your chat and try again.")
     for artifact in AiGeneratedImage.objects.filter(request__user=user, image__endswith=filename)[:5]:
         if artifact.image.url == image_url:
             return artifact.image.name

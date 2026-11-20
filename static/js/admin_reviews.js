@@ -31,10 +31,10 @@
             if (options.signal?.aborted) abort();
             const response = await fetch(url, {credentials:'same-origin', cache:'no-store', ...options, signal:timeout.signal,
                 headers:{Accept:'application/json', 'X-Requested-With':'XMLHttpRequest', ...options.headers}});
-            if (response.redirected) throw new Error('Your session ended. Please sign in again.');
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.message || 'This request could not be completed. Please try again.');
-            if (!data.html) throw new Error('The server returned an incomplete response. Please try again.');
+            if (response.redirected) throw AppErrors.create('Your session ended. Please sign in again.');
+            const data = await response.json();
+            if (!response.ok) throw AppErrors.create(data.message || '');
+            if (!data.html) throw AppErrors.create("We couldn't load these details. Please try again.");
             return data;
         } finally {
             clearTimeout(clock); options.signal?.removeEventListener('abort', abort);
@@ -81,7 +81,7 @@
             return true;
         } catch (error) {
             if (version === listVersion && !controller.signal.aborted) {
-                feedback(notice, error.name === 'AbortError' ? 'The request took too long. Your current reviews are still here.' : error.message,
+                feedback(notice, error.name === 'AbortError' ? 'The request took too long. Your current reviews are still here.' : AppErrors.message(error, "We couldn't load the reviews. Please try again."),
                     false, () => load(url, push));
             }
             return false;
@@ -164,7 +164,7 @@
             if (version === detailVersion && modal.open) { skeletonLoad?.finish(); displayDetail(data); }
         } catch (error) {
             if (version === detailVersion && !controller.signal.aborted && modal.open) {
-                feedback(detailNotice, error.name === 'AbortError' ? 'The review took too long to load. Please try again.' : error.message,
+                feedback(detailNotice, error.name === 'AbortError' ? 'The review took too long to load. Please try again.' : AppErrors.message(error, "We couldn't load this review. Please try again."),
                     false, () => openDetails(id, origin, false));
             }
         } finally { skeletonLoad?.finish(); }
@@ -211,7 +211,7 @@
             const refreshed = await load(filtersURL(true), false);
             if (!inModal && refreshed) feedback(notice, data.message, true);
         } catch (error) {
-            const message = error.name === 'AbortError' ? 'The response took too long. Check the latest review before trying again.' : error.message;
+            const message = error.name === 'AbortError' ? 'The response took too long. Check the latest review before trying again.' : AppErrors.message(error, "We couldn't confirm the reply update. Check the review before trying again.");
             feedback(targetNotice, message);
             window.AdminConfigurationFeedback?.show(message, 'error');
             if (inModal) targetNotice.focus();

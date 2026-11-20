@@ -57,9 +57,8 @@
                 headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
             });
             if (!response.headers.get('content-type')?.includes('application/json')) {
-                throw new Error(response.redirected || response.status === 401 || response.status === 403 ?
-                    'Your session may have expired. Sign in again before saving.' :
-                    'Unable to save right now. Your changes are still here. Please try again.');
+                if (response.redirected || response.status === 401 || response.status === 403) throw AppErrors.create('Your session may have expired. Sign in again before saving.');
+                throw new Error('Unreadable settings response');
             }
             const result = await response.json();
             if (!response.ok || !result.success) {
@@ -68,7 +67,7 @@
                     const input = name === recipients?.field.name ? recipients.input : form.elements.namedItem(name);
                     if (input?.setAttribute) input.setAttribute('aria-invalid', 'true');
                 });
-                message(result.message || 'Unable to save your changes. Please try again.');
+                message(AppErrors.text(result.message, "We couldn't confirm whether your settings were saved. Check the current settings before trying again."));
                 const invalid = form.querySelector('[aria-invalid="true"]:not([type="hidden"])');
                 if (invalid) { invalid.focus(); invalid.scrollIntoView({block: 'center', behavior: 'smooth'}); }
                 else { feedback.focus(); feedback.scrollIntoView({block: 'center'}); }
@@ -82,8 +81,7 @@
             window.AdminConfigurationFeedback?.show(dirty() ?
                 'Submitted changes saved. You still have unsaved changes.' : result.message || 'Site settings saved successfully.');
         } catch (error) {
-            const detail = error instanceof TypeError ? 'Connection failed. Your changes are still here. Please try again.' :
-                (error.message || 'Unable to save right now. Your changes are still here. Please try again.');
+            const detail = AppErrors.message(error, "We couldn't confirm whether your settings were saved. Check the current settings before trying again. Your changes are still here.");
             message(detail);
             window.AdminConfigurationFeedback?.show(detail, 'error');
         }

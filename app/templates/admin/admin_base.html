@@ -10,6 +10,7 @@
     {% include 'components/skeleton_assets.html' %}
     <script src="{% static 'js/admin_sidebar.js' %}?v=20261026b"></script>
     <script src="{% static 'js/account_pages.js' %}?v=20261102sk1"></script>
+    {% include 'components/client_feedback_assets.html' %}
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,33 +55,22 @@
     </main>
 
     <!-- JavaScript -->
-    <script src="{% static 'js/customer_notifications.js' %}?v=20261110bar4"></script>
+    <script src="{% static 'js/customer_notifications.js' %}?v=20261119errors1"></script>
     <script src="{% static 'js/account_menu.js' %}?v=20261026b"></script>
-    <script src="{% static 'js/admin_navigation.js' %}?v=20261102sk1"></script>
+    <script src="{% static 'js/admin_navigation.js' %}?v=20261119errors1"></script>
     <script>window.AdminSidebar?.mount();</script>
 
     {% block extra_js %}{% endblock %}
 
-    <!-- SweetAlert2 & Global Messages Handler -->
+    <!-- SweetAlert remains available to legacy action confirmations. -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 4000,
-                timerProgressBar: true,
-                background: '#1a1a1a',
-                color: '#fff',
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer)
-                    toast.addEventListener('mouseleave', Swal.resumeTimer)
-                }
-            });
+            const Toast = AppToast;
 
             {% if messages %}
                 {% for message in messages %}
+                {
                     const messageType = '{{ message.tags|escapejs }}' === 'error' ? 'error' : ('{{ message.tags|escapejs }}' === 'success' ? 'success' : 'info');
                     const messageText = '{{ message|escapejs }}';
                     const isLoginSuccess = messageType === 'success' && messageText.toLowerCase().includes('login successful');
@@ -89,6 +79,7 @@
                         title: messageText,
                         timer: isLoginSuccess ? 1500 : 4000
                     });
+                }
                 {% endfor %}
             {% endif %}
 

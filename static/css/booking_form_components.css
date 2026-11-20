@@ -1,4 +1,14 @@
 /* One visual system for create, edit and request-change wizards. */
+:is(#bookingModalOverlay,#editBookingModal){--map-success:#a7c4a0}
+[data-theme="light"] :is(#bookingModalOverlay,#editBookingModal){--map-success:#166534}
+:is(#bookingModalOverlay,#editBookingModal) .location-map-status{color:var(--map-success)!important}
+:is(#bookingModalOverlay,#editBookingModal) .location-map-status[data-state="neutral"]{color:var(--form-muted)!important}
+:is(#bookingModalOverlay,#editBookingModal) .location-map-status[data-state="loading"]{color:var(--form-muted)!important}
+:is(#bookingModalOverlay,#editBookingModal) .location-map-status.is-error{color:var(--form-danger)!important}
+:is(#bookingModalOverlay,#editBookingModal) [data-map-change][hidden]{display:none!important}
+:is(#bookingModalOverlay,#editBookingModal) .booking-overtime-notice{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:start;gap:8px;margin-top:8px;padding:10px 12px;border:1px solid var(--form-border);border-radius:8px;background:var(--form-soft);color:var(--form-ink);font-size:.75rem;font-weight:400;line-height:1.65}
+:is(#bookingModalOverlay,#editBookingModal) .booking-overtime-notice .form-icon{width:16px;height:16px;margin-top:2px;color:var(--form-muted)}
+:is(#bookingModalOverlay,#editBookingModal) .booking-overtime-notice strong{white-space:nowrap;font-size:.8rem;font-weight:600;font-variant-numeric:tabular-nums}
 :is(#bookingModalOverlay,#editBookingModal) .package-cards-grid{align-items:start}
 :is(#bookingModalOverlay,#editBookingModal) .package-card{padding-bottom:8px}
 :is(#bookingModalOverlay,#editBookingModal) .package-info[role=button]{cursor:pointer;border-radius:6px}
@@ -111,6 +121,10 @@ body:has(:is(#bookingModalOverlay,#editBookingModal).show) :is(.ai-fab,.admin-ch
 :is(#bookingModalOverlay,#editBookingModal) :is(.preview-note,.review-note){font-size:.75rem;line-height:1.7;color:var(--form-muted);gap:9px;align-items:flex-start}
 :is(#bookingModalOverlay,#editBookingModal) :is(.preview-note,.review-note) .form-icon{width:16px;height:16px;flex-basis:16px;margin-top:3px}
 :is(#bookingModalOverlay,#editBookingModal) .booking-review-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start;min-width:0}
+:is(#bookingModalOverlay,#editBookingModal) .booking-review-map-row{display:block;padding:12px 0 0;min-width:0}
+:is(#bookingModalOverlay,#editBookingModal) .booking-review-map-row[hidden]{display:none!important}
+:is(#bookingModalOverlay,#editBookingModal) .booking-review-map-row>.row-info{padding-right:0;margin-bottom:8px}
+:is(#bookingModalOverlay,#editBookingModal) .booking-review-map{height:180px;margin:0;border-color:var(--form-border);background:var(--form-soft);border-radius:10px;isolation:isolate}
 :is(#bookingModalOverlay,#editBookingModal) .booking-summary-container{grid-column:auto;background:var(--form-panel);border:1px solid var(--form-border);border-radius:14px;padding:22px;min-width:0;margin:0;box-shadow:none}
 :is(#bookingModalOverlay,#editBookingModal) .summary-title{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:600;color:var(--form-ink);margin:0 0 16px;text-transform:none;letter-spacing:0;padding:0}
 :is(#bookingModalOverlay,#editBookingModal) :is(#booking-details-list,#edit-booking-details-list) .summary-row{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;padding:12px 0;border-bottom:none;min-width:0}

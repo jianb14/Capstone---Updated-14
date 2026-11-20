@@ -21,10 +21,10 @@ def _customer(request):
 @require_http_methods(['GET', 'DELETE'])
 def ai_design_brief(request, session_id):
     if not _customer(request):
-        return JsonResponse({'error': 'Authentication required.'}, status=403)
+        return JsonResponse({'error': 'Please sign in again to use the assistant.'}, status=403)
     session = ChatSession.objects.filter(pk=session_id, user=request.user, is_admin_support=False).first()
     if not session:
-        return JsonResponse({'error': 'Chat not found.'}, status=404)
+        return JsonResponse({'error': 'This chat is no longer available. Start a new chat.'}, status=404)
     if request.method == 'DELETE':
         ChatSession.objects.filter(pk=session.pk, user=request.user).update(
             design_brief={}, design_brief_version=F('design_brief_version')+1)
@@ -91,10 +91,10 @@ def ai_request_create(request):
 @require_GET
 def ai_request_status(request, request_id):
     if not _customer(request):
-        return JsonResponse({'error': 'Authentication required.'}, status=403)
+        return JsonResponse({'error': 'Please sign in again to use the assistant.'}, status=403)
     job = AiRequest.objects.select_related('session', 'user_message').filter(pk=request_id, user=request.user).first()
     if not job:
-        return JsonResponse({'error': 'Request not found.'}, status=404)
+        return JsonResponse({'error': "We couldn't find this message request. Reopen the chat and check its latest messages."}, status=404)
     if job.state == 'running':
         from ..ai_jobs import expire_interrupted_requests
         # Recovery must not wait for a busy worker to notice a crashed worker's lease.
@@ -108,7 +108,7 @@ def ai_request_status(request, request_id):
 @require_GET
 def ai_request_active(request):
     if not _customer(request):
-        return JsonResponse({'error': 'Authentication required.'}, status=403)
+        return JsonResponse({'error': 'Please sign in again to use the assistant.'}, status=403)
     job = AiRequest.objects.select_related('session', 'user_message').filter(user=request.user, state__in=ACTIVE).first()
     response = JsonResponse({'request': serialize_request(job) if job else None})
     response['Cache-Control'] = 'no-store'

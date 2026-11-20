@@ -6,6 +6,7 @@ from ..booking_changes import (apply_change, audit, change_payment_summary, chec
     expire_change, issue_quote, notify, pending_proof, prepare_proposal, proposed_booking, schedule_atomic, snapshot)
 from ..booking_lifecycle import process_booking, payment_was_received
 from ..booking_changes import verified_paid
+from ..booking_change_review import review_baseline, check_review_version, preview_review
 from django.views.decorators.cache import never_cache
 
 
@@ -35,7 +36,8 @@ def request_booking_change(request, booking_id):
     if request.method == 'GET':
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': True, 'can_request_changes': allowed, 'message': reason,
-                'verified_paid': str(verified_paid(booking)), 'original_total': str(booking.total_price)})
+                'verified_paid': str(verified_paid(booking)), 'original_total': str(booking.total_price),
+                'review_original': review_baseline(booking) if allowed else None})
         if not allowed:
             messages.error(request, reason)
             return redirect('customer_profile')
@@ -45,6 +47,9 @@ def request_booking_change(request, booking_id):
     try:
         if not allowed:
             raise ValidationError(reason)
+        original_review = check_review_version(booking, request.POST)
+        if request.POST.get('review_only') == '1':
+            return JsonResponse(preview_review(booking, request.POST, original_review))
         reason = request.POST.get('change_reason', '').strip()
         if not 10 <= len(reason) <= 2000:
             raise ValidationError('Explain your requested changes in 10–2,000 characters.')
@@ -133,7 +138,7 @@ def admin_booking_change_action(request, booking_id, change_id, action):
             notify(change, f'Our team resolved this request directly: {notes}. Your original booking is retained.')
             booking_feedback(request, 'success', 'Manual resolution recorded. No system refund or credit was issued.')
         else:
-            raise ValidationError('Unknown change request action.')
+            raise ValidationError("We couldn't complete this action. Reopen the booking and try again.")
     except ValidationError as exc:
         booking_feedback(request, 'error', ' '.join(exc.messages))
     if is_async(request):
@@ -203,7 +208,7 @@ def customer_booking_change_action(request, booking_id, change_id, action):
             audit(change, 'Withdrawn by customer; original booking retained.', request.user)
             success('Request withdrawn. Your original booking is unchanged.')
         else:
-            raise ValidationError('Unknown request action.')
+            raise ValidationError("We couldn't complete this action. Reopen the booking and try again.")
     except ValidationError as exc:
         if wants_json:
             return JsonResponse({'success':False,'message':' '.join(exc.messages)},status=400)
@@ -246,7 +251,7 @@ def booking_change_payment(request, booking_id, change_id):
             if request.POST.get('method') == 'paymongo':
                 raise ValidationError('Payments now use GCash QR. Refresh this page before paying.')
             if not config or not config.is_ready:
-                raise ValidationError('GCash QR payments are not configured. Contact our team before paying.')
+                raise ValidationError('GCash payment is unavailable right now. Please contact our team before sending money.')
             if legacy_checkout:
                 raise ValidationError('Your previous checkout needs review before another payment. Contact our team.')
             if not proof_form.is_valid():
@@ -281,7 +286,7 @@ def verify_change_payment(request, payment, action, *, rejection_reason=None):
     """Called inside the admin verification transaction, under the schedule lock."""
     change = BookingChangeRequest.objects.select_for_update().select_related('booking').get(pk=payment.change_request_id)
     if action not in ('verify', 'reject'):
-        messages.error(request, 'Unknown payment action.')
+        messages.error(request, "We couldn't complete this payment action. Reopen the booking and check its latest payment status before trying again.")
         return
     if action == 'reject':
         notes = rejection_reason if rejection_reason is not None else request.POST.get('admin_notes', '').strip()

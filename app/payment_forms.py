@@ -34,7 +34,7 @@ def recipient_token(config):
 
 def clean_payment_image(upload):
     if upload.size > 5 * 1024 * 1024:
-        raise forms.ValidationError('Upload a PNG or JPEG image no larger than 5 MB.')
+        raise forms.ValidationError('Upload a JPG or PNG screenshot no larger than 5 MB. If it is too large, crop it or choose a smaller image.')
     try:
         upload.seek(0)
         image = Image.open(upload)
@@ -47,7 +47,7 @@ def clean_payment_image(upload):
         if output.tell() > 5 * 1024 * 1024:
             raise ValueError()
     except (OSError, ValueError, Image.DecompressionBombError) as error:
-        raise forms.ValidationError('Upload a valid PNG or JPEG image, up to 5 MB and 12 megapixels.') from error
+        raise forms.ValidationError('Upload a JPG or PNG screenshot no larger than 5 MB. If it is too large, crop it or choose a smaller image.') from error
     suffix = 'png' if fmt == 'PNG' else 'jpg'
     # Re-encoding strips metadata and trailing file content from customer uploads.
     stem = re.sub(r'[^a-zA-Z0-9_-]', '', Path(upload.name).stem)[:32] or 'payment'
@@ -60,6 +60,7 @@ class GCashProofForm(forms.Form):
     gcash_sender_name = forms.CharField(max_length=255, label='Sender name on the transaction')
     gcash_paid_at = forms.DateTimeField(label='Transaction date and time', widget=forms.DateTimeInput(attrs={'type':'datetime-local'}))
     receipt_image = forms.ImageField(label='Payment screenshot (PNG or JPEG, up to 5 MB)',
+        help_text='Use an image no larger than 5 MB and 12 megapixels (12 million pixels). Crop it or choose a smaller image if needed.',
         widget=forms.ClearableFileInput(attrs={'accept':'image/png,image/jpeg'}))
     refund_ack = forms.BooleanField(label='Payment terms')
 
@@ -139,7 +140,8 @@ class PaymentSettingsForm(forms.Form):
     gcash_number = forms.CharField(max_length=100, required=False, label='Account number (if applicable)')
     instructions = forms.CharField(max_length=2000, required=False,
         widget=forms.Textarea(attrs={'rows':3, 'placeholder':'Add any instructions customers should follow when paying.'}), label='Payment instructions')
-    qr_code_image = forms.ImageField(required=False, label='Official merchant QR (PNG or JPEG, up to 5 MB)')
+    qr_code_image = forms.ImageField(required=False, label='Official merchant QR (PNG or JPEG, up to 5 MB)',
+        help_text='Use an image no larger than 5 MB and 12 megapixels (12 million pixels). Crop it or choose a smaller image if needed.')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -228,8 +228,8 @@ class ConcernBrowserTests(StaticLiveServerTestCase):
                     const form = document.getElementById('concernForm');
                     for (let attempt = 0; attempt < 12; attempt++) form.requestSubmit();
                 }''')
-                expect(page.locator('#concernSubmitStatus')).to_contain_text('could not confirm')
-                expect(page.locator('.client-feedback-toast[data-kind="error"]')).to_contain_text('could not confirm')
+                expect(page.locator('#concernSubmitStatus')).to_contain_text("couldn't confirm")
+                expect(page.locator('.client-feedback-toast[data-kind="error"]')).to_contain_text("couldn't confirm")
                 page.get_by_role('button', name='Dismiss notification').click()
                 self.assertEqual(len(posts), 1)
                 expect(page.locator('#subject')).to_have_value('Connection interrupted while submitting')

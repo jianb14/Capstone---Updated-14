@@ -5,22 +5,24 @@
 {% block account_page %}customer_profile{% endblock %}
 {% block account_content %}
 <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}?v=20261102a">
-<link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261022mono">
-<script defer src="{% static 'js/booking_changes.js' %}?v=20261110feedback"></script>
-<script defer src="{% static 'js/customer_booking_details.js' %}?v=20261102sk1"></script>
+<link rel="stylesheet" href="{% static 'css/booking_changes.css' %}?v=20261120disabled1">
+<script defer src="{% static 'js/booking_changes.js' %}?v=20261120stepmotion2"></script>
+<script defer src="{% static 'js/booking_change_review.js' %}?v=20261120note3"></script>
+<script defer src="{% static 'js/customer_booking_details.js' %}?v=20261119errors1"></script>
 <link rel="stylesheet" href="{% static 'css/booking_event_design.css' %}?v=20261021a">
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261021c">
 <!-- Shared components ng Step 3 map card + Step 4 Design Preferences -->
 <link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
-<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261110compact2">
-<link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261023checkbox">
+<link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261120grayloading1">
+<link rel="stylesheet" href="{% static 'css/customer_booking_details.css' %}?v=20261117bookingicons">
 <link rel="stylesheet" href="{% static 'css/booking_form_workspace.css' %}?v=20261102a">
-<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261110galleryrow1"></script>
+<link rel="stylesheet" href="{% static 'css/booking_delete_confirm.css' %}?v=20261119c">
+<script defer src="{% static 'js/booking_form_ui.js' %}?v=20261120mapfocus1"></script>
 <!-- Leaflet (edit modal Step 2 location map) — free OSM tiles, no API key.
      Graceful degradation: text location stays required if this fails. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/booking_location_map.js' %}?v=20261102sk1"></script>
+<script src="{% static 'js/booking_location_map.js' %}?v=20261120mapfocus1"></script>
 <script src="{% static 'js/booking_availability.js' %}?v=20261021d"></script>
 <script src="{% static 'js/booking_picker_a.js' %}?v=20261025account1"></script>
 <script src="{% static 'js/booking_picker_c.js' %}?v=20261031feedback"></script>
@@ -221,6 +223,7 @@
         <form id="editBookingForm" method="POST" action="" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
             <input type="hidden" id="change_reason" name="change_reason" disabled>
+            <input type="hidden" id="edit_original_version" name="original_version" disabled>
             <div id="changeRequestBanner" class="change-form-banner" hidden><strong>Request changes to Booking <span id="changeRequestBookingId"></span></strong><br>Your original booking and payments stay in place. Our team will review these changes and send a final quote for you to accept.<p><strong>Reason for request:</strong> <span id="changeRequestReasonText"></span></p></div>
 
             <!-- STEP 1: BOOKING DETAILS -->
@@ -278,7 +281,7 @@
                             </div>
                         </div>
                         <small class="booking-hint" id="edit_duration_included_hint"></small>
-                        <div class="booking-overtime-notice" id="edit_overtime_notice" hidden><i class="fa-solid fa-triangle-exclamation"></i><span id="edit_overtime_notice_text"></span></div>
+                        <div class="booking-overtime-notice" id="edit_overtime_notice" role="status" aria-live="polite" hidden><i class="far fa-clock"></i><span id="edit_overtime_notice_text"></span><strong id="edit_overtime_notice_amount"></strong></div>
                     </div>
 
                     <!-- 📍 Location card (interactive map) — text address pa rin
@@ -514,10 +517,13 @@
                 <h3>Review &amp; Confirm</h3>
                 <p id="changeRequestError" class="change-form-error" role="alert" tabindex="-1"></p>
                 <p class="step-desc">Review your selected package and event details before submitting.</p>
+                <p id="changeReviewStatus" class="change-review-status" role="status" aria-live="polite"></p>
+                <button type="button" id="changeReviewRetry" class="booking-back-btn" hidden>Retry Review</button>
                 <div class="booking-review-grid">
                     <div class="booking-summary-container">
                         <h4 class="summary-title"><i class="far fa-clipboard"></i> Booking Details</h4>
                         <div id="edit-booking-details-list" class="summary-items"></div>
+                        {% include 'client/booking/_review_map.html' with row_id='editBookingReviewMapRow' map_id='edit_booking_review_map' %}
                     </div>
 
                     <div class="booking-summary-container">
@@ -536,17 +542,32 @@
                             <div class="row-info"><span class="row-label">Overtime</span><p class="row-note" id="edit_overtime_row_note"></p></div>
                             <span class="row-value" id="edit_overtime_display">₱0.00</span>
                         </div>
+                        <div id="editChangeTotals" class="summary-row" hidden>
+                            <div class="row-info"><span class="row-label">Current total</span></div>
+                            <span id="editChangeCurrentTotal" class="row-value"></span>
+                        </div>
+                        <p id="editChangePriceDifference" class="row-note" hidden></p>
                         <div class="summary-row total-row">
                             <div class="row-info">
-                                <span class="row-label">Total Price</span>
+                                <span class="row-label" id="editReviewTotalLabel">Total Price</span>
                             </div>
                             <span class="row-value total-price" id="edit_price_display">₱0.00</span>
+                        </div>
+                        <div id="editChangePaymentSummary" class="change-review-payment-summary" hidden>
+                            <div class="summary-row"><div class="row-info"><span class="row-label">Verified payments</span></div><span class="row-value" data-review-money="verified_paid"></span></div>
+                            <div class="summary-row"><div class="row-info"><span class="row-label">Estimated remaining</span></div><span class="row-value" data-review-money="remaining"></span></div>
+                            <p id="editChangePaymentNote" class="row-note"></p>
+                            <div id="editChangeExcess" hidden>
+                                <div class="summary-row"><div class="row-info"><span class="row-label">Estimated excess</span></div><span class="row-value" data-review-money="excess"></span></div>
+                                <p class="row-note">Excess follows the non-refund policy and its stated exceptions.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <p class="review-note"><i class="fa-solid fa-circle-info"></i>Our team will verify availability and confirm your booking after submission.</p>
 
+                <p id="changeReviewNoChanges" class="change-review-no-changes" role="status" hidden>No changes yet. Go back and update at least one detail to submit your request.</p>
                 <div class="modal-actions split-actions">
                     <button type="button" class="booking-back-btn" id="btnPrevEditToDetails"><i class="fa-solid fa-arrow-left"></i> Back</button>
                     <button type="submit" class="btn-submit">Update Booking</button>
@@ -557,20 +578,21 @@
 </div>
 
 <!-- DELETE CONFIRMATION MODAL -->
-<div id="deleteBookingModal" class="modal-overlay">
+<div id="deleteBookingModal" class="modal-overlay" aria-describedby="deleteBookingDescription">
     <div class="modal-card">
-        <div class="modal-header delete-header">
-            <h2>Delete Booking?</h2>
-            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
-        </div>
-        <p>Are you sure you want to cancel this booking request? This action cannot be undone.</p>
-
+        <header class="booking-delete-header">
+            <h2>Delete booking?</h2>
+            <button type="button" class="booking-delete-close" onclick="closeDeleteModal()" aria-label="Cancel deletion">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </header>
+        <div class="booking-delete-body"><p id="deleteBookingDescription">Delete this pending booking request?</p></div>
         <form id="deleteBookingForm" method="POST" action="">
             {% csrf_token %}
-            <div class="delete-actions">
-                <button type="button" class="btn-cancel-modal" onclick="closeDeleteModal()">No, Keep it</button>
-                <button type="submit" class="btn-confirm-delete">Yes, Delete</button>
-            </div>
+            <footer class="booking-delete-actions">
+                <button type="button" class="booking-delete-button" data-booking-delete-cancel onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="booking-delete-button booking-delete-danger">Delete booking</button>
+            </footer>
         </form>
     </div>
 </div>
@@ -719,7 +741,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
             const target = firstInvalidField === 'event_type'
                 ? editEventTypeCustomSelect?.querySelector('.custom-select-trigger')
                 : document.getElementById('edit_' + firstInvalidField);
-            target?.focus();
+            window.BookingFormUI.focusRequired(target);
         });
         [editEventTypeSelect, editEventDateEl, editStartTimeEl, editEndTimeEl,
             editEventLocationEl, editEventTypeOtherEl].forEach(field => {
@@ -806,7 +828,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         const quote = window.BookingLogistics.quote(editLogisticsConfig,
             parseFloat(document.getElementById('edit_event_lat_input').value),
             parseFloat(document.getElementById('edit_event_lng_input').value), editCaviteBoundary);
-        if (editLogisticsOverride !== null) { quote.total = editLogisticsOverride; quote.configured = true; quote.overridden = true; }
+        if (editLogisticsOverride !== null && (document.getElementById('editBookingForm').dataset.changeMode !== '1' || window.BookingChangeReview?.sameVenue())) { quote.total = editLogisticsOverride; quote.configured = true; quote.overridden = true; }
         return quote;
     }
     function getEditOvertimeInfo() {
@@ -822,13 +844,13 @@ AccountPages.register('customer_profile', "template", function(scope) {
         const info = getEditOvertimeInfo();
         document.getElementById('edit_duration_included_hint').textContent = info.start === null
             ? `First ${info.policy.includedMinutes / 60} hours are included. Pick a start time to see your included window.`
-            : `Start ${window.BookingAvailability.minutesToLabel(info.start)} → included until ${window.BookingAvailability.minutesToLabel(info.start + info.policy.includedMinutes)} (${info.policy.includedMinutes / 60} hrs). Additional time: +${formatEditPrice(info.policy.overtimeRate)} per started hour.`;
-        document.getElementById('edit_overtime_notice').hidden = info.hours === 0;
-        document.getElementById('edit_overtime_notice_text').textContent = `Overtime: ${info.hours} hr(s) × ${formatEditPrice(info.policy.overtimeRate)} = ${formatEditPrice(info.fee)} — added to your total.`;
+            : `Start ${window.BookingAvailability.minutesToLabel(info.start)} → included until ${window.BookingAvailability.minutesToLabel(info.start + info.policy.includedMinutes)} (${info.policy.includedMinutes / 60} hrs).`
+                + (info.hours === 0 ? ` Additional time: +${formatEditPrice(info.policy.overtimeRate)} per started hour.` : '');
+        window.BookingFormUI.showOvertimeFee('edit_', info.hours, info.policy.overtimeRate, info.fee);
         const quote = getEditLogisticsQuote();
         const preview = document.getElementById('edit_location_logistics_preview');
         preview.textContent = quote.inCavite === null ? 'Choose your venue or pin its exact location to calculate logistics.'
-            : !quote.configured ? 'Logistics quote is unavailable. Please contact our team before continuing.'
+            : !quote.configured ? "We couldn't calculate the delivery and setup fee for this venue. Please contact our team before continuing."
             : editLogisticsOverride !== null ? `Logistics fee: ${formatEditPrice(quote.total)} · Confirmed by our team.`
             : quote.inCavite ? `Logistics fee: ${formatEditPrice(quote.total)} · Within Cavite, base fee only.`
             : `Logistics fee: ${formatEditPrice(quote.total)} · ${formatEditPrice(editLogisticsConfig.base)} base + ${formatEditPrice(quote.extra)} outside-Cavite distance fee.`;
@@ -1107,6 +1129,8 @@ AccountPages.register('customer_profile', "template", function(scope) {
                     if (editMapStatusEl) {
                         editMapStatusEl.style.display = 'block';
                         editMapStatusEl.textContent = 'No pin yet — drop a pin or pick from search. Required for exact fee.';
+                        editMapStatusEl.classList.add('is-error');
+                        editMapStatusEl.dataset.state = 'error';
                     }
                 } catch (e) { /* noop */ }
                 if (notify && (!firstInvalidField || firstInvalidField === 'event_location') && window.AppToast) {
@@ -1124,7 +1148,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         }
         const quote = getEditLogisticsQuote();
         if (quote.inCavite === false && !quote.configured) {
-            setEditBookingFieldError('event_location', 'Logistics quote is unavailable. Please contact our team before continuing.');
+            setEditBookingFieldError('event_location', "We couldn't calculate the delivery and setup fee for this venue. Please contact our team before continuing.");
             if (!firstInvalidField) firstInvalidField = 'event_location';
         }
         return firstInvalidField;
@@ -1144,6 +1168,13 @@ AccountPages.register('customer_profile', "template", function(scope) {
         editSelectedServiceCharge = getEditLogisticsQuote().total;
         if (hasBaseSelection) total += editSelectedServiceCharge;
         total += getEditOvertimeInfo().fee;
+        const reviewEstimate = window.BookingChangeReview?.estimate([
+            ...(editSoloModeAddon ? [{label: editSoloModeAddon + ' (Solo)', amount: editSoloModePrice}] : []),
+            ...(editSelectedPackageName ? [{label: editSelectedPackageName, amount: editSelectedPackagePrice}] : []),
+            ...(editSelectedAddonName ? [{label: editSelectedAddonName + ' (Add-on)', amount: editSelectedAddonPrice}] : []),
+            ...(editSelectedAdditionalName ? [{label: editSelectedAdditionalName + ' (Additional)', amount: editSelectedAdditionalPrice}] : [])
+        ], editSelectedServiceCharge, getEditOvertimeInfo().fee);
+        if (reviewEstimate !== null && reviewEstimate !== undefined) return reviewEstimate;
         return total;
     }
 
@@ -1156,7 +1187,8 @@ AccountPages.register('customer_profile', "template", function(scope) {
             if (editSelectedAddonName) parts.push(editSelectedAddonName);
         }
         if (editSelectedAdditionalName) parts.push(editSelectedAdditionalName);
-        return parts.join(' + ');
+        const selected = parts.join(' + ');
+        return window.BookingChangeReview?.selectionString(selected) ?? selected;
     }
 
     function getSelectedEditEventTypeDisplay() {
@@ -1197,7 +1229,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         const latOk = document.getElementById('edit_event_lat_input')?.value?.trim();
         const lngOk = document.getElementById('edit_event_lng_input')?.value?.trim();
         if (!mapAlive) {
-            chip.textContent = 'Map unavailable — pin optional. Our crew will confirm the exact spot via chat.';
+            chip.textContent = "We couldn't load the map. Try again to pin your venue, or contact our team for help.";
             chip.classList.remove('is-error');
         } else if (latOk && lngOk) {
             chip.textContent = 'Pin saved. Check that it marks your exact venue.';
@@ -1248,6 +1280,13 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
     function showEditStep(stepNumber) {
             editPackageGallery.close(false);
+        const requestBanner = document.getElementById('changeRequestBanner');
+        if (document.getElementById('editBookingForm').dataset.changeMode === '1' && !requestBanner.hidden) {
+            requestBanner.classList.remove('is-entering');
+            // Restart the entrance even when only the visible step changes.
+            void requestBanner.offsetWidth;
+            requestBanner.classList.add('is-entering');
+        }
         if (stepNumber === 1) {
             ensureEditMap();
             refreshEditPinStatusText();
@@ -1261,6 +1300,12 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
         editStepContents.forEach((el, idx) => {
             if (el) el.style.display = (idx + 1 === stepNumber) ? 'block' : 'none';
+        });
+        if (stepNumber === 4) window.BookingFormUI.updateReviewMap({
+            rowId: 'editBookingReviewMapRow', mapId: 'edit_booking_review_map',
+            lat: document.getElementById('edit_event_lat_input').value,
+            lng: document.getElementById('edit_event_lng_input').value,
+            label: document.getElementById('edit_event_location').value
         });
         editStepIndicators.forEach((el, idx) => {
             if (!el) return;
@@ -1475,6 +1520,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
     }
 
     function populateEditSummary() {
+        window.BookingChangeReview?.invalidate();
         const feeState = updateEditFeeNotices();
         editSelectedServiceCharge = feeState.quote.total;
         document.getElementById('edit_overtime_display').textContent = formatEditPrice(feeState.info.fee);
@@ -1804,20 +1850,10 @@ AccountPages.register('customer_profile', "template", function(scope) {
             editBookingSubmitAttempted = true;
             const firstInvalidField = validateEditBookingForm({notify:true});
             if (firstInvalidField) {
-                if (firstInvalidField === 'event_type' && editEventTypeCustomSelect) {
-                    const trigger = editEventTypeCustomSelect.querySelector('.custom-select-trigger');
-                    if (trigger) trigger.focus();
-                } else if (firstInvalidField === 'event_type_other' && editEventTypeOtherEl) {
-                    editEventTypeOtherEl.focus();
-                } else if (firstInvalidField === 'event_date' && editEventDateEl) {
-                    editEventDateEl.focus();
-                } else if (firstInvalidField === 'start_time' && editStartTimeEl) {
-                    editStartTimeEl.focus();
-                } else if (firstInvalidField === 'end_time' && editEndTimeEl) {
-                    editEndTimeEl.focus();
-                } else if (firstInvalidField === 'event_location' && editEventLocationEl) {
-                    editEventLocationEl.focus();
-                }
+                const target = firstInvalidField === 'event_type'
+                    ? editEventTypeCustomSelect?.querySelector('.custom-select-trigger')
+                    : document.getElementById('edit_' + firstInvalidField);
+                window.BookingFormUI.focusRequired(target);
                 return;
             }
 
@@ -1832,7 +1868,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 const diffMins = (endNode - startNode) / 60000;
                 if (diffMins < window.BookingAvailability.getDurationPolicy().minMinutes) {
                     setEditBookingFieldError('end_time', `Event duration must be at least ${window.BookingAvailability.getDurationPolicy().minMinutes / 60} hours.*`);
-                    editEndTimeEl.focus();
+                    window.BookingFormUI.focusRequired(editEndTimeEl);
                     return;
                 }
                 
@@ -1843,7 +1879,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
                 if (startHour < 7 || startHour >= 18) {
                     setEditBookingFieldError('start_time', 'Booking hours are 7:00 AM to 6:00 PM only. Please choose a start time within this range.*');
-                    editStartTimeEl.focus();
+                    window.BookingFormUI.focusRequired(editStartTimeEl);
                     return;
                 }
 
@@ -1876,7 +1912,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 const target = firstInvalidField === 'design_theme'
                     ? document.getElementById('editDesignThemeChips')
                     : document.getElementById('editDesignPaletteSwatches');
-                if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                window.BookingFormUI.focusRequired(target);
                 if (typeof AppToast !== 'undefined') {
                     AppToast.fire({ icon: 'error', title: 'Required field missing.', text: 'Please pick a theme and color palette before continuing.', timer: 3500 });
                 }
@@ -1888,6 +1924,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
             editPriceInput.value = total.toFixed(2);
             populateEditSummary();
             showEditStep(4);
+            await window.BookingChangeReview?.review();
         });
     }
 
@@ -1928,9 +1965,11 @@ AccountPages.register('customer_profile', "template", function(scope) {
         if (editPriceDisplay) editPriceDisplay.textContent = '₱0.00';
     }
 
+    let editOpenSequence = 0;
     async function openEditModal(id) {
+        const opening = ++editOpenSequence;
         const modal = document.getElementById('editBookingModal');
-        const dataDiv = document.getElementById('booking-data-' + id);
+        let dataDiv = document.getElementById('booking-data-' + id);
 
         if (!dataDiv) return;
 
@@ -1939,9 +1978,16 @@ AccountPages.register('customer_profile', "template", function(scope) {
         let paymentState = null;
         if (changeMode) {
             paymentState = await window.checkBookingChangeEligibility(dataDiv.querySelector('.raw-edit-url').textContent.trim());
-            if (!paymentState || !scope.active || !dataDiv.isConnected) return;
+            if (!paymentState || !scope.active || !dataDiv.isConnected || opening !== editOpenSequence) return;
             requestReason = await window.promptBookingChangeReason?.(id);
-            if (!requestReason || !dataDiv.isConnected) return;
+            if (!requestReason || !dataDiv.isConnected || opening !== editOpenSequence) return;
+            dataDiv = dataDiv.cloneNode(true);
+            window.BookingChangeReview.prefill(dataDiv, paymentState.review_original);
+        } else {
+            paymentState = await window.BookingChangeReview.loadPending(dataDiv.querySelector('.raw-edit-url').textContent.trim(), () => opening === editOpenSequence);
+            if (!paymentState || !scope.active || !dataDiv.isConnected || opening !== editOpenSequence) return;
+            dataDiv = dataDiv.cloneNode(true);
+            window.BookingChangeReview.prefill(dataDiv, paymentState.review_original);
         }
 
         resetEditModalSteps(); 
@@ -2427,6 +2473,8 @@ AccountPages.register('customer_profile', "template", function(scope) {
     }
 
     function closeEditModal() {
+        editOpenSequence++;
+        window.BookingChangeReview?.reset();
         window.CustomerBookingModals.closed('editBookingModal');
         document.getElementById('editBookingModal').classList.remove('show');
         clearEditReviewObjectUrls();
@@ -2462,8 +2510,10 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
         const deleteUrl = dataDiv.querySelector('.raw-delete-url').textContent;
         document.getElementById('deleteBookingForm').action = deleteUrl;
+        document.getElementById('deleteBookingDescription').textContent = 'Delete Booking #' + id + '? This will permanently remove your pending booking request. This action cannot be undone.';
         window.CustomerBookingModals.activateExisting('deleteBookingModal');
         modal.classList.add('show');
+        modal.querySelector('[data-booking-delete-cancel]').focus();
     }
 
     function closeDeleteModal() {

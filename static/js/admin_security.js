@@ -8,7 +8,7 @@
     };
     const feedback = (form, message, success = false) => {
         const node = form.querySelector('.ase-feedback');
-        node.textContent = message;
+        node.textContent = message ? AppErrors.text(message, "We couldn't confirm this change. Check the current account or invitation details before trying again.") : '';
         node.toggleAttribute('data-success', success);
         delete node.dataset.validationSummary;
     };
@@ -169,11 +169,14 @@
     async function post(url, form, data) {
         const response = await fetch(url, { method: 'POST', body: data, credentials: 'same-origin',
             headers: {'X-CSRFToken': csrf(form), 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'} });
-        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Your session has expired. Sign in again before continuing.');
+        if (!response.headers.get('content-type')?.includes('application/json')) {
+            if (response.redirected || response.status === 401 || response.status === 403) throw AppErrors.create('Your session may have expired. Sign in again before continuing.');
+            throw new Error('Unreadable security response');
+        }
         const result = await response.json();
         if (!response.ok || !result.success) {
             const details = result.errors ? Object.values(result.errors).flat().join('\n') : '';
-            const error = new Error(details || result.message || 'This request could not be completed.');
+            const error = AppErrors.create(details || result.message || '');
             error.fields = result.errors;
             error.code = result.code;
             throw error;
@@ -206,12 +209,12 @@
             feedback(form, 'Confirm your current password to send a new code. Your details are saved.');
             form.elements.current_password.focus(); return;
         }
-        if (error.fields) {
+        if (error.fields && Object.keys(error.fields).length) {
             Object.entries(error.fields).forEach(([name, messages]) => showFieldError(form, name, messages));
             feedback(form, (error.fields.__all__ || []).join(' '));
         } else {
-            feedback(form, error.message);
-            notifyInvitation(form, error.message, 'error');
+            feedback(form, AppErrors.message(error, "We couldn't confirm this change. Check the current account or invitation details before trying again."));
+            notifyInvitation(form, AppErrors.message(error, "We couldn't confirm this change. Check the current account or invitation details before trying again."), 'error');
         }
         form.querySelector('[aria-invalid="true"]')?.focus();
     }
@@ -346,7 +349,7 @@
         const skeletonLoad = window.SiteLoading?.start(list, {variant: 'table'});
         try {
             const response = await fetch(modal.dataset.listUrl, { credentials: 'same-origin', headers: {'Accept': 'application/json'} });
-            if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Invitations could not be loaded. Reopen this dialog or sign in again to retry.');
+            if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw AppErrors.create('Invitations could not be loaded. Reopen this dialog or sign in again to retry.');
             invitationItems = (await response.json()).invitations;
             list.replaceChildren();
             if (!invitationItems.length) { const empty = document.createElement('p'); empty.className = 'ase-note'; empty.textContent = 'No invitations yet.'; list.append(empty); }
@@ -380,7 +383,7 @@
                 }
                 list.append(row);
             });
-        } catch (error) { list.textContent = error.message; }
+        } catch (error) { list.textContent = AppErrors.message(error, "We couldn't load the invitations. Please try again."); }
         finally { skeletonLoad?.finish(); listing = false; }
     }
     if (!modal) return;

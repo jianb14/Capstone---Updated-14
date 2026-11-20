@@ -155,7 +155,7 @@ def workspace_context(request, workspace):
 @require_http_methods(['GET'])
 def content_workspace(request, workspace):
     if request.user.role != 'admin':
-        return HttpResponseForbidden('Not allowed')
+        return private_json({'message': "You don't have permission to make this change."}, 403) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else HttpResponseForbidden('Not allowed')
     context = workspace_context(request, workspace)
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return private_json({'html': render_to_string('admin/content/workspace/_workspace.html', context, request), 'page': context['page'].number})
@@ -178,7 +178,7 @@ def notify_policy(request, tab, changed):
 @require_http_methods(['GET', 'POST'])
 def content_action(request, workspace, resource, action, pk):
     if request.user.role != 'admin':
-        return HttpResponseForbidden('Not allowed')
+        return private_json({'message': "You don't have permission to make this change."}, 403) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else HttpResponseForbidden('Not allowed')
     if workspace not in PAGES:
         raise Http404
     if action == 'section':

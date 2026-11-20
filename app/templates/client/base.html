@@ -46,7 +46,7 @@
     {% include 'components/site_guide.html' %}
     <!-- Restore a carried update before parsing the new page content. -->
     <script src="{% static 'js/customer_update_bar.js' %}?v=20261110bar4"></script>
-    <script src="{% static 'js/customer_notifications.js' %}?v=20261110bar4"></script>
+    <script src="{% static 'js/customer_notifications.js' %}?v=20261119errors1"></script>
 
 
     <div id="sitePageContent" {% block skeleton_page_attribute %}data-skeleton-page{% endblock %}>
@@ -1651,8 +1651,8 @@
 
     <script src="{% static 'js/ai_design_guide.js' %}?v=20261023-ai3"></script>
     <script src="{% static 'js/ai_markdown.js' %}?v=20261023-ai3"></script>
-    <script src="{% static 'js/ai_requests.js' %}?v=20261023-ai5"></script>
-    <script src="{% static 'js/ai_request_ui.js' %}?v=20261102sk3"></script>
+    <script src="{% static 'js/ai_requests.js' %}?v=20261119errors1"></script>
+    <script src="{% static 'js/ai_request_ui.js' %}?v=20261119errors1"></script>
     <script src="{% static 'js/ai_chat.js' %}?v=20261028a" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -2168,13 +2168,13 @@
                                         headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
                                         body: JSON.stringify({ session_id: deletedId })
                                     });
-                                    const data = await response.json().catch(() => ({}));
-                                    if (!response.ok || data.error) throw new Error(data.error || 'Could not delete your chat. Please try again.');
+                                    const data = await response.json();
+                                    if (!response.ok || data.error) throw AppErrors.create(data.error || 'Could not delete your chat. Please try again.');
                                     if (currentSessionId && Number(currentSessionId) === Number(deletedId)) startNewChat();
                                     await loadSessions();
                                     AppToast.fire({icon: 'success', title: 'Your chat has been deleted.'});
                                 } catch (error) {
-                                    AppToast.fire({icon: 'error', title: error.message || 'Could not delete your chat. Please try again.'});
+                                    AppToast.fire({icon: 'error', title: AppErrors.message(error, "We couldn't confirm whether this chat was deleted. Check your recent chats before trying again.")});
                                 } finally { delBtn.disabled = false; }
                             };
                             li.appendChild(delBtn);
