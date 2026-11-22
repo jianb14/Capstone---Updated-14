@@ -30,6 +30,13 @@ character and remaining delay; leaving resumes that exact step without restartin
 the cycle or flashing the full label. The invitation
 hides while chat is open, the tab is hidden, or the homepage intro is active;
 reduced motion shows a static label. This invitation never submits an AI request.
+An active invitation inherits visibility from its launcher, so booking create/edit
+dialogs, booking details, and any other view hiding the button also hide its label
+immediately. Mobile canvas display rules hide the entire button and its invitation.
+The admin support tooltip and its arrow follow the same inheritance rule,
+including when the launcher retains keyboard focus under a booking dialog.
+Visibility changes on the support wrapper and both tooltip surfaces are immediate;
+opacity and hover transforms retain their existing transitions.
 `static/js/ai_chat.js` opens generated
 images, including saved chat images, in a native dialog without submitting an
 AI request. Escape, backdrop and close-button dismissal restore focus to the

@@ -18,7 +18,7 @@ class AIInviteBrowserTests(StaticLiveServerTestCase):
     def setUp(self):
         from playwright.sync_api import sync_playwright
 
-        user = User.objects.create_user(username='ai-invite-customer', email_verified=True)
+        user = User.objects.create_user(username='ai-invite-customer', role='customer', email_verified=True)
         self.client.force_login(user)
         self.playwright = sync_playwright().start()
         self.addCleanup(self.playwright.stop)
@@ -223,3 +223,116 @@ class AIInviteBrowserTests(StaticLiveServerTestCase):
         strip.save(artifacts / 'ai-invite-keystrokes-sequence.png')
         self.assertEqual(self.posts, [])
         self.assertEqual(self.errors, [])
+
+    def test_invitation_follows_hidden_launcher_across_customer_surfaces(self):
+        from playwright.sync_api import expect
+
+        # Isolate visibility rules from the independently tested typing timers.
+        self.page.set_content('<button type="button" id="ai-fab" class="ai-fab" '
+                              'style="position:fixed;right:24px;bottom:24px;width:46px;height:46px">AI'
+                              '<span class="ai-fab-invite is-visible"><span class="ai-fab-invite-copy">'
+                              '<span class="ai-fab-invite-text">Try AI for your event</span></span></span></button>')
+        self.invite = self.page.locator('#ai-fab .ai-fab-invite')
+        for name in ('ai_chat.css', 'booking_form_components.css', 'customer_booking_details.css', 'canvas_mobile.css'):
+            self.page.add_style_tag(path=str(Path(settings.BASE_DIR) / 'static/css' / name))
+        self.page.evaluate('''() => {
+            for (const id of ['bookingModalOverlay', 'editBookingModal']) {
+                const overlay = document.createElement('div');
+                overlay.id = id;
+                document.body.append(overlay);
+            }
+        }''')
+        fab = self.page.locator('#ai-fab')
+        for theme in ('light', 'dark'):
+            self.page.evaluate('(theme) => document.documentElement.dataset.theme = theme', theme)
+            for width in (390, 1440):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                for motion in ('no-preference', 'reduce'):
+                    self.page.emulate_media(reduced_motion=motion)
+                    self.page.clock.run_for(10000)
+                    cases = [
+                        ("document.querySelector('#bookingModalOverlay').classList.add('show')",
+                         "document.querySelector('#bookingModalOverlay').classList.remove('show')"),
+                        ("document.querySelector('#editBookingModal').classList.add('show')",
+                         "document.querySelector('#editBookingModal').classList.remove('show')"),
+                        ("document.body.classList.add('customer-booking-scroll-locked')",
+                         "document.body.classList.remove('customer-booking-scroll-locked')"),
+                        ("document.querySelector('#ai-fab').style.visibility = 'hidden'",
+                         "document.querySelector('#ai-fab').style.removeProperty('visibility')"),
+                    ]
+                    if width == 390:
+                        cases.append(("document.body.classList.add('canvas-mobile-active')",
+                                      "document.body.classList.remove('canvas-mobile-active')"))
+                    for hide, show in cases:
+                        with self.subTest(theme=theme, width=width, motion=motion, hide=hide):
+                            # Check the exact frame a modal opens, then a later frame too.
+                            fab.focus()
+                            self.invite.evaluate("el => el.classList.add('is-visible')")
+                            expect(self.invite).to_be_visible()
+                            self.page.evaluate(hide)
+                            expect(fab).to_be_hidden()
+                            self.assertTrue(self.invite.is_hidden(), 'Invitation escaped its hidden launcher')
+                            self.page.clock.run_for(10000)
+                            expect(self.invite).to_be_hidden()
+                            self.invite.evaluate("el => el.classList.add('is-visible')")
+                            self.page.evaluate(show)
+                            expect(fab).to_be_visible()
+                            expect(self.invite).to_be_visible()
+        self.assertEqual(self.posts, [])
+        self.assertEqual(self.errors, [])
+
+    def test_real_booking_wizard_hides_and_restores_invitation(self):
+        from playwright.sync_api import expect
+
+        self.page.emulate_media(reduced_motion='reduce')
+        self.page.goto(self.live_server_url + reverse('booking_page') +
+                       '?from=estimate&event_date=2099-07-16', wait_until='domcontentloaded')
+        modal = self.page.locator('#bookingModalOverlay')
+        fab = self.page.locator('#ai-fab')
+        invite = fab.locator('.ai-fab-invite')
+        expect(modal).to_be_visible()
+        expect(fab).to_be_hidden()
+        expect(invite).to_be_hidden()
+        self.page.clock.run_for(90000)
+        expect(invite).to_be_hidden()
+        self.page.locator('#closeModalBtn').click(force=True)
+        expect(fab).to_be_visible()
+        expect(invite).to_be_visible()
+        self.assertEqual(self.posts, [])
+
+    def test_admin_tooltip_also_hides_with_its_focused_launcher(self):
+        self.page.clock.resume()
+        self.page.set_content('<div class="admin-chat-float sc-client">'
+                              '<button id="adminChatToggle" aria-label="Chat with admin">Support</button></div>')
+        for name in ('client_admin_chat_widget.css', 'booking_form_components.css', 'customer_booking_details.css'):
+            self.page.add_style_tag(path=str(Path(settings.BASE_DIR) / 'static/css' / name))
+        for theme in ('light', 'dark'):
+            self.page.evaluate('(theme) => document.documentElement.dataset.theme = theme', theme)
+            for motion in ('no-preference', 'reduce'):
+                self.page.emulate_media(reduced_motion=motion)
+                for surface in ('bookingModalOverlay', 'editBookingModal', 'booking-details'):
+                    with self.subTest(theme=theme, motion=motion, surface=surface):
+                        self.page.keyboard.press('Tab')
+                        self.page.locator('#adminChatToggle').focus()
+                        self.page.wait_for_timeout(250)
+                        self.assertEqual(self.page.locator('#adminChatToggle').evaluate(
+                            "el => getComputedStyle(el, '::after').visibility"), 'visible')
+                        state = self.page.evaluate('''surface => {
+                            if (surface === 'booking-details') {
+                                document.body.classList.add('customer-booking-scroll-locked');
+                            } else {
+                                const overlay = document.createElement('div');
+                                overlay.id = surface;
+                                overlay.classList.add('show');
+                                document.body.append(overlay);
+                            }
+                            const button = document.querySelector('#adminChatToggle');
+                            return [getComputedStyle(button).visibility,
+                                getComputedStyle(button, '::before').visibility,
+                                getComputedStyle(button, '::after').visibility];
+                        }''', surface)
+                        self.assertEqual(state, ['hidden', 'hidden', 'hidden'])
+                        self.page.evaluate('''surface => {
+                            document.body.classList.remove('customer-booking-scroll-locked');
+                            document.getElementById(surface)?.remove();
+                        }''', surface)
