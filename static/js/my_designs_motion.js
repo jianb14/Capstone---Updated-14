@@ -10,7 +10,7 @@
         '.designs-header-copy > *', '.designs-header > .create-new-btn',
         '.design-limit-note', '.design-storage-count', '.designs-search-wrapper',
         '.designs-sort', '.design-card', '.design-library-empty',
-        '.account-table-footer', '.design-stat-card'
+        '.account-table-footer', '.design-stat-card', '#designBookingSummary'
     ].join(',');
 
     function finish(element) {
@@ -26,7 +26,7 @@
                 const element = entry.target;
                 observer.unobserve(element);
                 if (reduced.matches || !element.isConnected) return;
-                const group = element.closest('.designs-header,.designs-filter-group,.designs-grid,.designs-stats-bar') || root;
+                const group = element.closest('.designs-header,.designs-filter-group,.designs-grid,.designs-stats-bar,.design-booking-summary') || root;
                 const index = groups.get(group) || 0;
                 groups.set(group, index + 1);
                 const animation = element.animate([

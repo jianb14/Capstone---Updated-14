@@ -8,6 +8,26 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
     let closing = false;
     let suppressed = [];
     const legacyClosers = {editBookingModal: 'closeEditModal', deleteBookingModal: 'closeDeleteModal', reviewModal: 'closeReviewModal'};
+    const referenceDialog = document.getElementById('bookingReferenceDialog');
+    const referenceImage = referenceDialog.querySelector('img');
+    const referenceError = referenceDialog.querySelector('[data-reference-error]');
+    let referenceTrigger = null;
+
+    AccountPages.listen(referenceDialog.querySelector('[data-reference-close]'), 'click', () => referenceDialog.close());
+    AccountPages.listen(referenceDialog, 'click', event => {
+        if (event.target !== referenceDialog) return;
+        const rect = referenceDialog.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) referenceDialog.close();
+    });
+    AccountPages.listen(referenceImage, 'error', () => {
+        if (!referenceDialog.open) return;
+        referenceImage.hidden = true; referenceError.hidden = false;
+    });
+    AccountPages.listen(referenceDialog, 'close', () => {
+        referenceImage.removeAttribute('src');
+        if (active && referenceTrigger?.isConnected) referenceTrigger.focus({preventScroll:true});
+        referenceTrigger = null;
+    });
 
     function cleanLink() {
         const url = new URL(window.location.href);
@@ -43,6 +63,8 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         if (!active) return;
         const previous = active;
         active = null;
+        referenceTrigger = null;
+        if (referenceDialog.open) referenceDialog.close();
         sequence += 1;
         if (request) request.abort();
         request = null;
@@ -151,6 +173,18 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         }
     }
     AccountPages.listen(document, 'click', event => {
+        const reference = event.target.closest('[data-booking-reference]');
+        if (reference && active?.root.contains(reference)) {
+            const image = reference.querySelector('img');
+            if (!image) return;
+            referenceTrigger = reference;
+            referenceDialog.querySelector('h2').textContent = reference.querySelector('.booking-reference-badge').textContent;
+            referenceImage.alt = image.alt;
+            referenceImage.hidden = false; referenceError.hidden = true;
+            referenceImage.src = image.currentSrc || image.src;
+            referenceDialog.showModal();
+            return;
+        }
         const button = event.target.closest('[data-booking-close], [data-view-design], [data-edit-booking], [data-cancel-booking]');
         if (!button) {
             if (active && event.target === active.root && active.root.classList.contains('customer-booking-modal')) close();
@@ -165,7 +199,7 @@ AccountPages.enhance('customer_profile', 'customer_booking_details.js', function
         if (event.key === 'Escape') event.bookingPickerWasOpen = Array.from(document.querySelectorAll('.booking-picker-pop')).some(pop => pop.getClientRects().length);
     }, true);
     AccountPages.listen(document, 'keydown', event => {
-        if (!active || document.querySelector('.client-feedback-dialog[open]')) return;
+        if (!active || referenceDialog.open || document.querySelector('.client-feedback-dialog[open]')) return;
         // Nested date/time picker popovers handle their own Escape/Tab first.
         if (event.bookingPickerWasOpen) return;
         if (event.key === 'Escape') { event.preventDefault(); close(); return; }

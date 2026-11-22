@@ -10,6 +10,7 @@ from ..models import DesignOffer, CanvasUpload
 from ..design_validation import EvaluationCatalog, design_card_status
 from ..design_previews import preview_bytes, preview_version
 from ..design_limits import DesignLimitReached, create_saved_design, saved_design_usage
+from ..design_booking import design_payload
 from ..account_lists import account_page_size
 from ..canvas_builtins import STYRO_NAME, THEME_DECOR, BUILTIN_MESSAGE
 from ..canvas_uploads import category_accepts_uploads, owned_uploads, upload_payload, visible_placements
@@ -47,6 +48,14 @@ def my_designs_page(request):
 
     # Order by updated_at descending so newest are first
     designs_list = UserDesign.objects.filter(user=request.user).select_related('base_package').order_by("-updated_at")
+    kind_filter = request.GET.get('kind', '')
+    if kind_filter in KINDS:
+        kind_query = Q(design_offer__kind=kind_filter)
+        if kind_filter == 'package':
+            kind_query |= Q(design_offer__isnull=True, base_package__isnull=False)
+        designs_list = designs_list.filter(kind_query)
+    else:
+        kind_filter = ''
 
     # Match visible design and starting-point metadata, including legacy packages.
     search_query = request.GET.get("q", "").strip()[:255]
@@ -76,7 +85,9 @@ def my_designs_page(request):
     page_number = request.GET.get("page")
     designs = paginator.get_page(page_number)
 
-    catalog = EvaluationCatalog(designs)
+    saved = list(UserDesign.objects.filter(user=request.user).select_related('base_package', 'design_offer'))
+    catalog = EvaluationCatalog(saved)
+    booking_catalog = [design_payload(item, design_offer(item, catalog), evaluate_saved_design(item, catalog)) for item in saved]
     for design in designs:
         design.display_offer = design_offer(design, catalog)
         design.eligibility = evaluate_saved_design(design, catalog)
@@ -101,6 +112,8 @@ def my_designs_page(request):
         "client/my_designs.html",
         {
             "designs": designs,
+            "design_booking_catalog": booking_catalog,
+            "kind_filter": kind_filter,
             "packages": active_packages,
             "design_groups": selection_groups(catalog),
             "search_query": search_query,

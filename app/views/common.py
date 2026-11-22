@@ -710,7 +710,24 @@ def get_booking_price_breakdown(booking):
         for additional in AdditionalOnly.objects.all()
     }
 
-    for raw_part in parts:
+    from ..design_booking import parse_catalog_selection
+    resolved = None
+    try:
+        resolved = parse_catalog_selection(booking.package_type)
+        if resolved:
+            parts = [item.name + (' (Solo)' if solo else '') for kind, item, solo in resolved]
+    except ValidationError:
+        pass  # Historical/custom labels retain the existing display fallback.
+
+    for index, raw_part in enumerate(parts):
+        if resolved:
+            kind, item, solo = resolved[index]
+            amount = item.solo_price if solo else item.price
+            suffix = ' (Solo)' if solo else ' (Add-on)' if kind == 'entrance' else ' (Additional)' if kind == 'stand' else ''
+            if amount is not None:
+                subtotal += amount
+                breakdown.append({'label': item.name.strip() + suffix, 'amount': amount})
+            continue
         is_solo = raw_part.endswith("(Solo)")
         part_name = raw_part.replace("(Solo)", "").strip() if is_solo else raw_part
         normalized_part_name = normalize_package_part(part_name)

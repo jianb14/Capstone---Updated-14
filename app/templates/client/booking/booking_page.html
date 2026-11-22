@@ -3,12 +3,13 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/client_booking.css' %}?v=20261031a">
-<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261021b">
+<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261123inside1">
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 <link rel="stylesheet" href="{% static 'css/booking_form_components.css' %}?v=20261120grayloading1">
 <link rel="stylesheet" href="{% static 'css/booking_workspace.css' %}?v=20261102a">
 <link rel="stylesheet" href="{% static 'css/booking_form_workspace.css' %}?v=20261102a">
 <script defer src="{% static 'js/booking_form_ui.js' %}?v=20261120mapfocus1"></script>
+<script defer src="{% static 'js/design_booking_selection.js' %}?v=20261122refine2"></script>
 <!-- Leaflet (Step 3 interactive location map) — free OSM tiles, no API key.
      Kapag na-CDN-fail ito, sasalo ang graceful degradation ng
      booking_location_map.js at mananatiling required ang text location. -->
@@ -106,7 +107,7 @@
                     </div>
                     <div class="stepper-step-icon" id="step-2-indicator">
                         <div class="step-circle"></div>
-                        <div class="step-label">Select Package</div>
+                        <div class="step-label">{% if prefilled_design %}Designs selected{% else %}Select Package{% endif %}</div>
                     </div>
                     <div class="stepper-step-icon" id="step-3-indicator">
                         <div class="step-circle"></div>
@@ -135,6 +136,9 @@
                 data-duration-overtime-rate="{{ duration_policy.overtime_rate|default_if_none:'500' }}"
                 data-duration-max-hours="{{ duration_policy.max_hours|default:'24' }}">
                 {% csrf_token %}
+                {{ prefilled_selection|json_script:'savedDesignSelection' }}
+                {% if prefilled_design %}<section class="change-form-banner saved-design-booking-selection" aria-labelledby="savedSelectionHeading"><h4 id="savedSelectionHeading">Your selected designs</h4><div id="savedDesignSelectionSummary"></div><a href="{% url 'my_designs' %}">Change selection in My Designs</a></section>{% endif %}
+                <p id="savedDesignFeedback" class="saved-design-feedback" role="alert" tabindex="-1" hidden></p>
 
 
 
@@ -601,8 +605,8 @@
         const eventTypeSelect = document.getElementById('event_type_select');
         const eventTypeOther = document.getElementById('event_type_other');
         const eventTypeTrigger = document.querySelector('#eventTypeCustomSelect .custom-select-trigger');
-        const globalServiceCharge = parseFloat((bookingForm?.dataset.globalServiceCharge || '0'));
-        const globalServiceChargeNote = bookingForm?.dataset.globalServiceChargeNote || 'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.';
+        let globalServiceCharge = parseFloat((bookingForm?.dataset.globalServiceCharge || '0'));
+        let globalServiceChargeNote = bookingForm?.dataset.globalServiceChargeNote || 'Includes toll fees, fuel, styling fee, crew meals, and ingress/egress logistics.';
         /* 🚚 Live logistics quote — mirror ng backend compute_logistics_quote():
            base + ceil(km − free) × per-km (naka-cap). */
         const logisticsConfig = {
@@ -635,6 +639,56 @@
         let bookingSubmitAttempted = false;
         let serviceBookingPrepared = false;
         let catalogRequestedItem = null;
+        let savedDesignSelection = JSON.parse(document.getElementById('savedDesignSelection').textContent);
+        let savedDesignQuote = '{{ design_selection_quote|escapejs }}';
+
+        function applySavedDesignSelection() {
+            if (!savedDesignSelection.length) return;
+            selectedPackageName = null; selectedPackagePrice = 0;
+            selectedAddonName = null; selectedAddonPrice = 0;
+            selectedAdditionalName = null; selectedAdditionalPrice = 0;
+            soloModeAddon = null; soloModePrice = 0;
+            const withPackage = savedDesignSelection.some(item => item.kind === 'package');
+            const form = document.getElementById('bookingForm');
+            form.querySelectorAll('[data-saved-design-input]').forEach(input => input.remove());
+            function hidden(name, value) {
+                const input = document.createElement('input');
+                input.type = 'hidden'; input.name = name; input.value = value;
+                input.dataset.savedDesignInput = ''; form.appendChild(input);
+            }
+            const summary = document.getElementById('savedDesignSelectionSummary');
+            if (summary) summary.replaceChildren();
+            const grid = document.getElementById('bookingImagePreviewContainer');
+            if (grid) grid.replaceChildren();
+            savedDesignSelection.forEach(item => {
+                const amount = Number(item.amount);
+                if (item.kind === 'package') {selectedPackageName = item.offer_name; selectedPackagePrice = amount;}
+                else if (item.kind === 'entrance' && withPackage) {selectedAddonName = item.offer_name; selectedAddonPrice = amount;}
+                else if (item.kind === 'entrance') {soloModeAddon = item.offer_name; soloModePrice = amount;}
+                else if (item.kind === 'stand') {selectedAdditionalName = item.offer_name; selectedAdditionalPrice = amount;}
+                hidden('user_design_id', item.id);
+                if (summary) {
+                    const row = document.createElement('p'), label = document.createElement('span'), price = document.createElement('strong');
+                    label.textContent = item.offer_name;
+                    if (item.kind === 'entrance') {
+                        const rate = document.createElement('small');
+                        rate.className = 'saved-design-booking-rate';
+                        rate.textContent = withPackage ? 'With package rate' : 'Solo rate';
+                        label.append(rate);
+                    }
+                    price.textContent = formatPrice(amount); row.append(label, price); summary.append(row);
+                }
+                if (grid && item.thumbnail) {
+                    const figure = document.createElement('figure'), image = document.createElement('img'), caption = document.createElement('figcaption');
+                    image.src = item.thumbnail; image.alt = item.name;
+                    const badge = document.createElement('span');
+                    badge.className = 'saved-design-offer-badge'; badge.textContent = item.offer_name;
+                    caption.append(badge);
+                    figure.className = 'saved-design-booking-preview'; figure.append(image, caption); grid.append(figure);
+                }
+            });
+            hidden('design_selection_quote', savedDesignQuote);
+        }
 
         // --- DOM References ---
         const packageOnlyCards = document.querySelectorAll('.package-cards-grid:not(.addons-selection-grid):not(.additionals-selection-grid) .package-card');
@@ -1223,6 +1277,7 @@
         }
 
         function hasThemeDecor() {
+            if (savedDesignSelection.length) return savedDesignSelection.some(item => item.theme_allowed);
             return window.BookingThemeRules.allows(buildPackageTypeString(), themeCapabilities);
         }
 
@@ -1368,10 +1423,10 @@
                 summaryList.appendChild(img);
             };
 
-            const prefilledThumbnail = "{% if prefilled_design and prefilled_design.thumbnail %}{{ prefilled_design.thumbnail.url }}{% endif %}";
-            if (prefilledThumbnail) {
-                referencePicturesRow.style.display = 'grid';
-                appendSummaryImage(prefilledThumbnail);
+            if (savedDesignSelection.length) {
+                const images = savedDesignSelection.filter(item => item.thumbnail);
+                referencePicturesRow.style.display = images.length ? 'grid' : 'none';
+                images.forEach(item => appendSummaryImage(item.thumbnail));
                 return;
             }
 
@@ -1680,58 +1735,11 @@
             const referencePicturesRow = document.getElementById('referencePicturesRow');
             if (referencePicturesRow) referencePicturesRow.style.display = 'none';
 
-            {% if prefilled_design %}
-            // If we have a pre-filled design, go to Step 3
             showStep(1);
-
-            // Hide the back button in Step 3 for pre-filled designs
-            const btnPrevStep = document.getElementById('btnPackagesBack');
-            if (btnPrevStep) btnPrevStep.style.display = 'none';
-
-            selectedPackageName = "{{ prefilled_offer.booking_label|escapejs }}";
-            selectedPackagePrice = parseFloat("{{ prefilled_offer.price|default:0 }}");
-            
-            // Re-add the preview thumbnail
-            {% if prefilled_design.thumbnail %}
-            if (bookingPreviewGrid) {
-                const imgContainer = document.createElement('div');
-                imgContainer.style.position = 'relative';
-                imgContainer.style.display = 'inline-block';
-                imgContainer.style.marginRight = '10px';
-                
-                const el = document.createElement('img');
-                el.src = "{{ prefilled_design.thumbnail.url }}";
-                el.style.width = '120px';
-                el.style.height = '120px';
-                el.style.objectFit = 'cover';
-                el.style.borderRadius = '5px';
-                el.style.border = '1px solid #444';
-                
-                const label = document.createElement('div');
-                label.innerText = "Design Reference";
-                label.style.fontSize = '10px';
-                label.style.textAlign = 'center';
-                label.style.color = '#888';
-                label.style.marginTop = '4px';
-                
-                imgContainer.appendChild(el);
-                imgContainer.appendChild(label);
-                bookingPreviewGrid.appendChild(imgContainer);
-            }
-            {% endif %}
-
-            // Add hidden input for the design ID (re-add after form reset)
-            const designIdInput = document.createElement('input');
-            designIdInput.type = 'hidden';
-            designIdInput.name = 'user_design_id';
-            designIdInput.value = "{{ prefilled_design.id }}";
-            document.getElementById('bookingForm').appendChild(designIdInput);
-            {% else %}
-            showStep(1);
-
             selectedPackageName = null;
             selectedPackagePrice = 0;
-            {% endif %}
+            const fixedSelectionBack = document.getElementById('btnPackagesBack');
+            if (fixedSelectionBack) fixedSelectionBack.style.display = savedDesignSelection.length ? 'none' : '';
 
             selectedServiceCharge = globalServiceCharge;
             catalogRequestedItem = null;
@@ -1741,6 +1749,8 @@
             selectedAdditionalPrice = 0;
             soloModeAddon = null;
             soloModePrice = 0;
+            applySavedDesignSelection();
+            document.getElementById("savedDesignFeedback").hidden = true;
 
             eventTypeOther.style.display = 'none';
             eventTypeOther.removeAttribute('name');
@@ -1758,7 +1768,7 @@
             }
 
             btnNextStep.disabled = selectedPackageName ? false : true;
-            packageInput.value = selectedPackageName || '';
+            packageInput.value = buildPackageTypeString();
             priceInput.value = selectedPackagePrice || '';
             priceDisplay.textContent = selectedPackagePrice ? formatPrice(selectedPackagePrice) : '₱0.00';
             
@@ -3377,6 +3387,12 @@
                 return;
             }
 
+            if (/design|selection|package|entrance|stand|price/.test(normalized)) {
+                const feedback = document.getElementById('savedDesignFeedback');
+                feedback.textContent = safeMessage; feedback.hidden = false; feedback.focus();
+                return;
+            }
+
             // Fallback: show on end time field to keep feedback inline (no toast).
             setBookingFieldError('end_time', safeMessage);
             focusBookingField('end_time');
@@ -3408,7 +3424,26 @@
                     btnSubmitBooking.disabled = false;
                     btnSubmitBooking.textContent = originalBtnText;
 
+                    if (data.design_selection) {
+                        savedDesignSelection = data.design_selection;
+                        savedDesignQuote = data.design_selection_quote;
+                        if (data.fee_policy) {
+                            Object.assign(logisticsConfig, data.fee_policy.logistics);
+                            for (const key of ['shopLat', 'shopLng']) if (logisticsConfig[key] === null) logisticsConfig[key] = NaN;
+                            Object.assign(DURATION_POLICY, data.fee_policy.duration);
+                            globalServiceCharge = Number(data.fee_policy.logistics.base);
+                            globalServiceChargeNote = data.fee_policy.notes;
+                            selectedServiceCharge = globalServiceCharge;
+                        }
+                        applySavedDesignSelection(); updateUIStates(); updateOrderSummary();
+                        updateBookingDetailsSummary(); updateBookingImageSummary();
+                        const feedback = document.getElementById('savedDesignFeedback');
+                        feedback.textContent = data.message; feedback.hidden = false;
+                        showStep(4); feedback.focus();
+                        return;
+                    }
                     if (data.success) {
+                        window.DesignBookingSelection.clearCompleted({{ request.user.pk }}, savedDesignSelection.map(item => item.id));
                         // === SUCCESS: Close modal, show check, update calendar ===
                         modalOverlay.classList.remove('show');
 

@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="{% static 'css/admin_booking.css' %}?v=20260921e">
 <link rel="stylesheet" href="{% static 'css/admin_booking_requests.css' %}?v=20261102sk3">
 <!-- Shared components ng venue map pin + design prefs display -->
-<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261019e">
+<link rel="stylesheet" href="{% static 'css/booking_design_step.css' %}?v=20261122multi1">
 <link rel="stylesheet" href="{% static 'css/admin_booking_detail.css' %}?v=20261022detail">
 <script defer src="{% static 'js/admin_booking_detail.js' %}?v=20261022detail"></script>
 <!-- Leaflet read-only mini map (booking pin) — free OSM, no API key -->
@@ -81,11 +81,11 @@
                     {% for design in booking.designs.all %}
                         {% if design.image %}
                         <button type="button" class="booking-thumb-btn" data-full-src="{{ design.image.url }}"
-                            aria-label="Open custom design {{ forloop.counter }}">
-                            <img src="{{ design.image.url }}" alt="Custom Design {{ forloop.counter }}" loading="lazy">
-                            <span class="thumb-label">Custom Design</span>
+                            aria-label="Open {{ design.reference_snapshot.kind_label|default:'custom design' }}: {{ design.style }}">
+                            <img src="{{ design.image.url }}" alt="{{ design.reference_snapshot.kind_label|default:'Custom Design' }}: {{ design.style }}" loading="lazy">
+                            <span class="thumb-label">{{ design.reference_snapshot.kind_label|default:'Custom Design' }}{% if design.reference_snapshot.offer_name %} · {{ design.reference_snapshot.offer_name }}{% endif %}</span>
                         </button>
-                        {% endif %}
+                        {% else %}<div class="booking-reference-missing"><strong>{{ design.reference_snapshot.kind_label|default:'Custom design' }}</strong><span>{{ design.reference_snapshot.offer_name|default:design.style }}</span><small>Preview unavailable</small></div>{% endif %}
                     {% endfor %}
                 {% endif %}
 

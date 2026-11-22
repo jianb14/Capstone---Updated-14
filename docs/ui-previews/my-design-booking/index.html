@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>My Designs — Booking selection preview</title>
+  <link rel="icon" href="assets/favicon.png">
+  <link rel="stylesheet" href="preview.css">
+  <script src="preview.js" defer></script>
+</head>
+<body>
+  <div class="preview-tools">
+    <div><strong>Interactive preview</strong><span>Sample designs &amp; rates · No real booking</span></div>
+    <div class="preview-actions"><button type="button" id="startEmpty">Start empty</button><button type="button" id="showFull">Show full selection</button></div>
+  </div>
+  <header class="site-header">
+    <div class="nav-inner">
+      <img class="brand" src="assets/logo.png" alt="Balloorina">
+      <nav aria-label="Main navigation"><span>Home</span><span>About</span><span>Service</span><span>Package</span><span>Gallery</span><span>Booking</span><span class="nav-current" aria-current="page">My Designs</span></nav>
+      <div class="nav-tools"><button type="button" class="icon-button" id="themeToggle" aria-label="Switch to dark theme"></button><span class="account" aria-label="Your account">J</span></div>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <div class="page-heading"><div><h1>My Designs</h1><p>Choose your designs. Bring your whole setup together in one booking.</p></div><button type="button" class="button secondary" id="createDesign" aria-label="Create New Design"><span aria-hidden="true">+</span><span class="create-label">Create New Design</span></button></div>
+    <!-- 1296 = 952 library + 24 gap + 320 summary; 952 = 3 × 306.67 cards + 2 × 16 gaps. -->
+    <div class="workspace-grid">
+      <section class="library" aria-label="Saved designs">
+        <div class="library-tools">
+          <p class="storage"><strong>6/20</strong> designs saved</p>
+          <div class="search-sort"><label class="search-field"><span id="searchIcon" aria-hidden="true"></span><span class="sr-only">Search designs or packages</span><input id="designSearch" type="search" placeholder="Search designs or packages…" autocomplete="off"></label><label class="sort-field"><span class="sr-only">Sort designs</span><select id="sortDesigns"><option value="newest">Newest First</option><option value="name">Name A–Z</option><option value="price">Price: Low to High</option></select></label></div>
+        </div>
+        <div class="type-tabs" role="group" aria-label="Filter designs by category"><button type="button" data-filter="all" aria-pressed="true">All designs <span>6</span></button><button type="button" data-filter="package" aria-pressed="false">Packages <span>2</span></button><button type="button" data-filter="entrance" aria-pressed="false">Entrance <span>2</span></button><button type="button" data-filter="stand" aria-pressed="false">Stand <span>2</span></button></div>
+        <p class="selection-guide"><span id="guideIcon" aria-hidden="true"></span>Choose up to one package, one entrance arch, and one welcome stand.</p>
+        <div class="design-grid" id="designGrid"></div>
+        <div class="empty-results" id="emptyResults" hidden><h2>No matching designs</h2><p>Try a design name, package, entrance, or stand.</p><button type="button" class="button secondary" id="clearSearch">Clear search</button></div>
+        <p class="library-footer" id="visibleCount">Showing 6 sample designs</p>
+      </section>
+
+      <aside class="booking-summary" id="bookingSummary" aria-labelledby="summaryTitle">
+        <div class="summary-top"><div><h2 id="summaryTitle">Your booking <span id="selectedCount">1/3</span></h2><p>One event. Your complete setup.</p></div><button type="button" class="icon-button close-summary" id="closeSummary" aria-label="Close selection summary"></button></div>
+        <div id="summarySlots" class="summary-slots"></div>
+        <div class="pricing-note" id="pricingNote"></div>
+        <div class="summary-total"><span>Items subtotal</span><strong id="subtotal">₱4,799.00</strong></div>
+        <p class="fee-note">Logistics and overtime are calculated after you enter your venue and schedule.</p>
+        <button type="button" class="button primary continue-button" id="continueBooking">Continue to Booking <span id="continueIcon" aria-hidden="true"></span></button>
+        <p class="next-step" id="nextStep">Next: event details</p>
+        <button type="button" class="clear-selection" id="clearSelection">Clear selection</button>
+      </aside>
+    </div>
+  </main>
+
+  <button class="summary-backdrop" id="summaryBackdrop" type="button" aria-label="Close booking summary" hidden></button>
+  <div class="mobile-booking-bar" id="mobileBookingBar"><div><span id="mobileCount">1 design selected</span><strong id="mobileSubtotal">₱4,799.00</strong></div><button type="button" class="button primary" id="openSummary">View booking <span id="mobileArrow" aria-hidden="true"></span></button></div>
+  <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+
+  <dialog class="next-dialog" id="nextDialog" aria-labelledby="nextTitle"><div class="dialog-top"><span>Booking handoff preview</span><button type="button" class="icon-button" id="closeNext" aria-label="Close booking preview"></button></div><h2 id="nextTitle">Next, your event details.</h2><p>Your selected designs will carry into the existing booking form.</p><div id="handoffItems" class="handoff-items"></div><div class="handoff-total"><span>Items subtotal</span><strong id="handoffTotal"></strong></div><p class="handoff-note">This is a UI preview. No booking is created.</p><button type="button" class="button primary" id="backToSelection">Back to My Designs</button></dialog>
+</body>
+</html>

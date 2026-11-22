@@ -8,9 +8,11 @@
 <link rel="stylesheet" href="{% static 'css/design_workflow.css' %}?v=20261022b">
 <link rel="stylesheet" href="{% static 'css/design_library.css' %}?v=20261031b">
 <link rel="stylesheet" href="{% static 'css/my_designs_workspace.css' %}?v=20261102fade2">
+<link rel="stylesheet" href="{% static 'css/design_booking_selection.css' %}?v=20261122search3">
 <script src="{% static 'js/admin_selects.js' %}?v=20261031design1" defer></script>
-<script src="{% static 'js/my_designs.js' %}?v=20261119errors1" defer></script>
-<script src="{% static 'js/my_designs_motion.js' %}?v=20261102fade2" defer></script>
+<script src="{% static 'js/my_designs.js' %}?v=20261122delete1" defer></script>
+<script src="{% static 'js/design_booking_selection.js' %}?v=20261122delete1" defer></script>
+<script src="{% static 'js/my_designs_motion.js' %}?v=20261122summaryfade1" defer></script>
 {% endblock %}
 {% block content %}
 
@@ -39,13 +41,13 @@
     </symbol>
 </svg>
 
-<section class="my-designs-section design-library-workspace">
+<section class="my-designs-section design-library-workspace" data-selection-account="{{ request.user.pk }}" data-booking-url="{% url 'booking_page' %}">
     <div class="container my-designs-container">
         
         <div class="designs-header">
             <div class="designs-header-copy">
                 <h2>My Designs</h2>
-                <p>Review your saved layouts, continue editing, or book your chosen setup&nbsp;anytime.</p>
+                <p>Choose your designs. Bring your whole setup together in one booking.</p>
             </div>
             <button type="button" class="create-new-btn" onclick="openModal('selectPackageModal')" {% if design_usage.at_limit %}disabled aria-describedby="designLimitNote"{% endif %}>
                 <i class="fas fa-plus"></i> Create New Design
@@ -53,9 +55,12 @@
         </div>
         {% if design_usage.at_limit %}<div class="design-limit-note" id="designLimitNote" role="note"><strong>Saved design limit reached</strong><p>Your limit is {{ design_usage.limit }} saved designs. Remove unused designs to make room for a new one. You can still edit and save your existing designs.</p></div>{% endif %}
 
+        {{ design_booking_catalog|json_script:'designBookingCatalog' }}
+        <div class="design-booking-layout"><div class="design-booking-library">
         <!-- Live search and shared admin-style sorting. -->
         <form method="GET" action="{% url 'my_designs' %}" class="designs-filter-group" id="designsFilterForm">
             <input type="hidden" name="per_page" id="designPageSize" value="{{ per_page }}">
+            <input type="hidden" name="kind" value="{{ kind_filter }}">
             <p class="design-storage-count" id="designStorageCount"><strong>{{ design_usage.used }}/{{ design_usage.limit }}</strong> designs saved <span>Includes Draft and Ready to book designs.</span></p>
             <div class="designs-search-wrapper">
                 <svg class="designs-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -74,14 +79,23 @@
                 </select>
             </div>
         </form>
+        <div class="design-kind-tabs" role="group" aria-label="Filter designs by category">
+            <button type="button" data-design-kind="" aria-pressed="{% if not kind_filter %}true{% else %}false{% endif %}">All designs</button>
+            <button type="button" data-design-kind="package" aria-pressed="{% if kind_filter == 'package' %}true{% else %}false{% endif %}">Packages</button>
+            <button type="button" data-design-kind="entrance" aria-pressed="{% if kind_filter == 'entrance' %}true{% else %}false{% endif %}">Entrance</button>
+            <button type="button" data-design-kind="stand" aria-pressed="{% if kind_filter == 'stand' %}true{% else %}false{% endif %}">Stand</button>
+        </div>
+        <p class="design-selection-guide">Choose up to one package, one entrance arch, and one welcome stand.</p>
+        <p id="designSelectionFeedback" class="design-selection-feedback" role="status" aria-live="polite" hidden></p>
 
         <p id="designSearchStatus" class="design-search-status" role="status" aria-live="polite" hidden></p>
-        <div id="designLibraryResults">
+        <div id="designLibraryResults" data-page="{{ designs.number }}">
         {% if designs %}
             <div class="designs-grid">
                 {% for design in designs %}
-                <div class="design-card">
+                <div class="design-card" data-design-id="{{ design.pk }}">
                     <div class="design-thumbnail-wrapper">
+                        <button type="button" class="design-selection-marker" data-check-design="{{ design.pk }}" role="checkbox" aria-checked="false" aria-label="Select {{ design.name }} for booking" aria-describedby="designSelectionHint{{ design.pk }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></button>
                         {% if design.thumbnail %}
                             <img src="{% url 'user_design_preview' design.id %}?v={{ design.preview_version }}" alt="{{ design.name }}" class="design-thumbnail" loading="lazy" decoding="async">
                         {% else %}
@@ -123,20 +137,20 @@
                         <h4 class="design-title" id="title-{{ design.id }}">{{ design.name }}</h4>
                         <p class="design-date" title="Updated {{ design.updated_at|date:'M d, Y h:i A' }}">Updated {{ design.updated_at|naturaltime }}</p>
                         <div class="design-readiness">
-                            {% if design.eligibility.can_book %}<span class="design-badge design-ready"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Ready to book</span>
+                            {% if design.eligibility.can_book %}<span class="design-badge design-ready"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>{% if design.display_offer.kind == 'stand' %}Design complete{% else %}Ready to book{% endif %}</span>
                             {% else %}<span class="design-badge design-draft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Draft</span>{% endif %}
-                            <p class="design-status-copy">{{ design.card_status.message }}</p>
+                            <p class="design-status-copy">{% if design.eligibility.can_book and design.display_offer.kind == 'stand' %}Book with a package or entrance arch.{% else %}{{ design.card_status.message }}{% endif %}</p>
                             {% if design.card_status.items %}<ul class="design-next-steps">{% for item in design.card_status.items %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
                             {% if design.card_status.more %}<p class="design-status-more">See all remaining items in the editor.</p>{% endif %}
                         </div>
+                        {% if design.eligibility.can_book %}<p class="design-selection-price"><strong data-design-price="{{ design.pk }}">₱{{ design.display_offer.price|floatformat:2|intcomma }}</strong><span data-design-rate="{{ design.pk }}"></span></p>{% endif %}
                         <div class="design-actions">
                             <a href="{% url 'design_canvas' %}?id={{ design.id }}" class="overlay-btn edit-btn">
                                 <svg class="mi"><use href="#ic-pencil"/></svg> {% if design.eligibility.can_book %}Edit{% else %}Continue Editing{% endif %}
                             </a>
-                            {% if design.eligibility.can_book %}<a href="{% url 'booking_page' %}?design_id={{ design.id }}" class="overlay-btn book-btn">
-                                <svg class="mi"><use href="#ic-calendar-check"/></svg> Book Now
-                            </a>{% endif %}
+                            {% if design.eligibility.can_book %}<button type="button" class="overlay-btn book-btn" data-select-design="{{ design.pk }}" aria-pressed="false" aria-describedby="designSelectionHint{{ design.pk }}">Select for Booking</button>{% endif %}
                         </div>
+                        {% if design.eligibility.can_book %}<p class="design-selection-hint" id="designSelectionHint{{ design.pk }}"></p>{% if design.display_offer.kind != 'stand' %}<noscript><a href="{% url 'booking_page' %}?design_id={{ design.pk }}">Book this design</a></noscript>{% endif %}{% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -164,7 +178,9 @@
             {% endif %}
         {% endif %}
         </div>
-
+        </div><div id="designBookingSummaryHome">{% include 'components/design_booking_summary.html' %}</div></div>
+        <dialog id="designBookingDialog" class="design-booking-dialog" aria-labelledby="designBookingSummaryTitle"></dialog>
+        <div class="design-booking-mobile-bar"><div><span id="designBookingMobileCount">Choose a package or entrance</span><strong id="designBookingMobileTotal">₱0.00</strong></div><button type="button" id="designBookingOpen" class="design-booking-primary">View booking <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></button></div>
         <!-- Stats Bar (bottom of page) -->
         <div class="designs-stats-bar">
             <div class="design-stat-card">

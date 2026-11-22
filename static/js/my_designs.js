@@ -20,7 +20,7 @@
         clearTimeout(searchTimer); searchRequest?.abort(); searchVersion++;
         results.removeAttribute('aria-busy');
     }
-    async function refresh(url, {pop = false} = {}) {
+    async function refresh(url, {pop = false, deleted = false} = {}) {
         cancelSearch();
         const version = searchVersion, controller = new AbortController();
         searchRequest = controller;
@@ -38,15 +38,26 @@
             if (!next) throw AppErrors.create('Search is unavailable. Please try again.');
             if (version !== searchVersion) return;
             closeMenus(); selects.release(results); results.replaceWith(next); results = next;
+            for (const selector of ['#designStorageCount', '.designs-stats-bar', '.create-new-btn']) {
+                root.querySelector(selector).replaceWith(doc.querySelector(selector));
+            }
+            root.querySelector('#designLimitNote')?.remove();
+            const limitNote = doc.getElementById('designLimitNote');
+            if (limitNote) root.querySelector('.designs-header').after(limitNote);
             prepareMenus(); selects.enhance();
-            if (!pop) history.pushState({},'',url);
+            const catalog = doc.getElementById('designBookingCatalog');
+            root.dispatchEvent(new CustomEvent('design-library-updated', {detail: catalog ? JSON.parse(catalog.textContent) : []}));
+            const currentURL = new URL(url, location.href);
+            if (currentURL.searchParams.has('page')) currentURL.searchParams.set('page', next.dataset.page);
+            if (!pop) history.pushState({},'',currentURL);
+            else if (deleted) history.replaceState({},'',currentURL);
             status.replaceChildren();
             status.hidden = true;
         } catch (error) {
             if (error.name === 'AbortError' || version !== searchVersion) return;
-            status.replaceChildren(document.createTextNode('Could not update designs. Your previous results are still here. '));
+            status.replaceChildren(document.createTextNode(deleted ? 'Design deleted. Could not refresh the list and saved count. ' : 'Could not update designs. Your previous results are still here. '));
             const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Try again';
-            retry.addEventListener('click', () => refresh(url)); status.append(retry); status.hidden = false;
+            retry.addEventListener('click', () => refresh(url, {pop, deleted})); status.append(retry); status.hidden = false;
         } finally { skeletonLoad?.finish();if (version === searchVersion) results.removeAttribute('aria-busy'); }
     }
     search.addEventListener('input', () => {
@@ -54,6 +65,7 @@
         if (!search.matches(':focus')) search.focus({preventScroll:true});
         searchTimer = setTimeout(() => refresh(filterURL()), 250);
     });
+    root.addEventListener('design-selection-refresh', () => refresh(new URL(location.href), {pop: true}));
     function clearSearch() { search.value = ''; clear.hidden = true; search.focus(); refresh(filterURL()); }
     clear.addEventListener('click', clearSearch);
     filter.addEventListener('submit', event => { event.preventDefault(); refresh(filterURL()); });
@@ -64,6 +76,12 @@
         refresh(filterURL());
     });
     root.addEventListener('click', event => {
+        const kind = event.target.closest('[data-design-kind]');
+        if (kind) {
+            filter.querySelector('[name="kind"]').value = kind.dataset.designKind;
+            root.querySelectorAll('[data-design-kind]').forEach(button => button.setAttribute('aria-pressed', String(button === kind)));
+            refresh(filterURL());
+        }
         if (event.target.closest('[data-clear-design-search]')) clearSearch();
         const link = event.target.closest('[data-list-page]');
         if (!link || event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -71,6 +89,8 @@
     });
     window.addEventListener('popstate', () => {
         const params = new URL(location.href).searchParams;
+        filter.querySelector('[name="kind"]').value = params.get('kind') || '';
+        root.querySelectorAll('[data-design-kind]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.designKind === (params.get('kind') || ''))));
         search.value = params.get('q') || ''; clear.hidden = !search.value;
         document.getElementById('sort-filter').value = params.get('sort') || 'newest';
         document.getElementById('designPageSize').value = params.get('per_page') === '4' ? '4' : '8';
@@ -199,6 +219,7 @@
             const data = await response.json();
             if (!response.ok || data.status !== 'success') throw AppErrors.create(data.message || '');
             document.getElementById('title-' + id).textContent = data.name;
+            root.dispatchEvent(new CustomEvent('design-selection-renamed', {detail: {id, name: data.name}}));
             root.querySelector('[aria-controls="menu-' + id + '"]').setAttribute('aria-label','Design options for ' + data.name);
             const download = document.getElementById('menu-' + id).querySelector('[download]');
             if (download) download.download = data.name + '.png';
@@ -223,7 +244,14 @@
             const response = await fetch('/my-designs/delete/' + id + '/', {method:'POST',headers:{'X-CSRFToken':csrf()}});
             const data = await response.json();
             if (!response.ok || data.status !== 'success') throw AppErrors.create(data.message || '');
-            AppToast.onNextPage({icon:'success',title:data.message || 'Design deleted successfully.'}); location.reload();
+            cancelSearch();
+            const card = root.querySelector('[data-design-id="' + id + '"]');
+            const restoreFocus = card?.contains(document.activeElement);
+            card?.remove();
+            root.dispatchEvent(new CustomEvent('design-selection-deleted', {detail: {id}}));
+            AppToast.fire({icon:'success',title:data.message || 'Design deleted successfully.'});
+            await refresh(new URL(location.href), {pop:true, deleted:true});
+            if (restoreFocus) search.focus({preventScroll:true});
         } catch (error) { AppToast.fire({icon:'error',title:AppErrors.message(error, "We couldn't confirm whether this design was deleted. Check My Designs before trying again.")}); }
         finally { deleting.delete(id); }
     }

@@ -195,6 +195,9 @@ def prepare_proposal(booking, data):
         setattr(proposed, name, value)
     if not proposed.event_type or len(proposed.event_location) < 10 or not proposed.package_type:
         raise ValidationError('Event type, complete venue address, and a package are required.')
+    if proposed.package_type != booking.package_type:
+        from .design_booking import validate_catalog_selection
+        validate_catalog_selection(proposed.package_type)
     from .booking_themes import allows_booking_theme
     theme_allowed = allows_booking_theme(proposed.package_type)
     if not theme_allowed:
@@ -230,8 +233,9 @@ def prepare_proposal(booking, data):
     if proposed.package_type == booking.package_type:
         items, subtotal = old['items'], old['subtotal']
     else:
-        parts = [p.strip() for p in proposed.package_type.split('+') if p.strip()]
-        if len(current['items']) != len(parts) or len(set(map(normalize_package_part, parts))) != len(parts):
+        from .design_booking import parse_catalog_selection
+        parts = parse_catalog_selection(proposed.package_type)
+        if not parts or len(current['items']) != len(parts) or len({(kind, item.pk) for kind, item, solo in parts}) != len(parts):
             raise ValidationError('One of the selected items is no longer available. Please update your selection.')
         # Preserve booked unit prices where a saved item quote exists.
         booked_items = {i['label']: Decimal(str(i['amount'])) for i in saved.get('catalog_items', [])}
@@ -281,6 +285,9 @@ def issue_quote(change, actor, notes='', downgrade_ack=False, now=None):
         raise ValidationError('This request is no longer available for quoting.')
     check_current(change)
     proposed = proposed_booking(change)
+    if proposed.package_type != change.booking.package_type:
+        from .design_booking import validate_catalog_selection
+        validate_catalog_selection(proposed.package_type)
     ensure_available(proposed)
     if min(event_start_at(proposed), event_start_at(change.booking)) <= now:
         raise ValidationError('The event start has passed. Please resolve this request directly with the customer.')

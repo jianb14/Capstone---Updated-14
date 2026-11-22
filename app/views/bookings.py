@@ -14,6 +14,9 @@ from ..booking_lifecycle import event_start_at, lifecycle_display, process_booki
 from ..booking_changes import change_context, eligibility, schedule_atomic, ensure_available
 from ..package_catalog import ordered_packages
 from ..booking_themes import allows_booking_theme, theme_decor_capabilities
+from ..design_booking import (resolve_design_selection, selection_payload, selection_quote,
+                              quote_matches, validate_catalog_selection, save_selection_references,
+                              fee_policy_payload, cleanup_booking_files, save_tracked_file, catalog_label)
 
 
 @login_required
@@ -49,14 +52,22 @@ def booking_page(request):
     if request.user.role != "customer":
         return HttpResponseForbidden("Not allowed")
 
-    design_id = request.GET.get('design_id')
     prefilled_design = None
-    if design_id:
-        prefilled_design = get_object_or_404(UserDesign, id=design_id, user=request.user)
-        evaluation = evaluate_saved_design(prefilled_design)
-        if not evaluation['can_book']:
-            messages.warning(request, evaluation_message(evaluation))
-            return redirect(reverse('design_canvas') + f'?id={prefilled_design.pk}')
+    selection = []
+    if 'design_id' in request.GET:
+        try:
+            selection = resolve_design_selection(request.user, request.GET.getlist('design_id'))
+        except Http404:
+            if request.GET.get('saved_selection') == '1' or len(request.GET.getlist('design_id')) > 1:
+                messages.warning(request, 'A selected design is unavailable. Remove it or clear your selection in My Designs.')
+                return redirect('my_designs')
+            raise
+        except ValidationError as exc:
+            messages.warning(request, ' '.join(exc.messages))
+            if getattr(exc, 'design', None) and len(request.GET.getlist('design_id')) == 1:
+                return redirect(reverse('design_canvas') + f'?id={exc.design.pk}')
+            return redirect('my_designs')
+        prefilled_design = selection[0]['design']
 
     # Prepare Calendar Events (Client side: ONLY show approved, confirmed, or completed bookings)
     all_bookings = Booking.objects.filter(
@@ -222,6 +233,8 @@ def booking_page(request):
             },
             "prefilled_design": prefilled_design,
             "prefilled_offer": design_offer(prefilled_design) if prefilled_design else None,
+            "prefilled_selection": selection_payload(selection),
+            "design_selection_quote": selection_quote(selection) if selection else '',
             "duration_policy": duration_policy,
             "cavite_boundary": get_cavite_geometry(),
         },
@@ -552,6 +565,7 @@ def _reference_upload_size_error(request):
 
 
 @login_required
+@cleanup_booking_files
 @deduplicate_submission
 @schedule_atomic
 def create_booking(request):
@@ -569,24 +583,43 @@ def create_booking(request):
             return redirect('booking_page')
         selected_design = None
         selected_offer = None
-        if request.POST.get("user_design_id"):
+        selected_entries = []
+        if 'user_design_id' in request.POST:
             try:
-                selected_design = UserDesign.objects.select_for_update().get(pk=request.POST["user_design_id"], user=request.user)
-            except (UserDesign.DoesNotExist, ValueError, TypeError):
+                selected_entries = resolve_design_selection(request.user, request.POST.getlist('user_design_id'), lock=True)
+            except Http404:
                 if is_ajax:
                     return JsonResponse({"success": False, "message": "Design not found."}, status=404)
                 raise Http404("Design not found")
-            evaluation = evaluate_saved_design(selected_design)
-            if not evaluation["can_book"]:
+            except ValidationError as exc:
                 if is_ajax:
-                    return JsonResponse({"success": False, "message": evaluation_message(evaluation), "evaluation": evaluation}, status=400)
-                messages.error(request, evaluation_message(evaluation))
-                return redirect(reverse('design_canvas') + f'?id={selected_design.pk}')
-            selected_offer = design_offer(selected_design)
-            # The linked design determines the booked offer and catalog price.
+                    return JsonResponse({'success': False, 'message': ' '.join(exc.messages),
+                                         'evaluation': getattr(exc, 'evaluation', None)}, status=400)
+                messages.error(request, ' '.join(exc.messages))
+                return redirect('my_designs')
+            token = request.POST.get('design_selection_quote')
+            if (token or len(selected_entries) > 1) and not quote_matches(token, selected_entries):
+                message = 'Your selected designs or prices have changed. Review the updated selection before submitting again.'
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': message,
+                        'design_selection': selection_payload(selected_entries),
+                        'design_selection_quote': selection_quote(selected_entries),
+                        'fee_policy': fee_policy_payload()}, status=409)
+                messages.warning(request, message)
+                return redirect('my_designs')
+            selected_design = selected_entries[0]['design']
+            selected_offer = selected_entries[0]['offer']
             request.POST = request.POST.copy()
-            request.POST['package_type'] = selected_offer.booking_label
-            request.POST['total_price'] = str(selected_offer.price)
+            request.POST['package_type'] = ' + '.join(entry['label'] for entry in selected_entries)
+            request.POST['total_price'] = str(sum(entry['amount'] for entry in selected_entries))
+        else:
+            try:
+                validate_catalog_selection(request.POST.get('package_type'))
+            except ValidationError as exc:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': ' '.join(exc.messages)}, status=400)
+                messages.error(request, ' '.join(exc.messages))
+                return redirect('booking_page')
 
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
@@ -821,7 +854,8 @@ def create_booking(request):
         # Theme is available only when selected offers include Theme Decor.
         design_theme = _clean_optional_field(request.POST.get("design_theme"), 100)
         color_palette = _clean_optional_field(request.POST.get("color_palette"), 100)
-        theme_allowed = allows_booking_theme(request.POST.get("package_type"))
+        theme_allowed = (any(item['theme_allowed'] for item in selection_payload(selected_entries))
+                         if selected_entries else allows_booking_theme(request.POST.get("package_type")))
         if not theme_allowed:
             design_theme = ""
         design_error = _validate_design_preferences(design_theme, color_palette, theme_required=theme_allowed)
@@ -851,7 +885,7 @@ def create_booking(request):
             except (ValueError, TypeError):
                 _event_date_obj = None
 
-        booking = Booking.objects.create(
+        booking = Booking(
             user=request.user,
             event_type=request.POST.get("event_type"),
             event_date=_event_date_obj or event_date,
@@ -869,6 +903,7 @@ def create_booking(request):
             color_palette=color_palette,
             motto_text=_clean_optional_field(request.POST.get("motto_text"), 150),
         )
+        save_tracked_file(booking, 'reference_image', request._new_booking_files)
 
         # ⏱️ Duration/overtime snapshot — galing sa validated compute_overtime
         # (lahat ng validation sa itaas ay pumasa kung umabot dito). Ang
@@ -907,7 +942,12 @@ def create_booking(request):
         # bookings na walang kilalang package name).
         capture_booking_fee_policy(booking, quote)
         breakdown = get_booking_price_breakdown(booking)
-        if selected_offer or breakdown["subtotal"] > 0:
+        if selected_entries:
+            subtotal = sum(entry['amount'] for entry in selected_entries)
+            booking.total_price = subtotal + breakdown['service_charge'] + (booking.overtime_fee or Decimal('0'))
+            booking.fee_policy_snapshot['catalog_items'] = [
+                {'label': catalog_label(entry), 'amount': str(entry['amount'])} for entry in selected_entries]
+        elif breakdown["subtotal"] > 0:
             booking.total_price = breakdown["computed_total"]
         booking.save(update_fields=[
             "logistics_distance_km", "logistics_fee", "total_price",
@@ -925,16 +965,8 @@ def create_booking(request):
             notes="Booking submitted by customer.",
         )
 
-        # Associate with UserDesign if provided
-        user_design_id = request.POST.get("user_design_id")
-        if user_design_id:
-            try:
-                user_design = UserDesign.objects.get(id=user_design_id, user=request.user)
-                # If you want to create a permanent Design record for this booking:
-                from ..design_reference_snapshot import save_booking_design_reference
-                save_booking_design_reference(booking, user_design)
-            except UserDesign.DoesNotExist:
-                pass
+        if selected_entries:
+            save_selection_references(booking, selected_entries, created_files=request._new_booking_files)
 
         # Save multiple images (up to 4)
         images = request.FILES.getlist("reference_images")
@@ -944,7 +976,7 @@ def create_booking(request):
             images = [request.FILES.get("reference_image")]
 
         for img in images[:4]:
-            BookingImage.objects.create(booking=booking, image=img)
+            save_tracked_file(BookingImage(booking=booking, image=img), 'image', request._new_booking_files)
 
         log_action(request.user, f"Created a new booking #{booking.id}.")
 
@@ -1153,6 +1185,11 @@ def edit_booking(request, id):
         upload_error = _reference_upload_size_error(request)
         if upload_error:
             return _booking_edit_error(request, id, upload_error, profile=True)
+        original_breakdown = get_booking_display_breakdown(booking)
+        original_terms = dict(booking.fee_policy_snapshot or {})
+        original_overtime = (booking.overtime_hours, booking.overtime_fee)
+        original_venue = (booking.event_lat, booking.event_lng, booking.event_location)
+        original_start, original_end = _booking_time_bounds(booking)
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
         special_requests = request.POST.get("special_requests", "")
@@ -1279,8 +1316,14 @@ def edit_booking(request, id):
         if len(event_location) > 255:
             return _booking_edit_error(request, id, 'Use at most 255 characters for the venue address.')
         booking.event_location = event_location
-        package_changed = booking.package_type != request.POST.get("package_type")
-        booking.package_type = request.POST.get("package_type")
+        proposed_package_type = request.POST.get('package_type', booking.package_type)
+        package_changed = booking.package_type != proposed_package_type
+        if package_changed:
+            try:
+                validate_catalog_selection(proposed_package_type)
+            except ValidationError as exc:
+                return _booking_edit_error(request, id, ' '.join(exc.messages))
+        booking.package_type = proposed_package_type
         booking.special_requests = special_requests
         booking.total_price = total_price_val
 
@@ -1339,59 +1382,31 @@ def edit_booking(request, id):
             if (new_lat is None or new_lng is None) and edit_map_flag != "0":
                 return _booking_edit_error(request, id, "Please drop a pin or pick from search so we can compute your exact logistics fee.")
 
-        if "event_lat" in request.POST or "event_lng" in request.POST:
+        venue_changed = original_venue != (booking.event_lat, booking.event_lng, booking.event_location)
+        schedule_changed = (not original_start or not original_end
+            or request.POST.get('event_date') != original_start.date().isoformat()
+            or start_time != original_start.strftime('%H:%M')
+            or end_time != original_end.strftime('%H:%M'))
+        if not schedule_changed:
+            booking.overtime_hours, booking.overtime_fee = original_overtime
+        quote = None
+        if venue_changed:
             quote = compute_logistics_quote(booking.event_lat, booking.event_lng)
-            if quote["in_cavite"] is False and not quote["configured"]:
-                return _booking_edit_error(request, id, "We couldn't calculate logistics for this venue location. Please contact our team before continuing.")
-
-        if request.FILES.get("reference_image"):
-            booking.reference_image = request.FILES.get("reference_image")
-
-        try:
-            ensure_available(booking)
-        except ValidationError as exc:
-            return _booking_edit_error(request, id, ' '.join(exc.messages))
-
-        # Remove deleted images
-        remove_images = request.POST.getlist("remove_images[]")
-        if remove_images:
-            if "legacy" in remove_images:
-                if booking.reference_image:
-                    booking.reference_image.delete(save=False)
-                remove_images.remove("legacy")
-            if remove_images:
-                try:
-                    remove_ids = [int(i) for i in remove_images if i.isdigit()]
-                    if remove_ids:
-                        BookingImage.objects.filter(
-                            id__in=remove_ids, booking=booking
-                        ).delete()
-                except ValueError:
-                    pass
-
-        # Add new images
-        new_images = request.FILES.getlist("reference_images")
-        current_img_count = booking.images.count()
-        if booking.reference_image:
-            current_img_count += 1
-
-        allowed_new = max(0, 4 - current_img_count)
-
-        for img in new_images[:allowed_new]:
-            BookingImage.objects.create(booking=booking, image=img)
-
-        # 🔒 Server-side total recompute (anti-tamper — pareho ng create):
-        # subtotal + logistics + overtime ang masusunod, hindi ang posted total.
-        if "event_lat" in request.POST or "event_lng" in request.POST:
-            quote = compute_logistics_quote(booking.event_lat, booking.event_lng)
-            booking.logistics_distance_km = quote["distance_km"]
-            booking.logistics_fee = quote["total"]
-        capture_booking_fee_policy(booking,
-            quote if "event_lat" in request.POST or "event_lng" in request.POST else None,
-            refresh_logistics="event_lat" in request.POST or "event_lng" in request.POST)
+            booking.logistics_distance_km, booking.logistics_fee = quote['distance_km'], quote['total']
+        capture_booking_fee_policy(booking, quote, refresh_logistics=venue_changed)
+        if not schedule_changed:
+            for key in ('included_hours', 'overtime_rate'):
+                if key in original_terms:
+                    booking.fee_policy_snapshot[key] = original_terms[key]
         breakdown = get_booking_price_breakdown(booking)
-        if breakdown["subtotal"] > 0:
-            booking.total_price = breakdown["computed_total"]
+        recorded = {item['label']: item['amount'] for item in original_breakdown['items']}
+        items = ([{'label': item['label'], 'amount': recorded.get(item['label'], item['amount'])}
+                  for item in breakdown['items']] if package_changed else original_breakdown['items'])
+        if items or not package_changed:
+            booking.fee_policy_snapshot['catalog_items'] = [
+                {'label': item['label'], 'amount': str(item['amount'])} for item in items]
+            subtotal = sum((item['amount'] for item in items), Decimal('0')) if items else original_breakdown['subtotal']
+            booking.total_price = subtotal + breakdown['service_charge'] + (booking.overtime_fee or Decimal('0'))
 
         booking.save()
 

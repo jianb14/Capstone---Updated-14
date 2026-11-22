@@ -95,8 +95,21 @@ body.customer-booking-scroll-locked .ai-widget-container { visibility: hidden !i
 .booking-written-note p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .81rem; line-height: 1.8; color: var(--booking-muted); margin: 0; }
 .booking-reference-section { margin-top: 22px; }
 .booking-reference-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.booking-reference-grid a { color: var(--booking-muted); font-size: .65rem; text-decoration: none; }
-.booking-reference-grid img { width: 100%; height: 85px; object-fit: cover; border-radius: 7px; border: 1px solid var(--booking-border); display: block; margin-bottom: 5px; }
+.booking-reference-grid button { position:relative; min-width:0; padding:0; border:0; border-radius:7px; background:transparent; color:var(--booking-ink); font:inherit; text-align:left; cursor:pointer; }
+.booking-reference-grid button:focus-visible { outline:2px solid var(--booking-muted); outline-offset:3px; }
+.booking-reference-grid img { width: 100%; height: 85px; object-fit: contain; border-radius: 7px; border: 1px solid var(--booking-border); display: block; background:var(--booking-panel); }
+.booking-reference-grid button:hover img { border-color:var(--booking-muted); }
+.booking-reference-badge { position:absolute; left:6px; bottom:6px; max-width:calc(100% - 12px); padding:3px 8px; border:1px solid var(--booking-border); border-radius:999px; background:var(--booking-surface); color:var(--booking-ink); font-size:11px; font-weight:500; line-height:1.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.booking-reference-viewer { width:min(900px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); margin:auto; padding:16px; border:1px solid var(--booking-border); border-radius:14px; background:var(--booking-surface); color:var(--booking-ink); overflow:hidden; }
+.booking-reference-viewer[open] { display:flex; flex-direction:column; gap:12px; }
+.booking-reference-viewer::backdrop { background:#000a; }
+.booking-reference-viewer header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.booking-reference-viewer h2 { margin:0; min-width:0; font:600 16px/1.5 'Montserrat',sans-serif; color:inherit; overflow-wrap:anywhere; }
+.booking-reference-viewer-body { min-height:0; overflow:auto; scrollbar-width:thin; scrollbar-color:var(--booking-border) transparent; }
+.booking-reference-viewer-body img { display:block; width:100%; max-height:calc(100dvh - 140px); object-fit:contain; }
+.booking-reference-viewer-body img[hidden] { display:none; }
+.booking-reference-viewer-body p { font-size:13px; line-height:1.7; color:var(--booking-muted); }
+@media(max-width:640px){.booking-reference-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .booking-pricing-panel .booking-panel-heading { margin-bottom: 24px; }
 .customer-booking-modal #modalPriceBreakdown .summary-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 0; margin: 0; border-bottom: 1px solid var(--booking-border); }
 .customer-booking-modal #modalPriceBreakdown .row-info { min-width: 0; display: block; }

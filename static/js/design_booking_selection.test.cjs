@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const storage = new Map();
+const context = {window:{}, document:{querySelector:()=>null}, sessionStorage:{getItem:key=>storage.get(key)||null, removeItem:key=>storage.delete(key)}};
+vm.runInNewContext(fs.readFileSync(__dirname+'/design_booking_selection.js','utf8'),context);
+const clear = context.window.DesignBookingSelection.clearCompleted;
+const key = 'balloorina:design-booking:12';
+storage.set(key,'[1,2,3]'); clear(12,[]); assert.equal(storage.has(key),true);
+clear(12,[8,9]); assert.equal(storage.has(key),true);
+clear(12,[3,1,2]); assert.equal(storage.has(key),false);
+storage.set(key,'bad JSON'); assert.doesNotThrow(()=>clear(12,[1]));
+console.log('PASS: only the completed saved selection is cleared; normal/different selection and unavailable storage are preserved.');
