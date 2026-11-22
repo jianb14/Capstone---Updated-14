@@ -1,0 +1,11 @@
+const assert = require('node:assert/strict');
+const rules = require('./booking_theme_rules.js');
+const capabilities = {'package 1-a': false, 'package 1-b': true, arch: true, stand: false};
+assert.equal(rules.allows(' Package 1-A ', capabilities), false);
+assert.equal(rules.allows('Package 1-B', capabilities), true);
+assert.equal(rules.allows('Package 1-A + Arch (Add-on)', capabilities), true);
+assert.equal(rules.allows('Arch (Solo)', capabilities), true);
+assert.equal(rules.allows('Package 1-A + Stand (Additional)', capabilities), false);
+assert.equal(rules.allows('Package 1-A + Unknown extra', capabilities), false);
+assert.equal(rules.allows('Legacy package', capabilities), true);
+console.log('Booking theme inclusion checks passed.');

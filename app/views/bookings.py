@@ -13,6 +13,7 @@ from ..geocoding import GeocodingUnavailable, reverse_place, search_places, vali
 from ..booking_lifecycle import event_start_at, lifecycle_display, process_booking, set_approval_deadlines
 from ..booking_changes import change_context, eligibility, schedule_atomic, ensure_available
 from ..package_catalog import ordered_packages
+from ..booking_themes import allows_booking_theme, theme_decor_capabilities
 
 
 @login_required
@@ -206,6 +207,7 @@ def booking_page(request):
             "today_iso": timezone.localdate().isoformat(),
             "packages": active_packages,
             "preview_data": preview_data,
+            "theme_decor_capabilities": theme_decor_capabilities(),
             "active_addons": active_addons,
             "active_additionals": active_additionals,
             "global_service_charge": service_charge_config.amount,
@@ -529,11 +531,11 @@ def _parse_palette_colors(value):
     return [c.strip() for c in (value or "").split(",") if c.strip()]
 
 
-def _validate_design_preferences(theme, palette):
-    """Balik error message kapag blank ang theme/palette o sobra sa max."""
+def _validate_design_preferences(theme, palette, *, theme_required=True):
+    """Require the palette and, when included, a theme."""
     theme = (theme or "").strip()
     colors = _parse_palette_colors(palette)
-    if not theme:
+    if theme_required and not theme:
         return "Please choose a theme."
     if not colors:
         return "Please pick at least 1 color (up to 3)."
@@ -816,10 +818,13 @@ def create_booking(request):
             messages.error(request, error_msg)
             return redirect("booking_page")
 
-        # Step 4 required: theme + palette (max 3 colors). Motto optional pa rin.
+        # Theme is available only when selected offers include Theme Decor.
         design_theme = _clean_optional_field(request.POST.get("design_theme"), 100)
         color_palette = _clean_optional_field(request.POST.get("color_palette"), 100)
-        design_error = _validate_design_preferences(design_theme, color_palette)
+        theme_allowed = allows_booking_theme(request.POST.get("package_type"))
+        if not theme_allowed:
+            design_theme = ""
+        design_error = _validate_design_preferences(design_theme, color_palette, theme_required=theme_allowed)
         if design_error:
             if is_ajax:
                 return JsonResponse({"success": False, "message": design_error})
@@ -926,14 +931,8 @@ def create_booking(request):
             try:
                 user_design = UserDesign.objects.get(id=user_design_id, user=request.user)
                 # If you want to create a permanent Design record for this booking:
-                Design.objects.create(
-                    booking=booking,
-                    style=user_design.name,
-                    color_palette="Custom",
-                    image=user_design.thumbnail, # Use the thumbnail as the design image
-                    price_estimate=booking.total_price,
-                    status='finalized'
-                )
+                from ..design_reference_snapshot import save_booking_design_reference
+                save_booking_design_reference(booking, user_design)
             except UserDesign.DoesNotExist:
                 pass
 
@@ -1280,6 +1279,7 @@ def edit_booking(request, id):
         if len(event_location) > 255:
             return _booking_edit_error(request, id, 'Use at most 255 characters for the venue address.')
         booking.event_location = event_location
+        package_changed = booking.package_type != request.POST.get("package_type")
         booking.package_type = request.POST.get("package_type")
         booking.special_requests = special_requests
         booking.total_price = total_price_val
@@ -1303,16 +1303,20 @@ def edit_booking(request, id):
             booking.venue_landmark = _clean_optional_field(
                 request.POST.get("venue_landmark"), 255
             )
-        # Step 4 strict (grandfather rule sa legacy): kapag nasa POST ang
-        # theme/palette keys (edit modal), required + max 3 colors.
+        # Partial legacy submissions preserve existing design preferences.
         if "design_theme" in request.POST or "color_palette" in request.POST:
             new_theme = _clean_optional_field(request.POST.get("design_theme"), 100)
             new_palette = _clean_optional_field(request.POST.get("color_palette"), 100)
-            design_error = _validate_design_preferences(new_theme, new_palette)
+            theme_allowed = allows_booking_theme(booking.package_type)
+            if not theme_allowed:
+                new_theme = ""
+            design_error = _validate_design_preferences(new_theme, new_palette, theme_required=theme_allowed)
             if design_error:
                 return _booking_edit_error(request, id, design_error)
             booking.design_theme = new_theme
             booking.color_palette = new_palette
+        elif package_changed and not allows_booking_theme(booking.package_type):
+            booking.design_theme = ""
         if "motto_text" in request.POST:
             booking.motto_text = _clean_optional_field(
                 request.POST.get("motto_text"), 150

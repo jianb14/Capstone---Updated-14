@@ -1,16 +1,18 @@
 """AI design canvas and user design management. (split from app/views.py)"""
 
 import logging
+from contextlib import nullcontext
 
 from .common import *  # noqa: F401,F403
 from django.core.exceptions import RequestDataTooBig
 from ..design_admin import configure_canvas_availability, render_canvas_form
-from ..models import DesignOffer
+from ..models import DesignOffer, CanvasUpload
 from ..design_validation import EvaluationCatalog, design_card_status
 from ..design_previews import preview_bytes, preview_version
 from ..design_limits import DesignLimitReached, create_saved_design, saved_design_usage
 from ..account_lists import account_page_size
-from ..canvas_builtins import STYRO_NAME, BUILTIN_MESSAGE
+from ..canvas_builtins import STYRO_NAME, THEME_DECOR, BUILTIN_MESSAGE
+from ..canvas_uploads import category_accepts_uploads, owned_uploads, upload_payload, visible_placements
 from ..design_validation import (KINDS, selection_groups, design_offer, offer_is_ready, offer_payload, eligible_assets, asset_payload, evaluate_design, evaluate_saved_design, evaluation_message, restore_catalog_metadata)
 
 logger = logging.getLogger(__name__)
@@ -169,9 +171,15 @@ def save_user_design(request):
         elif design_id:
             existing = get_object_or_404(UserDesign, id=design_id, user=request.user)
             offer = design_offer(existing)
-        evaluation = evaluate_design(canvas_json, offer)
+        evaluation = evaluate_design(canvas_json, offer, owner=request.user)
         if evaluation["invalid_items"] == ["We couldn't read this design. Keep this page open and try again, or contact our team for help."]:
             return JsonResponse({"status": "error", "message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)
+        state = json.loads(canvas_json)
+        requested_uploads = data.get('upload_ids', state.get('upload_library_ids', []))
+        if not isinstance(requested_uploads, list):
+            return JsonResponse({'status': 'error', 'message': 'Please reload your uploaded image library and try again.'}, status=400)
+        placement_ids = [obj.get('_uploadId') for obj in visible_placements(state['objects'], include_hidden=True) if isinstance(obj, dict) and obj.get('_uploadId')]
+        bind_uploads = bool(requested_uploads or placement_ids or 'upload_ids' in data)
 
         # Handle thumbnail image (Base64)
         import base64
@@ -187,46 +195,52 @@ def save_user_design(request):
                 base64.b64decode(imgstr), name=f"{uuid.uuid4().hex}.{ext}"
             )
 
-        if design_id:
-            # Update existing
-            design = get_object_or_404(UserDesign, id=design_id, user=request.user)
-            if name:
-                design.name = name
-            design.canvas_json = canvas_json
-            if offer:
-                design.design_offer = offer
-                design.base_package = offer.package if offer.kind == "package" else None
-            if image_file:
-                design.thumbnail = image_file
+        with transaction.atomic() if bind_uploads else nullcontext():
+            if bind_uploads:
+                library = list(owned_uploads(requested_uploads + placement_ids, request.user).select_for_update())
+                evaluation = evaluate_design(canvas_json, offer, owner=request.user)
+            if design_id:
+                # Update existing
+                design = get_object_or_404(UserDesign.objects.select_for_update() if bind_uploads else UserDesign, id=design_id, user=request.user)
+                if name:
+                    design.name = name
+                design.canvas_json = canvas_json
+                if offer:
+                    design.design_offer = offer
+                    design.base_package = offer.package if offer.kind == "package" else None
+                if image_file:
+                    design.thumbnail = image_file
             
-            # Maintain or update base package
-            if base_package_id and not offer:
-                try:
-                    design.base_package = Package.objects.get(id=base_package_id)
-                except Package.DoesNotExist:
-                    pass
+                # Maintain or update base package
+                if base_package_id and not offer:
+                    try:
+                        design.base_package = Package.objects.get(id=base_package_id)
+                    except Package.DoesNotExist:
+                        pass
             
-            design.save()
-            log_action(request.user, f"Updated custom design #{design.id}.")
-        else:
-            # Create new
-            base_package = None
-            if base_package_id and not offer:
-                try:
-                    base_package = Package.objects.get(id=base_package_id)
-                except Package.DoesNotExist:
-                    pass
+                design.save()
+                log_action(request.user, f"Updated custom design #{design.id}.")
+            else:
+                # Create new
+                base_package = None
+                if base_package_id and not offer:
+                    try:
+                        base_package = Package.objects.get(id=base_package_id)
+                    except Package.DoesNotExist:
+                        pass
 
-            design = create_saved_design(
-                user=request.user,
-                name=name,
-                canvas_json=canvas_json,
-                thumbnail=image_file,
-                base_package=offer.package if offer and offer.kind == "package" else base_package,
-                design_offer=offer,
-            )
-            log_action(request.user, f"Created new custom design #{design.id}.")
+                design = create_saved_design(
+                    user=request.user,
+                    name=name,
+                    canvas_json=canvas_json,
+                    thumbnail=image_file,
+                    base_package=offer.package if offer and offer.kind == "package" else base_package,
+                    design_offer=offer,
+                )
+                log_action(request.user, f"Created new custom design #{design.id}.")
 
+            if bind_uploads:
+                design.uploads.set(library)
         return JsonResponse(
             {
                 "status": "success",
@@ -367,12 +381,23 @@ def design_canvas_page(request):
     assets = list(eligible_assets(offer).select_related("category").order_by("category__order", "sort_order", "id")) if offer else []
     # Load all categories for this type so changing a package can reveal its assets.
     category_ids = {a.category_id for a in assets}
+    category_ids.update(CanvasCategory.objects.filter(builtin_key=THEME_DECOR).values_list('pk', flat=True))
+    library = list(CanvasUpload.objects.filter(owner=request.user, library_removed_at__isnull=True).select_related('category').order_by('created_at', 'pk'))
+    uploads = [*library, *(design.uploads.filter(owner=request.user).select_related('category') if design else [])]
+    if design:
+        state = context['saved_canvas_state']
+        missing_ids = [obj.get('_uploadId') for obj in visible_placements(state.get('objects', []), include_hidden=True) if isinstance(obj, dict) and obj.get('_uploadId')]
+        uploads = list({upload.pk: upload for upload in [*uploads, *owned_uploads(missing_ids, request.user)]}.values())
+    category_ids.update(upload.category_id for upload in uploads)
     categories = list(CanvasCategory.objects.filter(pk__in=category_ids).order_by("order", "name"))
     payload = {}
     for category in categories:
         category.design_assets = [a for a in assets if a.category_id == category.pk and a.builtin_key != STYRO_NAME]
+        category.accepts_uploads = category_accepts_uploads(category, offer.kind) if offer else False
         payload[category.name.lower().strip()] = [asset_payload(a) for a in assets if a.category_id == category.pk]
-    context["canvas_categories"] = [category for category in categories if category.design_assets]
+    context["canvas_categories"] = [category for category in categories if category.design_assets or category.accepts_uploads]
+    context['canvas_uploads_payload'] = {str(upload.pk): upload_payload(upload) for upload in uploads}
+    context['canvas_upload_library_ids'] = [upload.pk for upload in library]
     context["canvas_assets_payload_obj"] = payload
     context["canvas_assets_payload"] = json.dumps(payload)
     context["styro_asset"] = next((a for a in assets if a.builtin_key == STYRO_NAME), None)
@@ -764,7 +789,7 @@ def evaluate_user_design(request):
         if not isinstance(data, dict):
             return JsonResponse({"message": "We couldn't read this design. Keep this page open and try again, or contact our team for help."}, status=400)
         offer = get_object_or_404(DesignOffer, pk=data.get("design_offer_id")) if data.get("design_offer_id") else None
-        return JsonResponse(evaluate_design(data.get("canvas_json"), offer))
+        return JsonResponse(evaluate_design(data.get("canvas_json"), offer, owner=request.user))
     except RequestDataTooBig:
         return JsonResponse({"message": "Design evaluation is too large."}, status=413)
     except (ValueError, TypeError):

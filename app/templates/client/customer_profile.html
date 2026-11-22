@@ -31,6 +31,8 @@
 {{ logistics_config|json_script:"edit-logistics-config" }}
 {{ cavite_boundary|json_script:"booking-cavite-boundary" }}
 {{ edit_preview_data|json_script:"edit-preview-data" }}
+{{ theme_decor_capabilities|json_script:"booking-theme-capabilities" }}
+<script src="{% static 'js/booking_theme_rules.js' %}?v=20261122theme1"></script>
 
 <div class="profile-page" style="animation: fadeInPage 0.5s ease forwards;">
     <div class="profile-shell">
@@ -422,10 +424,10 @@
             <!-- STEP 3: DESIGN PREFERENCES -->
             <div class="stepper-step" id="edit-step-3" style="display: none;">
                 <h3>Design Preferences</h3>
-                <p class="step-desc">Two fields are required — pick a theme and up to 3 colors so our team can match your look.</p>
+                <p class="step-desc" id="editDesignPreferencesDescription">Pick up to 3 colors so our team can match your look.</p>
 
                 <div class="form-grid">
-                    <div class="form-group full-width">
+                    <div class="form-group full-width" id="editDesignThemeGroup">
                         <label><i class="fa-solid fa-wand-magic-sparkles"></i> Theme / Decor Style <span class="input-required">*</span></label>
                         <div class="design-theme-chips" id="editDesignThemeChips">
                             <button type="button" class="design-chip" data-value="Spiderman">Spider-Man</button>
@@ -1286,6 +1288,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
     function showEditStep(stepNumber) {
             editPackageGallery.close(false);
+        if (stepNumber === 3) syncEditDesignThemeInput();
         const requestBanner = document.getElementById('changeRequestBanner');
         if (document.getElementById('editBookingForm').dataset.changeMode === '1' && !requestBanner.hidden) {
             requestBanner.classList.remove('is-entering');
@@ -1353,6 +1356,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
     // =============================================
     const editDesignThemeInput = document.getElementById('edit_design_theme_input');
     const editDesignThemeOther = document.getElementById('edit_design_theme_other');
+    const themeCapabilities = JSON.parse(document.getElementById('booking-theme-capabilities').textContent);
     const editColorPaletteInput = document.getElementById('edit_color_palette_input');
     const editPaletteSelectedEl = document.getElementById('edit_palette_selected');
     const EDIT_MAX_PALETTE_COLORS = 3;
@@ -1377,7 +1381,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
 
     function validateEditDesignPreferences() {
         let firstInvalidField = null;
-        if (!getEditDesignThemeValue()) {
+        if (hasEditThemeDecor() && !getEditDesignThemeValue()) {
             setEditDesignFieldError('design_theme', 'Please choose a theme.*');
             if (!firstInvalidField) firstInvalidField = 'design_theme';
         } else {
@@ -1392,8 +1396,24 @@ AccountPages.register('customer_profile', "template", function(scope) {
         return firstInvalidField;
     }
 
+    function hasEditThemeDecor() {
+        return window.BookingThemeRules.allows(buildEditPackageTypeString(), themeCapabilities);
+    }
+
     function syncEditDesignThemeInput() {
         if (!editDesignThemeInput) return;
+        const allowed = hasEditThemeDecor();
+        const group = document.getElementById('editDesignThemeGroup');
+        group.style.display = allowed ? '' : 'none';
+        group.querySelectorAll('button, input[type="text"]').forEach(input => { input.disabled = !allowed; });
+        document.getElementById('editDesignPreferencesDescription').textContent = allowed
+            ? 'Pick a theme and 1 to 3 colors so our team can match your look.'
+            : 'Pick 1 to 3 colors so our team can match your look.';
+        if (!allowed) {
+            editDesignThemeInput.value = '';
+            setEditDesignFieldError('design_theme', '');
+            return;
+        }
         if (editSelectedDesignTheme === 'Other') {
             editDesignThemeInput.value = (editDesignThemeOther?.value || '').trim();
         } else {
@@ -1602,8 +1622,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Design Notes</span></div><span class="row-value">${escapeEditSummary(specialRequestsVal)}</span></div>`
                 : '';
 
-            /* Step 4 rows — theme + palette required (laging may value), motto
-               optional; no-pin soft warning (map optional, hindi gate). */
+            // Only included theme selections appear in the review.
             const editThemeVal = (document.getElementById('edit_design_theme_input')?.value || '').trim()
                 || (editSelectedDesignTheme === 'Other'
                     ? (document.getElementById('edit_design_theme_other')?.value || '').trim()
@@ -1620,7 +1639,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
                 d.textContent = v || '';
                 return d.innerHTML;
             };
-            const themeEditRow = `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Theme</span></div><span class="row-value">${escapeEditSummary(editThemeVal) || '-'}</span></div>`;
+            const themeEditRow = hasEditThemeDecor() ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Theme</span></div><span class="row-value">${escapeEditSummary(editThemeVal) || '-'}</span></div>` : '';
             const paletteEditRow = `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-palette"></i> Color Palette</span></div><span class="row-value">${escapeEditSummary(editPaletteVal) || '-'}</span></div>`;
             const mottoEditRow = editMottoVal
                 ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-font"></i> Motto</span></div><span class="row-value">${escapeEditSummary(editMottoVal)}</span></div>`
@@ -1753,6 +1772,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         const total = calculateEditTotalPrice();
         editPriceDisplay.textContent = formatEditPrice(total);
         editPriceInput.value = total.toFixed(2);
+        syncEditDesignThemeInput();
     }
 
     // Initialize Event Listeners for Edit Cards safely using event delegation
@@ -1910,7 +1930,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
         });
     }
 
-    // Theme and palette are required before review.
+    // Validate only the preferences available for this selection.
     if (btnNextEditDesignToReview) {
         btnNextEditDesignToReview.addEventListener('click', async function () {
             const firstInvalidField = validateEditDesignPreferences();
@@ -1920,7 +1940,7 @@ AccountPages.register('customer_profile', "template", function(scope) {
                     : document.getElementById('editDesignPaletteSwatches');
                 window.BookingFormUI.focusRequired(target);
                 if (typeof AppToast !== 'undefined') {
-                    AppToast.fire({ icon: 'error', title: 'Required field missing.', text: 'Please pick a theme and color palette before continuing.', timer: 3500 });
+                    AppToast.fire({ icon: 'error', title: 'Required field missing.', text: firstInvalidField === 'design_theme' ? 'Please choose a theme before continuing.' : 'Please pick at least 1 color (up to 3) before continuing.', timer: 3500 });
                 }
                 return;
             }

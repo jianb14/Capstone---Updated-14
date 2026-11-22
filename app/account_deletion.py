@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from . import email_otp
 from .models import (AccountMediaRemoval, User, Booking, Payment, BookingChangeRequest,
-    BookingChangeImage, BookingImage, BookingDesignDelivery, Design, Review, ReviewImage,
+    BookingChangeImage, BookingImage, BookingDesignDelivery, CanvasUpload, Design, Review, ReviewImage,
     UserDesign, ChatSession, ChatMessage, AiRequest, AiGeneratedImage, AiImageFeedback,
     ChatModerationState, ChatModerationEvent, ChatNotification, MessageReaction, BookingStatusLog, ConcernTicket, ConcernImage, Notification,
     AdminNotification, AuditLog, EmailOTPChallenge)
@@ -142,6 +142,7 @@ def remove_account(user):
     BookingChangeImage.objects.filter(change_request__booking__user=user).delete()
     BookingDesignDelivery.objects.filter(booking__user=user).delete()
     Design.objects.filter(booking__user=user).delete()
+    CanvasUpload.objects.filter(owner=user, booking_designs__isnull=True, designs__isnull=True).delete()
     owned.update(event_location='Removed after account deletion',event_lat=None,event_lng=None,
         venue_landmark='',special_requests='',motto_text='',design_theme='',color_palette='',
         reference_image='',edit_request_reason='',cancel_request_reason='',admin_denial_reason='',

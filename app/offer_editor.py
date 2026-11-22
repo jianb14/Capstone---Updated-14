@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.template.loader import render_to_string
 
+from .canvas_builtins import THEME_DECOR
 from .design_validation import eligible_assets
 from .models import AddOn, AdditionalOnly, CanvasCategory, DesignOffer, Package
 from .offer_inclusions import import_rows, store_inclusions
@@ -54,8 +55,9 @@ class OfferDetailsForm(forms.Form):
 def rows_for_offer(offer, item, kind):
     if offer and offer.inclusions.exists():
         return list(offer.inclusions.values(*ROW_FIELDS))
-    categories = list(CanvasCategory.objects.filter(**{'available_' + kind: True}))
     rules = list(offer.requirements.select_related('category')) if offer else []
+    categories = list(CanvasCategory.objects.filter(**{'available_' + kind: True}).exclude(builtin_key=THEME_DECOR))
+    categories.extend(rule.category for rule in rules if rule.category.builtin_key == THEME_DECOR)
     return import_rows(item.features if item else '', categories, rules)
 
 
@@ -190,6 +192,7 @@ def offer_editor(request, kind, item_id=None):
         if not any(row['row_type'] == 'item' and row['required_minimum'] > 0 for row in rows):
             form.add_error('design_enabled', 'Select at least one required category before enabling the designer.')
         available_ids = set(eligible_assets(DesignOffer(kind=kind)).values_list('category_id', flat=True))
+        available_ids.update(c.pk for c in categories if c.is_active and c.builtin_key == THEME_DECOR)
         for index, row in enumerate(rows):
             if row['row_type'] == 'item' and row['category_id'] and row['category_id'] not in available_ids:
                 row_errors.setdefault(str(index), {}).setdefault('category_id', []).append('Add an active asset available for this offer type before enabling the designer.')

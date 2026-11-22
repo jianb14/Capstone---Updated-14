@@ -120,3 +120,107 @@
 #canvasSidebar :is(button, [role="button"], input[type="color"], .upload-dropzone):focus-visible { outline: 2px solid var(--inventory-focus-border); outline-offset: 2px; }
 #canvasSidebar .sidebar-tip { background: var(--inventory-section); color: var(--inventory-muted); border-color: var(--inventory-border); }
 @media (prefers-reduced-motion: reduce) { #canvasSidebar *, .canvas-tool-rail * { transition: none !important; } }
+
+/* Personal uploads stay compact and separate from the catalog grid. */
+#canvasSidebar :is(.category-upload-controls,.catalog-asset-items,.category-upload-library,.custom-uploads-heading) { grid-column:1/-1; width:100%; flex:0 0 100%; min-width:0; }
+#canvasSidebar :is(.catalog-asset-items,.category-upload-library) { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+#canvasSidebar .catalog-asset-items .draggable-item { width:100%; min-width:0; }
+#canvasSidebar :is(.catalog-asset-items,.category-upload-library):empty, #canvasSidebar .custom-uploads-heading[hidden] { display:none; }
+#canvasSidebar .custom-uploads-heading { margin:8px 0 2px; color:var(--inventory-muted); font-size:12px; font-weight:600; }
+#canvasSidebar .category-upload-controls { padding:8px 0; border-top:1px solid var(--inventory-border); }
+#canvasSidebar .category-upload-controls.is-file-over { background:var(--inventory-selected); outline:2px solid var(--inventory-focus-border); outline-offset:4px; }
+#canvasSidebar .category-upload-button { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:42px; padding:9px 12px; border:1px solid var(--inventory-border); border-radius:6px; background:var(--inventory-surface); color:var(--editor-text); font:inherit; font-size:.8rem; cursor:pointer; }
+#canvasSidebar .category-upload-button:hover { background:var(--inventory-hover); }
+#canvasSidebar :is(.category-upload-note,.category-not-included,.category-upload-error) { margin:7px 0; font-size:.72rem; line-height:1.6; color:var(--inventory-muted); }
+#canvasSidebar .category-upload-error { color:var(--danger-color,#d44d4d); }
+#canvasSidebar .category-upload-card { position:relative; display:flex; flex-direction:column; align-items:stretch; gap:6px; min-width:0; padding:6px; border:1px solid var(--inventory-border); border-radius:8px; background:var(--inventory-tile); }
+#canvasSidebar .category-upload-card .draggable-item { width:100%; min-width:0; height:auto; min-height:0; aspect-ratio:auto; justify-content:flex-start; gap:4px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+#canvasSidebar .category-upload-card .item-preview-img-wrapper { position:relative; width:100%; height:78px; flex:0 0 78px; aspect-ratio:auto; overflow:hidden; }
+#canvasSidebar .category-upload-card .item-preview-img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+#canvasSidebar .category-upload-card .item-label { display:block; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; line-height:1.5; }
+.upload-color-labels { display:flex; align-items:center; flex-wrap:wrap; gap:4px; min-width:0; }
+.upload-color-label { display:inline-flex; align-items:center; gap:4px; font-size:12px; line-height:1.4; }
+.upload-color-dot { display:inline-block; width:12px; height:12px; flex:0 0 12px; border:1px solid #888; border-radius:50%; }
+#canvasSidebar .category-upload-card > .upload-color-labels { min-height:12px; }
+#canvasSidebar .category-upload-card > button.upload-colors-edit, .design-canvas-section .selection-toolbar button.upload-colors-edit { display:inline-flex; align-items:center; justify-content:center; min-width:0; width:auto; min-height:24px; height:auto; margin:0; padding:2px 6px; border:1px solid var(--inventory-border); border-radius:5px; background:transparent; color:var(--editor-text); box-shadow:none; font:inherit; font-size:11px; line-height:18px; white-space:nowrap; cursor:pointer; }
+#canvasSidebar .category-upload-card > button.upload-colors-edit { width:100%; margin-top:auto; }
+#canvasSidebar .category-upload-card > button.upload-library-remove { position:absolute; top:3px; right:3px; z-index:2; display:grid; place-items:center; flex:none; width:24px; min-width:24px; max-width:24px; height:24px; min-height:24px; max-height:24px; margin:0; padding:4px; border:1px solid var(--inventory-border); border-radius:50%; background:var(--inventory-surface); color:var(--editor-text); box-shadow:none; cursor:pointer; }
+#canvasSidebar .upload-library-remove svg { display:block; width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
+#canvasSidebar .category-upload-card > button:hover:not(:disabled), .design-canvas-section .selection-toolbar button.upload-colors-edit:hover:not(:disabled) { border-color:var(--inventory-focus-border); background:var(--inventory-hover); }
+#canvasSidebar .category-upload-card > button:disabled, #canvasSidebar .category-upload-button:disabled { opacity:.45; cursor:not-allowed; }
+.object-color-fields { min-width:0; margin:0; padding:0; border:0; }
+.object-color-fields:disabled { opacity:.4; cursor:not-allowed; }
+.design-canvas-section #itemColorPicker:disabled { opacity:.4; cursor:not-allowed; }
+.selection-controls-row { display:contents; }
+.design-canvas-section .selection-toolbar.has-upload-colors { flex-direction:column; align-items:stretch; flex-wrap:nowrap; width:max-content; gap:6px; }
+.design-canvas-section .selection-toolbar.has-upload-colors .selection-controls-row { display:flex; flex:0 1 auto; gap:6px; max-width:100%; min-width:0; overflow-x:auto; scrollbar-width:thin; }
+.design-canvas-section .selection-toolbar .selected-upload-colors { display:flex; flex:none; align-items:center; flex-wrap:wrap; gap:6px; min-width:0; padding:0; margin:0; border:0; font-size:12px; }
+.selected-upload-colors[hidden] { display:none !important; }
+.selected-upload-colors .upload-color-labels { flex:0 1 auto; }
+.design-canvas-section .mobile-editor-sheet .selection-toolbar .selection-controls-row { display:contents; }
+.design-canvas-section .mobile-editor-sheet #selectionToolbar { width:100%; max-width:100%; }
+.design-canvas-section .mobile-editor-sheet #selectedUploadColors { display:flex; flex-wrap:wrap; gap:6px; }
+/* The preview uses the same centered, neutral dialog language as site feedback. */
+#balloonColorsDialog { --photo-bg:#161616; --photo-ink:#f5f5f5; --photo-muted:#a3a3a3; --photo-line:#303030; --photo-hover:rgba(255,255,255,.035); --photo-thumb:#555; position:fixed; inset:0; box-sizing:border-box; width:min(540px,calc(100vw - 32px)); max-width:none; max-height:min(720px,calc(100dvh - 32px)); margin:auto; padding:28px; overflow:hidden; border:1px solid var(--photo-line); border-radius:20px; background:var(--photo-bg); color:var(--photo-ink); box-shadow:0 20px 80px rgb(0 0 0 / 16%); font-family:inherit; }
+#balloonColorsDialog:not([open]) { display:none; }
+#balloonColorsDialog [hidden] { display:none !important; }
+#balloonColorsDialog .photo-background-controls > div { display:flex; flex-wrap:wrap; gap:8px; }
+#balloonColorsDialog .photo-background-controls button[aria-pressed=true] { border-color:var(--photo-ink); }
+#balloonColorsDialog .balloon-color-preview { background-image:repeating-conic-gradient(var(--photo-line) 0% 25%,transparent 0% 50%); background-size:16px 16px; }
+#balloonColorsDialog[open] { display:flex; flex-direction:column; }
+#balloonColorsDialog::backdrop { background:rgb(0 0 0 / 48%); backdrop-filter:blur(5px); }
+#balloonColorsDialog .balloon-colors-body { min-height:0; overflow:auto; scrollbar-width:thin; padding-right:4px; }
+#balloonColorsDialog .balloon-colors-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+#balloonColorsDialog h2 { margin:0; color:var(--photo-ink) !important; font-size:21px; line-height:1.4; font-weight:600; }
+#balloonColorsDialog p { margin:12px 0; color:var(--photo-muted); font-size:13px; line-height:1.6; }
+#balloonColorsDialog [data-color-file] { overflow-wrap:anywhere; }
+#balloonColorsDialog .balloon-color-preview { display:block; width:100%; height:130px; object-fit:contain; border-radius:8px; background:var(--inventory-section); }
+#balloonColorsDialog fieldset { margin:16px 0; padding:0; border:0; }
+#balloonColorsDialog legend { margin-bottom:10px; font-size:13px; font-weight:600; }
+#balloonColorsDialog .upload-color-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+#balloonColorsDialog .upload-color-option { display:flex; align-items:center; gap:6px; min-height:36px; padding:6px; border:1px solid var(--photo-line); border-radius:7px; background:transparent; color:var(--photo-ink); font-size:12px; cursor:pointer; overflow-wrap:anywhere; transition:border-color .15s; }
+#balloonColorsDialog .upload-color-option:hover, #balloonColorsDialog .upload-color-option:has(input:checked) { border-color:var(--photo-ink); background:transparent; }
+#balloonColorsDialog .upload-color-option input { appearance:none; -webkit-appearance:none; display:grid; place-items:center; width:15px; height:15px; flex:0 0 15px; padding:0; margin:0; border:1px solid var(--editor-muted); border-radius:3px; background:transparent; cursor:pointer; }
+#balloonColorsDialog .upload-color-option input:checked { border-color:var(--photo-ink); background:var(--photo-ink); }
+#balloonColorsDialog .upload-color-option input:checked::after { content:''; width:4px; height:8px; margin-top:-2px; border:solid var(--photo-bg); border-width:0 1.5px 1.5px 0; transform:rotate(45deg); }
+#balloonColorsDialog .upload-color-option > span { width:14px; height:14px; flex:0 0 14px; border:1px solid #888; border-radius:50%; }
+#balloonColorsDialog .upload-custom-color { display:flex; flex-wrap:wrap; align-items:center; gap:9px; font-size:12px; }
+#balloonColorsDialog input[type=color] { appearance:none; -webkit-appearance:none; width:32px; height:32px; flex:0 0 32px; padding:3px; border:1px solid var(--photo-line); border-radius:50%; overflow:hidden; background:transparent; cursor:pointer; }
+#balloonColorsDialog input[type=color]::-webkit-color-swatch-wrapper { padding:0; }
+#balloonColorsDialog input[type=color]::-webkit-color-swatch { border:0; border-radius:50%; }
+#balloonColorsDialog input[type=color]::-moz-color-swatch { border:0; border-radius:50%; }
+#balloonColorsDialog button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:0; min-height:36px; width:auto; height:auto; margin:0; padding:6px 12px; border:1px solid var(--photo-line); border-radius:8px; background:transparent; color:inherit; box-shadow:none; font:inherit; font-size:13px; line-height:1.5; cursor:pointer; transform:none; }
+#balloonColorsDialog button:hover:not(:disabled) { background:var(--inventory-hover); border-color:var(--inventory-focus-border); }
+#balloonColorsDialog .balloon-colors-heading button { display:grid; place-items:center; flex:none; width:36px; min-width:36px; height:36px; min-height:36px; margin:-5px -6px 0 0; padding:8px; border:0; border-radius:9px; background:transparent; color:var(--photo-muted); }
+#balloonColorsDialog .balloon-colors-heading svg { width:18px; height:18px; stroke-width:1.5; }
+#balloonColorsDialog button:disabled { opacity:.45; cursor:wait; }
+#balloonColorsDialog :is(button,input):focus-visible { outline:2px solid var(--inventory-focus-border); outline-offset:2px; }
+#balloonColorsDialog .balloon-colors-actions { flex-shrink:0; display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+#balloonColorsDialog [data-save-colors] { border-color:var(--photo-ink); background:var(--photo-ink); color:var(--photo-bg); }
+#balloonColorsDialog [data-save-colors]:hover:not(:disabled) { opacity:.85; background:var(--photo-ink); }
+#balloonColorsDialog [data-color-error] { color:#ffb4ab; }
+[data-theme=light] #balloonColorsDialog [data-color-error] { color:#a3261e; }
+@media (max-width:560px) {
+    #canvasSidebar :is(.catalog-asset-items,.category-upload-library) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    #canvasSidebar .category-upload-card .item-preview-img-wrapper { height:92px; flex-basis:92px; }
+    #balloonColorsDialog { padding:22px; }
+    #balloonColorsDialog .upload-color-options { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    #balloonColorsDialog .balloon-color-preview { height:100px; }
+}
+
+[data-theme=light] #balloonColorsDialog { --photo-bg:#fff; --photo-ink:#181818; --photo-muted:#737373; --photo-line:#e5e5e5; --photo-hover:rgba(0,0,0,.022); --photo-thumb:#b5b5b5; color-scheme:light; }
+#balloonColorsDialog { color-scheme:dark; }
+#balloonColorsDialog .balloon-colors-body { scrollbar-color:var(--photo-thumb) transparent; scrollbar-gutter:stable; overscroll-behavior:contain; }
+#balloonColorsDialog .balloon-colors-body::-webkit-scrollbar { width:6px; height:6px; }
+#balloonColorsDialog .balloon-colors-body::-webkit-scrollbar-track { background:transparent; }
+#balloonColorsDialog .balloon-colors-body::-webkit-scrollbar-thumb { background:var(--photo-thumb); border-radius:8px; }
+#balloonColorsDialog .balloon-colors-body::-webkit-scrollbar-button { display:none; width:0; height:0; }
+#balloonColorsDialog .balloon-colors-actions button { min-height:42px; padding:10px 16px; border-radius:10px; font:400 13px/1.5 'Montserrat',sans-serif; }
+#balloonColorsDialog .balloon-colors-heading button:hover, #balloonColorsDialog .balloon-colors-actions [data-color-cancel]:hover { background:var(--photo-hover); color:var(--photo-ink); border-color:var(--photo-line); }
+#balloonColorsDialog .balloon-colors-actions [data-save-colors]:hover:not(:disabled) { background:#e4e4e7; border-color:#e4e4e7; color:#181818; opacity:1; }
+[data-theme=light] #balloonColorsDialog .balloon-colors-actions [data-save-colors]:hover:not(:disabled) { background:#303030; border-color:#303030; color:#fff; }
+/* Generic light-mode input focus must never cover the checked fill. */
+#balloonColorsDialog .upload-color-option, #balloonColorsDialog .upload-color-option input, #balloonColorsDialog .upload-color-option input::after { transition:none !important; animation:none !important; }
+#balloonColorsDialog .upload-color-option input:focus { background:transparent !important; border-color:var(--photo-muted) !important; outline:0; box-shadow:none !important; }
+#balloonColorsDialog .upload-color-option input:checked, #balloonColorsDialog .upload-color-option input:checked:focus { background:var(--photo-ink) !important; border-color:var(--photo-ink) !important; }
+#balloonColorsDialog .upload-color-option input:focus-visible { outline:2px solid var(--photo-muted); outline-offset:2px; }

@@ -22,6 +22,8 @@
 <script src="{% static 'js/booking_calendar_guard.js' %}?v=20261020a"></script>
 {{ availability_data|json_script:"booking-availability-data" }}
 {{ preview_data|json_script:"booking-preview-data" }}
+{{ theme_decor_capabilities|json_script:"booking-theme-capabilities" }}
+<script src="{% static 'js/booking_theme_rules.js' %}?v=20261122theme1"></script>
 {{ cavite_boundary|json_script:"booking-cavite-boundary" }}
 
 
@@ -360,12 +362,12 @@
                 <!-- STEP 3: DESIGN PREFERENCES -->
                 <div class="stepper-step" id="step-3" style="display: none;">
                     <h3>Design Preferences</h3>
-                    <p class="step-desc">Two fields are required — pick a theme and up to 3 colors so our team can match your look.</p>
+                    <p class="step-desc" id="designPreferencesDescription">Pick up to 3 colors so our team can match your look.</p>
 
                     <div class="form-grid">
 
                         <!-- 🎨 Theme / Decor style -->
-                        <div class="form-group full-width">
+                        <div class="form-group full-width" id="designThemeGroup">
                             <label><i class="fa-solid fa-wand-magic-sparkles"></i> Theme / Decor Style <span class="input-required">*</span></label>
                             <div class="design-theme-chips" id="designThemeChips">
                                 <button type="button" class="design-chip" data-value="Spiderman">Spider-Man</button>
@@ -1136,8 +1138,7 @@
                 ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="far fa-comment"></i> Design Notes</span></div><span class="row-value">${escapeSummaryHtml(specialRequestsValue)}</span></div>`
                 : '';
 
-            /* Step 4 rows — theme + palette required (laging may value), motto
-               optional; no-pin soft warning (map optional, hindi gate). */
+            // Only included theme selections appear in the review.
             const designThemeValue = getDesignThemeValue();
             const colorPaletteValue = getColorPaletteValue();
             const mottoValue = document.getElementById('motto_text')?.value?.trim() || '';
@@ -1146,7 +1147,7 @@
                 document.getElementById('event_lat_input')?.value?.trim() &&
                 document.getElementById('event_lng_input')?.value?.trim()
             );
-            const themeRow = `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Theme</span></div><span class="row-value">${escapeSummaryHtml(designThemeValue) || '-'}</span></div>`;
+            const themeRow = hasThemeDecor() ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Theme</span></div><span class="row-value">${escapeSummaryHtml(designThemeValue) || '-'}</span></div>` : '';
             const paletteRow = `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-palette"></i> Color Palette</span></div><span class="row-value">${escapeSummaryHtml(colorPaletteValue) || '-'}</span></div>`;
             const mottoRow = mottoValue
                 ? `<div class="summary-row"><div class="row-info"><span class="row-label"><i class="fa-solid fa-font"></i> Motto</span></div><span class="row-value">${escapeSummaryHtml(mottoValue)}</span></div>`
@@ -1190,6 +1191,7 @@
         // =============================================
         const designThemeInput = document.getElementById('design_theme_input');
         const designThemeOther = document.getElementById('design_theme_other');
+        const themeCapabilities = JSON.parse(document.getElementById('booking-theme-capabilities').textContent);
         const colorPaletteInput = document.getElementById('color_palette_input');
         const paletteSelectedEl = document.getElementById('palette_selected');
         const MAX_PALETTE_COLORS = 3;
@@ -1205,7 +1207,7 @@
 
         function validateDesignPreferences() {
             let firstInvalidField = null;
-            if (!getDesignThemeValue()) {
+            if (hasThemeDecor() && !getDesignThemeValue()) {
                 setDesignFieldError('design_theme', 'Please choose a theme.*');
                 if (!firstInvalidField) firstInvalidField = 'design_theme';
             } else {
@@ -1220,8 +1222,24 @@
             return firstInvalidField;
         }
 
+        function hasThemeDecor() {
+            return window.BookingThemeRules.allows(buildPackageTypeString(), themeCapabilities);
+        }
+
         function syncDesignThemeInput() {
             if (!designThemeInput) return;
+            const allowed = hasThemeDecor();
+            const group = document.getElementById('designThemeGroup');
+            group.style.display = allowed ? '' : 'none';
+            group.querySelectorAll('button, input[type="text"]').forEach(input => { input.disabled = !allowed; });
+            document.getElementById('designPreferencesDescription').textContent = allowed
+                ? 'Pick a theme and 1 to 3 colors so our team can match your look.'
+                : 'Pick 1 to 3 colors so our team can match your look.';
+            if (!allowed) {
+                designThemeInput.value = '';
+                setDesignFieldError('design_theme', '');
+                return;
+            }
             if (selectedDesignTheme === 'Other') {
                 designThemeInput.value = (designThemeOther?.value || '').trim();
             } else {
@@ -1477,6 +1495,7 @@
 
         function showStep(stepNumber) {
             packageGallery.close(false);
+            if (stepNumber === 3) syncDesignThemeInput();
             if (stepNumber === 1) {
                 ensureBookingMap();
                 refreshBookingPinStatusText();
@@ -1630,6 +1649,7 @@
             packageGallery.sync();
 
             updatePriceDisplay();
+            syncDesignThemeInput();
         }
 
         // =============================================
@@ -3027,7 +3047,7 @@
         });
     }
 
-    // Theme and palette are required before review.
+    // Validate only the preferences available for this selection.
     if (btnNextDesignToReview) {
         btnNextDesignToReview.addEventListener('click', function () {
             const firstInvalidField = validateDesignPreferences();
@@ -3037,7 +3057,7 @@
                     : document.getElementById('designPaletteSwatches');
                 window.BookingFormUI.focusRequired(target);
                 if (typeof AppToast !== 'undefined') {
-                    AppToast.fire({ icon: 'error', title: 'Required field missing.', text: 'Please pick a theme and color palette before continuing.', timer: 3500 });
+                    AppToast.fire({ icon: 'error', title: 'Required field missing.', text: firstInvalidField === 'design_theme' ? 'Please choose a theme before continuing.' : 'Please pick at least 1 color (up to 3) before continuing.', timer: 3500 });
                 }
                 return;
             }

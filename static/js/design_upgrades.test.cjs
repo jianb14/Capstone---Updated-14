@@ -28,4 +28,9 @@ assert.equal(find({200: next}, current, colored, catalog, {type: 'colors', neede
 assert.equal(find({200: {...next, max_balloon_colors: 2}}, current, colored, catalog, {type: 'colors', needed: 3}), null);
 assert.equal(colors([...colored, object(2, {_currentColor: '#abcdef', visible: false}), object(3, {_currentColor: '#abcdef'})], current, catalog), 3);
 assert.equal(colors([object(2, {fill: 'rgba(255, 255, 255, 0.2)'})], current, catalog), 0);
+const uploads = {7: {id: 7, category_id: 1, token: 'custom-panel', label: 'Custom panel', src: '/uploads/7/image/'}, 8: {id: 8, category_id: 2, token: 'custom-balloon', label: 'Printed balloon', src: '/uploads/8/image/', colors: ['#ff0000', '#0000ff']}};
+const custom = id => ({type: 'image', src: uploads[id].src, _categoryId: uploads[id].category_id, _uploadId: id, _uploadToken: uploads[id].token, _designSource: 'upload'});
+assert.equal(find({200: next}, current, [object(1), custom(7), object(2)], catalog, panel, uploads).id, next.id, 'custom panels are retained when suggesting a compatible upgrade');
+assert.equal(find({200: next}, current, [object(1), custom(7), custom(7)], catalog, panel, uploads), null, 'upgrade must fit all custom placements');
+assert.equal(colors([custom(8), object(2, {_currentColor: '#00ff00'})], current, catalog, uploads), 3, 'custom and catalog balloon colors share a limit');
 console.log('Panel and balloon upgrade compatibility checks passed.');

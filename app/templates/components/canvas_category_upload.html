@@ -1,0 +1,10 @@
+<div class="category-upload-controls" data-category-upload="{{ category.id }}" data-is-balloon="{{ category.is_balloon|yesno:'true,false' }}">
+    {% if category.builtin_key == 'theme_decor' %}<p class="category-upload-note">Upload balls, character props, or other themed decorations.</p>{% endif %}
+    <p class="category-not-included" hidden>Not included in this package.</p>
+    <div class="category-upload-fields">
+        <button type="button" class="category-upload-button" data-browse-category aria-label="Upload image for {{ category.name }}" aria-describedby="categoryUploadNote{{ category.id }} categoryUploadError{{ category.id }}">{% include 'components/canvas_inventory_icon.html' with name='upload' %} Upload image</button>
+        <input type="file" data-category-file accept="image/jpeg,image/png,image/webp" multiple hidden>
+        <p class="category-upload-note" id="categoryUploadNote{{ category.id }}">JPG, PNG or WebP · Up to 10 MB each. Drop images here or upload.</p>
+    </div>
+    <p class="category-upload-error" id="categoryUploadError{{ category.id }}" role="status" aria-live="polite" hidden></p>
+</div>

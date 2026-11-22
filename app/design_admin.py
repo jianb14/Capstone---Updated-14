@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render, redirect
-from .canvas_builtins import BUILTIN_MESSAGE
+from .canvas_builtins import THEME_DECOR, THEME_MESSAGE, builtin_message
 
 from .design_validation import KINDS, available, eligible_assets
 from .models import Package, AddOn, AdditionalOnly, CanvasCategory, CanvasAsset, DesignOffer, DesignRequirement
@@ -75,7 +75,8 @@ def parse_rules(request, kind):
         dummy = DesignOffer(kind=kind)
         available_ids = set(eligible_assets(dummy).values_list('category_id', flat=True))
         for row in rows:
-            if not row['category'].is_active or row['category'].pk not in available_ids:
+            category = row['category']
+            if not category.is_active or (category.builtin_key != THEME_DECOR and category.pk not in available_ids):
                 raise ValidationError(f"{row['category'].name}: add an active asset available for {KINDS[kind]} first.")
         if kind == 'entrance' and not request.POST.get('solo_price', '').strip():
             raise ValidationError('Set a solo price before enabling an Entrance design.')
@@ -113,8 +114,12 @@ def store_offer_config(request, item, kind):
         DesignRequirement.objects.bulk_create([DesignRequirement(offer=offer, **row) for row in rows])
     # Compatibility for older admin form POSTs: convert once into the same source.
     from .offer_inclusions import import_rows, store_inclusions
-    categories = list(CanvasCategory.objects.filter(**{'available_' + kind: True}))
-    canonical = import_rows(item.features, categories, list(offer.requirements.select_related('category')))
+    # Free-text services on older forms only become Theme Decor canvas items
+    # when the administrator explicitly includes its category.
+    categories = list(CanvasCategory.objects.filter(**{'available_' + kind: True}).exclude(builtin_key=THEME_DECOR))
+    rules = list(offer.requirements.select_related('category'))
+    categories.extend(rule.category for rule in rules if rule.category.builtin_key == THEME_DECOR)
+    canonical = import_rows(item.features, categories, rules)
     for row in canonical:
         if not row['category_id']:
             row['row_type'] = 'service'
@@ -129,7 +134,7 @@ def render_canvas_form(request, template, context=None, **kwargs):
     context['availability_choices'] = [{'kind': k, 'label': label, 'checked': k in selected} for k, label in KINDS.items()]
     context['selected_kind'] = request.POST.get('kind', request.GET.get('kind', 'package'))
     if template.endswith('canvas_asset_form.html'):
-        context['categories'] = list(CanvasCategory.objects.order_by('order', 'name'))
+        context['categories'] = list(CanvasCategory.objects.exclude(builtin_key=THEME_DECOR).order_by('order', 'name'))
         context['category_types'] = {c.pk: [k for k in KINDS if available(c, k)] for c in context['categories']}
     return render(request, template, context, **kwargs)
 
@@ -142,14 +147,17 @@ def configure_canvas_availability(is_asset=False):
                 return HttpResponseForbidden('Not allowed')
             if 'id' in kwargs:
                 model = CanvasAsset if is_asset else CanvasCategory
-                if model.objects.filter(pk=kwargs['id'], builtin_key__isnull=False).exists():
-                    messages.info(request, BUILTIN_MESSAGE)
+                builtin = model.objects.filter(pk=kwargs['id']).values_list('builtin_key', flat=True).first()
+                if builtin:
+                    messages.info(request, builtin_message(builtin))
                     return redirect('admin_canvas_assets')
             if request.method == 'POST':
                 try:
                     values = availability_values(request)
                     if is_asset:
                         category = CanvasCategory.objects.filter(pk=request.POST.get('category')).first()
+                        if category and category.builtin_key == THEME_DECOR:
+                            raise ValidationError(THEME_MESSAGE)
                         if category and any(values['available_' + k] and not available(category, k) for k in KINDS):
                             raise ValidationError('Choose a category available in every selected design type, or update the category first.')
                     elif 'id' in kwargs:

@@ -33,7 +33,7 @@
                     <p id="emptyInclusions" class="oe-empty">Start with a canvas item, or add a service such as setup and delivery.</p>
                     <p class="oe-field-error" id="inclusionsError" role="status"></p>
                     <div class="oe-add-actions"><button type="button" class="{% if catalog_modal %}ac-button{% else %}oe-button oe-button-outline{% endif %}" id="addCanvasItem"><span aria-hidden="true">+</span> Add Item</button><button type="button" class="{% if catalog_modal %}ac-button{% else %}oe-button oe-button-quiet{% endif %}" id="addService"><span aria-hidden="true">+</span> Add Service</button></div>
-                    <p class="oe-help">Leave quantity blank for “Included” with no quantity limit. One catalog placement counts as one design element.</p>
+                    <p class="oe-help">Leave quantity blank for “Included” with no canvas quantity limit. One catalog or custom image placement counts as one design element. Custom decorations remain subject to availability and review.</p>
                     <div class="oe-balloon-settings" id="balloonSettings" hidden>
                         <div><h3>Balloon settings</h3><p>One shared color limit for all balloon items in this offer.</p></div>
                         {% include 'components/offer_field.html' with field=offer_form.design_max_colors %}
@@ -54,7 +54,7 @@
                 <section class="oe-card" aria-labelledby="visibilityTitle" data-offer-panel="visibility" id="offer-panel-visibility">
                     <div class="oe-section-heading"><span class="oe-step">04</span><div><h2 id="visibilityTitle">Visibility</h2><p>Choose how this offer is presented.</p></div></div>
                     <input type="hidden" name="active_present" value="1"><label class="oe-setting-label">{{ offer_form.is_active }}<span><strong>Active offer</strong><small>Make this offer available to customers.</small></span></label>
-                    <label class="oe-setting-label">{{ offer_form.design_enabled }}<span><strong>Available in Create Design</strong><small>Requires at least one required canvas item and active assets for every included category.</small></span></label>
+                    <label class="oe-setting-label">{{ offer_form.design_enabled }}<span><strong>Available in Create Design</strong><small>Requires at least one required canvas item and active assets for included categories. Theme Decor accepts customer uploads without default assets.</small></span></label>
                     <div class="oe-field-error" id="error_design_enabled">{{ offer_form.design_enabled.errors }}</div>
                     {% if offer_kind == 'package' %}<label class="oe-setting-label">{{ offer_form.is_featured }}<span><strong>Mark as Most Popular</strong><small>Feature this package in your customer catalog.</small></span></label>{% endif %}
                 </section>

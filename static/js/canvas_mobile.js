@@ -102,7 +102,12 @@ window.setupCanvasMobileEditor = function (api) {
         const button = event.target.closest('[data-panel-target]');
         if (!button) return;
         if (!button.classList.contains('active')) { closeInventory(); return; }
-        const names = { elementsPanel: ['Add an item', 'Tap an item to add it to your design.'], textPanel: ['Add text', 'Choose a text style. You can change the words afterwards.'], uploadsPanel: ['Your photos', 'Upload a photo, then tap its preview to add it.'], layersPanel: ['Arrange items', 'Items at the top appear in front. Use Forward or Back to reorder.'] };
+        if (button.dataset.panelTarget === 'uploadsPanel') {
+            backgroundControls.closest('details').open = true;
+            open(tools);
+            return;
+        }
+        const names = { elementsPanel: ['Add an item', 'Tap an item to add it to your design. Upload custom images inside their category.'], textPanel: ['Add text', 'Choose a text style. You can change the words afterwards.'], layersPanel: ['Arrange items', 'Items at the top appear in front. Use Forward or Back to reorder.'] };
         const copy = names[button.dataset.panelTarget];
         byId('mobileInventoryTitle').textContent = copy[0];
         inventory.querySelector('header p').textContent = copy[1];
@@ -123,6 +128,10 @@ window.setupCanvasMobileEditor = function (api) {
     byId('mobileRequiredItemsBtn').addEventListener('click', openChecklist);
     tools.addEventListener('click', (event) => {
         if (event.target.closest('#clearBtn, #applySizeBtn, #zoomResetBtn, #redoBtn')) tools.close();
+    });
+    tools.addEventListener('close', () => {
+        const backgroundButton = rail.querySelector('[data-panel-target="uploadsPanel"]');
+        if (backgroundButton.classList.contains('active')) backgroundButton.click();
     });
 
     const labels = {
@@ -190,6 +199,10 @@ window.setupCanvasMobileEditor = function (api) {
         }
         byId('mobileSelectionBar').hidden = !objects.length;
         byId('mobileSelectionName').textContent = objects.length > 1 ? `${objects.length} items selected` : object && api.isText(object) ? 'Text selected' : object ? api.label(object) : 'Item selected';
+        const photo = object?._designSource === 'upload' ? window.canvasUploadsPayload?.[String(object._uploadId)] : null;
+        if (photo?.colors?.length) {
+            byId('mobileSelectionName').textContent = `Colors: ${photo.colors.map(window.CanvasCategoryUploads.colorName).join(', ')} · ${api.label(object)}`;
+        }
         updateRequirements();
         byId('mobileTextField').hidden = !object || !api.isText(object);
         const text = byId('mobileObjectText');

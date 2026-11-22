@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from .payment_storage import payment_proof_storage
+from .canvas_uploads import CanvasUploadStorage
 
 
 # -----------------------------
@@ -494,6 +495,8 @@ class SiteSettings(models.Model):
 # 3️⃣ Design
 # -----------------------------
 class Design(models.Model):
+    reference_snapshot = models.JSONField(default=dict, blank=True)
+    uploads = models.ManyToManyField('CanvasUpload', blank=True, related_name='booking_designs')
     STATUS_CHOICES = (
         ('pending', 'Pending'),
         ('finalized', 'Finalized'),
@@ -1157,6 +1160,7 @@ class ConcernImage(models.Model):
 # 10?? User Designs (Custom Canvas)
 # -----------------------------
 class UserDesign(models.Model):
+    uploads = models.ManyToManyField('CanvasUpload', blank=True, related_name='designs')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='custom_designs')
     name = models.CharField(max_length=255, default='Untitled Design')
     canvas_json = models.TextField(help_text="Fabric.js JSON state of the canvas")
@@ -1221,6 +1225,18 @@ class CanvasCategory(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CanvasUpload(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='canvas_uploads')
+    category = models.ForeignKey(CanvasCategory, on_delete=models.PROTECT, related_name='customer_uploads')
+    image = models.ImageField(storage=CanvasUploadStorage(), max_length=180)
+    label = models.CharField(max_length=150)
+    colors = models.JSONField(default=list, blank=True)
+    width = models.PositiveIntegerField()
+    height = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    library_removed_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
 
 class CanvasAsset(models.Model):

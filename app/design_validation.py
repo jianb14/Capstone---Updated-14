@@ -7,6 +7,9 @@ from django.core import signing
 from django.db.models import Q, Prefetch
 from django.templatetags.static import static
 
+from .canvas_builtins import THEME_DECOR
+from .canvas_uploads import category_accepts_uploads, normalized_colors, owned_uploads, resolve_upload_object, visible_placements
+from django.core.exceptions import ValidationError
 from .models import CanvasAsset, DesignOffer, DesignRequirement, OfferInclusion
 
 KINDS = dict(DesignOffer.TYPES)
@@ -41,7 +44,7 @@ def eligible_assets(offer):
     return CanvasAsset.objects.filter(
         is_active=True, category__is_active=True,
         **{field: True, 'category__' + field: True},
-    ).filter(Q(image__isnull=False) & ~Q(image='') | ~Q(static_path='') | Q(item_type='i-text'))
+    ).exclude(category__builtin_key=THEME_DECOR).filter(Q(image__isnull=False) & ~Q(image='') | ~Q(static_path='') | Q(item_type='i-text'))
 
 
 class EvaluationCatalog:
@@ -86,7 +89,7 @@ def setup_errors(offer, catalog=None):
     for rule in rules:
         if not rule.category.is_active or not available(rule.category, offer.kind):
             errors.append(f'{rule.category.name}: category is not available for this design type.')
-        elif rule.category_id not in category_ids:
+        elif rule.category.builtin_key != THEME_DECOR and rule.category_id not in category_ids:
             errors.append(f'{rule.category.name}: add an active asset available for this design type.')
     return errors
 
@@ -103,6 +106,7 @@ def offer_payload(offer):
         'requirements': [{
             'category_id': r.category_id, 'name': r.display_name or r.category.name, 'category_name': r.category.name, 'is_balloon': r.category.is_balloon,
             'required': r.required, 'minimum': r.minimum, 'maximum': r.maximum,
+            'accepts_uploads': category_accepts_uploads(r.category, offer.kind),
         } for r in offer.requirements.select_related('category')],
     }
 
@@ -126,7 +130,7 @@ def _source_matches(actual, expected):
 
 def resolve_catalog_object(obj, assets):
     """Never infer an official asset from a customer-supplied category label."""
-    if obj.get('_designSource') == 'reference' or obj.get('_isBgImage') or obj.get('_isArtboard'):
+    if obj.get('_designSource') in ('reference', 'upload') or obj.get('_uploadId') or obj.get('_isBgImage') or obj.get('_isArtboard'):
         return None
     if obj.get('_assetId'):
         try:
@@ -151,7 +155,7 @@ def resolve_catalog_object(obj, assets):
     return matches[0] if len(matches) == 1 else None
 
 
-def evaluate_design(canvas_json, offer, catalog=None):
+def evaluate_design(canvas_json, offer, catalog=None, *, owner=None):
     counts, invalid = Counter(), []
     result = {'can_book': False, 'counts': {}, 'missing_requirements': [], 'invalid_items': invalid, 'rows': []}
     try:
@@ -170,11 +174,32 @@ def evaluate_design(canvas_json, offer, catalog=None):
     rules_by_category = {r.category_id: r for r in rules}
     assets = catalog.assets(offer) if catalog else {a.pk: a for a in eligible_assets(offer).select_related('category')}
     balloon_colors = set()
-    for obj in state['objects']:
+    placements = list(visible_placements(state['objects']))
+    uploads = {u.pk: u for u in owned_uploads((obj.get('_uploadId') for obj in placements if isinstance(obj, dict)), owner)}
+    image_categories = {asset.category_id for asset in assets.values() if asset.item_type != 'i-text'}
+    for obj in placements:
         if not isinstance(obj, dict):
             invalid.append("We couldn't read one of the items in your design. Remove and add that item again.")
             continue
-        if obj.get('_isArtboard') or obj.get('_isBgImage') or obj.get('_designSource') == 'reference':
+        if obj.get('_designSource') == 'upload' or obj.get('_uploadId'):
+            upload = resolve_upload_object(obj, uploads)
+            if not upload:
+                invalid.append('An uploaded image could not be verified. Remove it and upload it again.')
+                continue
+            if upload.category_id not in rules_by_category or (
+                    upload.category.builtin_key != THEME_DECOR and upload.category_id not in image_categories):
+                invalid.append(f'{upload.category.name}: this custom image is not included in the selected offer.')
+                continue
+            if upload.category.is_balloon:
+                try:
+                    colors = normalized_colors(upload.colors)
+                except ValidationError:
+                    colors = []
+                if offer.max_balloon_colors and not colors:
+                    invalid.append('Choose the intended colors for your uploaded balloon image.')
+                    continue
+                balloon_colors.update(colors)
+            counts[upload.category_id] += 1
             continue
         asset = resolve_catalog_object(obj, assets)
         if asset is None:
@@ -183,8 +208,6 @@ def evaluate_design(canvas_json, offer, catalog=None):
             continue
         if asset.category_id not in rules_by_category:
             invalid.append(f'{asset.label} is not included in the selected offer.')
-            continue
-        if obj.get('visible') is False or obj.get('opacity', 1) == 0 or obj.get('scaleX', 1) == 0 or obj.get('scaleY', 1) == 0:
             continue
         if asset.item_type == 'i-text' and not str(obj.get('text', '')).strip():
             continue
@@ -213,7 +236,7 @@ def evaluate_design(canvas_json, offer, catalog=None):
 
 
 def evaluate_saved_design(design, catalog=None):
-    return evaluate_design(design.canvas_json, design_offer(design, catalog), catalog)
+    return evaluate_design(design.canvas_json, design_offer(design, catalog), catalog, owner=design.user_id)
 
 
 def restore_catalog_metadata(canvas_json, offer):

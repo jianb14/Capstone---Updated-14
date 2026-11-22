@@ -10,6 +10,10 @@ from django.utils.deconstruct import deconstructible
 
 @deconstructible
 class PaymentProofStorage(Storage):
+    cloud_folder = 'private_payment_receipts'
+    local_folder = ''
+    file_label = 'payment proof'
+
     def _local(self):
         return FileSystemStorage(location=settings.PAYMENT_PROOF_ROOT)
 
@@ -24,11 +28,11 @@ class PaymentProofStorage(Storage):
             from cloudinary.exceptions import Error
             try:
                 result = cloudinary.uploader.upload(content, resource_type='image', type='authenticated',
-                    public_id=f'private_payment_receipts/{uuid4().hex}', **self._cloud_options())
+                    public_id=f'{self.cloud_folder}/{uuid4().hex}', **self._cloud_options())
             except Error as error:
                 raise OSError('Private payment storage is unavailable.') from error
             return f"private/cloudinary/{result['public_id']}.{result['format']}"
-        filename = self._local().save(f'{uuid4().hex}{extension}', content)
+        filename = self._local().save(f'{self.local_folder}{uuid4().hex}{extension}', content)
         return 'private/local/'+filename
 
     def _open(self, name, mode='rb'):
@@ -44,7 +48,7 @@ class PaymentProofStorage(Storage):
                 response = requests.get(url, timeout=20)
                 response.raise_for_status()
             except requests.RequestException as error:
-                raise OSError('Private payment proof is unavailable.') from error
+                raise OSError(f'Private {self.file_label} is unavailable.') from error
             return ContentFile(response.content, name=name)
         return default_storage.open(name, mode)
 

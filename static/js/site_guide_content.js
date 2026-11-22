@@ -7,7 +7,7 @@ window.SiteGuideContent = (() => {
         item('.calendar-legend','Schedule legend','The legend explains the marks used for scheduled events.')
     ];
     const canvas = [
-        item('.canvas-tool-rail','Design tools','Assets, Text, Uploads and Layers organize the tools used in the editor.'),
+        item('.canvas-tool-rail','Design tools','Assets, Text, Background and Layers organize the tools used in the editor. Upload custom images inside their matching asset category.'),
         item('#canvasDropZone','Design workspace','This is the layout area where the event design is displayed and arranged.'),
         item('.canvas-main-toolbar','Editor controls','The toolbar contains the available canvas, zoom and editing controls.'),
         item('#saveDesignBtn','Saved layouts','Save stores the layout in My Designs. A saved design can be a draft or ready to book.'),

@@ -205,8 +205,14 @@ from .views import (
 )
 
 from .views.account import account_deletion_status, delete_my_account, account_deleted
+from .views.canvas_uploads import canvas_upload_create, canvas_upload_image, canvas_upload_colors, canvas_upload_remove, canvas_upload_preview
 
 urlpatterns = [
+    path('my-designs/uploads/', canvas_upload_create, name='canvas_upload_create'),
+    path('my-designs/uploads/preview/', canvas_upload_preview, name='canvas_upload_preview'),
+    path('my-designs/uploads/<int:id>/image/', canvas_upload_image, name='canvas_upload_image'),
+    path('my-designs/uploads/<int:id>/colors/', canvas_upload_colors, name='canvas_upload_colors'),
+    path('my-designs/uploads/<int:id>/remove/', canvas_upload_remove, name='canvas_upload_remove'),
     path('staff/page-content/<str:workspace>/<str:resource>/<str:action>/<int:pk>/', content_action, name='admin_content_action'),
     path('staff/security/email/', admin_email_setup, name='admin_email_setup'),
     path('staff/security/<str:purpose>/<str:action>/', admin_security_action, name='admin_security_action'),

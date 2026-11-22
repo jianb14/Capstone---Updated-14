@@ -179,10 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
             assetSearchInput.focus();
         });
     }
-    const themeDecorInput = byId('themeDecorInput');
 
-    const userUploadInput = byId('userUploadInput');
-    const userUploadsGrid = byId('userUploadsGrid');
 
     const drawToolButtons = Array.from(document.querySelectorAll('.draw-tool-btn[data-draw-tool]'));
     const drawColorInput = byId('drawColorInput');
@@ -204,9 +201,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const MAX_UNDO = 40;
     const ENABLE_VIEWPORT_PAN = true;
     const DRAFT_STORAGE_PREFIX = 'designCanvasDraft:v1';
-    const UPLOAD_CACHE_KEY = 'design_uploads_cache_';
-    const MAX_SAVED_UPLOADS = 24;
-    const UPLOAD_THUMB_MAX_EDGE = 320;
     const DRAFT_SAVE_DEBOUNCE_MS = 260;
     const urlParams = new URLSearchParams(window.location.search || '');
     const draftPackageId = urlParams.get('package_id') || window.basePackageId || 'none';
@@ -682,6 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.inventory-category').forEach((category) => {
             const list = category.querySelector('.category-items');
             if (!list) return;
+            const catalogList = list.querySelector('.catalog-asset-items') || list;
 
             const headerLabel =
                 category.querySelector('.category-header span')?.textContent ||
@@ -689,14 +684,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 '';
             const categoryKey = normalizeCategoryName(category.dataset.categoryName || headerLabel);
             const categoryAssets = getCategoryAssetsFromPayload(payload, categoryKey).filter(asset => asset.builtin_key !== 'styrofoam_name');
-            const existingItems = Array.from(list.querySelectorAll('.draggable-item'));
+            const existingItems = Array.from(catalogList.querySelectorAll('.draggable-item'));
             const shouldHydrateFromPayload = categoryAssets.length > 0;
 
             if (shouldHydrateFromPayload) {
-                list.innerHTML = '';
+                catalogList.innerHTML = '';
                 categoryAssets.forEach((asset) => {
                     const card = buildAssetCardFromPayload(asset, categoryKey);
-                    if (card) list.appendChild(card);
+                    if (card) catalogList.appendChild(card);
                 });
             } else {
                 existingItems.forEach((item) => {
@@ -715,11 +710,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            if (!list.querySelector('.draggable-item') && !list.querySelector('.empty-panel-note')) {
+            if (!list.querySelector('[data-category-upload]') && !catalogList.querySelector('.draggable-item') && !catalogList.querySelector('.empty-panel-note')) {
                 const emptyText = document.createElement('div');
                 emptyText.className = 'empty-panel-note';
                 emptyText.textContent = 'No assets in this category yet.';
-                list.appendChild(emptyText);
+                catalogList.appendChild(emptyText);
             }
         });
 
@@ -737,6 +732,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.inventory-category').forEach(category => {
                 const rule = window.designOffer.requirements.find(row => Number(row.category_id) === Number(category.dataset.categoryId));
                 category.style.display = rule ? '' : 'none';
+                category.classList.toggle('is-not-included', !rule);
                 const header = category.querySelector('.category-header');
                 header?.querySelector('.design-badge')?.remove();
                 if (rule?.required && header) { const badge = document.createElement('small'); badge.className = 'design-badge inventory-required'; badge.textContent = 'Required'; header.insertBefore(badge, header.querySelector('.chevron')); }
@@ -746,10 +742,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rule = window.designOffer.requirements.find(row => Number(row.category_id) === Number(styroSection.dataset.builtinCategoryId));
                 styroSection.hidden = !rule;
                 styroSection.style.display = rule ? '' : 'none';
-                styroSection.querySelector('.theme-decor-field')?.setAttribute('hidden', '');
             }
             updateSidebarGroupsBadge(Array.from(document.querySelectorAll('.inventory-category')).filter(c => c.style.display !== 'none').length);
-            syncVisibleCategoryAccordions(); return;
+            syncVisibleCategoryAccordions();
+            window.CanvasCategoryUploads?.updateOffer();
+            return;
         }
         const categories = Array.from(document.querySelectorAll('.inventory-category'));
         if (!categories.length) return;
@@ -1137,113 +1134,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getCurrentState() {
-        return JSON.stringify(
-            canvas.toJSON([
+        const state = canvas.toJSON([
                 '_isArtboard',
                 '_isColorableSVG',
                 '_isLocked',
                 '_packageCategory',
                 '_assetId', '_assetToken', '_assetSource', '_categoryId', '_designSource',
+                '_uploadId', '_uploadToken',
                 '_isBgImage',
                 '_bgFitMode',
                 '_currentColor',
                 '_outlineShapeIndexes',
                 '_layerId',
                 '_layerName'
-            ])
-        );
-    }
-
-    function makeUploadThumbnail(dataUrl) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                try {
-                    const longest = Math.max(img.naturalWidth || 0, img.naturalHeight || 0);
-                    if (!longest || longest <= UPLOAD_THUMB_MAX_EDGE) {
-                        resolve(dataUrl);
-                        return;
-                    }
-                    const scale = UPLOAD_THUMB_MAX_EDGE / longest;
-                    const thumbCanvas = document.createElement('canvas');
-                    thumbCanvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
-                    thumbCanvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
-                    const ctx = thumbCanvas.getContext('2d');
-                    if (!ctx) {
-                        resolve(dataUrl);
-                        return;
-                    }
-                    ctx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
-                    resolve(thumbCanvas.toDataURL('image/jpeg', 0.85));
-                } catch (thumbError) {
-                    console.warn('Failed to downscale upload thumbnail:', thumbError);
-                    resolve(dataUrl);
-                }
-            };
-            img.onerror = () => resolve(dataUrl);
-            img.src = dataUrl;
-        });
-    }
-
-    function getSavedUploads() {
-        try {
-            const raw = localStorage.getItem(UPLOAD_CACHE_KEY + (window.currentDesignId || 'new'));
-            if (!raw) return [];
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) return [];
-            return parsed.filter((item) => item && typeof item.dataUrl === 'string');
-        } catch (error) {
-            console.warn('Failed to read saved uploads:', error);
-            return [];
-        }
-    }
-
-    function persistUploadsNow() {
-        if (!userUploadsGrid) return;
-        try {
-            const items = Array.from(userUploadsGrid.querySelectorAll('.draggable-item[data-src]'))
-                .slice(0, MAX_SAVED_UPLOADS)
-                .map((node) => ({ name: node.title || 'upload', dataUrl: node.dataset.src }));
-            localStorage.setItem(UPLOAD_CACHE_KEY + (window.currentDesignId || 'new'), JSON.stringify(items));
-        } catch (error) {
-            // Quota may be exceeded when many/large images are saved; keep editor usable.
-            console.warn('Failed to persist uploads:', error);
-        }
-    }
-
-    function addUploadNode(name, dataUrl, placeFirst) {
-        if (!userUploadsGrid || !dataUrl) return;
-        const node = document.createElement('div');
-        node.className = 'draggable-item';
-        node.draggable = true;
-        node.dataset.type = 'image';
-        node.dataset.designSource = 'reference';
-        node.dataset.src = dataUrl;
-        node.dataset.width = '180';
-        node.dataset.height = '180';
-        node.title = name || 'upload';
-        const wrapper = document.createElement('div'); wrapper.className = 'item-preview-img-wrapper';
-        const preview = document.createElement('img'); preview.className = 'item-preview-img'; preview.src = dataUrl; preview.alt = node.title;
-        wrapper.appendChild(preview); node.appendChild(wrapper);
-        const tag = document.createElement('small'); tag.className = 'design-reference-tag'; tag.textContent = 'Reference only'; node.appendChild(tag);
-        bindDraggableItem(node);
-        if (placeFirst && userUploadsGrid.firstChild) {
-            userUploadsGrid.insertBefore(node, userUploadsGrid.firstChild);
-        } else {
-            userUploadsGrid.appendChild(node);
-        }
-    }
-
-    function restoreSavedUploads() {
-        if (!userUploadsGrid) return;
-        getSavedUploads().forEach((item) => addUploadNode(item.name, item.dataUrl, false));
-    }
-
-    function loadUploadCacheForDesign() {
-        if (!userUploadsGrid) return;
-        const cache = getSavedUploads();
-        if (cache.length === 0) return;
-        cache.forEach((item) => addUploadNode(item.name, item.dataUrl, false));
+            ]);
+        state.upload_library_ids = window.CanvasCategoryUploads?.ids() || [];
+        window.CanvasCategoryUploads?.canonicalizeSources(state, window.canvasUploadsPayload || {}, location.origin);
+        return JSON.stringify(state);
     }
 
     function getDraftCanvasJson() {
@@ -1252,6 +1159,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!raw) return null;
             const payload = JSON.parse(raw);
             if (!payload || typeof payload.canvas_json !== 'string') return null;
+            if (payload.upload_user_id != null && String(payload.upload_user_id) !== String(window.canvasUserId)) return null;
+            if (String(payload.upload_user_id) === String(window.canvasUserId)) {
+                const draftState = JSON.parse(payload.canvas_json);
+                window.CanvasCategoryUploads?.restore(payload.uploads, draftState.upload_library_ids);
+            }
             const upgraded = Object.entries(window.allDesignOffers || {}).find(([, offer]) => Number(offer.id) === Number(payload.design_offer_id) && offer.enabled);
             if (upgraded && Number(window.designOffer?.id) !== Number(payload.design_offer_id)) applyPackage(upgraded[0]);
             return payload.canvas_json;
@@ -1275,6 +1187,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const payload = {
                 canvas_json: getCurrentState(),
                 saved_at: Date.now(),
+                uploads: window.canvasUploadsPayload || {},
+                upload_user_id: window.canvasUserId,
                 base_package_id: window.basePackageId || null,
                     design_offer_id: window.designOffer?.id || null
             };
@@ -1422,12 +1336,14 @@ document.addEventListener('DOMContentLoaded', function() {
         applyArtboardSize(scaledW, scaledH, { saveHistory: true, fitToView: false });
     }
 
-    function restoreCanvasState(state) {
+    function restoreCanvasState(state, {restoreLibrary = true} = {}) {
         workspaceSkeleton?.finish();
         workspaceSkeleton = window.SiteLoading?.start(dropZone, {variant: 'canvas', label: 'Restoring design...'});
         isLoadingState = true;
 
         canvas.loadFromJSON(state, () => {
+            const restoredState = typeof state === 'string' ? JSON.parse(state) : state;
+            window.CanvasCategoryUploads?.restore(null, restoreLibrary ? restoredState.upload_library_ids : window.canvasUploadLibraryIds);
             const loadedArtboard = canvas.getObjects().find((obj) => obj._isArtboard);
             if (loadedArtboard) {
                 artboard = loadedArtboard;
@@ -2272,6 +2188,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateControlsState() {
         const activeObjs = getSelectableActiveObjects();
+        window.CanvasCategoryUploads?.syncSelection(activeObjs);
         const hasSelection = activeObjs.length > 0;
         const singleObj = activeObjs.length === 1 ? activeObjs[0] : null;
         const hasUnlockedSelection = activeObjs.some((obj) => !obj._isLocked);
@@ -2332,8 +2249,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (itemColorPicker) {
-            itemColorPicker.disabled = !hasSelection;
+            itemColorPicker.disabled = !hasSelection || activeObjs.some(obj => obj._designSource === 'upload');
         }
+        const objectColorFields = byId('objectColorFields');
+        const uploadedSelection = activeObjs.some(obj => obj._designSource === 'upload');
+        objectColorFields.disabled = uploadedSelection;
+        objectColorFields.inert = uploadedSelection;
+        objectColorFields.setAttribute('aria-disabled', String(uploadedSelection));
         let activeColorHex = '';
         if (singleObj) {
             activeColorHex = resolveObjectColorHex(singleObj);
@@ -2406,11 +2328,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return all.map(obj => objects.includes(obj) ? {...obj, type: obj.type, _currentColor: color, fill: color} : obj);
     }
     function applyObjectColors(objects, color, { remember = true } = {}) {
-        const targets = objects.filter(obj => !obj._isLocked && canvas.getObjects().includes(obj));
+        const targets = objects.filter(obj => !obj._isLocked && obj._designSource !== 'upload' && canvas.getObjects().includes(obj));
+        if (!targets.length && objects.some(obj => obj._designSource === 'upload')) showCanvasToast('info', 'Custom photos keep their original colors. Upload another image to change the design.');
         if (!targets.length) return false;
         const preview = () => colorPreview(targets, color);
         const limit = window.designOffer?.max_balloon_colors ?? Infinity;
-        if (window.designOffer && window.DesignUpgrades.colors(preview(), window.designOffer, catalogById()) > limit) {
+        if (window.designOffer && window.DesignUpgrades.colors(preview(), window.designOffer, catalogById(), window.canvasUploadsPayload) > limit) {
             handleColorUpgrade(limit, preview, () => applyObjectColors(targets, color));
             updateControlsState();
             return false;
@@ -2423,6 +2346,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function applyColorToObject(obj, color, {skipLimit = false, resume = null} = {}) {
         if (!obj || !color) return;
+        if (obj._designSource === 'upload') return false;
 
         const normalizedCat = normalizeCategoryName(obj._packageCategory);
         const isBalloon = isBalloonCategory(obj._packageCategory, obj._categoryId);
@@ -2431,7 +2355,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check if applying this color would exceed the unique color limit
             const limit = window.designOffer ? (window.designOffer.max_balloon_colors ?? Infinity) : (window.packageQuotas?.balloon_color_limit || 2);
             const preview = () => colorPreview([obj], color);
-            const potentialCount = window.designOffer ? window.DesignUpgrades.colors(preview(), window.designOffer, catalogById()) : getUniqueBalloonColors(obj, color).length;
+            const potentialCount = window.designOffer ? window.DesignUpgrades.colors(preview(), window.designOffer, catalogById(), window.canvasUploadsPayload) : getUniqueBalloonColors(obj, color).length;
             
             if (!skipLimit && potentialCount > limit) {
                 handleColorUpgrade(limit, preview, resume || (() => applyObjectColors([obj], color)));
@@ -2536,7 +2460,17 @@ document.addEventListener('DOMContentLoaded', function() {
             (img) => {
                 assetLoad?.finish();
                 if (!img) return;
-                if (data.designSource === 'catalog' && !checkQuota(data.category, data.categoryId, retryShape(data, pointer))) return;
+                if (['catalog', 'upload'].includes(data.designSource) && !checkQuota(data.category, data.categoryId, retryShape(data, pointer))) return;
+                if (data.designSource === 'upload') {
+                    if (!window.designOffer?.requirements.some(rule => Number(rule.category_id) === Number(data.categoryId))) return;
+                    const pendingImage = {_uploadId: data.uploadId, _uploadToken: data.uploadToken, _categoryId: data.categoryId, src: data.src, _designSource: 'upload', type: 'image'};
+                    const preview = () => [...canvas.getObjects(), pendingImage];
+                    const limit = window.designOffer.max_balloon_colors;
+                    if (limit && window.DesignUpgrades.colors(preview(), window.designOffer, catalogById(), window.canvasUploadsPayload) > limit) {
+                        handleColorUpgrade(limit, preview, retryShape(data, pointer));
+                        return;
+                    }
+                }
                 const desiredW = data.width || 180;
                 const desiredH = data.height || 180;
                 const scale = Math.min(desiredW / img.width, desiredH / img.height);
@@ -2614,6 +2548,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function addShapeToCanvas(data, pointer) {
         const point = pointer || getArtboardCenterPoint();
+        if (data.designSource === 'upload' && !window.designOffer?.requirements.some(rule => Number(rule.category_id) === Number(data.categoryId))) {
+            showCanvasToast('error', 'This category is not included in the selected package.');
+            return;
+        }
 
         // 1. Validation: Check if we are over the limit for package inclusions
         if (window.packageQuotas) {
@@ -2621,7 +2559,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!checkQuota(category, data.categoryId, retryShape(data, pointer))) return;
 
             // Check balloon color limit when adding
-            if (isBalloonCategory(category, data.categoryId)) {
+            if (data.designSource !== 'upload' && isBalloonCategory(category, data.categoryId)) {
                 // If the user has already picked a color, use it as the default for new drags
                 if (lastBalloonColor) {
                     data.fill = lastBalloonColor;
@@ -2681,13 +2619,15 @@ document.addEventListener('DOMContentLoaded', function() {
         obj._assetId = data.assetId || null; obj._assetToken = data.assetToken || '';
         obj._assetSource = data.src || ''; obj._categoryId = data.categoryId || null;
         obj._designSource = data.designSource || (data.assetId ? 'catalog' : 'reference');
+        obj._uploadId = data.uploadId || null;
+        obj._uploadToken = data.uploadToken || '';
     }
 
     function checkQuota(category, categoryId = null, resume = null) {
         if (window.designOffer) {
             const rule = window.designOffer.requirements.find(row => categoryId ? Number(row.category_id) === Number(categoryId) : normalizeCategoryName(row.name) === normalizeCategoryName(category));
             if (!rule || rule.maximum === null) return true;
-            const used = canvas.getObjects().filter(obj => !obj._isArtboard && !obj._isBgImage && obj._designSource === 'catalog' && Number(obj._categoryId) === Number(rule.category_id)).length;
+            const used = window.DesignRules.evaluate(canvas.getObjects(), window.designOffer, catalogById(), window.canvasUploadsPayload).counts[rule.category_id] || 0;
             if (used >= rule.maximum) {
                 if (resume && window.designOffer.kind === 'package' && window.DesignUpgrades.isPanel(rule)) handlePackageUpgrade(rule.category_id, rule.maximum, resume);
                 else showToast(`Included limit: ${rule.maximum}. Remove an existing item before adding another.`, 'error', `${rule.name} limit reached`);
@@ -2766,7 +2706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function requestUpgrade(request, objects, resume, message) {
         const current = window.designOffer;
-        const next = window.DesignUpgrades.find(window.allDesignOffers, current, objects(), catalogById(), request);
+        const next = window.DesignUpgrades.find(window.allDesignOffers, current, objects(), catalogById(), request, window.canvasUploadsPayload);
         if (!next) {
             showToast(message + (current?.kind === 'package' ? ' No compatible higher package is available.' : ''), 'error', request.type === 'colors' ? 'Balloon color limit reached' : 'Panel limit reached');
             return;
@@ -2792,11 +2732,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!rule || !asset) { showToast('The item limit for this package has been reached.', 'error'); return; }
         const future = {_assetId: asset.id, _assetToken: asset.token, _designSource: 'catalog', type: asset.type, text: 'Panel'};
         const objects = () => [...canvas.getObjects(), future];
-        const used = canvas.getObjects().filter(obj => obj._designSource === 'catalog' && Number(obj._categoryId) === Number(categoryId)).length;
+        const used = window.DesignRules.evaluate(canvas.getObjects(), window.designOffer, catalogById(), window.canvasUploadsPayload).counts[categoryId] || 0;
         requestUpgrade({type: 'panel', categoryId, needed: used + 1}, objects, resume, `This package includes up to ${currentLimit} ${currentLimit === 1 ? 'panel' : 'panels'}.`);
     }
     function handleColorUpgrade(currentLimit, objects, resume) {
-        requestUpgrade({type: 'colors', needed: window.DesignUpgrades.colors(objects(), window.designOffer, catalogById())}, objects, resume, `This package allows up to ${currentLimit} balloon ${currentLimit === 1 ? 'color' : 'colors'}.`);
+        requestUpgrade({type: 'colors', needed: window.DesignUpgrades.colors(objects(), window.designOffer, catalogById(), window.canvasUploadsPayload)}, objects, resume, `This package allows up to ${currentLimit} balloon ${currentLimit === 1 ? 'color' : 'colors'}.`);
     }
     function applyPackage(packageId) {
         const offer = window.allDesignOffers?.[packageId];
@@ -2833,6 +2773,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!item) return null;
         return {
             assetId: item.dataset.assetId || null, assetToken: item.dataset.assetToken || '', categoryId: item.dataset.categoryId || null, designSource: item.dataset.designSource || (item.dataset.assetId ? 'catalog' : 'reference'),
+            uploadId: item.dataset.uploadId || null, uploadToken: item.dataset.uploadToken || '',
             type: item.getAttribute('data-type') || 'image',
             category: item.getAttribute('data-category') || 'custom',
             src: item.getAttribute('data-src') || '',
@@ -2886,6 +2827,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.querySelectorAll('.draggable-item').forEach(bindDraggableItem);
+    function uploadedPhotoObjects(id) {
+        const matches = [];
+        function visit(objects, locked = false) {
+            objects.forEach(obj => {
+                const isLocked = locked || obj._isLocked;
+                if (obj._designSource === 'upload' && String(obj._uploadId) === String(id)) matches.push({obj, locked: isLocked});
+                else if (obj.getObjects) visit(obj.getObjects(), isLocked);
+            });
+        }
+        visit(canvas.getObjects());
+        return matches;
+    }
+    function validateUploadColors(upload, colors) {
+        if (!window.designOffer?.requirements.some(rule => Number(rule.category_id) === Number(upload.category_id))) return 'This photo is not included in the selected package.';
+        const targets = uploadedPhotoObjects(upload.id);
+        if (targets.some(target => target.locked)) return 'Unlock this photo and its copies before editing their colors.';
+        const limit = window.designOffer.max_balloon_colors;
+        const preview = {...window.canvasUploadsPayload, [upload.id]: {...upload, colors}};
+        if (targets.length && limit && window.DesignUpgrades.colors(canvas.getObjects(), window.designOffer, catalogById(), preview) > limit) {
+            return `Use no more than ${limit} balloon colors across this design. Choose fewer colors or upgrade your package.`;
+        }
+        return '';
+    }
+    window.CanvasCategoryUploads?.init({
+        bindItem: bindDraggableItem,
+        getOffer: () => window.designOffer,
+        getDesignId: () => window.currentDesignId,
+        uploadUrl: '/my-designs/uploads/',
+        validateColors: validateUploadColors,
+        replaceUpload: (original, revised) => new Promise((resolve, reject) => {
+            fabric.Image.fromURL(revised.src, (loaded, failed) => {
+                if (failed || !loaded?.getElement()) { reject(new Error('Unable to load this photo. Please try again.')); return; }
+                const message = validateUploadColors(original, revised.colors);
+                if (message) { reject(new Error(message)); return; }
+                saveState();
+                uploadedPhotoObjects(original.id).forEach(({obj}) => {
+                    obj.setElement(loaded.getElement(), {width: obj.width, height: obj.height});
+                    obj._uploadId = revised.id;
+                    obj._uploadToken = revised.token;
+                    obj._assetSource = revised.src;
+                    obj.dirty = true;
+                    if (obj.group) obj.group.dirty = true;
+                });
+                resolve();
+            }, {crossOrigin: 'anonymous'});
+        }),
+        changed: () => { canvas.requestRenderAll(); updateControlsState(); scheduleDraftPersist(); updateVisualCart(); }
+    });
     updateDrawLabels();
 
     drawToolButtons.forEach((btn) => {
@@ -2962,6 +2951,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function duplicateSingleSelectedObject(source = null) {
         const activeObj = source || getSingleActiveObject();
         if (!activeObj || activeObj._isLocked || !canvas.getObjects().includes(activeObj)) return;
+        if (activeObj._designSource === 'upload' && !window.designOffer?.requirements.some(rule => Number(rule.category_id) === Number(activeObj._categoryId))) {
+            showCanvasToast('error', 'This custom image is not included in the selected package.');
+            return;
+        }
 
         if (!checkQuota(activeObj._packageCategory || 'custom', activeObj._categoryId, () => duplicateSingleSelectedObject(activeObj))) return;
 
@@ -2972,6 +2965,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // selected or duplicated anyway (selectable: false).
         activeObj.clone(
             (cloned) => {
+                if (activeObj._designSource === 'upload' && !window.designOffer?.requirements.some(rule => Number(rule.category_id) === Number(activeObj._categoryId))) return;
                 if (!checkQuota(activeObj._packageCategory || 'custom', activeObj._categoryId, () => duplicateSingleSelectedObject(activeObj))) return;
                 saveState();
                 canvas.discardActiveObject();
@@ -2994,6 +2988,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 '_isColorableSVG',
                 '_packageCategory',
                 '_assetId', '_assetToken', '_assetSource', '_categoryId', '_designSource',
+                '_uploadId', '_uploadToken',
                 '_isLocked',
                 '_currentColor',
                 '_outlineShapeIndexes'
@@ -3887,13 +3882,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (themeDecorInput) {
-        themeDecorInput.addEventListener('input', () => {
-            updateVisualCart();
-            scheduleDraftPersist();
-        });
-    }
-
     if (applySizeBtn && canvasWidthInput && canvasHeightInput) {
         const applyCanvasSizeFromInputs = () => {
             const nextW = parseInt(canvasWidthInput.value, 10) || ARTBOARD_W;
@@ -3915,51 +3903,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 applyCanvasSizeFromInputs();
             });
         });
-    }
-
-    if (userUploadInput && userUploadsGrid) {
-        loadUploadCacheForDesign();
-        const referenceUploadDropzone = byId('referenceUploadDropzone');
-        const browseReferenceFiles = byId('browseReferenceFiles');
-        const uploadReferenceFiles = (files) => {
-            const images = Array.from(files || []);
-            if (images.some((file) => !file.type.startsWith('image/'))) {
-                showCanvasToast('error', 'Please choose image files only.');
-            }
-            images.filter((file) => file.type.startsWith('image/')).forEach((file) => {
-                const reader = new FileReader();
-                reader.onload = (loadEvent) => {
-                    addUploadNode(file.name, loadEvent.target.result, true);
-                    persistUploadsNow();
-                };
-                reader.onerror = () => showCanvasToast('error', 'This image could not be read. Please try another file.');
-                reader.readAsDataURL(file);
-            });
-        };
-        userUploadInput.addEventListener('change', (event) => {
-            uploadReferenceFiles(event.target.files);
-            userUploadInput.value = '';
-        });
-        if (browseReferenceFiles) browseReferenceFiles.addEventListener('click', () => userUploadInput.click());
-        if (referenceUploadDropzone) {
-            ['dragenter', 'dragover'].forEach((type) => referenceUploadDropzone.addEventListener(type, (event) => {
-                if (!Array.from(event.dataTransfer.types).includes('Files')) return;
-                event.preventDefault();
-                event.stopPropagation();
-                event.dataTransfer.dropEffect = 'copy';
-                referenceUploadDropzone.classList.add('is-file-over');
-            }));
-            referenceUploadDropzone.addEventListener('dragleave', (event) => {
-                if (!referenceUploadDropzone.contains(event.relatedTarget)) referenceUploadDropzone.classList.remove('is-file-over');
-            });
-            referenceUploadDropzone.addEventListener('drop', (event) => {
-                referenceUploadDropzone.classList.remove('is-file-over');
-                if (!Array.from(event.dataTransfer.types).includes('Files')) return;
-                event.preventDefault();
-                event.stopPropagation();
-                uploadReferenceFiles(event.dataTransfer.files);
-            });
-        }
     }
 
     const clearCanvasModal = byId('clearCanvasModal');
@@ -4010,7 +3953,7 @@ document.addEventListener('DOMContentLoaded', function() {
         byId('confirmUpgradeBtn').addEventListener('click', () => {
             const pending = pendingUpgrade;
             if (!pending) return;
-            if (window.designOffer !== pending.current || !window.DesignUpgrades.fits(pending.next, pending.current, pending.objects(), catalogById(), pending.request)) {
+            if (window.designOffer !== pending.current || !window.DesignUpgrades.fits(pending.next, pending.current, pending.objects(), catalogById(), pending.request, window.canvasUploadsPayload)) {
                 closeUpgradeModal();
                 showToast('Please try adding the item again to check the available packages.', 'info', 'Your design has changed');
                 return;
@@ -4089,7 +4032,6 @@ document.addEventListener('DOMContentLoaded', function() {
         canvas.discardActiveObject();
         canvas.renderAll();
 
-        persistUploadsNow();
 
         const originalHtml = saveDesignBtn.innerHTML;
         saveDesignBtn.innerHTML = inventoryIconHtml('spinner') + ' Saving...';
@@ -4134,7 +4076,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     canvas_json: getCurrentState(),
                     thumbnail: thumbnail,
                     base_package_id: window.basePackageId || null,
-                    design_offer_id: window.designOffer?.id || null
+                    design_offer_id: window.designOffer?.id || null,
+                    upload_ids: window.CanvasCategoryUploads?.ids() || []
                 })
             });
 
@@ -4191,6 +4134,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (saveDesignBtn) {
         saveDesignBtn.addEventListener('click', () => {
+            if (window.CanvasCategoryUploads?.busy()) {
+                showCanvasToast('info', 'Wait for your images to finish uploading, then save again.');
+                return;
+            }
             const nonArtboard = canvas.getObjects().filter((obj) => !obj._isArtboard);
             if (!nonArtboard.length) {
                 showCanvasToast('error', 'The canvas is empty. Add some elements first.');
@@ -4313,14 +4260,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const heading = document.createElement('div'); heading.className = 'design-summary-state';
             heading.appendChild(summaryStatusIcon(evaluation.can_book ? 'check' : issues.length ? 'alert' : 'clock'));
             const title = document.createElement('strong'); title.textContent = evaluation.can_book ? 'Ready to book' : issues.length ? 'Needs review' : 'Draft'; heading.appendChild(title);
-            const description = document.createElement('p'); description.textContent = `${completeRequirements} of ${requiredRows.length} requirements complete.${issues.length ? ' Review the flagged items below.' : ''}`;
+            const hasCustomItems = canvas.getObjects().some(obj => obj._designSource === 'upload');
+            const description = document.createElement('p'); description.textContent = `${completeRequirements} of ${requiredRows.length} requirements complete.${issues.length ? ' Review the flagged items below.' : ''}${hasCustomItems ? ' Custom decorations are subject to availability and review.' : ''}`;
             const progress = document.createElement('progress'); progress.max = Math.max(requiredRows.length, 1); progress.value = completeRequirements; progress.setAttribute('aria-label', 'Required categories complete');
             overall.replaceChildren(heading, description, progress); overall.classList.toggle('design-ready', evaluation.can_book);
         }
     }
     function updateVisualCart() {
         if (window.designOffer && window.DesignRules) {
-            renderDesignEvaluation(window.DesignRules.evaluate(canvas.getObjects(), window.designOffer, catalogById()));
+            renderDesignEvaluation(window.DesignRules.evaluate(canvas.getObjects(), window.designOffer, catalogById(), window.canvasUploadsPayload));
             if (cartTotalPrice) cartTotalPrice.textContent = `P${window.designOffer.price}`;
             clearTimeout(evaluationTimer); const sequence = ++evaluationSequence;
             evaluationTimer = setTimeout(async () => {
@@ -4338,11 +4286,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const category = normalizeCategoryName(obj._packageCategory || 'custom');
             counts[category] = (counts[category] || 0) + 1;
         });
-
-        if (themeDecorInput && themeDecorInput.value.trim()) {
-            const themeDecorCategory = normalizeCategoryName('theme decor');
-            counts[themeDecorCategory] = (counts[themeDecorCategory] || 0) + 1;
-        }
 
         if (cartInclusionsList) cartInclusionsList.innerHTML = '';
         if (cartAddonsList) cartAddonsList.innerHTML = '';
@@ -4842,7 +4785,6 @@ document.addEventListener('DOMContentLoaded', function() {
             draftSaveTimer = null;
         }
         persistDraftNow();
-        persistUploadsNow();
     });
 
     if (isFreshCanvasRequest) {
@@ -4861,7 +4803,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const draftCanvasJson = isFreshCanvasRequest ? null : getDraftCanvasJson();
         if (draftCanvasJson) {
             try {
-                restoreCanvasState(draftCanvasJson);
+                restoreCanvasState(draftCanvasJson, {restoreLibrary: false});
             } catch (error) {
                 workspaceSkeleton?.finish();
                 console.error('Failed to load canvas draft:', error);
@@ -4872,7 +4814,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     typeof window.savedCanvasJson === 'string'
                         ? window.savedCanvasJson
                         : JSON.stringify(window.savedCanvasJson);
-                restoreCanvasState(jsonStr);
+                restoreCanvasState(jsonStr, {restoreLibrary: false});
             } catch (error) {
                 workspaceSkeleton?.finish();
                 console.error('Failed to load saved canvas json:', error);

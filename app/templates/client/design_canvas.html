@@ -4,7 +4,7 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/design_workflow.css' %}">
 <link rel="stylesheet" href="{% static 'css/design_canvas.css' %}?v=20261031colors">
-<link rel="stylesheet" href="{% static 'css/canvas_inventory.css' %}?v=20261022toolbars">
+<link rel="stylesheet" href="{% static 'css/canvas_inventory.css' %}?v=20261122background1">
 <link rel="stylesheet" href="{% static 'css/canvas_toolbars.css' %}?v=20261023guidance">
 <link rel="stylesheet" href="{% static 'css/canvas_mobile.css' %}?v=20261023guidance">
 <link rel="stylesheet" href="{% static 'css/canvas_feedback.css' %}?v=20261023upgrade2">
@@ -79,9 +79,9 @@
                     {% include 'components/canvas_inventory_icon.html' with name='text' %}
                     <span>Text</span>
                 </button>
-                <button type="button" class="rail-btn" data-panel-target="uploadsPanel" data-tooltip="Uploads" aria-label="Uploads">
+                <button type="button" class="rail-btn" data-panel-target="uploadsPanel" data-tooltip="Background" aria-label="Background">
                     {% include 'components/canvas_inventory_icon.html' with name='upload' %}
-                    <span>Uploads</span>
+                    <span>Background</span>
                 </button>
                 <button type="button" class="rail-btn" data-panel-target="layersPanel" data-tooltip="Layers" aria-label="Layers">
                     {% include 'components/canvas_inventory_icon.html' with name='layers' %}
@@ -98,7 +98,7 @@
                     <div class="sidebar-panel-header">
                         <div>
                             <h4>Assets</h4>
-                            <p>Click or drag elements into the canvas.</p>
+                            <p>Click or drag elements into the canvas. Custom uploads count when placed.</p>
                         </div>
                     </div>
 
@@ -123,6 +123,7 @@
 
                     <div class="sidebar-section compact-section">
                         <div class="section-label">Object Color</div>
+                        <fieldset id="objectColorFields" class="object-color-fields" aria-label="Object Color">
                         <div class="color-swatch-grid">
                             <div class="color-swatch" data-target="object" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
                             <div class="color-swatch" data-target="object" data-color="#000000" style="background:#000000;" title="Black"></div>
@@ -143,6 +144,7 @@
                             <div class="recent-colors-label">Recently used</div>
                             <div class="color-swatch-grid recent-color-grid" role="group" aria-label="Recently used object colors"></div>
                         </div>
+                        </fieldset>
                     </div>
 
                     <div class="sidebar-section" id="builtinStyroSection" data-builtin-category-id="{{ styro_asset.category_id }}" {% if not styro_asset %}hidden{% endif %}>
@@ -163,24 +165,26 @@
                                 </div>
                             </div>
                         </div>
-                        <label class="theme-decor-field" for="themeDecorInput">
-                            <span>Theme Decor</span>
-                            <input type="text" id="themeDecorInput" maxlength="90" placeholder="Type desired theme decor">
-                        </label>
                     </div>
 
                     {% for cat in canvas_categories %}
-                    <div class="inventory-category" data-category-name="{{ cat.name|default:'Category'|lower }}" data-category-id="{{ cat.id }}">
+                    <div class="inventory-category" data-category-name="{{ cat.name|default:'Category'|lower }}" data-category-id="{{ cat.id }}" data-builtin-key="{{ cat.builtin_key|default:'' }}">
                         <button type="button" class="category-header is-open">
                             <span>{{ cat.name|default:'Category' }}</span>
                             {% include 'components/canvas_inventory_icon.html' with name='chevron' extra_class='chevron' %}
                         </button>
                         <div class="category-items open">
+                            <div class="catalog-asset-items">
                             {% for asset in cat.design_assets %}
                             {% include 'components/canvas_asset_item.html' with asset=asset %}
                             {% empty %}
+                            {% if not cat.accepts_uploads %}
                             <div class="empty-panel-note">No assets in this category yet.</div>
+                            {% endif %}
                             {% endfor %}
+                            </div>
+                            {% if cat.accepts_uploads %}{% include 'components/canvas_category_upload.html' with category=cat %}{% endif %}
+                            {% if cat.accepts_uploads %}<div class="custom-uploads-heading" hidden>Custom uploads</div><div class="category-upload-library" data-upload-library="{{ cat.id }}"></div>{% endif %}
                         </div>
                     </div>
                     {% empty %}
@@ -228,23 +232,6 @@
                         </div>
                     </div>
 
-                    <div class="sidebar-panel-header">
-                        <div>
-                            <h4>Uploads</h4>
-                            <p>Add your own reference photos to the canvas.</p>
-                        </div>
-                    </div>
-
-                    <div class="upload-dropzone" id="referenceUploadDropzone">
-                        {% include 'components/canvas_inventory_icon.html' with name='upload' %}
-                        <span>Drop images here</span>
-                        <small>or browse photos from your device</small>
-                        <button type="button" class="sidebar-primary-btn" id="browseReferenceFiles" aria-describedby="referenceUploadNote">Browse Files</button>
-                        <input type="file" id="userUploadInput" accept="image/*" multiple hidden>
-                    </div>
-                    <p class="upload-reference-note" id="referenceUploadNote">Reference photos do not count toward required items. Use assets for those.</p>
-
-                    <div id="userUploadsGrid" class="user-uploads-grid"></div>
                 </div>
 
                 <div class="sidebar-panel" id="layersPanel">
@@ -378,6 +365,7 @@
             <main class="canvas-area">
                 <div id="canvasDropZone">
                     <div class="selection-toolbar" id="selectionToolbar" aria-hidden="true">
+                        <div class="selection-controls-row">
                         <div class="toolbar-group" data-toolbar-group="text">
                             <div class="custom-filter-dropdown font-family-dropdown" id="fontFamilyDropdown">
                                 <div class="dropdown-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Font Family" aria-label="Font Family">
@@ -437,6 +425,13 @@
                             <button id="skewLeftBtn" class="ctrl-btn icon-only" data-tooltip="Skew Left" aria-label="Skew Left" disabled>{% include 'components/canvas_inventory_icon.html' with name='skew-left' %}</button>
                             <button id="skewRightBtn" class="ctrl-btn icon-only" data-tooltip="Skew Right" aria-label="Skew Right" disabled>{% include 'components/canvas_inventory_icon.html' with name='skew-right' %}</button>
                         </div>
+                        </div>
+                        <div class="toolbar-group selected-upload-colors" id="selectedUploadColors" hidden>
+                            <span>Balloon colors:</span>
+                            <div class="upload-color-labels"></div>
+                            <button type="button" class="upload-colors-edit">Edit colors</button>
+                        </div>
+
                     </div>
 
                     <canvas id="designCanvas"></canvas>
@@ -494,7 +489,7 @@
                         <div id="designRequiredGroup"><h3 class="design-summary-label">{% if base_package %}Required to book{% else %}Included items{% endif %}</h3><ul class="cart-list" id="cartInclusionsList"></ul></div>
                         <div class="design-optional-items" id="designOptionalItems" hidden><h3 class="design-optional-heading">Optional items <span id="designOptionalCount"></span></h3><p class="design-summary-help">Included in your offer. Add them if you'd like.</p><ul class="cart-list" id="cartOptionalList"></ul></div>
                         <div class="design-review-items" id="designReviewItems" hidden><h3 class="design-summary-label">Items to review</h3><ul id="designReviewList"></ul></div>
-                        <p class="design-summary-help design-reference-help">Uploaded photos are references and do not count toward required items.</p>
+                        <p class="design-summary-help design-reference-help">Custom uploads count toward their category allowance when placed.</p>
                     </div>
                     {% if not base_package %}<a href="{% url 'select_design_type' %}{% if design %}?design_id={{ design.id }}{% endif %}">Choose a design offer</a>{% endif %}
                 </div>
@@ -535,6 +530,26 @@
         <div class="mobile-editor-sheet-body" id="mobileChecklistBody"></div>
     </dialog>
     {{ all_packages_data|json_script:"allPackagesData" }}
+<dialog id="balloonColorsDialog" class="balloon-colors-dialog" aria-labelledby="balloonColorsTitle" aria-describedby="balloonColorsDescription">
+    <div class="balloon-colors-heading"><h2 id="balloonColorsTitle">Balloon photo colors</h2><button type="button" data-color-cancel aria-label="Close balloon colors">{% include 'components/canvas_inventory_icon.html' with name='close' %}</button></div>
+    <div class="balloon-colors-body">
+    <p data-color-file></p>
+    <img class="balloon-color-preview" alt="Balloon photo preview">
+    <div class="photo-background-controls" data-background-controls hidden>
+        <p data-background-status role="status" aria-live="polite"></p>
+        <div><button type="button" data-use-original aria-pressed="false">Use original</button><button type="button" data-remove-background>Remove background</button></div>
+    </div>
+    <p id="balloonColorsDescription">Select the colors shown in this photo. Your photo keeps its original appearance.</p>
+    <p data-color-limit></p>
+    <p data-color-edit-note hidden>Updates this photo and its copies in this design.</p>
+    <div data-balloon-color-fields>
+    <fieldset><legend>Colors in this photo</legend><div class="upload-color-options"></div></fieldset>
+    <div class="upload-custom-color"><label for="balloonCustomColor">Custom color</label><input id="balloonCustomColor" type="color" value="#ffffff"><button type="button" data-add-upload-color>Add color</button></div>
+    </div>
+    <p data-color-error role="status" aria-live="polite" hidden></p>
+    </div>
+    <div class="balloon-colors-actions"><button type="button" data-color-cancel>Cancel</button><button type="button" data-save-colors>Save colors</button></div>
+</dialog>
 </section>
 
 <!-- Package Upgrade Confirmation Modal (shared canvas-modal pattern) -->
@@ -674,8 +689,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 </script>
-<script src="{% static 'js/design_rules.js' %}?v=20261119errors1"></script>
-<script src="{% static 'js/design_upgrades.js' %}?v=20261023upgrade"></script>
-<script src="{% static 'js/canvas_mobile.js' %}?v=20261031viewport"></script>
-<script src="{% static 'js/design_canvas.js' %}?v=20261119errors1"></script>
+
+{{ canvas_uploads_payload|json_script:'canvas-uploads-payload' }}
+{{ canvas_upload_library_ids|json_script:'canvas-upload-library-ids' }}
+<script>window.canvasUploadLibraryIds = JSON.parse(document.getElementById('canvas-upload-library-ids').textContent);</script>
+<script>window.canvasUploadsPayload = JSON.parse(document.getElementById('canvas-uploads-payload').textContent || '{}');</script>
+<script src="{% static 'js/design_rules.js' %}?v=20261122background1"></script>
+<script src="{% static 'js/design_upgrades.js' %}?v=20261120uploads"></script>
+<script src="{% static 'js/canvas_category_uploads.js' %}?v=20261122background1"></script>
+<script src="{% static 'js/canvas_mobile.js' %}?v=20261122background1"></script>
+<script src="{% static 'js/design_canvas.js' %}?v=20261122background1"></script>
 {% endblock content %}

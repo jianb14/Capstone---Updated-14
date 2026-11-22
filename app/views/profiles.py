@@ -14,6 +14,7 @@ from ..profile_forms import EditProfileForm
 from ..account_lists import account_page_size
 from ..request_protection import deduplicate_submission
 from ..package_catalog import ordered_packages
+from ..booking_themes import theme_decor_capabilities
 
 
 def _concern_data(ticket):
@@ -450,6 +451,7 @@ def customer_profile(request):
             "active_addons": active_addons,
             "active_additionals": active_additionals,
             "edit_preview_data": edit_preview_data,
+            "theme_decor_capabilities": theme_decor_capabilities(),
             "global_service_charge": service_charge_config.amount,
             "global_service_charge_note": service_charge_config.notes,
             "availability_data": get_booking_form_availability(),

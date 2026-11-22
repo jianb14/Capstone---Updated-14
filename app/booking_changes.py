@@ -195,7 +195,11 @@ def prepare_proposal(booking, data):
         setattr(proposed, name, value)
     if not proposed.event_type or len(proposed.event_location) < 10 or not proposed.package_type:
         raise ValidationError('Event type, complete venue address, and a package are required.')
-    error = _validate_design_preferences(proposed.design_theme, proposed.color_palette)
+    from .booking_themes import allows_booking_theme
+    theme_allowed = allows_booking_theme(proposed.package_type)
+    if not theme_allowed:
+        proposed.design_theme = ''
+    error = _validate_design_preferences(proposed.design_theme, proposed.color_palette, theme_required=theme_allowed)
     if error:
         raise ValidationError(error)
     proposed.special_requests = (remove_end_time_tag(proposed.special_requests) + f'\n(End Time: {proposed.event_end_time:%H:%M})').strip()

@@ -82,34 +82,20 @@ class CanvasInventoryBrowserTests(StaticLiveServerTestCase):
                             page.locator('#mobileInventoryDialog [data-mobile-close]').click()
                         for tab in ('textPanel', 'uploadsPanel', 'layersPanel'):
                             page.locator(f'[data-panel-target="{tab}"]').click()
+                            if tab == 'uploadsPanel' and width <= 1024:
+                                expect(page.locator('#mobileCanvasToolsDialog')).to_be_visible()
+                                expect(page.locator('#mobileCanvasBackground .bg-upload-btn')).to_be_visible()
+                                page.locator('#mobileCanvasToolsDialog [data-mobile-close]').click()
+                                continue
                             expect(sidebar.locator(f'#{tab}')).to_be_visible()
                             expect(sidebar.locator('i.fas, i.far')).to_have_count(0)
                             for label in sidebar.locator(f'#{tab} .section-label').all():
                                 self.assertEqual(label.evaluate('(el) => getComputedStyle(el).textTransform'), 'none')
                             if tab == 'uploadsPanel':
-                                upload_box = page.locator('#referenceUploadDropzone')
-                                page.locator('#browseReferenceFiles').scroll_into_view_if_needed()
-                                self.assertLessEqual(upload_box.evaluate('(el) => el.scrollHeight - el.clientHeight'), 1)
-                                count = page.locator('#userUploadsGrid .draggable-item').count()
                                 image = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=')
-                                with page.expect_file_chooser() as picker:
-                                    page.locator('#browseReferenceFiles').press('Enter')
-                                picker.value.set_files({'name': 'reference.png', 'mimeType': 'image/png', 'buffer': image})
-                                expect(page.locator('#userUploadsGrid .draggable-item')).to_have_count(count + 1)
-                                card = page.locator('#userUploadsGrid .draggable-item').first
-                                self.assertTrue(card.evaluate('(el) => el.querySelector("small").getBoundingClientRect().top >= el.querySelector("img").getBoundingClientRect().bottom'))
-                                if width == 1440:
-                                    page.evaluate('''() => {
-                                        window.uploadTransfer = new DataTransfer();
-                                        uploadTransfer.items.add(new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII='), c => c.charCodeAt(0))], 'drop.png', {type: 'image/png'}));
-                                        document.querySelector('#referenceUploadDropzone').dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: uploadTransfer}));
-                                    }''')
-                                    expect(upload_box).to_have_class('upload-dropzone is-file-over')
-                                    page.evaluate('''() => document.querySelector('#referenceUploadDropzone').dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: uploadTransfer}))''')
-                                    expect(upload_box).to_have_class('upload-dropzone')
-                                    expect(page.locator('#userUploadsGrid .draggable-item')).to_have_count(count + 2)
-                                    page.locator('#userUploadInput').set_input_files({'name': 'invalid.txt', 'mimeType': 'text/plain', 'buffer': b'not an image'})
-                                    expect(page.locator('#userUploadsGrid .draggable-item')).to_have_count(count + 2)
+                                expect(page.locator('#referenceUploadDropzone')).to_have_count(0)
+                                expect(page.locator('#bgImageUpload')).to_have_count(1)
+                                expect(page.locator('.bg-upload-btn')).to_be_visible()
                                 expect(page.locator('#designOverallState')).to_contain_text('0 of 2')
                             sidebar.screenshot(path=str(Path(gettempdir()) / f'balloorina-inventory-{tab}-{theme}-{width}.png'), animations='disabled')
                             if width <= 1024:

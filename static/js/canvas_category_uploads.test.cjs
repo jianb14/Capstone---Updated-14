@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const uploads = require('./canvas_category_uploads.js');
+assert.equal(uploads.colorName('#e74c3c'), 'Red');
+assert.equal(uploads.colorName('#ff0000'), 'Red');
+assert.equal(uploads.colorName('#e91e8c'), 'Pink');
+assert.equal(uploads.colorName('#12abcf'), '#12ABCF');
+const registry = {7: {src: '/my-designs/uploads/7/image/'}};
+const image = {_uploadId: 7, src: 'https://example.test/my-designs/uploads/7/image/'};
+const state = {objects: [{type: 'group', objects: [{...image}]}]};
+assert.equal(typeof uploads.canonicalizeSources, 'function', 'serialization must support nested uploaded images');
+uploads.canonicalizeSources(state, registry, 'https://example.test');
+assert.equal(state.objects[0].objects[0].src, registry[7].src, 'reopened nested images retain their canonical identity');
+const foreign = {objects: [{...image, src: 'https://foreign.invalid/my-designs/uploads/7/image/'}]};
+uploads.canonicalizeSources(foreign, registry, 'https://example.test');
+assert.match(foreign.objects[0].src, /foreign.invalid/, 'serialization must not bless different image pixels');
+console.log('Category upload serialization checks passed.');

@@ -68,7 +68,7 @@ class CanvasToolbarsBrowserTests(StaticLiveServerTestCase):
                             toolbar = page.locator(selector)
                             expect(toolbar).to_be_visible()
                             expect(toolbar.locator('i')).to_have_count(0)
-                            self.assertTrue(toolbar.locator('svg').evaluate_all('''icons => icons.every(icon =>
+                            self.assertTrue(toolbar.locator('svg.inventory-icon').evaluate_all('''icons => icons.every(icon =>
                                 icon.getAttribute('fill') === 'none' && icon.getAttribute('stroke-width') === '1.6' &&
                                 document.querySelector(icon.querySelector('use').getAttribute('href')))
                             '''))

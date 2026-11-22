@@ -160,11 +160,14 @@ class CanvasAssetForm(AvailabilityForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['image'].required = not self.instance.pk
+        self.fields['category'].queryset = CanvasCategory.objects.exclude(builtin_key='theme_decor')
 
     def clean(self):
         values = super().clean()
         category = values.get('category')
         if category:
+            if category.builtin_key == 'theme_decor':
+                self.add_error('category', 'Theme Decor accepts customer uploads only.')
             for key in values.get('available_for', []):
                 if not getattr(category, 'available_' + key):
                     self.add_error('available_for', 'Choose a category available for every selected design type.')

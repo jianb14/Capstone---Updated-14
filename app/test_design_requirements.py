@@ -147,7 +147,7 @@ class DesignRequirementsTests(TestCase):
         for text in ('Package', 'Entrance Arch', 'Welcome Stand', self.entrance.name, 'Required before booking'):
             self.assertContains(response, text)
         response = self.client.get(reverse('design_canvas'), {'design_offer_id': self.entrance_offer.pk})
-        self.assertContains(response, 'Reference photos do not count toward required items.')
+        self.assertContains(response, 'Custom uploads count when placed.')
         self.assertEqual(response.context['design_offer_payload']['price'], '2500.00')
         assets = response.context['canvas_assets_payload_obj']
         self.assertEqual(next(iter(assets.values()))[0]['id'], self.balloon.pk)

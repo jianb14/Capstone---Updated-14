@@ -10,6 +10,9 @@ class AppConfig(AppConfig):
         import os
         import sys
         if 'runserver' in sys.argv and (os.environ.get('RUN_MAIN') == 'true' or '--noreload' in sys.argv):
+            from django.urls import get_resolver
+            # Complete view imports before a worker can import the same package.
+            get_resolver().url_patterns
             from .deadline_worker import start_deadline_worker
             start_deadline_worker()
             from .ai_worker import start_ai_worker
