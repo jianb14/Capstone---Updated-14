@@ -44,7 +44,7 @@ def eligible_assets(offer):
     return CanvasAsset.objects.filter(
         is_active=True, category__is_active=True,
         **{field: True, 'category__' + field: True},
-    ).exclude(category__builtin_key=THEME_DECOR).filter(Q(image__isnull=False) & ~Q(image='') | ~Q(static_path='') | Q(item_type='i-text'))
+    ).filter(Q(image__isnull=False) & ~Q(image='') | ~Q(static_path='') | Q(item_type='i-text'))
 
 
 class EvaluationCatalog:

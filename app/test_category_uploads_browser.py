@@ -20,6 +20,84 @@ from .test_canvas_uploads import TemporaryCanvasStorage
 
 @skipUnless(os.environ.get('RUN_DESIGN_BROWSER') == '1', 'Optional Playwright verification')
 class CategoryUploadsBrowserTests(TemporaryCanvasStorage, StaticLiveServerTestCase):
+    def test_theme_decor_catalog_and_upload_share_allowance(self):
+        from playwright.sync_api import sync_playwright, expect
+
+        user = User.objects.create_user(username='theme-catalog-browser', role='customer')
+        self.client.force_login(user)
+        theme, _ = CanvasCategory.objects.get_or_create(builtin_key='theme_decor', defaults={
+            'name': 'Theme Decor', 'available_package': True, 'available_entrance': True, 'available_stand': True})
+        asset = CanvasAsset.objects.create(category=theme, label='Catalog theme decoration',
+            static_path='images/canvas/premium/frames/panel_wall.svg')
+        offer = DesignOffer.objects.create(kind='package',
+            package=Package.objects.create(name='Theme catalog package', price=1000), is_enabled=True)
+        DesignRequirement.objects.create(offer=offer, category=theme, required=True, minimum=2, maximum=2)
+        panels = CanvasCategory.objects.create(name='Non-themed panels')
+        CanvasAsset.objects.create(category=panels, label='Panel', static_path=asset.static_path)
+        excluded = DesignOffer.objects.create(kind='package',
+            package=Package.objects.create(name='No theme decor package', price=900), is_enabled=True)
+        DesignRequirement.objects.create(offer=excluded, category=panels, required=True, minimum=1)
+        stream = io.BytesIO()
+        Image.new('RGBA', (48, 72), (30, 100, 180, 120)).save(stream, 'PNG')
+        with sync_playwright() as playwright:
+            executable = Path(os.environ.get('PROGRAMFILES(X86)', 'C:/Program Files (x86)')) / 'Microsoft/Edge/Application/msedge.exe'
+            browser = playwright.chromium.launch(executable_path=str(executable), headless=True)
+            context = browser.new_context(viewport={'width': 1440, 'height': 1000}, reduced_motion='reduce')
+            context.add_cookies([{'name': settings.SESSION_COOKIE_NAME,
+                'value': self.client.cookies[settings.SESSION_COOKIE_NAME].value, 'url': self.live_server_url}])
+            page = context.new_page()
+            errors = []
+            page.on('pageerror', lambda error: errors.append(str(error)))
+            try:
+                page.goto(self.live_server_url + reverse('design_canvas') + f'?design_offer_id={excluded.pk}&fresh=1')
+                page.locator('[data-panel-target="elementsPanel"]').click()
+                group = page.locator(f'.inventory-category[data-category-id="{theme.pk}"]')
+                expect(group).to_be_hidden()
+                page.goto(self.live_server_url + reverse('design_canvas') + f'?design_offer_id={offer.pk}&fresh=1')
+                page.locator('[data-panel-target="elementsPanel"]').click()
+                expect(group).to_be_visible()
+                catalog = group.locator(f'[data-asset-id="{asset.pk}"]')
+                expect(catalog).to_be_visible()
+                self.assertTrue(group.evaluate('''el => Boolean(el.querySelector('.catalog-asset-items')
+                    .compareDocumentPosition(el.querySelector('.category-upload-controls')) & Node.DOCUMENT_POSITION_FOLLOWING)'''))
+                catalog.click()
+                expect(page.locator('#cartInclusionsList')).to_contain_text('1/2 required')
+                group.locator('[data-category-file]').set_input_files({
+                    'name': 'my-theme-prop.png', 'mimeType': 'image/png', 'buffer': stream.getvalue()})
+                dialog = page.get_by_role('dialog', name='Upload image')
+                dialog.get_by_role('button', name='Use original', exact=True).click()
+                dialog.get_by_role('button', name='Use image', exact=True).click()
+                group.locator('[data-upload-id]').click()
+                expect(page.locator('#cartInclusionsList')).to_contain_text('2/2 required')
+                expect(page.locator('#designOverallState')).to_contain_text('Ready to book')
+                page.locator('#saveDesignBtn').click()
+                page.locator('#saveDesignNameInput').fill('Catalog and uploaded theme decor')
+                page.locator('#saveDesignConfirmBtn').click()
+                page.wait_for_url('**/my-designs/', timeout=20000)
+                page.locator('.design-actions .edit-btn').first.click()
+                expect(page.locator('#designOverallState')).to_contain_text('Ready to book')
+                page.locator('[data-panel-target="elementsPanel"]').click()
+                expect(catalog).to_be_visible()
+                expect(group.locator('[data-upload-id]')).to_have_count(1)
+                page.locator('#canvasSidebar').screenshot(path=str(Path(gettempdir()) / 'theme-decor-catalog-desktop.png'))
+                for theme_name in ('light', 'dark'):
+                    page.evaluate('(theme) => document.documentElement.dataset.theme = theme', theme_name)
+                    expect(catalog).to_be_visible()
+                    expect(group.locator('[data-upload-id]')).to_be_visible()
+                page.set_viewport_size({'width': 390, 'height': 844})
+                page.reload()
+                expect(page.locator('#designOverallState')).to_contain_text('Ready to book')
+                page.locator('[data-panel-target="elementsPanel"]').click()
+                expect(page.locator('#mobileInventoryDialog')).to_be_visible()
+                expect(catalog).to_be_visible()
+                expect(group.locator('[data-upload-id]')).to_be_visible()
+                page.locator('#mobileInventoryDialog').screenshot(path=str(Path(gettempdir()) / 'theme-decor-catalog-mobile.png'))
+                self.assertLessEqual(page.evaluate('document.documentElement.scrollWidth - innerWidth'), 1)
+                self.assertFalse(errors, errors)
+            finally:
+                context.close()
+                browser.close()
+
     def test_asset_cutout_preview_original_retry_and_cancel(self):
         from playwright.sync_api import sync_playwright, expect
         user=User.objects.create_user(username='cutout-preview-owner',role='customer')

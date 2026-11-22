@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render, redirect
-from .canvas_builtins import THEME_DECOR, THEME_MESSAGE, builtin_message
+from .canvas_builtins import THEME_DECOR, builtin_message
 
 from .design_validation import KINDS, available, eligible_assets
 from .models import Package, AddOn, AdditionalOnly, CanvasCategory, CanvasAsset, DesignOffer, DesignRequirement
@@ -134,7 +134,7 @@ def render_canvas_form(request, template, context=None, **kwargs):
     context['availability_choices'] = [{'kind': k, 'label': label, 'checked': k in selected} for k, label in KINDS.items()]
     context['selected_kind'] = request.POST.get('kind', request.GET.get('kind', 'package'))
     if template.endswith('canvas_asset_form.html'):
-        context['categories'] = list(CanvasCategory.objects.exclude(builtin_key=THEME_DECOR).order_by('order', 'name'))
+        context['categories'] = list(CanvasCategory.objects.order_by('order', 'name'))
         context['category_types'] = {c.pk: [k for k in KINDS if available(c, k)] for c in context['categories']}
     return render(request, template, context, **kwargs)
 
@@ -156,8 +156,6 @@ def configure_canvas_availability(is_asset=False):
                     values = availability_values(request)
                     if is_asset:
                         category = CanvasCategory.objects.filter(pk=request.POST.get('category')).first()
-                        if category and category.builtin_key == THEME_DECOR:
-                            raise ValidationError(THEME_MESSAGE)
                         if category and any(values['available_' + k] and not available(category, k) for k in KINDS):
                             raise ValidationError('Choose a category available in every selected design type, or update the category first.')
                     elif 'id' in kwargs:

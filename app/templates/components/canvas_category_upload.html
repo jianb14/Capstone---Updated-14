@@ -1,5 +1,5 @@
 <div class="category-upload-controls" data-category-upload="{{ category.id }}" data-is-balloon="{{ category.is_balloon|yesno:'true,false' }}">
-    {% if category.builtin_key == 'theme_decor' %}<p class="category-upload-note">Upload balls, character props, or other themed decorations.</p>{% endif %}
+    {% if category.builtin_key == 'theme_decor' %}<p class="category-upload-note">{% if category.design_assets %}Choose an available decoration above or upload your own themed decorations.{% else %}Upload balls, character props, or other themed decorations.{% endif %}</p>{% endif %}
     <p class="category-not-included" hidden>Not included in this package.</p>
     <div class="category-upload-fields">
         <button type="button" class="category-upload-button" data-browse-category aria-label="Upload image for {{ category.name }}" aria-describedby="categoryUploadNote{{ category.id }} categoryUploadError{{ category.id }}">{% include 'components/canvas_inventory_icon.html' with name='upload' %} Upload image</button>

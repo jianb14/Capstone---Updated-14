@@ -8,7 +8,7 @@ from .models import CanvasAsset, CanvasCategory, CanvasUpload
 
 STYRO_NAME = 'styrofoam_name'
 THEME_DECOR = 'theme_decor'
-THEME_MESSAGE = 'Theme Decor is a built-in category for customer uploads. Manage its inclusion and quantity in the offer editor.'
+THEME_MESSAGE = 'Theme Decor is a built-in category for catalog images and customer uploads. Manage its images in Canvas Assets and its inclusion and quantity in the offer editor.'
 BUILTIN_MESSAGE = 'Styrofoam Name is a built-in preset. Its asset and counting category cannot be edited, hidden, or deleted. Manage its inclusion and quantity in the offer editor.'
 
 
@@ -33,8 +33,6 @@ def protect_builtin_deletion(sender, instance, **kwargs):
 @receiver(pre_save, sender=CanvasAsset)
 @receiver(pre_save, sender=CanvasCategory)
 def protect_builtin_identity(sender, instance, using, **kwargs):
-    if sender is CanvasAsset and instance.category_id and instance.category.builtin_key == THEME_DECOR:
-        raise ValidationError(THEME_MESSAGE)
     if not instance.pk:
         return
     stored = sender.objects.using(using).filter(pk=instance.pk).first()

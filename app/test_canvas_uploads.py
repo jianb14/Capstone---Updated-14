@@ -185,8 +185,6 @@ class CanvasUploadTests(TemporaryCanvasStorage, TestCase):
         self.rule.save()
         self.assertTrue(offer_is_ready(self.offer))
         self.upload(category_id=category.pk)
-        with self.assertRaises(ValidationError):
-            CanvasAsset.objects.create(category=category, label='Default', static_path='dummy.svg')
         category.name = 'Changed'
         with self.assertRaises(ValidationError):
             category.save()
